@@ -1,0 +1,33 @@
+# ComplianceAgent Code Owners
+# These owners will be automatically requested for review on PRs
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @josedab
+
+# Backend code
+/backend/ @josedab
+
+# Frontend code  
+/frontend/ @josedab
+
+# Infrastructure and deployment
+/docker/ @josedab
+/infrastructure/ @josedab
+/.github/ @josedab
+
+# Documentation
+/docs/ @josedab
+*.md @josedab
+
+# Configuration files
+*.toml @josedab
+*.json @josedab
+*.yaml @josedab
+*.yml @josedab
+
+# Security-sensitive files (require maintainer review)
+/backend/app/core/security.py @josedab
+/backend/app/services/enterprise/saml.py @josedab
+/backend/app/services/billing/ @josedab
+/.github/workflows/ @josedab

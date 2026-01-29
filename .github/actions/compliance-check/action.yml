@@ -1,0 +1,171 @@
+name: 'ComplianceAgent Check'
+description: 'Scan code for compliance issues and block PRs with critical violations'
+author: 'ComplianceAgent'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  api_url:
+    description: 'ComplianceAgent API URL'
+    required: false
+    default: 'https://api.complianceagent.ai'
+  api_key:
+    description: 'ComplianceAgent API key'
+    required: true
+  regulations:
+    description: 'Comma-separated list of regulations to check (e.g., GDPR,CCPA,HIPAA)'
+    required: false
+    default: 'GDPR,CCPA,HIPAA,EU AI Act'
+  fail_on_severity:
+    description: 'Minimum severity to fail the check (error, warning, info)'
+    required: false
+    default: 'error'
+  scan_paths:
+    description: 'Paths to scan (glob patterns, comma-separated)'
+    required: false
+    default: 'src/**/*.py,src/**/*.ts,src/**/*.js,src/**/*.java'
+  exclude_paths:
+    description: 'Paths to exclude (glob patterns, comma-separated)'
+    required: false
+    default: '**/node_modules/**,**/__pycache__/**,**/dist/**,**/build/**'
+  output_format:
+    description: 'Output format: sarif, json, markdown'
+    required: false
+    default: 'sarif'
+  create_pr_comment:
+    description: 'Create a PR comment with results'
+    required: false
+    default: 'true'
+  upload_sarif:
+    description: 'Upload SARIF to GitHub Security tab'
+    required: false
+    default: 'true'
+  incremental:
+    description: 'Only scan changed files in PR'
+    required: false
+    default: 'true'
+  config_file:
+    description: 'Path to .complianceagent.yml config file'
+    required: false
+    default: '.complianceagent.yml'
+
+outputs:
+  total_issues:
+    description: 'Total number of compliance issues found'
+  critical_issues:
+    description: 'Number of critical (error) issues'
+  warning_issues:
+    description: 'Number of warning issues'
+  info_issues:
+    description: 'Number of informational issues'
+  sarif_file:
+    description: 'Path to generated SARIF file'
+  report_url:
+    description: 'URL to detailed compliance report'
+  passed:
+    description: 'Whether the check passed (true/false)'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        pip install httpx pyyaml
+
+    - name: Get changed files
+      if: inputs.incremental == 'true' && github.event_name == 'pull_request'
+      id: changed-files
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          git fetch origin ${{ github.base_ref }} --depth=1
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(py|ts|js|tsx|jsx|java|go|rb|php|cs)$' | tr '\n' ',' | sed 's/,$//')
+          echo "files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+        else
+          echo "files=" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Run compliance check
+      id: compliance-check
+      shell: bash
+      env:
+        COMPLIANCEAGENT_API_URL: ${{ inputs.api_url }}
+        COMPLIANCEAGENT_API_KEY: ${{ inputs.api_key }}
+        REGULATIONS: ${{ inputs.regulations }}
+        FAIL_ON_SEVERITY: ${{ inputs.fail_on_severity }}
+        SCAN_PATHS: ${{ inputs.scan_paths }}
+        EXCLUDE_PATHS: ${{ inputs.exclude_paths }}
+        OUTPUT_FORMAT: ${{ inputs.output_format }}
+        INCREMENTAL: ${{ inputs.incremental }}
+        CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
+        CONFIG_FILE: ${{ inputs.config_file }}
+      run: |
+        python ${{ github.action_path }}/compliance_check.py
+
+    - name: Upload SARIF
+      if: inputs.upload_sarif == 'true' && always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: compliance-results.sarif
+        category: compliance-agent
+      continue-on-error: true
+
+    - name: Create PR comment
+      if: inputs.create_pr_comment == 'true' && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('compliance-report.md', 'utf8');
+          
+          // Find existing comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('## 🛡️ ComplianceAgent Report')
+          );
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: report,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report,
+            });
+          }
+
+    - name: Set outputs
+      shell: bash
+      run: |
+        if [ -f compliance-outputs.txt ]; then
+          cat compliance-outputs.txt >> $GITHUB_OUTPUT
+        fi
+
+    - name: Check result
+      shell: bash
+      run: |
+        if [ -f compliance-failed.txt ]; then
+          echo "❌ Compliance check failed - critical issues found"
+          exit 1
+        fi
+        echo "✅ Compliance check passed"

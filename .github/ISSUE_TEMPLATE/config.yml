@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/josedab/complianceagent/discussions
+    about: Use discussions for questions, ideas, and general conversations
+  - name: 📖 Documentation
+    url: https://github.com/josedab/complianceagent#readme
+    about: Check out the documentation before asking questions
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/josedab/complianceagent/security/advisories/new
+    about: Report a security vulnerability (do not use regular issues)

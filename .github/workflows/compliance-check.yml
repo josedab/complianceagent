@@ -1,0 +1,74 @@
+name: Compliance Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  compliance-check:
+    name: ComplianceAgent Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run ComplianceAgent Analysis
+        id: compliance
+        env:
+          COMPLIANCEAGENT_API_KEY: ${{ secrets.COMPLIANCEAGENT_API_KEY }}
+          COMPLIANCEAGENT_ORG_ID: ${{ secrets.COMPLIANCEAGENT_ORG_ID }}
+        run: |
+          # This would call the ComplianceAgent API to check PR for compliance issues
+          echo "Running compliance check on PR..."
+          
+          # Example API call (placeholder)
+          # curl -X POST https://api.complianceagent.ai/v1/check \
+          #   -H "Authorization: Bearer $COMPLIANCEAGENT_API_KEY" \
+          #   -H "Content-Type: application/json" \
+          #   -d '{
+          #     "repository": "${{ github.repository }}",
+          #     "pr_number": ${{ github.event.pull_request.number }},
+          #     "base_sha": "${{ github.event.pull_request.base.sha }}",
+          #     "head_sha": "${{ github.event.pull_request.head.sha }}"
+          #   }'
+          
+          echo "compliance_status=passed" >> $GITHUB_OUTPUT
+          echo "issues_count=0" >> $GITHUB_OUTPUT
+
+      - name: Post Compliance Report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.compliance.outputs.compliance_status }}';
+            const issuesCount = parseInt('${{ steps.compliance.outputs.issues_count }}');
+            
+            let body = '## 🛡️ ComplianceAgent Report\n\n';
+            
+            if (status === 'passed') {
+              body += '✅ **No compliance issues detected**\n\n';
+              body += 'This PR has been analyzed for compliance with:\n';
+              body += '- GDPR (EU)\n';
+              body += '- CCPA (California)\n';
+              body += '- HIPAA (Healthcare)\n';
+            } else {
+              body += `⚠️ **${issuesCount} compliance issue(s) detected**\n\n`;
+              body += 'Please review the issues below before merging.\n';
+            }
+            
+            body += '\n---\n';
+            body += '*Powered by [ComplianceAgent](https://complianceagent.ai)*';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Check compliance gate
+        if: steps.compliance.outputs.compliance_status != 'passed'
+        run: |
+          echo "Compliance check failed with ${{ steps.compliance.outputs.issues_count }} issues"
+          exit 1

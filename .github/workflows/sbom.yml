@@ -1,0 +1,96 @@
+name: SBOM Generation
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: |
+          cd backend
+          pip install -e .
+
+      - name: Install Node.js dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Generate Python SBOM (CycloneDX)
+        uses: CycloneDX/gh-python-generate-sbom@v2
+        with:
+          input: ./backend
+          output: ./sbom-python.json
+          format: json
+
+      - name: Generate Node.js SBOM (CycloneDX)
+        uses: CycloneDX/gh-node-module-generatebom@v1
+        with:
+          path: ./frontend
+          output: ./sbom-nodejs.json
+
+      - name: Merge SBOMs
+        run: |
+          # Install cyclonedx-cli for merging
+          npm install -g @cyclonedx/cyclonedx-cli
+          
+          # Merge Python and Node.js SBOMs
+          cyclonedx merge \
+            --input-files sbom-python.json sbom-nodejs.json \
+            --output-file sbom-combined.json \
+            --output-format json
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom-python.json
+            sbom-nodejs.json
+            sbom-combined.json
+          retention-days: 30
+
+      # Attach SBOM to release if triggered by release
+      - name: Upload SBOM to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            sbom-python.json
+            sbom-nodejs.json
+            sbom-combined.json
+
+      # Generate attestation for supply chain security (SLSA)
+      - name: Generate SBOM attestation
+        if: github.event_name == 'release'
+        uses: actions/attest-sbom@v1
+        with:
+          subject-path: sbom-combined.json
+          sbom-path: sbom-combined.json

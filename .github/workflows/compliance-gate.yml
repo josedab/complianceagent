@@ -1,0 +1,249 @@
+name: Compliance Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      repository_id:
+        description: 'Repository ID to check'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  compliance-check:
+    name: Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install httpx pyyaml
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Get files changed in PR
+            FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | tr '\n' ' ')
+          else
+            # For manual runs, check all files
+            FILES="all"
+          fi
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+
+      - name: Run compliance analysis
+        id: compliance
+        env:
+          COMPLIANCEAGENT_API_URL: ${{ vars.COMPLIANCEAGENT_API_URL || 'http://localhost:8000' }}
+          COMPLIANCEAGENT_API_KEY: ${{ secrets.COMPLIANCEAGENT_API_KEY }}
+          CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
+        run: |
+          python << 'EOF'
+          import os
+          import json
+          import sys
+          
+          api_url = os.environ.get('COMPLIANCEAGENT_API_URL', 'http://localhost:8000')
+          api_key = os.environ.get('COMPLIANCEAGENT_API_KEY', '')
+          changed_files = os.environ.get('CHANGED_FILES', '').split()
+          
+          # Check if API is available
+          if not api_key:
+              print("::warning::COMPLIANCEAGENT_API_KEY not set. Running in offline mode.")
+              # Perform basic file pattern checks
+              compliance_issues = []
+              
+              patterns_to_check = {
+                  # Data handling patterns
+                  r'personal.*data|pii|user.*data': 'Potential PII handling detected',
+                  r'credit.*card|card.*number|cvv|pan': 'Potential payment data handling detected',
+                  r'password|secret|api.*key|token': 'Potential credential handling detected',
+                  r'health.*record|medical|hipaa': 'Potential health data handling detected',
+                  # Security patterns
+                  r'exec\(|eval\(|__import__': 'Potentially dangerous code execution',
+                  r'disable.*ssl|verify.*false|insecure': 'Potential security bypass detected',
+              }
+              
+              import re
+              for filepath in changed_files:
+                  if not filepath or filepath == 'all':
+                      continue
+                  if not os.path.exists(filepath):
+                      continue
+                  if not filepath.endswith(('.py', '.js', '.ts', '.java', '.go', '.rb')):
+                      continue
+                  
+                  try:
+                      with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                          content = f.read()
+                          for pattern, message in patterns_to_check.items():
+                              if re.search(pattern, content, re.IGNORECASE):
+                                  compliance_issues.append({
+                                      'file': filepath,
+                                      'issue': message,
+                                      'severity': 'warning',
+                                  })
+                  except Exception as e:
+                      print(f"::warning::Could not analyze {filepath}: {e}")
+              
+              if compliance_issues:
+                  print("## Compliance Analysis Results (Offline Mode)")
+                  print("")
+                  print("| File | Issue | Severity |")
+                  print("|------|-------|----------|")
+                  for issue in compliance_issues:
+                      print(f"| {issue['file']} | {issue['issue']} | {issue['severity']} |")
+                  
+                  # Set output for PR comment
+                  with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                      f.write(f"issues_count={len(compliance_issues)}\n")
+                      f.write(f"status=warning\n")
+              else:
+                  print("✅ No compliance issues detected in changed files.")
+                  with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                      f.write("issues_count=0\n")
+                      f.write("status=pass\n")
+              
+              sys.exit(0)
+          
+          # Online mode - call ComplianceAgent API
+          import httpx
+          
+          headers = {
+              'Authorization': f'Bearer {api_key}',
+              'Content-Type': 'application/json',
+          }
+          
+          try:
+              # Trigger compliance analysis
+              response = httpx.post(
+                  f'{api_url}/api/v1/compliance/analyze-pr',
+                  json={
+                      'repository': os.environ.get('GITHUB_REPOSITORY', ''),
+                      'pr_number': int(os.environ.get('PR_NUMBER', '0')),
+                      'commit_sha': os.environ.get('GITHUB_SHA', ''),
+                      'changed_files': changed_files,
+                  },
+                  headers=headers,
+                  timeout=120,
+              )
+              
+              if response.status_code == 200:
+                  result = response.json()
+                  
+                  print(f"## Compliance Analysis Results")
+                  print(f"")
+                  print(f"**Overall Status:** {result.get('status', 'unknown')}")
+                  print(f"**Compliance Score:** {result.get('score', 'N/A')}%")
+                  print(f"")
+                  
+                  issues = result.get('issues', [])
+                  if issues:
+                      print("### Issues Found")
+                      print("")
+                      print("| Severity | File | Issue | Regulation |")
+                      print("|----------|------|-------|------------|")
+                      for issue in issues:
+                          print(f"| {issue.get('severity', 'info')} | {issue.get('file', '-')} | {issue.get('description', '')} | {issue.get('regulation', '-')} |")
+                  
+                  with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                      f.write(f"issues_count={len(issues)}\n")
+                      f.write(f"status={result.get('status', 'unknown')}\n")
+                      f.write(f"score={result.get('score', 0)}\n")
+                  
+                  # Fail if critical issues found
+                  critical_issues = [i for i in issues if i.get('severity') == 'critical']
+                  if critical_issues:
+                      print(f"::error::Found {len(critical_issues)} critical compliance issues")
+                      sys.exit(1)
+              else:
+                  print(f"::warning::API returned status {response.status_code}")
+                  with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                      f.write("issues_count=0\n")
+                      f.write("status=error\n")
+                  
+          except Exception as e:
+              print(f"::warning::Failed to connect to ComplianceAgent API: {e}")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write("issues_count=0\n")
+                  f.write("status=error\n")
+          
+          EOF
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && steps.compliance.outputs.issues_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issuesCount = '${{ steps.compliance.outputs.issues_count }}';
+            const status = '${{ steps.compliance.outputs.status }}';
+            
+            const body = `## 🔍 Compliance Check Results
+            
+            **Status:** ${status === 'pass' ? '✅ Passed' : status === 'warning' ? '⚠️ Warnings' : '❌ Issues Found'}
+            **Issues Found:** ${issuesCount}
+            
+            ${status === 'warning' ? '> Note: Running in offline mode. Connect ComplianceAgent for full analysis.' : ''}
+            
+            [View full compliance report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Set commit status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.compliance.outputs.status }}';
+            
+            const state = status === 'pass' ? 'success' : 
+                          status === 'warning' ? 'success' : 'failure';
+            
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: state,
+              target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+              description: status === 'pass' ? 'Compliance check passed' : 
+                           status === 'warning' ? 'Compliance warnings found' : 'Compliance issues found',
+              context: 'ComplianceAgent / Compliance Check'
+            });
+
+  # Block merge if critical compliance issues
+  compliance-gate:
+    name: Compliance Gate
+    needs: compliance-check
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Check compliance status
+        run: |
+          if [ "${{ needs.compliance-check.result }}" = "failure" ]; then
+            echo "::error::Compliance check failed. Please address the issues before merging."
+            exit 1
+          fi
+          echo "✅ Compliance gate passed"
