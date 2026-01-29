@@ -1,0 +1,19 @@
+services:
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/base:ubuntu-22.04
+    volumes:
+      - ..:/workspace:cached
+      - devcontainer-venv:/workspace/backend/.venv
+      - devcontainer-node-modules:/workspace/frontend/node_modules
+    command: sleep infinity
+    networks:
+      - complianceagent
+    depends_on:
+      - postgres
+      - redis
+      - elasticsearch
+      - minio
+
+volumes:
+  devcontainer-venv:
+  devcontainer-node-modules:

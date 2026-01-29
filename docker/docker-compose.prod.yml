@@ -1,0 +1,155 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  backend:
+    image: ${REGISTRY}/complianceagent-backend:${VERSION:-latest}
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - COPILOT_API_KEY=${COPILOT_API_KEY}
+      - GITHUB_APP_ID=${GITHUB_APP_ID}
+      - GITHUB_APP_PRIVATE_KEY=${GITHUB_APP_PRIVATE_KEY}
+      - STRIPE_API_KEY=${STRIPE_API_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - ENVIRONMENT=production
+      - DEBUG=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  # Frontend Service
+  frontend:
+    image: ${REGISTRY}/complianceagent-frontend:${VERSION:-latest}
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    environment:
+      - NEXT_PUBLIC_API_URL=${API_URL}
+      - NEXT_PUBLIC_APP_URL=${APP_URL}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
+  # Celery Worker
+  celery-worker:
+    image: ${REGISTRY}/complianceagent-backend:${VERSION:-latest}
+    command: celery -A app.workers worker --loglevel=info --concurrency=4
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - COPILOT_API_KEY=${COPILOT_API_KEY}
+      - ENVIRONMENT=production
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  # Celery Beat Scheduler
+  celery-beat:
+    image: ${REGISTRY}/complianceagent-backend:${VERSION:-latest}
+    command: celery -A app.workers beat --loglevel=info
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - ENVIRONMENT=production
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: overlay
+    attachable: true
