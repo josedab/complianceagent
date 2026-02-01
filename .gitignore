@@ -123,6 +123,7 @@ node_modules/
 .next/
 out/
 .vercel
+*.tsbuildinfo
 
 # IDE
 .idea/
