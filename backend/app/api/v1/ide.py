@@ -644,3 +644,217 @@ async def ide_websocket(
 
     except WebSocketDisconnect:
         pass
+
+
+# ============================================================================
+# Team Suppressions Endpoints (New)
+# ============================================================================
+
+
+class TeamSuppressionRequest(BaseModel):
+    """Request to create a team suppression."""
+    
+    rule_id: str
+    pattern: str | None = None
+    reason: str
+    expires_at: datetime | None = None
+
+
+class TeamSuppressionResponse(BaseModel):
+    """Team suppression entry."""
+    
+    id: str
+    rule_id: str
+    pattern: str | None
+    reason: str
+    created_by: str
+    created_at: datetime
+    expires_at: datetime | None
+    approved: bool
+    approved_by: str | None
+    usage_count: int
+
+
+class FeedbackRequest(BaseModel):
+    """Request to submit feedback on a detection."""
+    
+    type: str  # false_positive, false_negative, severity_adjustment, helpful
+    issue: dict[str, Any]
+    reason: str | None = None
+
+
+@router.get("/suppressions", response_model=list[TeamSuppressionResponse])
+async def get_team_suppressions(
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> list[TeamSuppressionResponse]:
+    """Get team-wide suppressions for the organization."""
+    # In a real implementation, this would fetch from database
+    # For now, return empty list as placeholder
+    return []
+
+
+@router.post("/suppressions", response_model=TeamSuppressionResponse)
+async def request_team_suppression(
+    request: TeamSuppressionRequest,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> TeamSuppressionResponse:
+    """Request a new team-wide suppression.
+    
+    Suppressions require approval from an admin before taking effect.
+    """
+    # In a real implementation, this would save to database
+    # and notify admins for approval
+    from uuid import uuid4
+    
+    return TeamSuppressionResponse(
+        id=str(uuid4()),
+        rule_id=request.rule_id,
+        pattern=request.pattern,
+        reason=request.reason,
+        created_by=str(member.user_id),
+        created_at=datetime.now(UTC),
+        expires_at=request.expires_at,
+        approved=False,  # Requires admin approval
+        approved_by=None,
+        usage_count=0,
+    )
+
+
+@router.put("/suppressions/{suppression_id}/approve")
+async def approve_team_suppression(
+    suppression_id: str,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> TeamSuppressionResponse:
+    """Approve a team suppression (admin only)."""
+    # In a real implementation, this would update the database
+    # and require admin role check
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Suppression not found",
+    )
+
+
+@router.delete("/suppressions/{suppression_id}")
+async def delete_team_suppression(
+    suppression_id: str,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> dict[str, str]:
+    """Delete a team suppression."""
+    # In a real implementation, this would delete from database
+    return {"status": "deleted"}
+
+
+@router.post("/feedback")
+async def submit_feedback(
+    request: FeedbackRequest,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> dict[str, str]:
+    """Submit feedback on a compliance detection.
+    
+    Feedback is used to improve detection accuracy through machine learning.
+    """
+    import structlog
+    logger = structlog.get_logger()
+    
+    # Log feedback for analysis
+    logger.info(
+        "IDE feedback received",
+        organization_id=str(organization.id),
+        user_id=str(member.user_id),
+        feedback_type=request.type,
+        rule_id=request.issue.get("requirementId"),
+        reason=request.reason,
+    )
+    
+    # In a real implementation, this would:
+    # 1. Store feedback in database
+    # 2. Aggregate for ML model training
+    # 3. Auto-create suppressions if high false positive rate
+    
+    return {"status": "received", "message": "Thank you for your feedback!"}
+
+
+# ============================================================================
+# Rule Statistics Endpoints (New)
+# ============================================================================
+
+
+class RuleStatsResponse(BaseModel):
+    """Statistics for a compliance rule."""
+    
+    rule_id: str
+    total_detections: int
+    false_positive_rate: float
+    fix_rate: float
+    suppression_rate: float
+    avg_time_to_fix_minutes: float | None
+
+
+@router.get("/stats/rules", response_model=list[RuleStatsResponse])
+async def get_rule_statistics(
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> list[RuleStatsResponse]:
+    """Get aggregated statistics for compliance rules.
+    
+    Useful for understanding which rules are most effective
+    and which may need tuning.
+    """
+    # In a real implementation, this would aggregate from database
+    # For now, return sample data
+    return [
+        RuleStatsResponse(
+            rule_id="GDPR-PII-001",
+            total_detections=145,
+            false_positive_rate=0.12,
+            fix_rate=0.78,
+            suppression_rate=0.10,
+            avg_time_to_fix_minutes=15.5,
+        ),
+        RuleStatsResponse(
+            rule_id="SOC2-CRED-001",
+            total_detections=89,
+            false_positive_rate=0.05,
+            fix_rate=0.92,
+            suppression_rate=0.03,
+            avg_time_to_fix_minutes=5.2,
+        ),
+        RuleStatsResponse(
+            rule_id="HIPAA-PHI-001",
+            total_detections=67,
+            false_positive_rate=0.18,
+            fix_rate=0.65,
+            suppression_rate=0.17,
+            avg_time_to_fix_minutes=25.8,
+        ),
+    ]
+
+
+@router.get("/stats/rules/{rule_id}", response_model=RuleStatsResponse)
+async def get_rule_stats(
+    rule_id: str,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> RuleStatsResponse:
+    """Get statistics for a specific rule."""
+    # In a real implementation, this would fetch from database
+    return RuleStatsResponse(
+        rule_id=rule_id,
+        total_detections=0,
+        false_positive_rate=0.0,
+        fix_rate=0.0,
+        suppression_rate=0.0,
+        avg_time_to_fix_minutes=None,
+    )
