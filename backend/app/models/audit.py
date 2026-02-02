@@ -32,6 +32,7 @@ class AuditEventType(str, Enum):
     PR_UPDATED = "pr_updated"
     PR_MERGED = "pr_merged"
     PR_CLOSED = "pr_closed"
+    PR_ANALYZED = "pr_analyzed"
 
     # Review
     HUMAN_REVIEW_REQUESTED = "human_review_requested"

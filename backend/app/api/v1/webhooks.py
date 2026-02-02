@@ -70,17 +70,34 @@ async def handle_push_event(data: dict[str, Any], db: AsyncSession) -> None:
 
 async def handle_pull_request_event(data: dict[str, Any], db: AsyncSession) -> None:
     """Handle PR events - run compliance check on PRs."""
+    from app.workers.pr_bot_tasks import process_pr_webhook
+    
     action = data.get("action")
 
     if action not in ["opened", "synchronize", "reopened"]:
         return
 
-    data.get("pull_request", {})
-    data.get("repository", {})
-
-    # Queue compliance check
-
-    # check_pr_compliance.delay(repo["full_name"], pr["number"])
+    pr = data.get("pull_request", {})
+    repo = data.get("repository", {})
+    
+    # Get organization for this repository
+    from sqlalchemy import select
+    from app.models.codebase import Repository
+    
+    repo_result = await db.execute(
+        select(Repository).where(Repository.full_name == repo.get("full_name"))
+    )
+    repository = repo_result.scalar_one_or_none()
+    
+    if repository and repository.organization_id:
+        # Queue PR analysis task
+        # In production, access_token would come from GitHub App installation
+        process_pr_webhook.delay(
+            event_type="pull_request",
+            event_data=data,
+            organization_id=str(repository.organization_id),
+            access_token="",  # Will be fetched from installation in task
+        )
 
 
 async def handle_installation_event(data: dict[str, Any], db: AsyncSession) -> None:

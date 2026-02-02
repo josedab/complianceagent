@@ -4,9 +4,11 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     ai_safety,
+    alerts,
     audit,
     auth,
     billing,
+    chat,
     chatbot,
     cicd,
     cloud,
@@ -14,15 +16,20 @@ from app.api.v1 import (
     customer_profiles,
     digital_twin,
     evidence,
+    evidence_collector,
     graph,
     health_score,
     ide,
+    infrastructure,
     intelligence,
+    knowledge_graph,
     mappings,
     marketplace,
     orchestration,
     organizations,
     playbook,
+    portfolio,
+    pr_bot,
     predictions,
     pr_review,
     query,
@@ -30,9 +37,14 @@ from app.api.v1 import (
     repositories,
     requirements,
     sandbox,
+    scoring,
+    simulator,
     sso,
+    starter_kits,
     templates,
+    training,
     users,
+    vendor_assessment,
     vendor_risk,
     webhooks,
 )
@@ -65,10 +77,12 @@ router.include_router(templates.router, prefix="/templates", tags=["Compliance T
 router.include_router(cloud.router, prefix="/cloud", tags=["Cloud Compliance"])
 router.include_router(graph.router, prefix="/graph", tags=["Knowledge Graph"])
 router.include_router(sandbox.router, prefix="/sandbox", tags=["Compliance Sandbox"])
-router.include_router(chatbot.router, prefix="/chat", tags=["Compliance Chatbot"])
+router.include_router(chatbot.router, prefix="/chatbot", tags=["Compliance Chatbot (Legacy)"])
+router.include_router(chat.router, prefix="/chat", tags=["Compliance Copilot Chat"])
 
 # Next-Gen Feature Routers
 router.include_router(pr_review.router, prefix="/pr-review", tags=["PR Review Co-Pilot"])
+router.include_router(pr_bot.router, tags=["PR Bot"])
 router.include_router(intelligence.router, prefix="/intelligence", tags=["Regulatory Intelligence"])
 router.include_router(digital_twin.router, prefix="/digital-twin", tags=["Compliance Digital Twin"])
 router.include_router(evidence.router, prefix="/evidence", tags=["Evidence Generator"])
@@ -78,3 +92,13 @@ router.include_router(vendor_risk.router, prefix="/vendor-risk", tags=["Vendor R
 router.include_router(playbook.router, prefix="/playbook", tags=["Compliance Playbook"])
 router.include_router(orchestration.router, prefix="/orchestration", tags=["Compliance Orchestration"])
 router.include_router(health_score.router, prefix="/health-score", tags=["Health Score"])
+router.include_router(scoring.router, prefix="/scoring", tags=["Compliance Scoring"])
+router.include_router(alerts.router, prefix="/alerts", tags=["Regulatory Alerts"])
+router.include_router(portfolio.router, prefix="/portfolios", tags=["Compliance Portfolios"])
+router.include_router(simulator.router, prefix="/simulator", tags=["Scenario Simulator"])
+router.include_router(evidence_collector.router, prefix="/evidence-collector", tags=["Evidence Collection"])
+router.include_router(vendor_assessment.router, prefix="/vendor-assessment", tags=["Vendor Assessment"])
+router.include_router(knowledge_graph.router, prefix="/knowledge-graph", tags=["Knowledge Graph Explorer"])
+router.include_router(starter_kits.router, prefix="/starter-kits", tags=["Regulation Starter Kits"])
+router.include_router(training.router, prefix="/training", tags=["Compliance Training"])
+router.include_router(infrastructure.router, tags=["Infrastructure Compliance"])
