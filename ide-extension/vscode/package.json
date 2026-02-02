@@ -1,0 +1,253 @@
+{
+  "name": "complianceagent-vscode",
+  "displayName": "ComplianceAgent",
+  "description": "Real-time compliance suggestions and quick-fixes for regulated codebases",
+  "version": "0.2.0",
+  "publisher": "complianceagent",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/josedab/complianceagent"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "compliance",
+    "gdpr",
+    "hipaa",
+    "pci-dss",
+    "sox",
+    "eu-ai-act",
+    "regulatory",
+    "security"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "complianceagent.scanFile",
+        "title": "ComplianceAgent: Scan Current File"
+      },
+      {
+        "command": "complianceagent.scanWorkspace",
+        "title": "ComplianceAgent: Scan Workspace"
+      },
+      {
+        "command": "complianceagent.showDashboard",
+        "title": "ComplianceAgent: Show Dashboard"
+      },
+      {
+        "command": "complianceagent.applyQuickFix",
+        "title": "ComplianceAgent: Apply Quick Fix"
+      },
+      {
+        "command": "complianceagent.configure",
+        "title": "ComplianceAgent: Configure"
+      },
+      {
+        "command": "complianceagent.aiQuickFix",
+        "title": "ComplianceAgent: Generate AI Fix"
+      },
+      {
+        "command": "complianceagent.aiFixAll",
+        "title": "ComplianceAgent: AI Fix All Issues in File"
+      },
+      {
+        "command": "complianceagent.suppress",
+        "title": "ComplianceAgent: Suppress Issue"
+      },
+      {
+        "command": "complianceagent.markFalsePositive",
+        "title": "ComplianceAgent: Mark as False Positive"
+      },
+      {
+        "command": "complianceagent.viewSuppressions",
+        "title": "ComplianceAgent: View Suppressions"
+      },
+      {
+        "command": "complianceagent.requestTeamSuppression",
+        "title": "ComplianceAgent: Request Team Suppression"
+      },
+      {
+        "command": "complianceagent.viewTeamSuppressions",
+        "title": "ComplianceAgent: View Team Suppressions"
+      },
+      {
+        "command": "complianceagent.syncTeamSuppressions",
+        "title": "ComplianceAgent: Sync Team Suppressions"
+      },
+      {
+        "command": "complianceagent.viewRuleStats",
+        "title": "ComplianceAgent: View Rule Statistics"
+      },
+      {
+        "command": "complianceagent.exportStats",
+        "title": "ComplianceAgent: Export Statistics"
+      }
+    ],
+    "configuration": {
+      "title": "ComplianceAgent",
+      "properties": {
+        "complianceagent.apiEndpoint": {
+          "type": "string",
+          "default": "https://api.complianceagent.ai",
+          "description": "ComplianceAgent API endpoint"
+        },
+        "complianceagent.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for ComplianceAgent (get from dashboard)"
+        },
+        "complianceagent.enableRealTimeScanning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time compliance scanning as you type"
+        },
+        "complianceagent.frameworks": {
+          "type": "array",
+          "default": ["GDPR", "HIPAA", "SOC2", "PCI-DSS", "EU-AI-ACT"],
+          "description": "Regulatory frameworks to check against",
+          "items": {
+            "type": "string",
+            "enum": ["GDPR", "HIPAA", "SOC2", "PCI-DSS", "EU-AI-ACT", "SOX", "CCPA", "ISO27001"]
+          }
+        },
+        "complianceagent.severityThreshold": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"],
+          "default": "medium",
+          "description": "Minimum severity level to show warnings"
+        },
+        "complianceagent.autoFix": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically apply safe quick-fixes"
+        },
+        "complianceagent.enableAIFixes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI-powered code fix suggestions"
+        },
+        "complianceagent.enableLearning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable learning from your feedback to improve detection accuracy"
+        },
+        "complianceagent.enableTeamSuppressions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable team-wide suppressions synced from backend"
+        },
+        "complianceagent.scanDebounceMs": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 200,
+          "maximum": 5000,
+          "description": "Debounce time in milliseconds for real-time scanning"
+        },
+        "complianceagent.maxIssuesPerFile": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 500,
+          "description": "Maximum number of issues to show per file"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "complianceagent.scanFile",
+          "group": "complianceagent"
+        },
+        {
+          "command": "complianceagent.aiQuickFix",
+          "group": "complianceagent",
+          "when": "editorHasSelection"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "complianceagent.scanFile"
+        },
+        {
+          "command": "complianceagent.scanWorkspace"
+        },
+        {
+          "command": "complianceagent.showDashboard"
+        },
+        {
+          "command": "complianceagent.viewSuppressions"
+        },
+        {
+          "command": "complianceagent.viewTeamSuppressions"
+        },
+        {
+          "command": "complianceagent.viewRuleStats"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "python",
+        "extensions": [".py"]
+      },
+      {
+        "id": "javascript",
+        "extensions": [".js", ".jsx"]
+      },
+      {
+        "id": "typescript",
+        "extensions": [".ts", ".tsx"]
+      },
+      {
+        "id": "java",
+        "extensions": [".java"]
+      },
+      {
+        "id": "go",
+        "extensions": [".go"]
+      },
+      {
+        "id": "csharp",
+        "extensions": [".cs"]
+      },
+      {
+        "id": "ruby",
+        "extensions": [".rb"]
+      },
+      {
+        "id": "php",
+        "extensions": [".php"]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.2"
+  }
+}
