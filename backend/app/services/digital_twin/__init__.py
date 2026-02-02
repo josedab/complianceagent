@@ -8,6 +8,27 @@ from app.services.digital_twin.models import (
     SimulationResult,
     ScenarioType,
 )
+from app.services.digital_twin.migration_planner import (
+    MigrationPlanner,
+    MigrationPlan,
+    MigrationTask,
+    MigrationMilestone,
+    MigrationPhase,
+    TaskPriority,
+    TaskStatus,
+    get_migration_planner,
+)
+from app.services.digital_twin.codebase_graph import (
+    CodebaseGraph,
+    CodebaseGraphBuilder,
+    CodeNode,
+    DataFlowEdge,
+    DataFlow,
+    CodeNodeType,
+    DataFlowType,
+    DataSensitivity,
+    get_codebase_graph_builder,
+)
 
 
 # Global simulator instance
@@ -23,12 +44,33 @@ def get_compliance_simulator() -> ComplianceSimulator:
 
 
 __all__ = [
+    # Snapshot management
     "SnapshotManager",
+    "get_snapshot_manager",
+    # Simulation
     "ComplianceSimulator",
     "ComplianceSnapshot",
     "SimulationScenario",
     "SimulationResult",
     "ScenarioType",
     "get_compliance_simulator",
-    "get_snapshot_manager",
+    # Migration planning
+    "MigrationPlanner",
+    "MigrationPlan",
+    "MigrationTask",
+    "MigrationMilestone",
+    "MigrationPhase",
+    "TaskPriority",
+    "TaskStatus",
+    "get_migration_planner",
+    # Codebase graph
+    "CodebaseGraph",
+    "CodebaseGraphBuilder",
+    "CodeNode",
+    "DataFlowEdge",
+    "DataFlow",
+    "CodeNodeType",
+    "DataFlowType",
+    "DataSensitivity",
+    "get_codebase_graph_builder",
 ]
