@@ -460,3 +460,358 @@ async def get_simulation_issues(result_id: UUID):
             for i in result.resolved_issues
         ],
     }
+
+
+# Migration Planning Endpoints
+class GenerateMigrationPlanRequest(BaseModel):
+    """Request to generate a migration plan."""
+    
+    simulation_result_id: UUID
+    organization_id: UUID | None = None
+    target_score: float = 0.95
+    timeline_days: int = 90
+
+
+class UpdateTaskStatusRequest(BaseModel):
+    """Request to update task status."""
+    
+    status: str
+
+
+@router.post("/migration-plans")
+async def generate_migration_plan(request: GenerateMigrationPlanRequest):
+    """Generate a migration plan from simulation results.
+    
+    Creates a comprehensive plan with tasks, milestones, and suggested PRs
+    based on compliance gaps identified in the simulation.
+    """
+    from app.services.digital_twin import get_migration_planner, get_compliance_simulator
+    
+    simulator = get_compliance_simulator()
+    result = await simulator.get_result(request.simulation_result_id)
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="Simulation result not found")
+    
+    planner = get_migration_planner()
+    plan = await planner.generate_plan(
+        simulation_result=result,
+        organization_id=request.organization_id,
+        target_score=request.target_score,
+        timeline_days=request.timeline_days,
+    )
+    
+    return {
+        "id": str(plan.id),
+        "name": plan.name,
+        "created_at": plan.created_at.isoformat(),
+        "metrics": {
+            "total_tasks": plan.total_tasks,
+            "total_estimated_hours": plan.total_estimated_hours,
+            "current_score": plan.current_score,
+            "target_score": plan.target_score,
+            "progress_percentage": plan.progress_percentage,
+        },
+        "risk": {
+            "level": plan.risk_level,
+            "factors": plan.risk_factors,
+        },
+        "regulations_addressed": plan.regulations_addressed,
+        "milestones": [
+            {
+                "id": str(m.id),
+                "name": m.name,
+                "phase": m.phase.value,
+                "target_date": m.target_date.isoformat() if m.target_date else None,
+                "task_count": len(m.tasks),
+            }
+            for m in plan.milestones
+        ],
+        "suggested_prs": plan.suggested_prs[:5],
+    }
+
+
+@router.get("/migration-plans/{plan_id}")
+async def get_migration_plan(plan_id: UUID):
+    """Get a migration plan by ID."""
+    from app.services.digital_twin import get_migration_planner
+    
+    planner = get_migration_planner()
+    plan = await planner.get_plan(plan_id)
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Migration plan not found")
+    
+    return {
+        "id": str(plan.id),
+        "name": plan.name,
+        "description": plan.description,
+        "created_at": plan.created_at.isoformat(),
+        "updated_at": plan.updated_at.isoformat(),
+        "metrics": {
+            "total_tasks": plan.total_tasks,
+            "completed_tasks": plan.completed_tasks,
+            "blocked_tasks": plan.blocked_tasks,
+            "total_estimated_hours": plan.total_estimated_hours,
+            "current_score": plan.current_score,
+            "target_score": plan.target_score,
+            "progress_percentage": plan.progress_percentage,
+        },
+        "risk": {
+            "level": plan.risk_level,
+            "factors": plan.risk_factors,
+        },
+        "regulations_addressed": plan.regulations_addressed,
+    }
+
+
+@router.get("/migration-plans/{plan_id}/tasks")
+async def get_migration_plan_tasks(plan_id: UUID, phase: str | None = None):
+    """Get tasks for a migration plan."""
+    from app.services.digital_twin import get_migration_planner
+    
+    planner = get_migration_planner()
+    plan = await planner.get_plan(plan_id)
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Migration plan not found")
+    
+    tasks = plan.tasks
+    if phase:
+        tasks = [t for t in tasks if t.phase.value == phase]
+    
+    return {
+        "plan_id": str(plan_id),
+        "total": len(tasks),
+        "tasks": [
+            {
+                "id": str(t.id),
+                "title": t.title,
+                "description": t.description,
+                "phase": t.phase.value,
+                "priority": t.priority.value,
+                "status": t.status.value,
+                "estimated_hours": t.estimated_hours,
+                "assigned_to": t.assigned_to,
+                "related_issues": t.related_issues,
+                "related_files": t.related_files,
+                "related_regulations": t.related_regulations,
+                "acceptance_criteria": t.acceptance_criteria,
+            }
+            for t in tasks
+        ],
+    }
+
+
+@router.patch("/migration-plans/{plan_id}/tasks/{task_id}")
+async def update_migration_task(
+    plan_id: UUID,
+    task_id: UUID,
+    request: UpdateTaskStatusRequest,
+):
+    """Update the status of a migration task."""
+    from app.services.digital_twin import get_migration_planner, TaskStatus
+    
+    planner = get_migration_planner()
+    
+    try:
+        status = TaskStatus(request.status)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Must be one of: {[s.value for s in TaskStatus]}",
+        )
+    
+    task = await planner.update_task_status(plan_id, task_id, status)
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return {
+        "id": str(task.id),
+        "title": task.title,
+        "status": task.status.value,
+        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+    }
+
+
+@router.get("/migration-plans/{plan_id}/export")
+async def export_migration_plan(plan_id: UUID, format: str = "json"):
+    """Export migration plan in various formats.
+    
+    Supported formats: json, markdown, jira
+    """
+    from app.services.digital_twin import get_migration_planner
+    
+    planner = get_migration_planner()
+    
+    try:
+        export = await planner.export_plan(plan_id, format=format)
+        return export
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# Codebase Graph Endpoints
+class BuildCodebaseGraphRequest(BaseModel):
+    """Request to build a codebase graph."""
+    
+    repository_id: UUID
+    organization_id: UUID
+    files: dict[str, str]
+    commit_sha: str | None = None
+
+
+@router.post("/codebase-graphs")
+async def build_codebase_graph(request: BuildCodebaseGraphRequest):
+    """Build a codebase graph for compliance analysis.
+    
+    Analyzes source files to create a graph of code dependencies,
+    data flows, and identifies compliance-sensitive areas.
+    """
+    from app.services.digital_twin import get_codebase_graph_builder
+    
+    builder = get_codebase_graph_builder()
+    graph = await builder.build_graph(
+        repository_id=request.repository_id,
+        organization_id=request.organization_id,
+        files=request.files,
+        commit_sha=request.commit_sha,
+    )
+    
+    return {
+        "id": str(graph.id),
+        "name": graph.name,
+        "created_at": graph.created_at.isoformat(),
+        "statistics": {
+            "node_count": graph.node_count,
+            "edge_count": graph.edge_count,
+            "data_flow_count": len(graph.data_flows),
+            "files_analyzed": graph.files_analyzed,
+            "languages": graph.languages,
+            "sensitive_nodes": len(graph.sensitive_data_nodes),
+        },
+    }
+
+
+@router.get("/codebase-graphs/{graph_id}")
+async def get_codebase_graph(graph_id: UUID):
+    """Get codebase graph metadata."""
+    from app.services.digital_twin import get_codebase_graph_builder
+    
+    builder = get_codebase_graph_builder()
+    graph = await builder.get_graph(graph_id)
+    
+    if not graph:
+        raise HTTPException(status_code=404, detail="Codebase graph not found")
+    
+    return {
+        "id": str(graph.id),
+        "name": graph.name,
+        "repository_id": str(graph.repository_id) if graph.repository_id else None,
+        "created_at": graph.created_at.isoformat(),
+        "updated_at": graph.updated_at.isoformat(),
+        "commit_sha": graph.commit_sha,
+        "statistics": {
+            "node_count": graph.node_count,
+            "edge_count": graph.edge_count,
+            "data_flow_count": len(graph.data_flows),
+            "files_analyzed": graph.files_analyzed,
+            "languages": graph.languages,
+        },
+    }
+
+
+@router.get("/codebase-graphs/{graph_id}/visualization")
+async def export_codebase_graph_visualization(graph_id: UUID):
+    """Export codebase graph for visualization.
+    
+    Returns graph data in a format suitable for rendering with
+    visualization libraries like D3.js, Cytoscape, or vis.js.
+    """
+    from app.services.digital_twin import get_codebase_graph_builder
+    
+    builder = get_codebase_graph_builder()
+    
+    try:
+        return await builder.export_for_visualization(graph_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/codebase-graphs/{graph_id}/data-flows")
+async def get_data_flows(graph_id: UUID, sensitivity: str | None = None):
+    """Get data flows from a codebase graph.
+    
+    Optionally filter by data sensitivity level.
+    """
+    from app.services.digital_twin import get_codebase_graph_builder, DataSensitivity
+    
+    builder = get_codebase_graph_builder()
+    graph = await builder.get_graph(graph_id)
+    
+    if not graph:
+        raise HTTPException(status_code=404, detail="Codebase graph not found")
+    
+    flows = graph.data_flows
+    
+    if sensitivity:
+        try:
+            sens = DataSensitivity(sensitivity)
+            flows = [f for f in flows if sens in f.data_sensitivity]
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid sensitivity. Must be one of: {[s.value for s in DataSensitivity]}",
+            )
+    
+    return {
+        "graph_id": str(graph_id),
+        "total": len(flows),
+        "data_flows": [
+            {
+                "id": str(f.id),
+                "name": f.name,
+                "description": f.description,
+                "node_count": len(f.nodes),
+                "data_types": f.data_types,
+                "data_sensitivity": [s.value for s in f.data_sensitivity],
+                "regulations_affected": f.regulations_affected,
+                "compliance_score": f.compliance_score,
+                "compliance_status": f.compliance_status,
+            }
+            for f in flows
+        ],
+    }
+
+
+@router.get("/codebase-graphs/{graph_id}/sensitive-nodes")
+async def get_sensitive_nodes(graph_id: UUID):
+    """Get nodes handling sensitive data."""
+    from app.services.digital_twin import get_codebase_graph_builder
+    
+    builder = get_codebase_graph_builder()
+    graph = await builder.get_graph(graph_id)
+    
+    if not graph:
+        raise HTTPException(status_code=404, detail="Codebase graph not found")
+    
+    sensitive = graph.sensitive_data_nodes
+    
+    return {
+        "graph_id": str(graph_id),
+        "total": len(sensitive),
+        "nodes": [
+            {
+                "id": str(n.id),
+                "type": n.node_type.value,
+                "name": n.name,
+                "qualified_name": n.qualified_name,
+                "file_path": n.file_path,
+                "data_types": n.data_types_handled,
+                "data_sensitivity": [s.value for s in n.data_sensitivity],
+                "compliance_issues": n.compliance_issues,
+            }
+            for n in sensitive
+        ],
+    }

@@ -302,3 +302,137 @@ async def list_supported_intents():
     ]
     
     return {"intents": intents}
+
+
+# Natural Language Query Session Endpoints
+class NLQueryRequest(BaseModel):
+    """Request for natural language compliance query."""
+    
+    query: str = Field(..., min_length=2, max_length=2000)
+    session_id: UUID | None = None
+    codebase_context: dict[str, Any] | None = None
+    compliance_data: dict[str, Any] | None = None
+
+
+class CreateNLSessionRequest(BaseModel):
+    """Request to create an NL query session."""
+    
+    organization_id: UUID | None = None
+    user_id: str = ""
+    initial_context: dict[str, Any] | None = None
+
+
+@router.post("/nl/sessions")
+async def create_nl_session(request: CreateNLSessionRequest):
+    """Create a new natural language query session.
+    
+    Sessions maintain conversation context across multiple queries,
+    allowing for follow-up questions and contextual answers.
+    """
+    from app.services.query_engine import get_nl_query_engine
+    
+    engine = get_nl_query_engine()
+    session = engine.create_session(
+        organization_id=request.organization_id,
+        user_id=request.user_id,
+        initial_context=request.initial_context,
+    )
+    
+    return {
+        "session_id": str(session.id),
+        "organization_id": str(session.organization_id) if session.organization_id else None,
+        "user_id": session.user_id,
+        "created_at": session.created_at.isoformat(),
+    }
+
+
+@router.post("/nl/query")
+async def nl_query(request: NLQueryRequest):
+    """Execute a natural language compliance query.
+    
+    Supports queries like:
+    - "Show me all GDPR violations in our user service"
+    - "What files handle personal data?"
+    - "Explain HIPAA Article 164.312 requirements"
+    - "Are we compliant with PCI-DSS?"
+    - "How do I fix consent management issues?"
+    - "What is our compliance score for GDPR?"
+    
+    Provide session_id for conversational context across queries.
+    """
+    from app.services.query_engine import get_nl_query_engine
+    
+    engine = get_nl_query_engine()
+    
+    result = await engine.query(
+        query_text=request.query,
+        session_id=request.session_id,
+        codebase_context=request.codebase_context,
+        compliance_data=request.compliance_data,
+    )
+    
+    return {
+        "result_id": str(result.id),
+        "query_id": str(result.query_id),
+        "answer": result.answer,
+        "summary": result.summary,
+        "confidence": result.confidence,
+        "violations": result.violations[:20],
+        "affected_files": result.affected_files[:20],
+        "requirements": result.requirements[:10],
+        "recommendations": result.recommendations[:10],
+        "citations": result.citations,
+        "sources_used": result.sources_used,
+        "execution_time_ms": result.execution_time_ms,
+    }
+
+
+@router.get("/nl/sessions/{session_id}")
+async def get_nl_session(session_id: UUID):
+    """Get a natural language query session."""
+    from app.services.query_engine import get_nl_query_engine
+    
+    engine = get_nl_query_engine()
+    session = engine.get_session(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    return {
+        "session_id": str(session.id),
+        "organization_id": str(session.organization_id) if session.organization_id else None,
+        "user_id": session.user_id,
+        "query_count": len(session.queries),
+        "active_regulations": session.active_regulations,
+        "created_at": session.created_at.isoformat(),
+        "updated_at": session.updated_at.isoformat(),
+        "history": [
+            {
+                "query": q.original_query,
+                "intent": q.intent.value,
+                "confidence": q.confidence,
+                "answer_summary": session.results[i].summary if i < len(session.results) else None,
+            }
+            for i, q in enumerate(session.queries)
+        ],
+    }
+
+
+@router.get("/nl/suggestions")
+async def get_query_suggestions(
+    partial_query: str = "",
+    session_id: UUID | None = None,
+):
+    """Get query suggestions based on partial input.
+    
+    Provides autocomplete suggestions for compliance queries.
+    """
+    from app.services.query_engine import get_nl_query_engine
+    
+    engine = get_nl_query_engine()
+    suggestions = await engine.get_query_suggestions(
+        partial_query=partial_query,
+        session_id=session_id,
+    )
+    
+    return {"suggestions": suggestions}
