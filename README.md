@@ -38,6 +38,32 @@ ComplianceAgent is an AI-powered platform that automatically monitors regulatory
 - **Vendor/Third-Party Risk**: Dependency scanning and vendor compliance assessment
 - **Regulatory Chatbot**: Conversational compliance assistant with codebase context
 
+### 🆕 Next-Gen Features (v0.2.0)
+
+#### Automated Compliance PR Bot
+- **Automatic PR Analysis**: Triggered on PR open/sync via GitHub webhooks
+- **GitHub Checks Integration**: Creates status checks with detailed compliance reports
+- **Smart Labeling**: Auto-labels PRs based on compliance risk (compliance-critical, compliance-warning, compliance-ok)
+- **Inline Review Comments**: Posts contextual comments on specific lines with fix suggestions
+- **Merge Blocking**: Optionally block merging PRs with critical compliance violations
+- **Batch Processing**: Analyze multiple PRs in parallel with Redis-backed queue
+
+#### Compliance Copilot Chat
+- **Context-Aware Conversations**: Maintains conversation history with RAG-enhanced responses
+- **Streaming Responses**: Real-time SSE streaming for responsive chat experience
+- **Multi-Source RAG**: Retrieves context from regulations, codebase mappings, and compliance policies
+- **Code Analysis**: Dedicated endpoint for analyzing code snippets for compliance issues
+- **Regulation Explanations**: Deep-dive explanations of specific regulatory articles
+- **Action Triggers**: Chat-to-action pipeline (create issues, trigger scans, approve suppressions)
+
+#### Real-Time IDE Compliance Linting
+- **25+ Compliance Patterns**: Pre-built rules for GDPR, HIPAA, PCI-DSS, SOC 2, EU AI Act
+- **AI-Powered Quick Fixes**: Intelligent code fix suggestions with compliance annotations
+- **Bulk Fix All**: Apply all quick fixes in a document with one command
+- **Team Suppressions**: Share false-positive suppressions across the team
+- **Learning System**: Feedback loop improves detection accuracy over time
+- **Multi-Framework Support**: JavaScript, TypeScript, Python, Java, Go, C#
+
 ### Enterprise Features
 - **SSO/SAML Authentication**: Enterprise identity provider integration
 - **SCIM User Provisioning**: Automatic user management
@@ -249,6 +275,40 @@ complianceagent/
 | `/api/v1/billing/plans` | GET | List subscription plans |
 | `/api/v1/billing/subscription` | GET | Get current subscription |
 | `/api/v1/billing/checkout` | POST | Create checkout session |
+
+### PR Bot
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/pr-bot/analyze` | POST | Trigger PR analysis |
+| `/api/v1/pr-bot/analyze/batch` | POST | Batch analyze multiple PRs |
+| `/api/v1/pr-bot/task/{id}` | GET | Get task status |
+| `/api/v1/pr-bot/config` | GET | Get PR bot configuration |
+| `/api/v1/pr-bot/config` | PUT | Update PR bot configuration |
+| `/api/v1/pr-bot/stats` | GET | Get analysis statistics |
+| `/api/v1/pr-bot/history` | GET | Get analysis history |
+
+### Compliance Chat
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/chat/message` | POST | Send chat message |
+| `/api/v1/chat/message/stream` | POST | Stream chat response (SSE) |
+| `/api/v1/chat/conversations` | GET | List conversations |
+| `/api/v1/chat/conversation/{id}` | DELETE | Delete conversation |
+| `/api/v1/chat/analyze-code` | POST | Analyze code for compliance |
+| `/api/v1/chat/explain-regulation` | POST | Explain regulation article |
+| `/api/v1/chat/quick-actions` | GET | Get quick action suggestions |
+
+### IDE Integration
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/ide/analyze` | POST | Analyze document |
+| `/api/v1/ide/quickfix` | POST | Get AI quick fix suggestion |
+| `/api/v1/ide/deep-analyze` | POST | Deep AI analysis |
+| `/api/v1/ide/suppressions` | GET | List team suppressions |
+| `/api/v1/ide/suppressions` | POST | Request team suppression |
+| `/api/v1/ide/suppressions/{id}` | DELETE | Delete suppression |
+| `/api/v1/ide/feedback` | POST | Submit detection feedback |
+| `/api/v1/ide/stats/rules` | GET | Get rule statistics |
 
 ## ⚙️ Configuration
 
