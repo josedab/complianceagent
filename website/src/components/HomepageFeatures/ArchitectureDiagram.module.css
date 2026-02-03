@@ -1,0 +1,229 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.section {
+  width: 100%;
+  text-align: center;
+}
+
+.sectionLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.externalSources,
+.yourSystems {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sourceBox,
+.systemBox {
+  padding: 0.5rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.arrow {
+  font-size: 1.5rem;
+  color: var(--ifm-color-emphasis-400);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pipeline {
+  width: 100%;
+  background: linear-gradient(135deg, var(--ifm-color-emphasis-100), var(--ifm-color-emphasis-200));
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 2px solid var(--ifm-color-emphasis-300);
+}
+
+.pipelineLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-500);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.pipelineComponents {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pipelineArrows {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 0.5rem;
+  padding: 0 3rem;
+  color: var(--ifm-color-emphasis-400);
+  font-size: 1.25rem;
+}
+
+.component {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 0.75rem;
+  border: 2px solid var(--ifm-color-emphasis-300);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.component:hover,
+.component.active {
+  transform: translateY(-4px);
+  border-color: var(--accent-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .component {
+  background: var(--ifm-color-emphasis-200);
+}
+
+.componentIcon {
+  font-size: 2rem;
+}
+
+.componentTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.services {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+}
+
+.service {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--ifm-color-emphasis-100);
+  border: 2px solid var(--ifm-color-emphasis-300);
+  border-radius: 2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.service:hover,
+.service.active {
+  border-color: var(--accent-color);
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] .service:hover,
+[data-theme='dark'] .service.active {
+  background: var(--ifm-color-emphasis-200);
+}
+
+.serviceIcon {
+  font-size: 1.25rem;
+}
+
+.serviceTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.infoPanel {
+  min-height: 100px;
+  padding: 1.5rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  transition: all 0.3s ease;
+  opacity: 0.7;
+}
+
+.infoPanel.visible {
+  opacity: 1;
+  background: white;
+  border-color: var(--ifm-color-emphasis-400);
+}
+
+[data-theme='dark'] .infoPanel.visible {
+  background: var(--ifm-color-emphasis-200);
+}
+
+.infoPanel h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.125rem;
+}
+
+.infoPanel p {
+  margin: 0;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.6;
+}
+
+.hint {
+  text-align: center;
+  color: var(--ifm-color-emphasis-500);
+  font-style: italic;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .pipelineComponents {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pipelineArrows {
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+  }
+
+  .pipelineArrows span {
+    transform: rotate(90deg);
+  }
+
+  .component {
+    width: 80%;
+  }
+
+  .services {
+    flex-direction: column;
+  }
+}
