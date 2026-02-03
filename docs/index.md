@@ -49,15 +49,21 @@ flowchart LR
 | [Deployment Guide](deployment/README.md) | Deploy to Docker, AWS, or Kubernetes |
 | [Configuration Reference](guides/configuration.md) | Environment variables and settings |
 | [CI/CD Integration](guides/cicd-integration.md) | GitHub Actions compliance gates |
+| [Security Best Practices](guides/security.md) | Security guidelines and implementation |
+| [Troubleshooting](guides/troubleshooting.md) | Common issues and solutions |
+| [Operations Runbook](guides/runbook.md) | Production operations procedures |
 
 ### 🧑‍💻 Development
 
 | Guide | Description |
 |-------|-------------|
 | [Contributing](../CONTRIBUTING.md) | How to contribute to ComplianceAgent |
+| [Development Overview](development/README.md) | Complete development setup guide |
 | [Backend Development](development/backend.md) | Python/FastAPI development guide |
 | [Frontend Development](development/frontend.md) | Next.js/React development guide |
 | [Testing Guide](development/testing.md) | Testing strategies and tools |
+| [IDE Extension](../ide-extension/README.md) | VS Code extension development |
+| [ADR Template](architecture/adr-template.md) | Architecture Decision Records |
 
 ---
 
@@ -166,6 +172,18 @@ graph TB
 | SOC 2 | Global | [Guide](frameworks/soc2.md) |
 | ISO 27001:2022 | Global | [Guide](frameworks/iso27001.md) |
 | NIS2 | EU | [Guide](frameworks/nis2.md) |
+
+### Financial
+
+| Framework | Jurisdiction | Documentation |
+|-----------|--------------|---------------|
+| GLBA | US-Federal | [Guide](frameworks/glba.md) |
+
+### Education
+
+| Framework | Jurisdiction | Documentation |
+|-----------|--------------|---------------|
+| FERPA | US-Federal | [Guide](frameworks/ferpa.md) |
 
 ### AI Regulation
 
