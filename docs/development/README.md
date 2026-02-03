@@ -546,6 +546,19 @@ COPILOT_API_KEY=your-copilot-key  # For AI features
 
 ---
 
+## Detailed Development Guides
+
+For in-depth coverage of specific areas, see these dedicated guides:
+
+| Guide | Description |
+|-------|-------------|
+| [Backend Development](backend.md) | Python patterns, async practices, SQLAlchemy usage, service layer |
+| [Frontend Development](frontend.md) | Next.js patterns, React components, state management, styling |
+| [Testing Guide](testing.md) | Test strategies, pytest/Jest patterns, integration tests, CI/CD |
+| [IDE Extension](../../ide-extension/README.md) | VS Code extension development and patterns |
+
+---
+
 ## Next Steps
 
 - Read the [Architecture Overview](../architecture/overview.md)
