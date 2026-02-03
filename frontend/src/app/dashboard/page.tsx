@@ -1,8 +1,16 @@
 'use client'
 
-import { CheckCircle, AlertTriangle, Clock, FileText, TrendingUp } from 'lucide-react'
+import { CheckCircle, AlertTriangle, Clock, FileText, TrendingUp, BarChart3, PieChart as PieChartIcon } from 'lucide-react'
 import { useDashboardStats } from '@/hooks/useApi'
 import { DashboardSkeleton } from '@/components/ui/Skeleton'
+import {
+  ComplianceTrendChart,
+  RiskDistributionChart,
+  FrameworkComparisonChart,
+  generateTrendData,
+  generateRiskData,
+  generateFrameworkData,
+} from '@/components/dashboard/Charts'
 import type { FrameworkStatus, RecentActivity, UpcomingDeadline, ComplianceStatus } from '@/types'
 
 function formatTimeAgo(dateString: string): string {
@@ -91,6 +99,36 @@ export default function DashboardPage() {
           subtitle="Awaiting human review"
           color="gray"
         />
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Compliance Trend */}
+        <div className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-5 w-5 text-primary-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Compliance Trend</h2>
+          </div>
+          <ComplianceTrendChart data={generateTrendData()} />
+        </div>
+
+        {/* Risk Distribution */}
+        <div className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <PieChartIcon className="h-5 w-5 text-primary-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Risk Distribution</h2>
+          </div>
+          <RiskDistributionChart data={generateRiskData()} />
+        </div>
+      </div>
+
+      {/* Framework Comparison */}
+      <div className="card">
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 className="h-5 w-5 text-primary-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Framework Compliance Comparison</h2>
+        </div>
+        <FrameworkComparisonChart data={generateFrameworkData()} />
       </div>
 
       {/* Main Grid */}

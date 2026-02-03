@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, FileText, Download, ChevronDown, ChevronRight, Hash } from 'lucide-react'
+import { Search, FileText, ChevronDown, ChevronRight, Hash } from 'lucide-react'
 import { useAuditTrail } from '@/hooks/useApi'
 import { AuditSkeleton } from '@/components/ui/Skeleton'
+import { ExportDropdown } from '@/components/ui/Export'
 import type { AuditTrailEntry, AuditEventType } from '@/types'
 
 const eventTypeOptions: Array<{ value: string; label: string }> = [
@@ -36,6 +37,21 @@ export default function AuditPage() {
     })
   }, [auditEntries, searchQuery])
 
+  const exportConfig = useMemo(() => ({
+    data: filteredEntries,
+    filename: 'audit-trail',
+    title: 'Audit Trail Report',
+    columns: [
+      { key: 'created_at' as keyof AuditTrailEntry, header: 'Date', format: (v: unknown) => new Date(v as string).toLocaleString() },
+      { key: 'event_type' as keyof AuditTrailEntry, header: 'Event Type' },
+      { key: 'description' as keyof AuditTrailEntry, header: 'Description' },
+      { key: 'actor_type' as keyof AuditTrailEntry, header: 'Actor Type' },
+      { key: 'actor_email' as keyof AuditTrailEntry, header: 'Actor' },
+      { key: 'resource_type' as keyof AuditTrailEntry, header: 'Resource Type' },
+      { key: 'resource_id' as keyof AuditTrailEntry, header: 'Resource ID' },
+    ],
+  }), [filteredEntries])
+
   if (loading) {
     return <AuditSkeleton />
   }
@@ -47,10 +63,7 @@ export default function AuditPage() {
           <h1 className="text-2xl font-bold text-gray-900">Audit Trail</h1>
           <p className="text-gray-500">Complete history of compliance activities</p>
         </div>
-        <button className="btn-secondary flex items-center gap-2">
-          <Download className="h-5 w-5" />
-          Export Report
-        </button>
+        <ExportDropdown config={exportConfig} />
       </div>
 
       {error && (
