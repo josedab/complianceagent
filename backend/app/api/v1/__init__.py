@@ -7,6 +7,7 @@ from app.api.v1 import (
     alerts,
     audit,
     auth,
+    autopilot,
     billing,
     chat,
     chatbot,
@@ -14,9 +15,11 @@ from app.api.v1 import (
     cloud,
     compliance,
     customer_profiles,
+    data_flow,
     digital_twin,
     evidence,
     evidence_collector,
+    explainability,
     graph,
     health_score,
     ide,
@@ -25,9 +28,11 @@ from app.api.v1 import (
     knowledge_graph,
     mappings,
     marketplace,
+    model_cards,
     orchestration,
     organizations,
     playbook,
+    policy_as_code,
     portfolio,
     pr_bot,
     predictions,
@@ -37,6 +42,7 @@ from app.api.v1 import (
     repositories,
     requirements,
     sandbox,
+    sbom,
     scoring,
     simulator,
     sso,
@@ -47,6 +53,13 @@ from app.api.v1 import (
     vendor_assessment,
     vendor_risk,
     webhooks,
+)
+
+# Phase 3: Market Leadership Features
+from app.api.v1 import (
+    federated_intel,
+    digital_twin_enhanced,
+    regulatory_sandbox,
 )
 
 
@@ -102,3 +115,16 @@ router.include_router(knowledge_graph.router, prefix="/knowledge-graph", tags=["
 router.include_router(starter_kits.router, prefix="/starter-kits", tags=["Regulation Starter Kits"])
 router.include_router(training.router, prefix="/training", tags=["Compliance Training"])
 router.include_router(infrastructure.router, tags=["Infrastructure Compliance"])
+
+# Killer Features (v0.4.0+)
+router.include_router(explainability.router, prefix="/explainability", tags=["AI Explainability (XAI)"])
+router.include_router(sbom.router, prefix="/sbom", tags=["SBOM Compliance"])
+router.include_router(policy_as_code.router, prefix="/policy-as-code", tags=["Policy-as-Code (Rego/OPA)"])
+router.include_router(data_flow.router, prefix="/data-flow", tags=["Cross-Border Data Flow"])
+router.include_router(model_cards.router, prefix="/model-cards", tags=["AI Model Cards (EU AI Act)"])
+router.include_router(autopilot.router, prefix="/autopilot", tags=["Agentic Autopilot"])
+
+# Phase 3: Market Leadership Features (v1.0.0)
+router.include_router(federated_intel.router, prefix="/federated-intel", tags=["Federated Intelligence Network"])
+router.include_router(digital_twin_enhanced.router, prefix="/digital-twin-enhanced", tags=["Enhanced Digital Twin"])
+router.include_router(regulatory_sandbox.router, prefix="/regulatory-sandbox", tags=["Regulatory Sandbox Integration"])
