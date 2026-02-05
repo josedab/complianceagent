@@ -26,10 +26,10 @@ cp .env.example .env
 
 # 3. Start all services with Docker
 cd docker
-docker-compose up -d
+docker compose up -d
 
 # 4. Wait for services to be ready (about 30 seconds)
-docker-compose logs -f
+docker compose logs -f
 # Press Ctrl+C when you see "Application startup complete"
 ```
 

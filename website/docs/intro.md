@@ -27,7 +27,7 @@ cd complianceagent
 
 # Start with Docker (recommended)
 cp .env.example .env
-cd docker && docker-compose up -d
+cd docker && docker compose up -d
 ```
 
 Access the dashboard at `http://localhost:3000`.

@@ -271,8 +271,8 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 
 | Component | Version |
 |-----------|---------|
-| Backend API | 1.0.0 |
-| Frontend | 1.0.0 |
+| Backend API | 0.1.0 |
+| Frontend | 0.1.0 |
 | API Version | v1 |
 | Python | 3.12+ |
 | Node.js | 20+ |

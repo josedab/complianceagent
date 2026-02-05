@@ -31,7 +31,7 @@ This guide covers the development setup, workflow, and best practices for contri
 
 ```bash
 # macOS (Homebrew)
-brew install python@3.12 node docker docker-compose git
+brew install python@3.12 node docker docker compose git
 pip install uv
 
 # Ubuntu/Debian

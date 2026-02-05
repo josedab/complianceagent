@@ -65,7 +65,7 @@ The core pipeline processes regulatory data through four main stages:
 Quick local setup with all services:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Kubernetes (Production)

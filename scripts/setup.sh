@@ -25,7 +25,7 @@ fi
 # Start infrastructure
 echo "🐳 Starting Docker infrastructure..."
 cd docker
-docker-compose up -d postgres redis elasticsearch minio
+docker compose up -d postgres redis elasticsearch minio
 cd ..
 
 # Wait for services
@@ -61,13 +61,16 @@ cd ..
 echo ""
 echo "✅ Setup complete!"
 echo ""
+echo "To seed demo data:"
+echo "  make seed"
+echo ""
 echo "To start development:"
 echo "  Backend:  cd backend && source .venv/bin/activate && uvicorn app.main:app --reload"
 echo "  Frontend: cd frontend && npm run dev"
 echo "  Workers:  cd backend && celery -A app.workers worker --loglevel=info"
 echo ""
 echo "Or run everything with Docker:"
-echo "  cd docker && docker-compose up"
+echo "  cd docker && docker compose up"
 echo ""
 echo "Access:"
 echo "  Frontend: http://localhost:3000"

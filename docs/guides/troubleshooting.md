@@ -39,8 +39,8 @@ export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 **Solution:**
 ```bash
 pip install uv
-# Or use pip directly
-pip install -r requirements.txt
+# Or install directly with pip
+cd backend && pip install -e ".[dev]"
 ```
 
 #### Issue: Python version mismatch

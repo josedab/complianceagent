@@ -50,10 +50,10 @@ cp .env.example .env
 
 # Start all services
 cd docker
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Check status
-docker-compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml ps
 ```
 
 ### Production Docker Compose
@@ -498,7 +498,7 @@ kubectl create secret generic complianceagent-secrets \
 
 ```bash
 # Docker Compose
-docker-compose exec backend alembic upgrade head
+docker compose exec backend alembic upgrade head
 
 # AWS ECS
 aws ecs run-task --cluster cluster-name --task-definition migrate-task
@@ -656,7 +656,7 @@ echo $DATABASE_URL
 **2. Celery Workers Not Processing**
 ```bash
 # Check worker status
-docker-compose logs celery-worker
+docker compose logs celery-worker
 
 # Verify Redis connection
 redis-cli -h localhost ping
@@ -669,7 +669,7 @@ curl -H "Authorization: Bearer $COPILOT_API_KEY" \
   https://api.githubcopilot.com/v1/models
 
 # Check backend logs for rate limiting
-docker-compose logs backend | grep -i copilot
+docker compose logs backend | grep -i copilot
 ```
 
 **4. High Memory Usage**
@@ -688,7 +688,7 @@ deploy:
 
 | Deployment | Location |
 |------------|----------|
-| Docker Compose | `docker-compose logs <service>` |
+| Docker Compose | `docker compose logs <service>` |
 | AWS ECS | CloudWatch Logs `/ecs/complianceagent/*` |
 | Kubernetes | `kubectl logs -f deploy/complianceagent-backend` |
 

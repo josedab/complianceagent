@@ -545,7 +545,7 @@ pip-audit
 npm audit
 
 # Update dependencies
-pip install --upgrade -r requirements.txt
+cd backend && uv pip install -e ".[dev]" --upgrade
 npm update
 ```
 
@@ -579,7 +579,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Run pip-audit
-        run: pip-audit -r requirements.txt
+        run: pip-audit --desc on
       
       - name: Run npm audit
         run: npm audit --audit-level=high

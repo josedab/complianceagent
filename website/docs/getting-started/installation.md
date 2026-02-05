@@ -71,7 +71,7 @@ openssl rand -hex 32
 
 ```bash
 cd docker
-docker-compose up -d
+docker compose up -d
 ```
 
 This starts all required services:
@@ -88,7 +88,7 @@ This starts all required services:
 Check that all services are running:
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 You should see all services with status `Up`:
@@ -122,7 +122,7 @@ For local development with hot reloading:
 
 ```bash
 cd docker
-docker-compose up -d postgres redis elasticsearch minio
+docker compose up -d postgres redis elasticsearch minio
 ```
 
 ### 2. Set Up Backend
@@ -241,7 +241,7 @@ lsof -i :8000
 
 # Use different ports by editing docker-compose.yml
 # or setting environment variables
-API_PORT=8001 docker-compose up -d
+API_PORT=8001 docker compose up -d
 ```
 
 ### Database Connection Issues
@@ -250,10 +250,10 @@ If the backend can't connect to PostgreSQL:
 
 ```bash
 # Check PostgreSQL logs
-docker-compose logs postgres
+docker compose logs postgres
 
 # Verify the database is ready
-docker-compose exec postgres pg_isready
+docker compose exec postgres pg_isready
 ```
 
 ### Elasticsearch Memory Issues

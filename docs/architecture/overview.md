@@ -299,7 +299,7 @@ Sensitive values:
 
 ```bash
 # Start all services locally
-docker-compose up -d postgres redis elasticsearch minio
+docker compose up -d postgres redis elasticsearch minio
 cd backend && uvicorn app.main:app --reload
 cd frontend && npm run dev
 ```
