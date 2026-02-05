@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Body, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep, CurrentOrganization, OrgMember
@@ -287,10 +287,10 @@ async def simulate_code_change(
     member: OrgMember,
     db: DB,
     copilot: CopilotDep,
-    code: str = Field(..., description="Proposed code to analyze"),
-    language: str = Field("python", description="Programming language"),
-    file_path: str = Field("unknown", description="File path"),
-    frameworks: list[str] = Field(default=["GDPR", "SOC2"]),
+    code: str = Body(..., description="Proposed code to analyze"),
+    language: str = Body("python", description="Programming language"),
+    file_path: str = Body("unknown", description="File path"),
+    frameworks: list[str] = Body(default=["GDPR", "SOC2"]),
 ) -> SimulationResultSchema:
     """Quick simulation endpoint for code changes."""
     request = SimulateRequest(
@@ -322,11 +322,11 @@ async def simulate_vendor(
     member: OrgMember,
     db: DB,
     copilot: CopilotDep,
-    vendor_name: str,
-    vendor_type: str = "saas",
-    data_shared: list[str] = Field(default=[]),
-    jurisdictions: list[str] = Field(default=[]),
-    certifications: list[str] = Field(default=[]),
+    vendor_name: str = Body(...),
+    vendor_type: str = Body("saas"),
+    data_shared: list[str] = Body(default=[]),
+    jurisdictions: list[str] = Body(default=[]),
+    certifications: list[str] = Body(default=[]),
 ) -> SimulationResultSchema:
     """Quick simulation endpoint for vendor changes."""
     request = SimulateRequest(
@@ -359,8 +359,8 @@ async def simulate_expansion(
     member: OrgMember,
     db: DB,
     copilot: CopilotDep,
-    target_regions: list[str],
-    data_types: list[str] = Field(default=["PII"]),
+    target_regions: list[str] = Body(...),
+    data_types: list[str] = Body(default=["PII"]),
 ) -> SimulationResultSchema:
     """Quick simulation endpoint for geographic expansion."""
     request = SimulateRequest(
