@@ -14,6 +14,9 @@ celery_app = Celery(
         "app.workers.analysis_tasks",
         "app.workers.notification_tasks",
         "app.workers.pr_bot_tasks",
+        "app.workers.risk_quantification_tasks",
+        "app.workers.pattern_marketplace_tasks",
+        "app.workers.ide_agent_tasks",
     ],
 )
 
@@ -43,5 +46,24 @@ celery_app.conf.beat_schedule = {
     "cleanup-old-audit-entries": {
         "task": "app.workers.analysis_tasks.cleanup_old_data",
         "schedule": 7 * 24 * 3600,  # Weekly
+    },
+    # Risk Quantification tasks
+    "update-all-risk-scores": {
+        "task": "app.workers.risk_quantification_tasks.update_all_risk_scores",
+        "schedule": 24 * 3600,  # Daily
+    },
+    # Pattern Marketplace tasks
+    "update-marketplace-stats": {
+        "task": "app.workers.pattern_marketplace_tasks.update_marketplace_stats",
+        "schedule": 3600,  # Hourly
+    },
+    "cleanup-expired-installations": {
+        "task": "app.workers.pattern_marketplace_tasks.cleanup_expired_installations",
+        "schedule": 24 * 3600,  # Daily
+    },
+    # IDE Agent tasks
+    "cleanup-stale-sessions": {
+        "task": "app.workers.ide_agent_tasks.cleanup_stale_sessions",
+        "schedule": 3600,  # Hourly
     },
 }

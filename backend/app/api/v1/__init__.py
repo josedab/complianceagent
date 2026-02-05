@@ -62,6 +62,13 @@ from app.api.v1 import (
     regulatory_sandbox,
 )
 
+# Phase 4: Next-Gen Features (v1.1.0+)
+from app.api.v1 import (
+    ide_agent,
+    pattern_marketplace,
+    risk_quantification,
+)
+
 
 router = APIRouter()
 
@@ -128,3 +135,8 @@ router.include_router(autopilot.router, prefix="/autopilot", tags=["Agentic Auto
 router.include_router(federated_intel.router, prefix="/federated-intel", tags=["Federated Intelligence Network"])
 router.include_router(digital_twin_enhanced.router, prefix="/digital-twin-enhanced", tags=["Enhanced Digital Twin"])
 router.include_router(regulatory_sandbox.router, prefix="/regulatory-sandbox", tags=["Regulatory Sandbox Integration"])
+
+# Phase 4: Next-Gen Features (v1.1.0+)
+router.include_router(ide_agent.router, prefix="/ide-agent", tags=["Compliance Co-Pilot IDE Agent"])
+router.include_router(pattern_marketplace.router, prefix="/pattern-marketplace", tags=["Pattern Marketplace"])
+router.include_router(risk_quantification.router, prefix="/risk-quantification", tags=["Compliance Risk Quantification (CRQ)"])
