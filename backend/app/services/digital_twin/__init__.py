@@ -29,6 +29,15 @@ from app.services.digital_twin.codebase_graph import (
     DataSensitivity,
     get_codebase_graph_builder,
 )
+from app.services.digital_twin.enhanced import (
+    EnhancedDigitalTwin,
+    DriftType,
+    BreachScenario,
+    DriftEvent,
+    BreachImpact,
+    TimelinePoint,
+    get_enhanced_digital_twin,
+)
 
 
 # Global simulator instance
@@ -73,4 +82,12 @@ __all__ = [
     "DataFlowType",
     "DataSensitivity",
     "get_codebase_graph_builder",
+    # Enhanced Digital Twin (Phase 3)
+    "EnhancedDigitalTwin",
+    "DriftType",
+    "BreachScenario",
+    "DriftEvent",
+    "BreachImpact",
+    "TimelinePoint",
+    "get_enhanced_digital_twin",
 ]
