@@ -1,4 +1,11 @@
-"""Vendor and third-party risk assessment module."""
+"""Vendor and third-party risk assessment module.
+
+.. deprecated::
+    This module contains the original vendor risk models. Newer implementations
+    are in :mod:`app.services.vendor_risk` (risk analysis) and
+    :mod:`app.services.vendor_assessment` (compliance assessment). Prefer those
+    for new development.
+"""
 
 from dataclasses import dataclass, field
 from datetime import datetime

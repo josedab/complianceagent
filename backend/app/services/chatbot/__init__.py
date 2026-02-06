@@ -1,4 +1,11 @@
-"""Regulatory compliance chatbot with AI-powered responses."""
+"""Regulatory compliance chatbot with AI-powered responses.
+
+.. deprecated::
+    This module is the legacy chatbot implementation. For new code, use
+    :mod:`app.services.chat` which provides RAG, conversation management,
+    streaming, and action handling. This module is maintained for backward
+    compatibility with the ``/api/v1/chatbot`` endpoint.
+"""
 
 from dataclasses import dataclass, field
 from datetime import datetime

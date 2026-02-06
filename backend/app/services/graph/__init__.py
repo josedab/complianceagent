@@ -1,4 +1,10 @@
-"""Compliance knowledge graph for relationship visualization."""
+"""Compliance knowledge graph for relationship visualization.
+
+.. deprecated::
+    This module contains the original graph implementation. For the newer,
+    more complete explorer, see :mod:`app.services.knowledge_graph`. This
+    module is maintained for backward compatibility with ``/api/v1/graph``.
+"""
 
 from dataclasses import dataclass, field
 from datetime import datetime

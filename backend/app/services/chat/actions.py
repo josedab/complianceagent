@@ -75,6 +75,16 @@ class ChatAction:
         }
 
 
+@dataclass
+class ActionResult:
+    """Result of executing a chat action."""
+
+    success: bool = False
+    message: str = ""
+    data: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+
+
 class ActionHandler:
     """Handles execution of chat actions."""
 
