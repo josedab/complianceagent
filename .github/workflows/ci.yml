@@ -60,6 +60,10 @@ jobs:
           uv venv
           uv pip install -e ".[dev]"
 
+      - name: Verify lockfile is up to date
+        working-directory: ./backend
+        run: uv lock --check
+
       - name: Run linting
         working-directory: ./backend
         run: |

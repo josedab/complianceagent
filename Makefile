@@ -2,7 +2,7 @@
 # Run `make help` to see available commands
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev dev-down run-backend run-frontend run-workers test test-backend test-frontend lint lint-backend lint-frontend format type-check migrate migrate-new build up down logs clean pre-commit docker-build docker-push
+.PHONY: help install dev dev-down run-backend run-frontend run-workers test test-backend test-frontend lint lint-backend lint-frontend format type-check migrate migrate-new build up down logs clean pre-commit docker-build docker-push seed status check
 
 # Colors for terminal output
 BLUE := \033[36m
@@ -52,6 +52,16 @@ dev-down: ## Stop development infrastructure
 dev-logs: ## Show development infrastructure logs
 	docker compose -f docker/docker-compose.yml logs -f
 
+status: ## Show status of development infrastructure services
+	@echo "$(BLUE)Docker services:$(RESET)"
+	@docker compose -f docker/docker-compose.yml ps 2>/dev/null || echo "  No services running (run 'make dev' to start)"
+	@echo ""
+	@echo "$(BLUE)Backend:$(RESET)"
+	@curl -s http://localhost:8000/health 2>/dev/null && echo "" || echo "  Backend not running (run 'make run-backend')"
+	@echo ""
+	@echo "$(BLUE)Frontend:$(RESET)"
+	@curl -s -o /dev/null -w "  Frontend responding (HTTP %{http_code})" http://localhost:3000 2>/dev/null && echo "" || echo "  Frontend not running (run 'make run-frontend')"
+
 run-backend: ## Run backend API server (requires dev infrastructure)
 	cd backend && source .venv/bin/activate && uvicorn app.main:app --reload --port 8000
 
@@ -81,7 +91,10 @@ test-frontend-watch: ## Run frontend tests in watch mode
 	cd frontend && npm run test:watch
 
 test-e2e: ## Run end-to-end tests (requires all services running)
-	@echo "$(YELLOW)E2E tests not yet implemented$(RESET)"
+	@echo "$(YELLOW)⚠️  E2E tests are not yet implemented.$(RESET)"
+	@echo "$(BLUE)To contribute E2E tests, see: docs/development/testing.md$(RESET)"
+	@echo "$(BLUE)Recommended stack: Playwright (already a backend dependency)$(RESET)"
+	@exit 0
 
 ##@ Code Quality
 
@@ -100,8 +113,8 @@ format-backend: ## Format backend code with ruff
 	cd backend && source .venv/bin/activate && ruff format .
 	cd backend && source .venv/bin/activate && ruff check --fix .
 
-format-frontend: ## Format frontend code (via lint --fix)
-	cd frontend && npm run lint -- --fix
+format-frontend: ## Format frontend code with Prettier
+	cd frontend && npx prettier --write 'src/**/*.{ts,tsx,js,jsx,json,css}'
 
 type-check: type-check-backend type-check-frontend ## Run all type checkers
 
@@ -116,6 +129,8 @@ security-check: ## Run security checks (bandit)
 
 pre-commit: ## Run pre-commit on all files
 	pre-commit run --all-files
+
+check: lint type-check test ## Run all checks (lint + type-check + test)
 
 ##@ Database
 
@@ -137,6 +152,10 @@ migrate-history: ## Show migration history
 
 migrate-current: ## Show current migration revision
 	cd backend && source .venv/bin/activate && alembic current
+
+seed: ## Seed database with demo data (users, orgs, regulations)
+	cd backend && source .venv/bin/activate && python ../scripts/seed.py
+	@echo "$(GREEN)✓ Demo data seeded (run 'make db-reset && make migrate' to start fresh)$(RESET)"
 
 db-reset: ## Reset database (WARNING: destroys all data)
 	@echo "$(YELLOW)WARNING: This will destroy all data in the database$(RESET)"
