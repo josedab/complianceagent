@@ -11,7 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.compliance import CodebaseMapping, ComplianceStatus, Regulation, Repository
+from app.models.codebase import CodebaseMapping, ComplianceStatus, Repository
+from app.models.regulation import Regulation
 from app.services.evidence_collector.models import (
     CONTROL_FRAMEWORKS,
     AuditPackage,

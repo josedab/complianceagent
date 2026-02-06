@@ -12,7 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.compliance import CodebaseMapping, Regulation, Repository, Requirement
+from app.models.codebase import CodebaseMapping, Repository
+from app.models.regulation import Regulation
+from app.models.requirement import Requirement
 from app.services.knowledge_graph.models import (
     QUERY_TEMPLATES,
     GraphEdge,
