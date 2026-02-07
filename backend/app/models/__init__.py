@@ -37,6 +37,12 @@ from app.models.ide_agent import (
     IDEAgentConfig,
 )
 
+# SaaS Tenant models
+from app.models.saas_tenant import (
+    SaasTenant,
+    TenantUsageRecord,
+)
+
 
 __all__ = [
     # Base
@@ -73,4 +79,7 @@ __all__ = [
     "IDEAgentViolation",
     "IDEAgentFix",
     "IDEAgentConfig",
+    # SaaS Tenant
+    "SaasTenant",
+    "TenantUsageRecord",
 ]
