@@ -7,7 +7,152 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added (v0.3.0 - Next-Gen Features)
+> **Note:** Features below are under active development and not yet released.
+> See the [Roadmap](docs/guides/roadmap.md) for planned timelines.
+
+### Planned (v3.0.0 - Next-Gen Platform Features)
+
+- **Real-Time Compliance Telemetry Dashboard**
+  - Live telemetry snapshot with posture gauges, metrics cards, framework scores
+  - Metric recording with threshold-based alerting (critical/warning)
+  - Time series data with synthetic demo generation
+  - Compliance heatmap by framework and day
+  - Event feed with severity filtering
+  - Frontend dashboard page with React components (posture gauge, event feed, heatmap)
+  - New API endpoints: `/api/v1/telemetry/snapshot`, `/metrics`, `/events`, `/time-series/{type}`, `/thresholds`, `/heatmap`
+
+- **Natural Language Compliance Query Engine**
+  - Intent classification (regulation, code, violation, audit, status, comparison, recommendation)
+  - Built-in knowledge base for GDPR, HIPAA, PCI-DSS, SOC 2
+  - Code reference extraction with file/line context
+  - Follow-up suggestion generation
+  - Query history and feedback tracking
+  - New API endpoints: `/api/v1/nl-query/query`, `/history`, `/feedback`, `/intents`
+
+- **Automated Compliance Remediation Workflows**
+  - State machine: detected → planning → generating → review → approved → merging → completed
+  - Pattern-based fix generation (GDPR, HIPAA, PCI-DSS)
+  - Approval chains with rollback capability
+  - PR creation simulation and workflow history tracking
+  - New API endpoints: `/api/v1/remediation/workflows`, `/generate`, `/approve`, `/merge`, `/rollback`, `/config`
+
+- **Compliance Posture Scoring & Benchmarking**
+  - 7-dimension scoring (privacy, security, regulatory, access, incident, vendor, documentation)
+  - Letter grades (A+ through F) with weighted aggregation
+  - Industry benchmarking with percentile ranking (fintech, healthtech, SaaS, ecommerce)
+  - Executive report generation with highlights and action items
+  - New API endpoints: `/api/v1/posture/score`, `/benchmark/{industry}`, `/industries`, `/report`, `/history`
+
+- **Multi-Tenant Organization Hierarchy**
+  - Parent/child org tree up to 5 levels deep (root → business unit → department → team → project)
+  - 6 RBAC roles (owner, admin, compliance_officer, developer, auditor, viewer)
+  - Policy inheritance modes (inherit, override, merge)
+  - Aggregated compliance scoring across hierarchy
+  - New API endpoints: `/api/v1/org-hierarchy/nodes`, `/tree`, `/members`, `/policies`, `/compliance`
+
+- **Compliance-as-Code Policy SDK**
+  - 5 built-in policies (GDPR consent, HIPAA PHI encryption, PCI tokenization, SOC 2 logging, EU AI Act transparency)
+  - Custom policy creation with YAML/Rego/Python/TypeScript support
+  - Policy validation with error/warning reporting
+  - Community marketplace for policy sharing
+  - SDK packages directory (Python, TypeScript, Go)
+  - New API endpoints: `/api/v1/policy-sdk/policies`, `/validate`, `/publish`, `/marketplace`, `/sdks`
+
+- **Audit Preparation Autopilot**
+  - Gap analysis for SOC 2 Type II, ISO 27001, HIPAA, PCI-DSS (4 frameworks, 40+ controls)
+  - Evidence package auto-generation with control mapping
+  - Readiness report with recommendations and prep time estimates
+  - New API endpoints: `/api/v1/audit-autopilot/gap-analysis/{fw}`, `/evidence-package/{fw}`, `/readiness-report/{fw}`, `/frameworks`
+
+- **Regulatory Change Impact Timeline**
+  - 8 built-in upcoming regulatory events (EU AI Act, DORA, NIS2, GDPR, PCI-DSS, HIPAA, PDPA)
+  - Predictive events with confidence scoring
+  - Auto-task generation with priority assignment based on deadline proximity
+  - Framework and jurisdiction filtering
+  - New API endpoints: `/api/v1/impact-timeline/timeline`, `/events`, `/tasks`
+
+- **Federated Compliance Intelligence Network**
+  - Differential privacy with Laplace noise (configurable epsilon: 0.1, 1.0, 5.0)
+  - 8 seed anonymized compliance patterns across industries
+  - 'Companies like you' insights based on industry and size
+  - Network participation with contribution tracking
+  - New API endpoints: `/api/v1/compliance-intel/join`, `/patterns`, `/insights`, `/similar-orgs`, `/stats`
+
+- **Self-Hosted & Air-Gapped Deployment**
+  - License key generation and validation (trial, standard, enterprise, government)
+  - 4 offline regulation bundles (core, EU, healthcare, financial)
+  - Deployment configuration (SaaS, self-hosted, air-gapped modes)
+  - Local LLM support toggle
+  - System health monitoring, backup, and Helm chart values
+  - New API endpoints: `/api/v1/self-hosted/licenses`, `/config`, `/bundles`, `/health`, `/backup`, `/helm-values`
+
+### Planned (v2.0.0 - Next-Gen Strategic Features)
+
+- **Regulatory Accuracy Benchmarking Suite**
+  - Benchmark parsing accuracy against expert-annotated corpus
+  - Built-in GDPR corpus with 5+ annotated passages
+  - Precision/recall/F1 scoring per framework
+  - Public scorecard generation
+  - New API endpoints: `/api/v1/benchmarking/corpora`, `/run`, `/results`, `/scorecard`
+
+- **GitHub/GitLab Marketplace Native App**
+  - One-click app installation handling
+  - Webhook processing for installation, PR, and push events
+  - Repository sync and compliance scan triggering
+  - Marketplace plan management (Free/Team/Business/Enterprise)
+  - New API endpoints: `/api/v1/marketplace-app/webhook`, `/installations`, `/listing`
+
+- **Compliance Co-Pilot for PRs**
+  - AI-powered PR compliance analysis with inline findings
+  - Pattern-based fallback detection (GDPR, PCI-DSS)
+  - Risk level computation and smart labeling
+  - Suggestion feedback loop with learning statistics
+  - Inline comment generation for GitHub/GitLab
+  - New API endpoints: `/api/v1/pr-copilot/analyze`, `/reviews`, `/feedback`, `/learning-stats`
+
+- **Industry Compliance Starter Packs**
+  - Pre-configured packs for Fintech, Healthtech, AI Companies, E-commerce
+  - Regulation bundles, policy templates, setup checklists
+  - One-click pack provisioning with guided onboarding
+  - New API endpoints: `/api/v1/industry-packs`, `/provision`, `/verticals`
+
+- **Compliance Drift Detection & Alerting**
+  - Baseline capture and comparison engine
+  - Score regression detection with severity levels
+  - Multi-channel alerting (Slack, Teams, PagerDuty, Email)
+  - Drift reporting with top-drifting file analysis
+  - New API endpoints: `/api/v1/drift-detection/baseline`, `/detect`, `/events`, `/alerts/config`
+
+- **Multi-LLM Regulatory Parsing Engine**
+  - Provider abstraction for Copilot, OpenAI, Anthropic, local models
+  - Parallel multi-model inference
+  - Consensus strategies: majority vote, highest confidence, weighted average
+  - Divergence detection with human review flagging
+  - New API endpoints: `/api/v1/multi-llm/parse`, `/providers`, `/config`
+
+- **Evidence Vault & Auditor Portal**
+  - Immutable evidence storage with hash chain integrity
+  - SOC 2 control mapping (13 controls)
+  - Read-only auditor sessions with expiration
+  - Audit report generation with coverage metrics
+  - New API endpoints: `/api/v1/evidence-vault/evidence`, `/verify`, `/controls`, `/auditor-sessions`, `/reports`
+
+- **Public API & SDK Management**
+  - API key creation, validation, and revocation
+  - Tiered rate limiting (Free/Standard/Professional/Enterprise)
+  - Usage tracking and summary analytics
+  - SDK directory (Python, TypeScript, Go)
+  - New API endpoints: `/api/v1/public-api/keys`, `/rate-limits`, `/sdks`
+
+- **Regulatory Change Impact Simulator**
+  - What-if simulation for hypothetical regulatory changes
+  - 5 pre-built scenarios (GDPR, HIPAA, EU AI Act, PCI-DSS)
+  - Blast radius analysis with affected component mapping
+  - Risk scoring and recommendation generation
+  - Multi-scenario comparison
+  - New API endpoints: `/api/v1/impact-simulator/simulate`, `/scenarios`, `/results`, `/compare`
+
+### Planned (v0.3.0 - Next-Gen Features)
 - **IDE Compliance Copilot**
   - Real-time compliance suggestions in VS Code/JetBrains
   - AI-powered quick-fix generation
@@ -117,7 +262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Terraform AWS infrastructure
 - GitHub Actions CI/CD
 
-### Added (v0.2.0 - Market Expansion)
+### Planned (v0.2.0 - Market Expansion)
 - **Asia-Pacific Regulatory Module**
   - Singapore PDPA (Personal Data Protection Act)
   - India DPDP (Digital Personal Data Protection Act 2023)
@@ -161,10 +306,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MinIO for S3-compatible object storage
 - Celery workers for background processing
 
-## [0.1.0] - 2024-XX-XX
+## [0.1.0] - 2025-01-15
 
 ### Added
-- Initial release
+- Initial release (see "Added" section above for full feature list)
 
 ---
 
