@@ -69,6 +69,36 @@ from app.api.v1 import (
     risk_quantification,
 )
 
+# Phase 5: SaaS Platform (v1.2.0+)
+from app.api.v1 import saas_platform
+
+# Phase 6: Next-Gen Strategic Features (v2.0.0)
+from app.api.v1 import (
+    benchmarking,
+    marketplace_app,
+    pr_copilot,
+    industry_packs,
+    drift_detection,
+    multi_llm,
+    evidence_vault,
+    public_api,
+    impact_simulator,
+)
+
+# Phase 7: Next-Gen Features v3.0.0
+from app.api.v1 import (
+    telemetry,
+    nl_query,
+    remediation_workflow,
+    posture_scoring,
+    org_hierarchy,
+    policy_sdk,
+    audit_autopilot,
+    impact_timeline,
+    compliance_intel,
+    self_hosted,
+)
+
 
 router = APIRouter()
 
@@ -97,7 +127,7 @@ router.include_router(templates.router, prefix="/templates", tags=["Compliance T
 router.include_router(cloud.router, prefix="/cloud", tags=["Cloud Compliance"])
 router.include_router(graph.router, prefix="/graph", tags=["Knowledge Graph"])
 router.include_router(sandbox.router, prefix="/sandbox", tags=["Compliance Sandbox"])
-router.include_router(chatbot.router, prefix="/chatbot", tags=["Compliance Chatbot (Legacy)"])
+router.include_router(chatbot.router, prefix="/chatbot", tags=["Compliance Chatbot (Legacy — use /chat)"])
 router.include_router(chat.router, prefix="/chat", tags=["Compliance Copilot Chat"])
 
 # Next-Gen Feature Routers
@@ -140,3 +170,29 @@ router.include_router(regulatory_sandbox.router, prefix="/regulatory-sandbox", t
 router.include_router(ide_agent.router, prefix="/ide-agent", tags=["Compliance Co-Pilot IDE Agent"])
 router.include_router(pattern_marketplace.router, prefix="/pattern-marketplace", tags=["Pattern Marketplace"])
 router.include_router(risk_quantification.router, prefix="/risk-quantification", tags=["Compliance Risk Quantification (CRQ)"])
+
+# Phase 5: SaaS Platform
+router.include_router(saas_platform.router, prefix="/saas-platform", tags=["SaaS Platform"])
+
+# Phase 6: Next-Gen Strategic Features (v2.0.0)
+router.include_router(benchmarking.router, prefix="/benchmarking", tags=["Accuracy Benchmarking"])
+router.include_router(marketplace_app.router, prefix="/marketplace-app", tags=["GitHub/GitLab Marketplace App"])
+router.include_router(pr_copilot.router, prefix="/pr-copilot", tags=["Compliance PR Co-Pilot"])
+router.include_router(industry_packs.router, prefix="/industry-packs", tags=["Industry Starter Packs"])
+router.include_router(drift_detection.router, prefix="/drift-detection", tags=["Compliance Drift Detection"])
+router.include_router(multi_llm.router, prefix="/multi-llm", tags=["Multi-LLM Parsing Engine"])
+router.include_router(evidence_vault.router, prefix="/evidence-vault", tags=["Evidence Vault & Auditor Portal"])
+router.include_router(public_api.router, prefix="/public-api", tags=["Public API & SDK"])
+router.include_router(impact_simulator.router, prefix="/impact-simulator", tags=["Regulatory Impact Simulator"])
+
+# Phase 7: Next-Gen Features v3.0.0
+router.include_router(telemetry.router, prefix="/telemetry", tags=["Real-Time Compliance Telemetry"])
+router.include_router(nl_query.router, prefix="/nl-query", tags=["Natural Language Query Engine"])
+router.include_router(remediation_workflow.router, prefix="/remediation", tags=["Compliance Remediation Workflows"])
+router.include_router(posture_scoring.router, prefix="/posture", tags=["Compliance Posture Scoring"])
+router.include_router(org_hierarchy.router, prefix="/org-hierarchy", tags=["Organization Hierarchy"])
+router.include_router(policy_sdk.router, prefix="/policy-sdk", tags=["Compliance-as-Code Policy SDK"])
+router.include_router(audit_autopilot.router, prefix="/audit-autopilot", tags=["Audit Preparation Autopilot"])
+router.include_router(impact_timeline.router, prefix="/impact-timeline", tags=["Regulatory Impact Timeline"])
+router.include_router(compliance_intel.router, prefix="/compliance-intel", tags=["Federated Compliance Intelligence"])
+router.include_router(self_hosted.router, prefix="/self-hosted", tags=["Self-Hosted Deployment"])
