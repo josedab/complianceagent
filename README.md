@@ -113,7 +113,7 @@ ComplianceAgent is an AI-powered platform that automatically monitors regulatory
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourorg/complianceagent.git
+git clone https://github.com/josedab/complianceagent.git
 cd complianceagent
 
 # Copy environment template
@@ -121,7 +121,7 @@ cp .env.example .env
 
 # Start all services
 cd docker
-docker-compose up -d
+docker compose up -d
 
 # Access the application
 # Frontend: http://localhost:3000
@@ -134,7 +134,7 @@ docker-compose up -d
 1. **Start infrastructure services**
 ```bash
 cd docker
-docker-compose up -d postgres redis elasticsearch minio
+docker compose up -d postgres redis elasticsearch minio
 ```
 
 2. **Set up backend**
@@ -316,17 +316,23 @@ complianceagent/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://...` |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
-| `ELASTICSEARCH_URL` | Elasticsearch URL | `http://localhost:9200` |
+| `POSTGRES_HOST` | PostgreSQL host | `localhost` |
+| `POSTGRES_PORT` | PostgreSQL port | `5432` |
+| `POSTGRES_USER` | PostgreSQL user | `complianceagent` |
+| `POSTGRES_PASSWORD` | PostgreSQL password | `complianceagent` |
+| `REDIS_HOST` | Redis host | `localhost` |
+| `REDIS_PORT` | Redis port | `6379` |
+| `ELASTICSEARCH_HOST` | Elasticsearch host | `localhost` |
+| `ELASTICSEARCH_PORT` | Elasticsearch port | `9200` |
 | `S3_ENDPOINT_URL` | S3/MinIO endpoint | `http://localhost:9000` |
-| `S3_BUCKET_NAME` | Document storage bucket | `complianceagent` |
+| `S3_ACCESS_KEY` | S3/MinIO access key | `minioadmin` |
+| `S3_SECRET_KEY` | S3/MinIO secret key | `minioadmin` |
 | `SECRET_KEY` | JWT signing key | (required) |
-| `COPILOT_API_KEY` | GitHub Copilot SDK key | (required) |
-| `GITHUB_APP_ID` | GitHub App ID | (optional) |
-| `GITHUB_APP_PRIVATE_KEY` | GitHub App private key | (optional) |
-| `STRIPE_API_KEY` | Stripe API key | (optional) |
-| `ENVIRONMENT` | `development` / `production` | `development` |
+| `COPILOT_API_KEY` | GitHub Copilot SDK key | (optional) |
+| `ENVIRONMENT` | `development` / `staging` / `production` | `development` |
+
+> **Note:** `DATABASE_URL`, `REDIS_URL`, and `ELASTICSEARCH_URL` are computed automatically
+> from component variables above. See `backend/app/core/config.py` for full reference.
 
 ## 📜 Supported Regulatory Frameworks
 
@@ -385,17 +391,16 @@ npm run test:coverage
 ```
 
 ### End-to-End Tests
-```bash
-cd frontend
-npm run test:e2e
-```
+
+> **Note:** E2E tests are not yet implemented. See `docs/development/testing.md`
+> for contribution guidelines. Run `make test-e2e` for current status.
 
 ## 🚢 Deployment
 
 ### Docker Swarm / Compose
 ```bash
 cd docker
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### AWS (Terraform)
@@ -446,7 +451,7 @@ The GitHub Actions workflow automatically:
 
 ## 📄 License
 
-Proprietary - All rights reserved.
+This project is licensed under the [MIT License](LICENSE).
 
 ## 📧 Contact
 
