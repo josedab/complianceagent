@@ -1,0 +1,19 @@
+# direnv configuration for ComplianceAgent
+# Copy to .envrc: cp .envrc.example .envrc
+# Allow with: direnv allow
+#
+# This auto-activates the backend venv and loads .env when you enter the project.
+
+# Load .env file if it exists
+dotenv_if_exists
+
+# Auto-activate backend Python virtual environment
+if [ -d backend/.venv ]; then
+    source backend/.venv/bin/activate
+fi
+
+# Add backend to PYTHONPATH for IDE support
+export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}$(pwd)/backend"
+
+# Set default environment
+export ENVIRONMENT="${ENVIRONMENT:-development}"
