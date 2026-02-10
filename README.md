@@ -334,6 +334,30 @@ complianceagent/
 > **Note:** `DATABASE_URL`, `REDIS_URL`, and `ELASTICSEARCH_URL` are computed automatically
 > from component variables above. See `backend/app/core/config.py` for full reference.
 
+### Environment Variable Priority
+
+1. **Shell environment variables** (highest priority)
+2. **`.env` file** in project root
+3. **`backend/app/core/config.py` defaults** (lowest priority)
+
+> **Docker vs Local**: When running services in Docker, use container service names
+> (`postgres`, `redis`, `elasticsearch`). For local development, use `localhost`.
+
+### Without a Copilot API Key
+
+Most features work without `COPILOT_API_KEY`. These features **require** it:
+
+| Feature | Without API Key | With API Key |
+|---------|----------------|--------------|
+| Auth, orgs, users | ✅ Full functionality | ✅ Full functionality |
+| Dashboards & scoring | ✅ Full functionality | ✅ Full functionality |
+| Regulation management | ✅ CRUD operations | ✅ + AI-powered parsing |
+| Codebase mapping | ✅ Pattern-based detection | ✅ + AI-powered analysis |
+| Code generation | ❌ Not available | ✅ AI-generated code changes |
+| Compliance chat | ❌ Not available | ✅ RAG-powered conversations |
+| IDE linting | ⚠️ Pattern matching only | ✅ + AI quick-fix suggestions |
+| PR review bot | ⚠️ Rule-based checks only | ✅ + AI-powered review |
+
 ## 📜 Supported Regulatory Frameworks
 
 ### Privacy & Data Protection
