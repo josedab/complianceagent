@@ -10,6 +10,25 @@ command -v docker >/dev/null 2>&1 || { echo "❌ Docker is required but not inst
 command -v node >/dev/null 2>&1 || { echo "❌ Node.js is required but not installed."; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "❌ Python 3 is required but not installed."; exit 1; }
 
+# Verify Python 3.12+
+PYTHON_MINOR=$(python3 -c 'import sys; print(sys.version_info.minor)')
+if [ "$PYTHON_MINOR" -lt 12 ]; then
+    PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    echo "❌ Python 3.12+ is required. Found: Python $PYTHON_VERSION"
+    echo "   Install with: pyenv install 3.12 && pyenv local 3.12"
+    exit 1
+fi
+echo "✅ Python $(python3 --version) detected"
+
+# Verify Node.js 20+
+NODE_MAJOR=$(node -v | sed 's/v//' | cut -d. -f1)
+if [ "$NODE_MAJOR" -lt 20 ]; then
+    echo "❌ Node.js 20+ is required. Found: $(node -v)"
+    echo "   Install with: nvm install 20"
+    exit 1
+fi
+echo "✅ Node.js $(node -v) detected"
+
 # Create environment files if they don't exist
 if [ ! -f .env ]; then
     echo "📝 Creating .env from template..."

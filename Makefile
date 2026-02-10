@@ -2,7 +2,7 @@
 # Run `make help` to see available commands
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev dev-down run-backend run-frontend run-workers test test-backend test-frontend lint lint-backend lint-frontend format type-check migrate migrate-new build up down logs clean pre-commit docker-build docker-push seed status check
+.PHONY: help install dev dev-down run-backend run-frontend run-workers test test-backend test-frontend lint lint-backend lint-frontend format type-check migrate migrate-new build up down logs clean pre-commit docker-build docker-push seed status check doctor check-all
 
 # Colors for terminal output
 BLUE := \033[36m
@@ -36,6 +36,28 @@ install-hooks: ## Install pre-commit hooks
 	pre-commit install --hook-type commit-msg
 	@echo "$(GREEN)✓ Pre-commit hooks installed$(RESET)"
 
+doctor: ## Diagnose common setup issues
+	@echo "$(BLUE)🔍 Running ComplianceAgent diagnostics...$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)Prerequisites:$(RESET)"
+	@command -v python3 >/dev/null 2>&1 && echo "  ✅ Python: $$(python3 --version)" || echo "  ❌ Python 3 not found"
+	@python3 -c 'import sys; exit(0 if sys.version_info >= (3,12) else 1)' 2>/dev/null && echo "  ✅ Python version ≥ 3.12" || echo "  ❌ Python 3.12+ required (install: pyenv install 3.12)"
+	@command -v node >/dev/null 2>&1 && echo "  ✅ Node.js: $$(node -v)" || echo "  ❌ Node.js not found"
+	@command -v docker >/dev/null 2>&1 && echo "  ✅ Docker: $$(docker --version | head -1)" || echo "  ❌ Docker not found"
+	@command -v uv >/dev/null 2>&1 && echo "  ✅ uv: $$(uv --version)" || echo "  ⚠️  uv not found (optional, speeds up pip installs)"
+	@echo ""
+	@echo "$(YELLOW)Environment:$(RESET)"
+	@test -f .env && echo "  ✅ .env file exists" || echo "  ❌ .env missing (run: cp .env.example .env)"
+	@test -d backend/.venv && echo "  ✅ Backend venv exists" || echo "  ❌ Backend venv missing (run: make install-backend)"
+	@test -d frontend/node_modules && echo "  ✅ Frontend node_modules exists" || echo "  ❌ Frontend deps missing (run: make install-frontend)"
+	@echo ""
+	@echo "$(YELLOW)Services:$(RESET)"
+	@docker compose -f docker/docker-compose.yml ps --format '{{.Name}} {{.Status}}' 2>/dev/null | grep -q "running" && echo "  ✅ Docker services running" || echo "  ⚠️  Docker services not running (run: make dev)"
+	@curl -sf http://localhost:8000/health >/dev/null 2>&1 && echo "  ✅ Backend API responding" || echo "  ⚠️  Backend not running (run: make run-backend)"
+	@curl -sf -o /dev/null http://localhost:3000 2>/dev/null && echo "  ✅ Frontend responding" || echo "  ⚠️  Frontend not running (run: make run-frontend)"
+	@echo ""
+	@echo "$(GREEN)✓ Diagnostics complete$(RESET)"
+
 ##@ Development Environment
 
 dev: ## Start development infrastructure (postgres, redis, elasticsearch, minio)
@@ -44,6 +66,11 @@ dev: ## Start development infrastructure (postgres, redis, elasticsearch, minio)
 	@echo "$(BLUE)Waiting for services to be ready...$(RESET)"
 	@sleep 5
 	@echo "$(GREEN)✓ Services ready$(RESET)"
+
+dev-minimal: ## Start minimal infrastructure (postgres + redis only — faster, less RAM)
+	docker compose -f docker/docker-compose.minimal.yml up -d
+	@echo "$(GREEN)✓ Minimal infrastructure started (Postgres + Redis)$(RESET)"
+	@echo "$(YELLOW)Note: Elasticsearch and MinIO not running. Some features may be limited.$(RESET)"
 
 dev-down: ## Stop development infrastructure
 	docker compose -f docker/docker-compose.yml down
@@ -131,6 +158,8 @@ pre-commit: ## Run pre-commit on all files
 	pre-commit run --all-files
 
 check: lint type-check test ## Run all checks (lint + type-check + test)
+
+check-all: lint type-check security-check test ## Run all checks including security (pre-commit)
 
 ##@ Database
 
@@ -237,3 +266,13 @@ changelog: ## Generate changelog (requires git-cliff)
 	@command -v git-cliff >/dev/null 2>&1 || { echo "$(YELLOW)Install git-cliff: cargo install git-cliff$(RESET)"; exit 1; }
 	git-cliff -o CHANGELOG.md
 	@echo "$(GREEN)✓ Changelog generated$(RESET)"
+
+##@ Documentation
+
+export-openapi: ## Export OpenAPI spec to docs/api/openapi.json
+	@mkdir -p docs/api
+	cd backend && source .venv/bin/activate && python -c \
+		"import json; from app.main import app; print(json.dumps(app.openapi(), indent=2))" \
+		> ../docs/api/openapi.json
+	@echo "$(GREEN)✓ OpenAPI spec exported to docs/api/openapi.json$(RESET)"
+	@echo "$(BLUE)Import into Postman: File → Import → docs/api/openapi.json$(RESET)"
