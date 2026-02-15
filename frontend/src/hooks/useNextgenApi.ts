@@ -16,6 +16,24 @@ import {
   impactTimelineApi,
   auditAutopilotApi,
   policySdkApi,
+  ideAgentApi,
+  impactSimulatorApi,
+  remediationApi,
+  postureScoringApi,
+  driftDetectionEnhancedApi,
+  evidenceVaultEnhancedApi,
+  multiLlmEnhancedApi,
+  selfHostedEnhancedApi,
+  crossBorderTransferApi,
+  stressTestingApi,
+  zeroTrustScannerApi,
+  complianceTrainingApi,
+  aiObservatoryApi,
+  regulationTestGenApi,
+  sentimentAnalyzerApi,
+  incidentPlaybookApi,
+  costAttributionApi,
+  blockchainAuditApi,
 } from '@/lib/api'
 import type {
   TestSuiteResult,
@@ -53,6 +71,41 @@ import type {
   PolicyValidation,
   MarketplaceEntry,
   SDKInfo,
+  RAGSearchResult,
+  FeedbackStats,
+  BlastRadiusAnalysis,
+  ScenarioComparison,
+  RemediationAnalytics,
+  ApprovalChain,
+  RollbackRecord,
+  PostureScore,
+  PostureBenchmark,
+  PostureScoreHistory,
+  DriftTrend,
+  CoverageMetrics,
+  EvidenceGap,
+  ProviderHealthMetrics,
+  OfflineBundle,
+  AirGapStatus,
+  DataFlowRecord,
+  TransferReportRecord,
+  AdequacyDecisionRecord,
+  StressScenario,
+  StressTestReportRecord,
+  ZeroTrustViolation,
+  TrainingModuleRecord,
+  DeveloperTrainingProfile,
+  AIModelRecord,
+  AIObservatoryDashboard,
+  RegTestSuite,
+  RegulationCoverageRecord,
+  RiskHeatmapCellRecord,
+  PrioritizationRecord,
+  PlaybookRecord,
+  IncidentRecord,
+  CostDashboardRecord,
+  BlockchainStateRecord,
+  VerificationResultRecord,
 } from '@/types/nextgen'
 
 // Generic hook for API calls with loading/error states
@@ -422,6 +475,322 @@ export function usePolicyMarketplace(query?: string, category?: string) {
 export function useSDKInfo() {
   return useApiCall<SDKInfo[]>(
     () => policySdkApi.listSDKs().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── IDE Compliance Co-Pilot Hooks ──────────────────────────────────────
+
+export function useRAGSearch() {
+  return useMutation<
+    { query: string; regulations?: string[]; top_k?: number },
+    RAGSearchResult[]
+  >(ideAgentApi.ragSearch)
+}
+
+export function useFeedbackStats() {
+  return useApiCall<FeedbackStats>(
+    () => ideAgentApi.getFeedbackStats(),
+    []
+  )
+}
+
+// ─── Impact Simulator Hooks ─────────────────────────────────────────────
+
+export function useBlastRadius(scenarioId: string) {
+  return useApiCall<BlastRadiusAnalysis>(
+    () => impactSimulatorApi.getBlastRadius(scenarioId),
+    [scenarioId]
+  )
+}
+
+export function useCompareScenarios() {
+  return useMutation<
+    { scenario_ids: string[] },
+    ScenarioComparison
+  >(impactSimulatorApi.compareScenarios)
+}
+
+// ─── Remediation Workflow Hooks ─────────────────────────────────────────
+
+export function useRemediationAnalytics() {
+  return useApiCall<RemediationAnalytics>(
+    () => remediationApi.getAnalytics(),
+    []
+  )
+}
+
+export function useCreateApprovalChain() {
+  return useMutation<string, ApprovalChain>(
+    (workflowId) => remediationApi.createApprovalChain(workflowId)
+  )
+}
+
+export function useRollbackHistory(workflowId?: string) {
+  return useApiCall<RollbackRecord[]>(
+    () => remediationApi.getRollbackHistory(workflowId ? { workflow_id: workflowId } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [workflowId]
+  )
+}
+
+// ─── Posture Scoring Hooks ──────────────────────────────────────────────
+
+export function usePostureScore(repo?: string) {
+  return useApiCall<PostureScore>(
+    () => postureScoringApi.getDynamicScore(repo),
+    [repo]
+  )
+}
+
+export function usePostureBenchmark(industry: string, repo?: string) {
+  return useApiCall<PostureBenchmark>(
+    () => postureScoringApi.getBenchmark(industry, repo),
+    [industry, repo]
+  )
+}
+
+export function usePostureHistory(repo?: string) {
+  return useApiCall<PostureScoreHistory>(
+    () => postureScoringApi.getHistory(repo),
+    [repo]
+  )
+}
+
+// ─── Enhanced Drift Detection Hooks ─────────────────────────────────────
+
+export function useDriftTrend(repo: string, period?: string) {
+  return useApiCall<DriftTrend>(
+    () => driftDetectionEnhancedApi.getTrend(repo, period),
+    [repo, period]
+  )
+}
+
+// ─── Enhanced Evidence Vault Hooks ──────────────────────────────────────
+
+export function useEvidenceCoverage(framework: string) {
+  return useApiCall<CoverageMetrics>(
+    () => evidenceVaultEnhancedApi.getCoverage(framework),
+    [framework]
+  )
+}
+
+export function useEvidenceGaps(framework: string) {
+  return useApiCall<EvidenceGap[]>(
+    () => evidenceVaultEnhancedApi.getGaps(framework)
+      .then(res => ({ data: res.data || [] })),
+    [framework]
+  )
+}
+
+// ─── Enhanced Multi-LLM Hooks ───────────────────────────────────────────
+
+export function useProviderHealth() {
+  return useApiCall<ProviderHealthMetrics[]>(
+    () => multiLlmEnhancedApi.getProviderHealth()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── Enhanced Self-Hosted Hooks ─────────────────────────────────────────
+
+export function useOfflineBundles() {
+  return useApiCall<OfflineBundle[]>(
+    () => selfHostedEnhancedApi.listOfflineBundles()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+export function useAirGapStatus() {
+  return useApiCall<AirGapStatus>(
+    () => selfHostedEnhancedApi.getAirGapStatus(),
+    []
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Next-Gen v3 Feature Hooks
+// ═══════════════════════════════════════════════════════════════
+
+// ─── Cross-Border Data Transfer ─────────────────────────────────────────
+
+export function useDataFlows(source?: string) {
+  return useApiCall<DataFlowRecord[]>(
+    () => crossBorderTransferApi.listFlows(source ? { source } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [source]
+  )
+}
+
+export function useTransferReport() {
+  return useApiCall<TransferReportRecord>(
+    () => crossBorderTransferApi.getReport(),
+    []
+  )
+}
+
+export function useAdequacyDecisions() {
+  return useApiCall<AdequacyDecisionRecord[]>(
+    () => crossBorderTransferApi.getAdequacyDecisions()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── Stress Testing ─────────────────────────────────────────
+
+export function useStressScenarios() {
+  return useApiCall<StressScenario[]>(
+    () => stressTestingApi.listScenarios()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+export function useStressReport() {
+  return useApiCall<StressTestReportRecord>(
+    () => stressTestingApi.getReport(),
+    []
+  )
+}
+
+// ─── Zero-Trust Scanner ─────────────────────────────────────────
+
+export function useZeroTrustViolations(status?: string) {
+  return useApiCall<ZeroTrustViolation[]>(
+    () => zeroTrustScannerApi.listViolations(status ? { status } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [status]
+  )
+}
+
+export function useZeroTrustSummary() {
+  return useApiCall<Record<string, number>>(
+    () => zeroTrustScannerApi.getSummary(),
+    []
+  )
+}
+
+// ─── Compliance Training ─────────────────────────────────────────
+
+export function useTrainingModules(regulation?: string) {
+  return useApiCall<TrainingModuleRecord[]>(
+    () => complianceTrainingApi.listModules(regulation ? { regulation } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [regulation]
+  )
+}
+
+export function useTrainingLeaderboard() {
+  return useApiCall<DeveloperTrainingProfile[]>(
+    () => complianceTrainingApi.getLeaderboard()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── AI Observatory ─────────────────────────────────────────
+
+export function useAIModels(riskLevel?: string) {
+  return useApiCall<AIModelRecord[]>(
+    () => aiObservatoryApi.listModels(riskLevel ? { risk_level: riskLevel } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [riskLevel]
+  )
+}
+
+export function useAIObservatoryDashboard() {
+  return useApiCall<AIObservatoryDashboard>(
+    () => aiObservatoryApi.getDashboard(),
+    []
+  )
+}
+
+// ─── Regulation Test Generator ─────────────────────────────────────────
+
+export function useRegTestSuites(regulation?: string) {
+  return useApiCall<RegTestSuite[]>(
+    () => regulationTestGenApi.listSuites(regulation ? { regulation } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [regulation]
+  )
+}
+
+export function useRegulationCoverages() {
+  return useApiCall<RegulationCoverageRecord[]>(
+    () => regulationTestGenApi.listCoverages()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── Sentiment Analyzer ─────────────────────────────────────────
+
+export function useRegulatoryHeatmap() {
+  return useApiCall<RiskHeatmapCellRecord[]>(
+    () => sentimentAnalyzerApi.getHeatmap()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+export function useCompliancePrioritization() {
+  return useApiCall<PrioritizationRecord[]>(
+    () => sentimentAnalyzerApi.getPrioritization()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── Incident Playbook ─────────────────────────────────────────
+
+export function usePlaybooks() {
+  return useApiCall<PlaybookRecord[]>(
+    () => incidentPlaybookApi.listPlaybooks()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+export function useIncidents(status?: string) {
+  return useApiCall<IncidentRecord[]>(
+    () => incidentPlaybookApi.listIncidents(status ? { status } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [status]
+  )
+}
+
+// ─── Cost Attribution ─────────────────────────────────────────
+
+export function useCostDashboard() {
+  return useApiCall<CostDashboardRecord>(
+    () => costAttributionApi.getDashboard(),
+    []
+  )
+}
+
+export function useCostSummaries() {
+  return useApiCall<Record<string, unknown>[]>(
+    () => costAttributionApi.listSummaries()
+      .then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── Blockchain Audit ─────────────────────────────────────────
+
+export function useBlockchainState() {
+  return useApiCall<BlockchainStateRecord>(
+    () => blockchainAuditApi.getState(),
+    []
+  )
+}
+
+export function useBlockchainVerification() {
+  return useApiCall<VerificationResultRecord>(
+    () => blockchainAuditApi.verifyChain(),
     []
   )
 }
