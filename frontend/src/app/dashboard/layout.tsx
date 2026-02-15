@@ -26,6 +26,10 @@ import {
   Calendar,
   ShieldCheck,
   Terminal,
+  Bot,
+  Crosshair,
+  GitPullRequest,
+  Gauge,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { CardErrorBoundary } from '@/components/ErrorBoundary'
@@ -51,6 +55,10 @@ const navigation = [
   { name: 'Impact Timeline', href: '/dashboard/impact-timeline', icon: Calendar },
   { name: 'Audit Autopilot', href: '/dashboard/audit-autopilot', icon: ShieldCheck },
   { name: 'Policy SDK', href: '/dashboard/policy-sdk', icon: Terminal },
+  { name: 'IDE Co-Pilot', href: '/dashboard/ide-copilot', icon: Bot },
+  { name: 'Impact Simulator', href: '/dashboard/impact-simulator', icon: Crosshair },
+  { name: 'Remediation', href: '/dashboard/remediation-workflow', icon: GitPullRequest },
+  { name: 'Posture Score', href: '/dashboard/posture-scoring', icon: Gauge },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
