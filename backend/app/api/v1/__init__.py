@@ -48,6 +48,8 @@ from app.api.v1 import (
     model_cards,
     testing,
     architecture_advisor,
+    pair_programming,
+    prediction_market,
 )
 
 # ---------------------------------------------------------------------------
@@ -71,6 +73,23 @@ from app.api.v1 import (
     news_ticker,
     telemetry,
     compliance_intel,
+    chaos_engineering,
+    stress_testing,
+    sentiment_analyzer,
+)
+
+# ---------------------------------------------------------------------------
+# 🌐 Next-Gen Features
+# ---------------------------------------------------------------------------
+from app.api.v1 import (
+    cross_border_transfer,
+    zero_trust_scanner,
+    compliance_training,
+    ai_observatory,
+    regulation_test_gen,
+    incident_playbook,
+    cost_attribution,
+    blockchain_audit,
 )
 
 # ---------------------------------------------------------------------------
@@ -86,6 +105,7 @@ from app.api.v1 import (
     repositories,
     iac_scanner,
     sbom,
+    incident_remediation,
 )
 
 # ---------------------------------------------------------------------------
@@ -108,6 +128,7 @@ from app.api.v1 import (
     marketplace_app,
     pattern_marketplace,
     policy_marketplace,
+    api_monetization,
 )
 
 # ---------------------------------------------------------------------------
@@ -121,6 +142,7 @@ from app.api.v1 import (
     sandbox,
     regulatory_sandbox,
     compliance_sandbox,
+    compliance_cloning,
 )
 
 # ---------------------------------------------------------------------------
@@ -133,6 +155,8 @@ from app.api.v1 import (
     self_hosted,
     public_api,
     webhooks,
+    dao_governance,
+    debt_securitization,
 )
 
 # ---------------------------------------------------------------------------
@@ -145,6 +169,8 @@ from app.api.v1 import (
     training,
     certification,
     benchmarking,
+    game_engine,
+    regulation_diff,
 )
 
 # ---------------------------------------------------------------------------
@@ -203,6 +229,8 @@ router.include_router(explainability.router, prefix="/explainability", tags=["AI
 router.include_router(model_cards.router, prefix="/model-cards", tags=["AI Model Cards (EU AI Act)"])
 router.include_router(testing.router, prefix="/testing", tags=["AI Compliance Testing Suite"])
 router.include_router(architecture_advisor.router, prefix="/architecture-advisor", tags=["Regulation-to-Architecture Advisor"])
+router.include_router(pair_programming.router, prefix="/pair-programming", tags=["Real-Time Compliance Pair Programming"])
+router.include_router(prediction_market.router, prefix="/prediction-market", tags=["Compliance Impact Prediction Market"])
 
 # -- 🔍 Analysis & Monitoring ----------------------------------------------
 router.include_router(health_score.router, prefix="/health-score", tags=["Health Score"])
@@ -222,6 +250,7 @@ router.include_router(alerts.router, prefix="/alerts", tags=["Regulatory Alerts"
 router.include_router(news_ticker.router, prefix="/news-ticker", tags=["Regulatory News Ticker"])
 router.include_router(telemetry.router, prefix="/telemetry", tags=["Real-Time Compliance Telemetry"])
 router.include_router(compliance_intel.router, prefix="/compliance-intel", tags=["Federated Compliance Intelligence"])
+router.include_router(chaos_engineering.router, prefix="/chaos-engineering", tags=["Compliance Chaos Engineering"])
 
 # -- 🛠️ Developer Tools ----------------------------------------------------
 router.include_router(ide.router, prefix="/ide", tags=["IDE Integration"])
@@ -233,6 +262,7 @@ router.include_router(pr_copilot.router, prefix="/pr-copilot", tags=["Compliance
 router.include_router(repositories.router, prefix="/repositories", tags=["Repositories"])
 router.include_router(iac_scanner.router, prefix="/iac-scanner", tags=["Infrastructure-as-Code Compliance Scanner"])
 router.include_router(sbom.router, prefix="/sbom", tags=["SBOM Compliance"])
+router.include_router(incident_remediation.router, prefix="/incident-remediation", tags=["Incident-to-Compliance Auto-Remediation"])
 
 # -- 📊 Audit & Evidence ---------------------------------------------------
 router.include_router(audit.router, prefix="/audit", tags=["Audit Trail"])
@@ -247,6 +277,7 @@ router.include_router(marketplace.router, prefix="/marketplace", tags=["API Mark
 router.include_router(marketplace_app.router, prefix="/marketplace-app", tags=["GitHub/GitLab Marketplace App"])
 router.include_router(pattern_marketplace.router, prefix="/pattern-marketplace", tags=["Pattern Marketplace"])
 router.include_router(policy_marketplace.router, prefix="/policy-marketplace", tags=["Compliance-as-Code Policy Marketplace"])
+router.include_router(api_monetization.router, prefix="/api-monetization", tags=["Compliance API Monetization Layer"])
 
 # -- 🔧 Automation & Workflows ---------------------------------------------
 router.include_router(autopilot.router, prefix="/autopilot", tags=["Agentic Autopilot"])
@@ -256,6 +287,7 @@ router.include_router(remediation_workflow.router, prefix="/remediation", tags=[
 router.include_router(sandbox.router, prefix="/sandbox", tags=["Compliance Sandbox"])
 router.include_router(regulatory_sandbox.router, prefix="/regulatory-sandbox", tags=["Regulatory Sandbox Integration"])
 router.include_router(compliance_sandbox.router, prefix="/compliance-sandbox", tags=["Compliance Sandbox Environments"])
+router.include_router(compliance_cloning.router, prefix="/compliance-cloning", tags=["Cross-Codebase Compliance Cloning"])
 
 # -- 🏢 Platform & Enterprise ----------------------------------------------
 router.include_router(billing.router, prefix="/billing", tags=["Billing"])
@@ -264,6 +296,8 @@ router.include_router(saas_platform.router, prefix="/saas-platform", tags=["SaaS
 router.include_router(self_hosted.router, prefix="/self-hosted", tags=["Self-Hosted Deployment"])
 router.include_router(public_api.router, prefix="/public-api", tags=["Public API & SDK"])
 router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
+router.include_router(dao_governance.router, prefix="/dao-governance", tags=["Compliance DAO Governance"])
+router.include_router(debt_securitization.router, prefix="/debt-securitization", tags=["Compliance Debt Securitization"])
 
 # -- 📚 Knowledge & Learning -----------------------------------------------
 router.include_router(graph.router, prefix="/graph", tags=["Knowledge Graph"])
@@ -272,6 +306,8 @@ router.include_router(query.router, prefix="/query", tags=["Query Engine"])
 router.include_router(training.router, prefix="/training", tags=["Compliance Training"])
 router.include_router(certification.router, prefix="/certification", tags=["Compliance Training & Certification"])
 router.include_router(benchmarking.router, prefix="/benchmarking", tags=["Accuracy Benchmarking"])
+router.include_router(game_engine.router, prefix="/game-engine", tags=["Compliance Simulation Game Engine"])
+router.include_router(regulation_diff.router, prefix="/regulation-diff", tags=["Regulation Changelog Diff Viewer"])
 
 # -- 🏗️ Infrastructure & Cloud ---------------------------------------------
 router.include_router(cloud.router, prefix="/cloud", tags=["Cloud Compliance"])
@@ -282,3 +318,15 @@ router.include_router(vendor_risk.router, prefix="/vendor-risk", tags=["Vendor R
 router.include_router(vendor_assessment.router, prefix="/vendor-assessment", tags=["Vendor Assessment"])
 router.include_router(portfolio.router, prefix="/portfolios", tags=["Compliance Portfolios"])
 router.include_router(federated_intel.router, prefix="/federated-intel", tags=["Federated Intelligence Network"])
+
+# -- 🌐 Next-Gen Features --------------------------------------------------
+router.include_router(cross_border_transfer.router, prefix="/cross-border-transfer", tags=["Cross-Border Data Transfer Automation"])
+router.include_router(stress_testing.router, prefix="/stress-testing", tags=["Regulatory Compliance Stress Testing"])
+router.include_router(zero_trust_scanner.router, prefix="/zero-trust-scanner", tags=["Zero-Trust Compliance Architecture Scanner"])
+router.include_router(compliance_training.router, prefix="/compliance-training", tags=["Continuous Compliance Training Copilot"])
+router.include_router(ai_observatory.router, prefix="/ai-observatory", tags=["AI Model Compliance Observatory"])
+router.include_router(regulation_test_gen.router, prefix="/regulation-test-gen", tags=["Regulation-to-Test-Case Generator"])
+router.include_router(sentiment_analyzer.router, prefix="/sentiment-analyzer", tags=["Regulatory Change Sentiment Analyzer"])
+router.include_router(incident_playbook.router, prefix="/incident-playbook", tags=["Incident Response Compliance Playbook"])
+router.include_router(cost_attribution.router, prefix="/cost-attribution", tags=["Compliance Cost Attribution Engine"])
+router.include_router(blockchain_audit.router, prefix="/blockchain-audit", tags=["Blockchain-Based Compliance Audit Trail"])
