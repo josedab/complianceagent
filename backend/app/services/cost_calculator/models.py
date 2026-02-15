@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from uuid import UUID
+from typing import Any
+from uuid import UUID, uuid4
 
 
 class ComplexityLevel(str, Enum):
@@ -105,3 +106,21 @@ class ROISummary:
     roi_pct: float
     payback_months: float
     compared_to: str = "manual"
+
+
+@dataclass
+class ExecutiveReport:
+    """CFO-ready executive compliance cost report."""
+
+    id: UUID = field(default_factory=uuid4)
+    org_id: str = ""
+    total_portfolio_cost: float = 0.0
+    total_risk_exposure: float = 0.0
+    annual_fine_risk: float = 0.0
+    roi_with_automation: float = 0.0
+    payback_period_months: float = 0.0
+    priority_regulations: list[dict[str, Any]] = field(default_factory=list)
+    cost_by_regulation: dict[str, float] = field(default_factory=dict)
+    three_year_projection: dict[str, float] = field(default_factory=dict)
+    recommendations: list[str] = field(default_factory=list)
+    generated_at: datetime = field(default_factory=datetime.utcnow)

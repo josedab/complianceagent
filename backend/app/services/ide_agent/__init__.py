@@ -13,9 +13,14 @@ from app.services.ide_agent.models import (
     AgentTriggerType,
     CodeLocation,
     ComplianceViolation,
+    FeedbackRating,
+    FeedbackStats,
     FixConfidence,
     ProposedFix,
+    RAGSearchResult,
     RefactorPlan,
+    RegulationEmbedding,
+    SuggestionFeedback,
 )
 
 __all__ = [
@@ -29,7 +34,12 @@ __all__ = [
     "AgentTriggerType",
     "CodeLocation",
     "ComplianceViolation",
+    "FeedbackRating",
+    "FeedbackStats",
     "FixConfidence",
     "ProposedFix",
+    "RAGSearchResult",
     "RefactorPlan",
+    "RegulationEmbedding",
+    "SuggestionFeedback",
 ]

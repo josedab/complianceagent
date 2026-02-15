@@ -12,8 +12,11 @@ from app.services.audit_autopilot.models import (
     ControlMapping,
     EvidencePackage,
     EvidenceStatus,
+    EvidenceTimelineEntry,
     GapAnalysis,
     GapSeverity,
+    RemediationStatus,
+    RemediationTracker,
 )
 
 logger = structlog.get_logger()
@@ -213,3 +216,73 @@ class AuditAutopilotService:
             {"framework": fw.value, "control_count": len(ctrls)}
             for fw, ctrls in _FRAMEWORK_CONTROLS.items()
         ]
+
+    async def get_evidence_timeline(
+        self,
+        framework: AuditFramework,
+        limit: int = 50,
+    ) -> list[EvidenceTimelineEntry]:
+        """Get evidence collection timeline for a framework."""
+        analysis = await self.run_gap_analysis(framework)
+        timeline: list[EvidenceTimelineEntry] = []
+
+        for mapping in analysis.control_mappings:
+            if mapping.evidence_status == EvidenceStatus.COLLECTED:
+                timeline.append(EvidenceTimelineEntry(
+                    framework=framework,
+                    control_id=mapping.control_id,
+                    control_name=mapping.control_name,
+                    event_type="collected",
+                    description=f"Evidence collected for {mapping.control_name}",
+                    evidence_items=mapping.evidence_items,
+                    actor="autopilot",
+                    timestamp=datetime.now(UTC),
+                ))
+            elif mapping.evidence_status == EvidenceStatus.PARTIAL:
+                timeline.append(EvidenceTimelineEntry(
+                    framework=framework,
+                    control_id=mapping.control_id,
+                    control_name=mapping.control_name,
+                    event_type="partial",
+                    description=f"Partial evidence for {mapping.control_name} — additional items needed",
+                    evidence_items=mapping.evidence_items,
+                    actor="autopilot",
+                    timestamp=datetime.now(UTC),
+                ))
+            elif mapping.evidence_status == EvidenceStatus.MISSING:
+                timeline.append(EvidenceTimelineEntry(
+                    framework=framework,
+                    control_id=mapping.control_id,
+                    control_name=mapping.control_name,
+                    event_type="gap_identified",
+                    description=f"No evidence found for {mapping.control_name}",
+                    actor="autopilot",
+                    timestamp=datetime.now(UTC),
+                ))
+
+        return sorted(timeline, key=lambda e: e.timestamp or datetime.min, reverse=True)[:limit]
+
+    async def get_remediation_tasks(
+        self,
+        framework: AuditFramework,
+    ) -> list[RemediationTracker]:
+        """Get remediation tasks for control gaps."""
+        analysis = await self.run_gap_analysis(framework)
+        tasks: list[RemediationTracker] = []
+
+        for mapping in analysis.control_mappings:
+            if mapping.evidence_status in (EvidenceStatus.MISSING, EvidenceStatus.PARTIAL):
+                severity = mapping.gap_severity or GapSeverity.MEDIUM
+                hours = {"critical": 16.0, "high": 12.0, "medium": 8.0, "low": 4.0}
+
+                tasks.append(RemediationTracker(
+                    framework=framework,
+                    control_id=mapping.control_id,
+                    control_name=mapping.control_name,
+                    gap_description=mapping.gap_description or f"Evidence gap for {mapping.control_name}",
+                    severity=severity,
+                    status=RemediationStatus.NOT_STARTED,
+                    estimated_hours=hours.get(severity.value, 8.0),
+                ))
+
+        return sorted(tasks, key=lambda t: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(t.severity.value, 4))

@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -102,3 +103,73 @@ class PrebuiltScenario:
     category: str = ""
     change: RegulatoryChange = field(default_factory=RegulatoryChange)
     difficulty: str = "medium"
+
+
+@dataclass
+class BlastRadiusComponent:
+    """A component affected by a regulatory change."""
+
+    component_path: str = ""
+    component_type: str = "file"  # file, module, service, api_endpoint
+    impact_level: str = "medium"  # low, medium, high, critical
+    regulations_affected: list[str] = field(default_factory=list)
+    estimated_effort_hours: float = 0.0
+    change_type: str = "modification"  # modification, addition, removal, review_only
+    description: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "component_path": self.component_path,
+            "component_type": self.component_type,
+            "impact_level": self.impact_level,
+            "regulations_affected": self.regulations_affected,
+            "estimated_effort_hours": self.estimated_effort_hours,
+            "change_type": self.change_type,
+            "description": self.description,
+        }
+
+
+@dataclass
+class BlastRadiusAnalysis:
+    """Full blast radius analysis for a regulatory scenario."""
+
+    scenario_id: str = ""
+    total_components: int = 0
+    critical_count: int = 0
+    high_count: int = 0
+    medium_count: int = 0
+    low_count: int = 0
+    components: list[BlastRadiusComponent] = field(default_factory=list)
+    total_effort_hours: float = 0.0
+    risk_score: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "scenario_id": self.scenario_id,
+            "total_components": self.total_components,
+            "critical_count": self.critical_count,
+            "high_count": self.high_count,
+            "medium_count": self.medium_count,
+            "low_count": self.low_count,
+            "components": [c.to_dict() for c in self.components],
+            "total_effort_hours": self.total_effort_hours,
+            "risk_score": self.risk_score,
+        }
+
+
+@dataclass
+class ScenarioComparison:
+    """Comparison of multiple regulatory scenarios."""
+
+    scenarios: list[dict[str, Any]] = field(default_factory=list)
+    winner: str = ""
+    recommendation: str = ""
+    comparison_matrix: dict[str, dict[str, float]] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "scenarios": self.scenarios,
+            "winner": self.winner,
+            "recommendation": self.recommendation,
+            "comparison_matrix": self.comparison_matrix,
+        }

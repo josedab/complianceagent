@@ -90,3 +90,73 @@ async def generate_readiness_report(framework: str, db: DB, copilot: CopilotDep)
 async def list_frameworks(db: DB, copilot: CopilotDep) -> list[dict]:
     service = AuditAutopilotService(db=db, copilot_client=copilot)
     return await service.list_supported_frameworks()
+
+
+class EvidenceTimelineSchema(BaseModel):
+    id: str
+    framework: str
+    control_id: str
+    control_name: str
+    event_type: str
+    description: str
+    evidence_items: list[str]
+    actor: str
+    timestamp: str | None
+
+
+class RemediationTaskSchema(BaseModel):
+    id: str
+    framework: str
+    control_id: str
+    control_name: str
+    gap_description: str
+    severity: str
+    status: str
+    estimated_hours: float
+
+
+@router.get(
+    "/evidence-timeline/{framework}",
+    response_model=list[EvidenceTimelineSchema],
+    summary="Get evidence collection timeline",
+)
+async def get_evidence_timeline(
+    framework: str, db: DB, copilot: CopilotDep, limit: int = 50,
+) -> list[EvidenceTimelineSchema]:
+    """Get chronological evidence collection timeline for a framework."""
+    fw = _parse_framework(framework)
+    service = AuditAutopilotService(db=db, copilot_client=copilot)
+    entries = await service.get_evidence_timeline(fw, limit=limit)
+    return [
+        EvidenceTimelineSchema(
+            id=str(e.id), framework=e.framework.value,
+            control_id=e.control_id, control_name=e.control_name,
+            event_type=e.event_type, description=e.description,
+            evidence_items=e.evidence_items, actor=e.actor,
+            timestamp=e.timestamp.isoformat() if e.timestamp else None,
+        )
+        for e in entries
+    ]
+
+
+@router.get(
+    "/remediation-tasks/{framework}",
+    response_model=list[RemediationTaskSchema],
+    summary="Get remediation tasks for control gaps",
+)
+async def get_remediation_tasks(
+    framework: str, db: DB, copilot: CopilotDep,
+) -> list[RemediationTaskSchema]:
+    """Get prioritized remediation tasks for control gaps."""
+    fw = _parse_framework(framework)
+    service = AuditAutopilotService(db=db, copilot_client=copilot)
+    tasks = await service.get_remediation_tasks(fw)
+    return [
+        RemediationTaskSchema(
+            id=str(t.id), framework=t.framework.value,
+            control_id=t.control_id, control_name=t.control_name,
+            gap_description=t.gap_description, severity=t.severity.value,
+            status=t.status.value, estimated_hours=t.estimated_hours,
+        )
+        for t in tasks
+    ]

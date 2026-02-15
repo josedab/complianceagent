@@ -904,3 +904,117 @@ async def stream_error(session_id: str, message: str) -> None:
         "message": message,
         "timestamp": datetime.now(UTC).isoformat(),
     })
+
+
+# ============================================================================
+# RAG Search Endpoints
+# ============================================================================
+
+
+class RAGSearchRequest(BaseModel):
+    """Request to search regulations using RAG."""
+
+    query: str = Field(..., description="Search query for regulations")
+    regulations: list[str] | None = Field(default=None, description="Filter by regulation names")
+    top_k: int = Field(default=5, ge=1, le=20, description="Max results to return")
+
+
+class RAGSearchResultSchema(BaseModel):
+    """Response containing a RAG search result."""
+
+    regulation: str
+    article: str
+    text: str
+    relevance_score: float
+    metadata: dict[str, Any] = {}
+
+
+@router.post("/rag-search", response_model=list[RAGSearchResultSchema])
+async def search_regulations(
+    request: RAGSearchRequest,
+    db: DB,
+) -> list[RAGSearchResultSchema]:
+    """Search regulation corpus using RAG for context-aware compliance assistance."""
+    from uuid import uuid4
+
+    service = IDEAgentService(db=db, organization_id=uuid4())
+    results = await service.search_regulations(
+        query=request.query,
+        regulations=request.regulations,
+        top_k=request.top_k,
+    )
+    return [RAGSearchResultSchema(**r.to_dict()) for r in results]
+
+
+# ============================================================================
+# Feedback Learning Loop Endpoints
+# ============================================================================
+
+
+class FeedbackRequest(BaseModel):
+    """Request to submit feedback on a suggestion."""
+
+    session_id: str | None = None
+    violation_id: str | None = None
+    fix_id: str | None = None
+    rating: str = Field(..., description="helpful, not_helpful, incorrect, partially_helpful")
+    comment: str = ""
+    was_applied: bool = False
+
+
+class FeedbackResponseSchema(BaseModel):
+    """Response containing submitted feedback."""
+
+    id: str
+    rating: str
+    comment: str
+    was_applied: bool
+    submitted_at: str
+
+
+class FeedbackStatsSchema(BaseModel):
+    """Response containing aggregated feedback statistics."""
+
+    total_feedback: int
+    helpful_count: int
+    not_helpful_count: int
+    incorrect_count: int
+    application_rate: float
+    top_appreciated_rules: list[str]
+    top_rejected_rules: list[str]
+
+
+@router.post("/feedback", response_model=FeedbackResponseSchema, status_code=201)
+async def submit_feedback(
+    request: FeedbackRequest,
+    db: DB,
+) -> FeedbackResponseSchema:
+    """Submit feedback on an IDE copilot suggestion to improve future recommendations."""
+    from uuid import uuid4
+
+    service = IDEAgentService(db=db, organization_id=uuid4())
+    feedback = service.submit_feedback(
+        session_id=UUID(request.session_id) if request.session_id else None,
+        violation_id=UUID(request.violation_id) if request.violation_id else None,
+        fix_id=UUID(request.fix_id) if request.fix_id else None,
+        rating=request.rating,
+        comment=request.comment,
+        was_applied=request.was_applied,
+    )
+    return FeedbackResponseSchema(
+        id=str(feedback.id),
+        rating=feedback.rating.value,
+        comment=feedback.comment,
+        was_applied=feedback.was_applied,
+        submitted_at=feedback.submitted_at.isoformat(),
+    )
+
+
+@router.get("/feedback/stats", response_model=FeedbackStatsSchema)
+async def get_feedback_stats(db: DB) -> FeedbackStatsSchema:
+    """Get aggregated feedback statistics for the IDE copilot."""
+    from uuid import uuid4
+
+    service = IDEAgentService(db=db, organization_id=uuid4())
+    stats = service.get_feedback_stats()
+    return FeedbackStatsSchema(**stats.to_dict())

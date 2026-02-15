@@ -13,6 +13,8 @@ from app.api.v1.deps import DB
 from app.services.drift_detection import (
     AlertChannel,
     AlertConfig,
+    CICDGateDecision,
+    CICDGateResult,
     DriftDetectionService,
     DriftSeverity,
     DriftType,
@@ -92,6 +94,71 @@ class DriftReportSchema(BaseModel):
     events_by_severity: dict[str, int]
     events_by_type: dict[str, int]
     top_drifting_files: list[dict[str, Any]]
+
+
+class CICDGateRequest(BaseModel):
+    """CI/CD compliance gate request."""
+
+    repo: str = Field(..., description="Repository full name")
+    branch: str = Field(default="main")
+    commit_sha: str = Field(default="")
+    current_score: float = Field(default=100.0, ge=0, le=100)
+    current_findings: list[dict[str, Any]] = Field(default_factory=list)
+    threshold_score: float = Field(default=80.0, ge=0, le=100)
+    block_on_critical: bool = Field(default=True, description="Block pipeline on critical violations")
+
+
+class CICDGateSchema(BaseModel):
+    """CI/CD gate decision response."""
+
+    id: str
+    repo: str
+    branch: str
+    commit_sha: str
+    decision: str
+    current_score: float
+    threshold_score: float
+    violations_found: int
+    critical_violations: int
+    blocking_findings: list[str]
+    warnings: list[str]
+    checked_at: str | None
+
+
+class DriftTrendSchema(BaseModel):
+    """Drift trend response."""
+
+    repo: str
+    period: str
+    data_points: list[dict[str, Any]]
+    trend_direction: str
+    avg_score: float
+    min_score: float
+    max_score: float
+    volatility: float
+
+
+class TopDriftingFileSchema(BaseModel):
+    """Top drifting file response."""
+
+    file_path: str
+    drift_count: int
+    total_delta: float
+    last_drift_at: str
+    regulations_affected: list[str]
+
+
+class WebhookDeliverySchema(BaseModel):
+    """Webhook delivery response."""
+
+    id: str
+    channel: str
+    url: str
+    event_id: str
+    status: str
+    response_code: int | None
+    delivered_at: str | None
+    attempts: int
 
 
 # --- Endpoints ---
@@ -227,3 +294,103 @@ async def get_report(repo: str, db: DB) -> DriftReportSchema:
         events_by_type=report.events_by_type,
         top_drifting_files=report.top_drifting_files,
     )
+
+
+@router.post(
+    "/cicd-gate",
+    response_model=CICDGateSchema,
+    summary="CI/CD compliance gate check",
+)
+async def check_cicd_gate(
+    request: CICDGateRequest,
+    db: DB,
+) -> CICDGateSchema:
+    """Check compliance gate for CI/CD pipeline.
+
+    Returns pass/fail/warn decision. Use in GitHub Actions or GitLab CI
+    to block merges when compliance score drops below threshold.
+    """
+    service = DriftDetectionService(db=db)
+    result = await service.check_cicd_gate(
+        repo=request.repo, branch=request.branch,
+        commit_sha=request.commit_sha,
+        current_score=request.current_score,
+        current_findings=request.current_findings,
+        threshold_score=request.threshold_score,
+        block_on_critical=request.block_on_critical,
+    )
+    return CICDGateSchema(
+        id=str(result.id), repo=result.repo, branch=result.branch,
+        commit_sha=result.commit_sha, decision=result.decision.value,
+        current_score=result.current_score, threshold_score=result.threshold_score,
+        violations_found=result.violations_found,
+        critical_violations=result.critical_violations,
+        blocking_findings=result.blocking_findings,
+        warnings=result.warnings,
+        checked_at=result.checked_at.isoformat() if result.checked_at else None,
+    )
+
+
+@router.get(
+    "/trend/{repo:path}",
+    response_model=DriftTrendSchema,
+    summary="Get compliance drift trend",
+)
+async def get_drift_trend(
+    repo: str,
+    db: DB,
+    period: str = "7d",
+) -> DriftTrendSchema:
+    """Get compliance drift trend over time."""
+    service = DriftDetectionService(db=db)
+    trend = service.get_drift_trend(repo, period)
+    return DriftTrendSchema(**trend.to_dict())
+
+
+@router.get(
+    "/top-drifting/{repo:path}",
+    response_model=list[TopDriftingFileSchema],
+    summary="Get top drifting files",
+)
+async def get_top_drifting_files(
+    repo: str,
+    db: DB,
+    limit: int = 10,
+) -> list[TopDriftingFileSchema]:
+    """Get files with the most compliance drift."""
+    service = DriftDetectionService(db=db)
+    files = service.get_top_drifting_files(repo, limit)
+    return [TopDriftingFileSchema(**f.to_dict()) for f in files]
+
+
+@router.post(
+    "/webhook-deliver",
+    response_model=WebhookDeliverySchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Deliver webhook notification",
+)
+async def deliver_webhook(
+    event_id: str,
+    channel: str,
+    db: DB,
+) -> WebhookDeliverySchema:
+    """Deliver a webhook notification for a drift event."""
+    service = DriftDetectionService(db=db)
+    delivery = await service.deliver_webhook(event_id, channel)
+    return WebhookDeliverySchema(**delivery.to_dict())
+
+
+@router.get(
+    "/webhook-deliveries",
+    response_model=list[WebhookDeliverySchema],
+    summary="Get webhook delivery history",
+)
+async def get_webhook_deliveries(
+    db: DB,
+    event_id: str | None = None,
+    limit: int = 50,
+) -> list[WebhookDeliverySchema]:
+    """Get webhook delivery history."""
+    service = DriftDetectionService(db=db)
+    deliveries = service.get_webhook_deliveries(event_id, limit)
+    return [WebhookDeliverySchema(**d.to_dict()) for d in deliveries]

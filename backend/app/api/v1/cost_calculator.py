@@ -23,7 +23,10 @@ class PredictCostRequest(BaseModel):
     avg_hourly_rate: float = Field(
         default=75.0, ge=1.0, description="Average hourly developer rate in USD"
     )
-    industry: str = Field(default="saas", description="Industry (saas, fintech, healthtech, enterprise, startup, government)")
+    industry: str = Field(
+        default="saas",
+        description="Industry (saas, fintech, healthtech, enterprise, startup, government)",
+    )
 
 
 class CompareRequest(BaseModel):
@@ -40,6 +43,17 @@ class RecordActualRequest(BaseModel):
     prediction_id: str = Field(..., description="Original prediction ID")
     actual_days: float = Field(..., ge=0, description="Actual developer-days spent")
     actual_cost: float = Field(..., ge=0, description="Actual cost in USD")
+
+
+class ExecutiveReportRequest(BaseModel):
+    regulations: list[str] = Field(
+        ..., min_length=1, description="List of regulations to include in the report"
+    )
+    team_size: int = Field(default=10, ge=1, le=500, description="Engineering team size")
+    avg_hourly_rate: float = Field(
+        default=75.0, ge=1.0, description="Average hourly developer rate in USD"
+    )
+    industry: str = Field(default="saas", description="Industry vertical")
 
 
 # --- Response Models ---
@@ -111,6 +125,29 @@ class RegulationInfoSchema(BaseModel):
     category: str
     base_developer_days: float
     cost_multiplier: float
+
+
+class PriorityRegulationSchema(BaseModel):
+    regulation: str
+    cost: float
+    risk_score: float
+    fine_risk: float
+    priority_score: float
+
+
+class ExecutiveReportSchema(BaseModel):
+    id: str
+    org_id: str
+    total_portfolio_cost: float
+    total_risk_exposure: float
+    annual_fine_risk: float
+    roi_with_automation: float
+    payback_period_months: float
+    priority_regulations: list[PriorityRegulationSchema]
+    cost_by_regulation: dict[str, float]
+    three_year_projection: dict[str, float]
+    recommendations: list[str]
+    generated_at: str
 
 
 # --- Helpers ---
@@ -317,3 +354,49 @@ async def list_regulations() -> list[RegulationInfoSchema]:
         )
         for key, (days, mult, cat) in sorted(_BASE_ESTIMATES.items())
     ]
+
+
+@router.post(
+    "/executive-report",
+    response_model=ExecutiveReportSchema,
+    summary="Generate executive report",
+    description="Generate a CFO-ready executive compliance cost report with risk exposure, ROI, and recommendations",
+)
+async def generate_executive_report(
+    request: ExecutiveReportRequest,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+    copilot: CopilotDep,
+) -> ExecutiveReportSchema:
+    service = CostCalculatorService(db=db, copilot_client=copilot)
+    report = await service.generate_executive_report(
+        org_id=str(organization.id),
+        regulations=request.regulations,
+        team_size=request.team_size,
+        avg_hourly_rate=request.avg_hourly_rate,
+        industry=request.industry,
+    )
+    return ExecutiveReportSchema(
+        id=str(report.id),
+        org_id=report.org_id,
+        total_portfolio_cost=report.total_portfolio_cost,
+        total_risk_exposure=report.total_risk_exposure,
+        annual_fine_risk=report.annual_fine_risk,
+        roi_with_automation=report.roi_with_automation,
+        payback_period_months=report.payback_period_months,
+        priority_regulations=[
+            PriorityRegulationSchema(
+                regulation=p["regulation"],
+                cost=p["cost"],
+                risk_score=p["risk_score"],
+                fine_risk=p["fine_risk"],
+                priority_score=p["priority_score"],
+            )
+            for p in report.priority_regulations
+        ],
+        cost_by_regulation=report.cost_by_regulation,
+        three_year_projection=report.three_year_projection,
+        recommendations=report.recommendations,
+        generated_at=report.generated_at.isoformat(),
+    )

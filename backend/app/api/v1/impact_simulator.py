@@ -251,3 +251,84 @@ async def compare_scenarios(
     service = ImpactSimulatorService(db=db, copilot_client=copilot)
     results = await service.compare_scenarios(request.scenario_ids, repo=request.repo)
     return [_to_result_schema(r) for r in results]
+
+
+# --- Blast Radius & Detailed Comparison Schemas ---
+
+
+class BlastRadiusComponentSchema(BaseModel):
+    """A component affected by a regulatory change."""
+
+    component_path: str
+    component_type: str
+    impact_level: str
+    regulations_affected: list[str]
+    estimated_effort_hours: float
+    change_type: str
+    description: str
+
+
+class BlastRadiusAnalysisSchema(BaseModel):
+    """Full blast radius analysis for a regulatory scenario."""
+
+    scenario_id: str
+    total_components: int
+    critical_count: int
+    high_count: int
+    medium_count: int
+    low_count: int
+    components: list[BlastRadiusComponentSchema]
+    total_effort_hours: float
+    risk_score: float
+
+
+class DetailedCompareRequest(BaseModel):
+    """Request to compare scenarios with detailed analysis."""
+
+    scenario_ids: list[str] = Field(..., min_length=2, description="Scenario IDs to compare")
+
+
+class ScenarioComparisonSchema(BaseModel):
+    """Comparison of multiple regulatory scenarios."""
+
+    scenarios: list[dict[str, Any]]
+    winner: str
+    recommendation: str
+    comparison_matrix: dict[str, dict[str, float]]
+
+
+# --- Blast Radius & Detailed Comparison Endpoints ---
+
+
+@router.get(
+    "/blast-radius/{scenario_id}",
+    response_model=BlastRadiusAnalysisSchema,
+    summary="Analyze blast radius",
+    description="Analyze the blast radius of a regulatory change scenario",
+)
+async def analyze_blast_radius(
+    scenario_id: str,
+    db: DB,
+    copilot: CopilotDep,
+) -> BlastRadiusAnalysisSchema:
+    """Analyze the blast radius of a regulatory change scenario."""
+    service = ImpactSimulatorService(db=db, copilot_client=copilot)
+    analysis = service.analyze_blast_radius(scenario_id)
+    return BlastRadiusAnalysisSchema(**analysis.to_dict())
+
+
+@router.post(
+    "/compare-detailed",
+    response_model=ScenarioComparisonSchema,
+    summary="Compare scenarios with detailed analysis",
+    description="Compare multiple regulatory impact scenarios side by side with blast radius analysis",
+)
+async def compare_scenarios_detailed(
+    request: DetailedCompareRequest,
+    db: DB,
+    copilot: CopilotDep,
+) -> ScenarioComparisonSchema:
+    """Compare multiple regulatory impact scenarios side by side."""
+    service = ImpactSimulatorService(db=db, copilot_client=copilot)
+    comparison = service.compare_scenarios_detailed(request.scenario_ids)
+    return ScenarioComparisonSchema(**comparison.to_dict())

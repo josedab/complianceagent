@@ -89,3 +89,44 @@ class AuditReadinessReport:
     recommendations: list[str] = field(default_factory=list)
     estimated_prep_weeks: float = 0.0
     generated_at: datetime | None = None
+
+
+class RemediationStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    BLOCKED = "blocked"
+    DEFERRED = "deferred"
+
+
+@dataclass
+class EvidenceTimelineEntry:
+    """An entry in the evidence collection timeline."""
+    id: UUID = field(default_factory=uuid4)
+    framework: AuditFramework = AuditFramework.SOC2_TYPE2
+    control_id: str = ""
+    control_name: str = ""
+    event_type: str = ""  # collected, updated, reviewed, expired
+    description: str = ""
+    evidence_items: list[str] = field(default_factory=list)
+    actor: str = ""
+    timestamp: datetime | None = None
+
+
+@dataclass
+class RemediationTracker:
+    """Track remediation of a control gap."""
+    id: UUID = field(default_factory=uuid4)
+    framework: AuditFramework = AuditFramework.SOC2_TYPE2
+    control_id: str = ""
+    control_name: str = ""
+    gap_description: str = ""
+    severity: GapSeverity = GapSeverity.MEDIUM
+    status: RemediationStatus = RemediationStatus.NOT_STARTED
+    assignee: str = ""
+    estimated_hours: float = 0.0
+    actual_hours: float = 0.0
+    due_date: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    notes: str = ""

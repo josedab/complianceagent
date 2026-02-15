@@ -10,12 +10,17 @@ from app.services.drift_detection.models import (
     AlertChannel,
     AlertConfig,
     AlertStatus,
+    CICDGateDecision,
+    CICDGateResult,
     ComplianceBaseline,
     DriftAlert,
     DriftEvent,
     DriftReport,
     DriftSeverity,
+    DriftTrend,
     DriftType,
+    TopDriftingFile,
+    WebhookDelivery,
 )
 
 logger = structlog.get_logger()
@@ -204,6 +209,214 @@ class DriftDetectionService:
                     alert.sent_at = datetime.now(UTC)
 
         logger.info("Alerts dispatched", count=len(self._alerts))
+
+    async def check_cicd_gate(
+        self,
+        repo: str,
+        branch: str = "main",
+        commit_sha: str = "",
+        current_score: float = 100.0,
+        current_findings: list[dict] | None = None,
+        threshold_score: float = 80.0,
+        block_on_critical: bool = True,
+    ) -> CICDGateResult:
+        """Evaluate compliance gate for CI/CD pipeline.
+
+        Returns pass/fail/warn decision based on compliance score and findings.
+        Designed to be called from GitHub Actions, GitLab CI, or similar.
+        """
+        events = await self.detect_drift(
+            repo=repo, branch=branch, commit_sha=commit_sha,
+            current_findings=current_findings, current_score=current_score,
+        )
+
+        critical_violations = sum(1 for e in events if e.severity == DriftSeverity.CRITICAL)
+        high_violations = sum(1 for e in events if e.severity == DriftSeverity.HIGH)
+        blocking = [e.description for e in events if e.severity == DriftSeverity.CRITICAL]
+        warnings = [e.description for e in events if e.severity in (DriftSeverity.HIGH, DriftSeverity.MEDIUM)]
+
+        # Determine decision
+        if block_on_critical and critical_violations > 0:
+            decision = CICDGateDecision.FAIL
+        elif current_score < threshold_score:
+            decision = CICDGateDecision.FAIL
+        elif high_violations > 0 or current_score < threshold_score + 10:
+            decision = CICDGateDecision.WARN
+        else:
+            decision = CICDGateDecision.PASS
+
+        result = CICDGateResult(
+            repo=repo, branch=branch, commit_sha=commit_sha,
+            decision=decision, current_score=current_score,
+            threshold_score=threshold_score,
+            violations_found=len(events),
+            critical_violations=critical_violations,
+            blocking_findings=blocking, warnings=warnings,
+            checked_at=datetime.now(UTC),
+        )
+
+        logger.info(
+            "CI/CD gate checked",
+            repo=repo, decision=decision.value,
+            score=current_score, violations=len(events),
+        )
+        return result
+
+    # ── Trend Analysis ───────────────────────────────────────────────────
+
+    def get_drift_trend(
+        self,
+        repo: str,
+        period: str = "7d",
+    ) -> DriftTrend:
+        """Get drift score trend over time."""
+        events = [e for e in self._events if e.repo == repo]
+        events.sort(key=lambda e: e.detected_at or datetime.now(UTC))
+
+        if not events:
+            baseline = self._baselines.get(repo)
+            score = baseline.score if baseline else 100.0
+            return DriftTrend(
+                repo=repo, period=period,
+                data_points=[{"date": datetime.now(UTC).isoformat(), "score": score}],
+                trend_direction="stable", avg_score=score, min_score=score, max_score=score,
+            )
+
+        data_points = []
+        scores = []
+        for event in events:
+            score = event.current_score
+            scores.append(score)
+            data_points.append({
+                "date": event.detected_at.isoformat() if event.detected_at else "",
+                "score": score,
+                "event_id": str(event.id),
+                "severity": event.severity.value if hasattr(event.severity, 'value') else event.severity,
+            })
+
+        avg_score = sum(scores) / len(scores)
+        min_score = min(scores)
+        max_score = max(scores)
+        volatility = max_score - min_score
+
+        # Determine trend direction
+        if len(scores) >= 2:
+            recent_half = scores[len(scores) // 2:]
+            earlier_half = scores[:len(scores) // 2]
+            recent_avg = sum(recent_half) / len(recent_half)
+            earlier_avg = sum(earlier_half) / len(earlier_half) if earlier_half else recent_avg
+            if recent_avg > earlier_avg + 2:
+                direction = "improving"
+            elif recent_avg < earlier_avg - 2:
+                direction = "degrading"
+            else:
+                direction = "stable"
+        else:
+            direction = "stable"
+
+        return DriftTrend(
+            repo=repo,
+            period=period,
+            data_points=data_points,
+            trend_direction=direction,
+            avg_score=round(avg_score, 2),
+            min_score=round(min_score, 2),
+            max_score=round(max_score, 2),
+            volatility=round(volatility, 2),
+        )
+
+    def get_top_drifting_files(
+        self,
+        repo: str,
+        limit: int = 10,
+    ) -> list[TopDriftingFile]:
+        """Get the files with the most compliance drift."""
+        events = [e for e in self._events if e.repo == repo]
+
+        file_stats: dict[str, dict] = {}
+        for event in events:
+            for file_path in event.blast_radius:
+                if file_path not in file_stats:
+                    file_stats[file_path] = {
+                        "drift_count": 0,
+                        "total_delta": 0.0,
+                        "last_drift_at": "",
+                        "regulations": set(),
+                    }
+                stats = file_stats[file_path]
+                stats["drift_count"] += 1
+                stats["total_delta"] += abs(event.current_score - event.previous_score)
+                detected = event.detected_at.isoformat() if event.detected_at else ""
+                if detected > stats["last_drift_at"]:
+                    stats["last_drift_at"] = detected
+                stats["regulations"].add(event.regulation if event.regulation else "General")
+
+        results = [
+            TopDriftingFile(
+                file_path=path,
+                drift_count=stats["drift_count"],
+                total_delta=round(stats["total_delta"], 2),
+                last_drift_at=stats["last_drift_at"],
+                regulations_affected=list(stats["regulations"]),
+            )
+            for path, stats in file_stats.items()
+        ]
+        results.sort(key=lambda f: f.drift_count, reverse=True)
+        return results[:limit]
+
+    # ── Webhook Delivery ─────────────────────────────────────────────────
+
+    async def deliver_webhook(
+        self,
+        event_id: str,
+        channel: str,
+    ) -> WebhookDelivery:
+        """Simulate delivering a webhook notification for a drift event."""
+        if not hasattr(self, '_webhook_deliveries'):
+            self._webhook_deliveries: list[WebhookDelivery] = []
+
+        config = self._config
+        url_map = {
+            "slack": config.slack_webhook_url or "https://hooks.slack.com/services/...",
+            "teams": config.teams_webhook_url or "https://outlook.office.com/webhook/...",
+            "pagerduty": config.pagerduty_routing_key or "https://events.pagerduty.com/v2/enqueue",
+            "email": "smtp://localhost:587",
+        }
+
+        delivery = WebhookDelivery(
+            channel=channel,
+            url=url_map.get(channel, ""),
+            event_id=event_id,
+            payload={"event_id": event_id, "channel": channel, "type": "drift_alert"},
+            status="delivered",
+            response_code=200,
+            delivered_at=datetime.now(UTC),
+            attempts=1,
+        )
+
+        self._webhook_deliveries.append(delivery)
+
+        logger.info(
+            "Webhook delivered",
+            channel=channel,
+            event_id=event_id,
+            delivery_id=str(delivery.id),
+        )
+        return delivery
+
+    def get_webhook_deliveries(
+        self,
+        event_id: str | None = None,
+        limit: int = 50,
+    ) -> list[WebhookDelivery]:
+        """Get webhook delivery history."""
+        if not hasattr(self, '_webhook_deliveries'):
+            self._webhook_deliveries: list[WebhookDelivery] = []
+
+        deliveries = self._webhook_deliveries
+        if event_id:
+            deliveries = [d for d in deliveries if d.event_id == event_id]
+        return deliveries[:limit]
 
     def _severity_meets_threshold(self, severity: DriftSeverity) -> bool:
         """Check if severity meets the configured threshold."""

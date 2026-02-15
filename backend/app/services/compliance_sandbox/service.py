@@ -19,6 +19,8 @@ from app.services.compliance_sandbox.models import (
     SandboxStatus,
     ViolationScenario,
     ViolationType,
+    WhatIfImpact,
+    WhatIfScenario,
 )
 
 
@@ -730,6 +732,107 @@ class ComplianceSandboxService:
 
         leaderboard = sorted(user_scores.values(), key=lambda x: x["total_score"], reverse=True)
         return leaderboard[:limit]
+
+    # -- What-If Simulation --------------------------------------------------
+
+    async def list_whatif_scenarios(self) -> list[WhatIfScenario]:
+        """List available what-if regulatory change scenarios."""
+        return [
+            WhatIfScenario(
+                id="whatif-us-federal-privacy", title="US Federal Privacy Act Passes",
+                description="Simulate impact of a comprehensive US federal privacy law replacing state patchwork.",
+                change_type="new_regulation", jurisdiction="US Federal", regulation="ADPPA",
+                effective_date="2027-01-01", probability=0.65,
+            ),
+            WhatIfScenario(
+                id="whatif-eu-ai-enforcement", title="EU AI Act Strict Enforcement",
+                description="Simulate impact of aggressive EU AI Act enforcement with high-risk classification.",
+                change_type="enforcement", jurisdiction="EU", regulation="EU AI Act",
+                effective_date="2026-08-01", probability=0.85,
+            ),
+            WhatIfScenario(
+                id="whatif-gdpr-amendment", title="GDPR Amendment: AI-Specific Rules",
+                description="Simulate GDPR amendment adding specific requirements for AI-driven personal data processing.",
+                change_type="amendment", jurisdiction="EU", regulation="GDPR",
+                effective_date="2027-06-01", probability=0.45,
+            ),
+            WhatIfScenario(
+                id="whatif-ccpa-expansion", title="CCPA Biometric Data Expansion",
+                description="Simulate CCPA expanding to cover biometric data with strict consent requirements.",
+                change_type="amendment", jurisdiction="California", regulation="CCPA/CPRA",
+                effective_date="2026-07-01", probability=0.70,
+            ),
+        ]
+
+    async def run_whatif_simulation(
+        self, scenario_id: str, repo: str = "",
+    ) -> WhatIfImpact:
+        """Run a what-if simulation and return impact assessment."""
+        scenarios = await self.list_whatif_scenarios()
+        scenario = next((s for s in scenarios if s.id == scenario_id), None)
+        if not scenario:
+            raise ValueError(f"What-if scenario not found: {scenario_id}")
+
+        # Simulate impact analysis
+        impact_data = {
+            "whatif-us-federal-privacy": {
+                "risk": 8.5, "hours": 320, "cost": 48000, "gaps": 12,
+                "modules": [
+                    {"name": "auth/consent", "impact": "high", "changes_required": 8},
+                    {"name": "data/storage", "impact": "high", "changes_required": 6},
+                    {"name": "api/privacy", "impact": "medium", "changes_required": 4},
+                    {"name": "reporting/compliance", "impact": "low", "changes_required": 2},
+                ],
+                "recs": [
+                    "Implement unified consent management across all data processing",
+                    "Add data minimization enforcement at API layer",
+                    "Create federal privacy notice templates",
+                ],
+            },
+            "whatif-eu-ai-enforcement": {
+                "risk": 9.0, "hours": 480, "cost": 72000, "gaps": 18,
+                "modules": [
+                    {"name": "ai/models", "impact": "critical", "changes_required": 12},
+                    {"name": "ai/training", "impact": "high", "changes_required": 8},
+                    {"name": "docs/model-cards", "impact": "high", "changes_required": 6},
+                    {"name": "monitoring/ai", "impact": "medium", "changes_required": 4},
+                ],
+                "recs": [
+                    "Complete AI system risk classification inventory",
+                    "Implement model cards for all high-risk AI systems",
+                    "Add human oversight mechanisms to automated decisions",
+                ],
+            },
+        }
+
+        defaults = {
+            "risk": 6.0, "hours": 160, "cost": 24000, "gaps": 8,
+            "modules": [
+                {"name": "core/compliance", "impact": "medium", "changes_required": 4},
+                {"name": "api/endpoints", "impact": "medium", "changes_required": 3},
+            ],
+            "recs": ["Review current compliance posture", "Engage legal counsel for interpretation"],
+        }
+
+        data = impact_data.get(scenario_id, defaults)
+
+        # Generate heatmap data
+        heatmap = [
+            {"area": m["name"], "current_risk": 3.0, "projected_risk": m["changes_required"] * 1.2,
+             "delta": m["changes_required"] * 1.2 - 3.0}
+            for m in data["modules"]
+        ]
+
+        return WhatIfImpact(
+            scenario_id=scenario_id,
+            overall_risk_score=data["risk"],
+            affected_modules=data["modules"],
+            estimated_effort_hours=data["hours"],
+            estimated_cost_usd=data["cost"],
+            compliance_gap_count=data["gaps"],
+            recommendations=data["recs"],
+            heatmap=heatmap,
+        )
 
     # -- Private helpers -----------------------------------------------------
 

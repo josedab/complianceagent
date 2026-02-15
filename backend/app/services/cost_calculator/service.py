@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 from uuid import uuid4
 
 import structlog
@@ -13,6 +14,7 @@ from app.services.cost_calculator.models import (
     CostBreakdownItem,
     CostHistory,
     CostPrediction,
+    ExecutiveReport,
     RegulationCategory,
     ROISummary,
     ScenarioComparison,
@@ -291,6 +293,153 @@ class CostCalculatorService:
             accuracy_pct=record.accuracy_pct,
         )
         return record
+
+    async def generate_executive_report(
+        self,
+        org_id: str,
+        regulations: list[str],
+        team_size: int = 10,
+        avg_hourly_rate: float = 75.0,
+        industry: str = "saas",
+    ) -> ExecutiveReport:
+        """Generate a CFO-ready executive compliance cost report.
+
+        Includes: total compliance portfolio cost, risk exposure from non-compliance,
+        ROI projections, fine avoidance estimates, and priority recommendations.
+        """
+        # Fine risk estimates per regulation (annual)
+        fine_risk_map: dict[str, float] = {
+            "gdpr": 20_000_000.0,
+            "hipaa": 1_500_000.0,
+            "pci_dss": 1_200_000.0,
+            "soc2": 500_000.0,
+            "ccpa": 7_500.0 * 50_000,  # $7,500 per violation, assume 50K records
+            "sox": 5_000_000.0,
+            "eu_ai_act": 35_000_000.0,
+            "dora": 10_000_000.0,
+            "fedramp": 2_000_000.0,
+            "iso_27001": 500_000.0,
+            "nist_csf": 500_000.0,
+            "lgpd": 10_000_000.0,
+            "pipeda": 100_000.0,
+            "glba": 1_000_000.0,
+        }
+
+        cost_by_regulation: dict[str, float] = {}
+        priority_regulations: list[dict[str, Any]] = []
+        total_portfolio_cost = 0.0
+        total_fine_risk = 0.0
+
+        for reg in regulations:
+            prediction = await self.predict_cost(
+                regulation=reg,
+                org_id=org_id,
+                team_size=team_size,
+                avg_hourly_rate=avg_hourly_rate,
+                industry=industry,
+            )
+            cost_by_regulation[reg] = prediction.estimated_cost_usd
+            total_portfolio_cost += prediction.estimated_cost_usd
+
+            reg_key = reg.lower().replace("-", "_").replace(" ", "_")
+            fine_risk = fine_risk_map.get(reg_key, 500_000.0)
+            total_fine_risk += fine_risk
+
+            priority_regulations.append(
+                {
+                    "regulation": reg,
+                    "cost": prediction.estimated_cost_usd,
+                    "risk_score": prediction.risk_score,
+                    "fine_risk": fine_risk,
+                    "priority_score": round(
+                        prediction.risk_score * 0.4 + min(100.0, fine_risk / 200_000.0) * 0.6,
+                        1,
+                    ),
+                }
+            )
+
+        # Sort by priority score descending
+        priority_regulations.sort(key=lambda r: r["priority_score"], reverse=True)
+
+        # Risk exposure: fines + remediation costs (estimated at 2x implementation)
+        total_risk_exposure = round(total_fine_risk + total_portfolio_cost * 2.0, 2)
+
+        # ROI with automation (60% cost reduction)
+        automated_cost = total_portfolio_cost * 0.4
+        roi_with_automation = round(
+            ((total_portfolio_cost - automated_cost) / automated_cost) * 100.0
+            if automated_cost > 0
+            else 0.0,
+            1,
+        )
+
+        # Payback: automation platform cost vs savings
+        industry_mult = _INDUSTRY_MULTIPLIERS.get(industry.lower(), 1.0)
+        platform_cost = 120_000.0 * industry_mult
+        monthly_savings = (total_portfolio_cost - automated_cost) / 12.0
+        payback_period_months = round(
+            platform_cost / monthly_savings if monthly_savings > 0 else 0.0, 1
+        )
+
+        # 3-year projection with 8% annual increase
+        year1 = round(total_portfolio_cost, 2)
+        year2 = round(year1 * 1.08, 2)
+        year3 = round(year2 * 1.08, 2)
+        three_year_projection = {
+            "year_1": year1,
+            "year_2": year2,
+            "year_3": year3,
+            "total": round(year1 + year2 + year3, 2),
+        }
+
+        # Prioritized recommendations
+        recommendations: list[str] = []
+        if priority_regulations:
+            top = priority_regulations[0]["regulation"]
+            recommendations.append(
+                f"Prioritize {top} compliance — highest combined risk and fine exposure."
+            )
+        if total_fine_risk > total_portfolio_cost * 3:
+            recommendations.append(
+                "Non-compliance fines significantly exceed implementation costs. "
+                "Immediate action recommended."
+            )
+        if roi_with_automation > 100.0:
+            recommendations.append(
+                f"Automation yields {roi_with_automation:.0f}% ROI. "
+                f"Invest in compliance automation platform."
+            )
+        if payback_period_months > 0:
+            recommendations.append(
+                f"Automation investment pays back in {payback_period_months:.0f} months."
+            )
+        if len(regulations) > 3:
+            recommendations.append(
+                "Consider a phased rollout — tackle highest-priority regulations first "
+                "to reduce risk exposure quickly."
+            )
+
+        report = ExecutiveReport(
+            org_id=org_id,
+            total_portfolio_cost=round(total_portfolio_cost, 2),
+            total_risk_exposure=total_risk_exposure,
+            annual_fine_risk=round(total_fine_risk, 2),
+            roi_with_automation=roi_with_automation,
+            payback_period_months=payback_period_months,
+            priority_regulations=priority_regulations,
+            cost_by_regulation=cost_by_regulation,
+            three_year_projection=three_year_projection,
+            recommendations=recommendations,
+        )
+
+        logger.info(
+            "executive_report_generated",
+            org_id=org_id,
+            regulations=regulations,
+            total_portfolio_cost=report.total_portfolio_cost,
+            total_risk_exposure=report.total_risk_exposure,
+        )
+        return report
 
     # --- Private helpers ---
 

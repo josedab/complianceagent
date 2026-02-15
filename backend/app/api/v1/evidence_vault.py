@@ -1,20 +1,19 @@
 """API endpoints for Compliance Evidence Vault."""
 
 from typing import Any
-from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
-
 from app.services.evidence_vault import (
     AuditorRole,
     ControlFramework,
     EvidenceType,
     EvidenceVaultService,
 )
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -104,6 +103,47 @@ class GenerateReportRequest(BaseModel):
 
     framework: str = Field(...)
     report_format: str = Field(default="pdf")
+
+
+class CoverageMetricsSchema(BaseModel):
+    """Coverage metrics response."""
+
+    framework: str
+    total_controls: int
+    controls_with_evidence: int
+    controls_partial: int
+    controls_missing: int
+    coverage_percentage: float
+    evidence_freshness_avg_days: float
+    stale_evidence_count: int
+    control_breakdown: list[dict[str, Any]]
+
+
+class ChainVerificationSchema(BaseModel):
+    """Chain verification result response."""
+
+    framework: str
+    chain_length: int
+    is_valid: bool
+    verified_at: str
+    invalid_links: list[dict[str, str]]
+    tamper_detected: bool
+    verification_time_ms: float
+    hash_algorithm: str
+    root_hash: str
+
+
+class EvidenceGapSchema(BaseModel):
+    """Evidence gap response."""
+
+    control_id: str
+    control_name: str
+    framework: str
+    gap_type: str
+    last_evidence_date: str | None
+    required_evidence_types: list[str]
+    remediation_suggestion: str
+    priority: str
 
 
 # --- Endpoints ---
@@ -270,4 +310,209 @@ async def generate_report(request: GenerateReportRequest, db: DB) -> AuditReport
         controls_with_evidence=report.controls_with_evidence,
         coverage_pct=report.coverage_pct,
         generated_at=report.generated_at.isoformat() if report.generated_at else None,
+    )
+
+
+@router.get(
+    "/coverage/{framework}",
+    response_model=CoverageMetricsSchema,
+    summary="Get coverage metrics",
+    description="Get detailed coverage metrics for a compliance framework",
+)
+async def get_coverage_metrics(framework: str, db: DB) -> CoverageMetricsSchema:
+    """Get detailed coverage metrics for a compliance framework."""
+    service = EvidenceVaultService(db=db)
+    metrics = await service.get_coverage_metrics(ControlFramework(framework))
+    return CoverageMetricsSchema(**metrics.to_dict())
+
+
+@router.get(
+    "/verify-enhanced/{framework}",
+    response_model=ChainVerificationSchema,
+    summary="Enhanced chain verification",
+    description="Perform enhanced hash chain verification with detailed results",
+)
+async def verify_chain_enhanced(framework: str, db: DB) -> ChainVerificationSchema:
+    """Perform enhanced hash chain verification with detailed results."""
+    service = EvidenceVaultService(db=db)
+    result = await service.verify_chain_enhanced(ControlFramework(framework))
+    return ChainVerificationSchema(**result.to_dict())
+
+
+@router.get(
+    "/gaps/{framework}",
+    response_model=list[EvidenceGapSchema],
+    summary="Identify evidence gaps",
+    description="Identify gaps in evidence coverage for a framework",
+)
+async def identify_evidence_gaps(framework: str, db: DB) -> list[EvidenceGapSchema]:
+    """Identify gaps in evidence coverage for a framework."""
+    service = EvidenceVaultService(db=db)
+    gaps = await service.identify_evidence_gaps(ControlFramework(framework))
+    return [EvidenceGapSchema(**g.to_dict()) for g in gaps]
+
+
+# --- Blockchain Anchoring Schemas ---
+
+
+class BlockchainAnchorSchema(BaseModel):
+    """Blockchain anchor response."""
+
+    id: str
+    framework: str
+    chain_hash: str
+    evidence_count: int
+    anchor_hash: str
+    blockchain_network: str
+    transaction_id: str
+    block_number: int
+    status: str
+    anchored_at: str
+    confirmed_at: str | None
+    cost_usd: float
+
+
+class BatchVerificationRequestSchema(BaseModel):
+    """Request for batch verification."""
+
+    evidence_ids: list[str] | None = Field(default=None, description="Evidence IDs to verify (all if omitted)")
+
+
+class BatchVerificationResultSchema(BaseModel):
+    """Batch verification result response."""
+
+    id: str
+    items_verified: int
+    items_valid: int
+    items_invalid: int
+    items_missing: int
+    chain_intact: bool
+    blockchain_verified: bool
+    invalid_items: list[dict[str, Any]]
+    verification_duration_ms: float
+    verified_at: str
+
+
+class AuditTimelineEventSchema(BaseModel):
+    """Audit timeline event response."""
+
+    id: str
+    event_type: str
+    description: str
+    framework: str
+    actor: str
+    metadata: dict[str, Any]
+    timestamp: str
+
+
+# --- Blockchain Anchoring Endpoints ---
+
+
+@router.post(
+    "/anchor/{framework}",
+    response_model=BlockchainAnchorSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Anchor to blockchain",
+    description="Anchor evidence chain to blockchain for tamper-proof verification",
+)
+async def anchor_to_blockchain(framework: str, db: DB) -> BlockchainAnchorSchema:
+    """Anchor evidence chain to blockchain."""
+    service = EvidenceVaultService(db=db)
+    anchor = await service.anchor_to_blockchain(ControlFramework(framework))
+    return BlockchainAnchorSchema(
+        id=str(anchor.id),
+        framework=anchor.framework,
+        chain_hash=anchor.chain_hash,
+        evidence_count=anchor.evidence_count,
+        anchor_hash=anchor.anchor_hash,
+        blockchain_network=anchor.blockchain_network,
+        transaction_id=anchor.transaction_id,
+        block_number=anchor.block_number,
+        status=anchor.status,
+        anchored_at=anchor.anchored_at.isoformat(),
+        confirmed_at=anchor.confirmed_at.isoformat() if anchor.confirmed_at else None,
+        cost_usd=anchor.cost_usd,
+    )
+
+
+@router.post(
+    "/verify-batch/{framework}",
+    response_model=BatchVerificationResultSchema,
+    summary="Batch verify evidence",
+    description="Verify multiple evidence items at once with chain and blockchain checks",
+)
+async def verify_batch(
+    framework: str, db: DB, request: BatchVerificationRequestSchema | None = None,
+) -> BatchVerificationResultSchema:
+    """Batch verify evidence items."""
+    from uuid import UUID as _UUID
+
+    service = EvidenceVaultService(db=db)
+    evidence_ids = [_UUID(eid) for eid in request.evidence_ids] if request and request.evidence_ids else None
+    result = await service.verify_batch(ControlFramework(framework), evidence_ids=evidence_ids)
+    return BatchVerificationResultSchema(
+        id=str(result.id),
+        items_verified=result.items_verified,
+        items_valid=result.items_valid,
+        items_invalid=result.items_invalid,
+        items_missing=result.items_missing,
+        chain_intact=result.chain_intact,
+        blockchain_verified=result.blockchain_verified,
+        invalid_items=result.invalid_items,
+        verification_duration_ms=result.verification_duration_ms,
+        verified_at=result.verified_at.isoformat(),
+    )
+
+
+@router.get(
+    "/timeline",
+    response_model=list[AuditTimelineEventSchema],
+    summary="Get audit timeline",
+    description="Get chronological audit timeline events",
+)
+async def get_audit_timeline(
+    db: DB, framework: str | None = None, limit: int = 50,
+) -> list[AuditTimelineEventSchema]:
+    """Get audit timeline events."""
+    service = EvidenceVaultService(db=db)
+    events = await service.get_audit_timeline(framework=framework, limit=limit)
+    return [
+        AuditTimelineEventSchema(
+            id=str(e.id),
+            event_type=e.event_type,
+            description=e.description,
+            framework=e.framework,
+            actor=e.actor,
+            metadata=e.metadata,
+            timestamp=e.timestamp.isoformat(),
+        )
+        for e in events
+    ]
+
+
+@router.get(
+    "/anchors/{framework}",
+    response_model=BlockchainAnchorSchema | None,
+    summary="Get blockchain anchor",
+    description="Get blockchain anchor for a framework's evidence chain",
+)
+async def get_blockchain_anchor(framework: str, db: DB) -> BlockchainAnchorSchema | None:
+    """Get blockchain anchor for a framework."""
+    service = EvidenceVaultService(db=db)
+    anchor = service._blockchain_anchors.get(framework)
+    if not anchor:
+        return None
+    return BlockchainAnchorSchema(
+        id=str(anchor.id),
+        framework=anchor.framework,
+        chain_hash=anchor.chain_hash,
+        evidence_count=anchor.evidence_count,
+        anchor_hash=anchor.anchor_hash,
+        blockchain_network=anchor.blockchain_network,
+        transaction_id=anchor.transaction_id,
+        block_number=anchor.block_number,
+        status=anchor.status,
+        anchored_at=anchor.anchored_at.isoformat(),
+        confirmed_at=anchor.confirmed_at.isoformat() if anchor.confirmed_at else None,
+        cost_usd=anchor.cost_usd,
     )

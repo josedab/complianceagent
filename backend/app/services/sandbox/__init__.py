@@ -103,7 +103,8 @@ class ComplianceSandbox:
 
         scenario = self._scenarios.get(scenario_id)
         if not scenario:
-            raise ValueError(f"Scenario {scenario_id} not found")
+            msg = f"Scenario {scenario_id} not found"
+            raise ValueError(msg)
 
         # Get current compliance scores
         compliance_before = current_state.get("compliance_scores", {
@@ -125,7 +126,8 @@ class ComplianceSandbox:
         elif scenario.simulation_type == SimulationType.VENDOR_CHANGE:
             result = await self._simulate_vendor_change(scenario, current_state, compliance_before)
         else:
-            raise ValueError(f"Unknown simulation type: {scenario.simulation_type}")
+            msg = f"Unknown simulation type: {scenario.simulation_type}"
+            raise ValueError(msg)
 
         result.scenario_id = scenario_id
         result.duration_ms = (time.perf_counter() - start_time) * 1000
@@ -472,6 +474,120 @@ class ComplianceSandbox:
             scenarios = [s for s in scenarios if s.created_by == created_by]
         return sorted(scenarios, key=lambda s: s.created_at, reverse=True)
 
+    async def delete_scenario(self, scenario_id: UUID) -> bool:
+        """Delete a scenario and its associated results.
+
+        Args:
+            scenario_id: ID of the scenario to delete
+
+        Returns:
+            True if the scenario was deleted, False if not found
+        """
+        if scenario_id not in self._scenarios:
+            return False
+
+        del self._scenarios[scenario_id]
+
+        # Remove associated results
+        result_ids_to_remove = [
+            rid for rid, r in self._results.items()
+            if r.scenario_id == scenario_id
+        ]
+        for rid in result_ids_to_remove:
+            del self._results[rid]
+
+        logger.info(
+            "scenario_deleted",
+            scenario_id=str(scenario_id),
+            results_removed=len(result_ids_to_remove),
+        )
+        return True
+
+    async def compare_scenarios(
+        self,
+        scenario_ids: list[UUID],
+        current_state: dict[str, Any],
+    ) -> "ScenarioComparison":
+        """Run multiple scenarios and compare results side-by-side.
+
+        Args:
+            scenario_ids: List of scenario IDs to compare
+            current_state: Current compliance state for simulation
+
+        Returns:
+            Comparison of all scenario results
+        """
+        import asyncio
+
+        if len(scenario_ids) < 2:
+            msg = "At least 2 scenarios are required for comparison"
+            raise ValueError(msg)
+
+        # Validate all scenarios exist before running
+        for sid in scenario_ids:
+            if sid not in self._scenarios:
+                msg = f"Scenario {sid} not found"
+                raise ValueError(msg)
+
+        # Run all simulations in parallel
+        tasks = [
+            self.run_simulation(sid, current_state)
+            for sid in scenario_ids
+        ]
+        results = await asyncio.gather(*tasks)
+
+        # Build per-scenario summaries
+        scenario_results = {}
+        for sid, result in zip(scenario_ids, results, strict=False):
+            scenario = self._scenarios[sid]
+            scenario_results[str(sid)] = {
+                "scenario_name": scenario.name,
+                "result_id": str(result.id),
+                "risk_delta": result.risk_delta,
+                "new_issues_count": len(result.new_issues),
+                "resolved_issues_count": len(result.resolved_issues),
+                "compliance_after": result.compliance_after,
+                "duration_ms": result.duration_ms,
+            }
+
+        # Determine the best scenario (lowest risk delta)
+        best_id = min(
+            scenario_results,
+            key=lambda k: scenario_results[k]["risk_delta"],
+        )
+
+        return ScenarioComparison(
+            scenario_ids=[str(sid) for sid in scenario_ids],
+            results=scenario_results,
+            best_scenario_id=best_id,
+            baseline_compliance=current_state.get("compliance_scores", {}),
+        )
+
+    def list_results(
+        self,
+        scenario_id: UUID | None = None,
+    ) -> list[SimulationResult]:
+        """List all simulation results, optionally filtered by scenario.
+
+        Args:
+            scenario_id: Optional scenario ID to filter by
+
+        Returns:
+            List of simulation results sorted by most recent first
+        """
+        results = list(self._results.values())
+        if scenario_id is not None:
+            results = [r for r in results if r.scenario_id == scenario_id]
+        return sorted(results, key=lambda r: r.simulated_at, reverse=True)
+
+    def get_scenario_templates(self) -> list["ScenarioTemplate"]:
+        """Return pre-built scenario templates for common use cases.
+
+        Returns:
+            List of scenario templates
+        """
+        return _get_default_templates()
+
 
 # Global sandbox instance
 _sandbox: ComplianceSandbox | None = None
@@ -483,3 +599,94 @@ def get_compliance_sandbox() -> ComplianceSandbox:
     if _sandbox is None:
         _sandbox = ComplianceSandbox()
     return _sandbox
+
+
+@dataclass
+class ScenarioComparison:
+    """Result of comparing multiple simulation scenarios."""
+
+    scenario_ids: list[str] = field(default_factory=list)
+    results: dict[str, dict[str, Any]] = field(default_factory=dict)
+    best_scenario_id: str = ""
+    baseline_compliance: dict[str, float] = field(default_factory=dict)
+    compared_at: datetime = field(default_factory=datetime.utcnow)
+
+
+@dataclass
+class ScenarioTemplate:
+    """Pre-built scenario template for common use cases."""
+
+    id: str = ""
+    name: str = ""
+    description: str = ""
+    simulation_type: SimulationType = SimulationType.CODE_CHANGE
+    default_parameters: dict[str, Any] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)
+
+
+def _get_default_templates() -> list[ScenarioTemplate]:
+    """Return the built-in scenario templates."""
+    return [
+        ScenarioTemplate(
+            id="tpl-gdpr-data-transfer",
+            name="GDPR Cross-Border Data Transfer",
+            description="Evaluate compliance impact of transferring personal data to a new country.",
+            simulation_type=SimulationType.DATA_FLOW_CHANGE,
+            default_parameters={
+                "new_data_types": ["PII"],
+                "new_destinations": [{"country": "US", "provider": ""}],
+                "new_processors": [],
+            },
+            tags=["gdpr", "data-transfer", "cross-border"],
+        ),
+        ScenarioTemplate(
+            id="tpl-vendor-migration",
+            name="Vendor Migration Assessment",
+            description="Compare compliance posture when switching between vendors.",
+            simulation_type=SimulationType.VENDOR_CHANGE,
+            default_parameters={
+                "old_vendor": {"name": "", "certifications": [], "data_location": ""},
+                "new_vendor": {"name": "", "certifications": [], "data_location": ""},
+            },
+            tags=["vendor", "migration", "risk"],
+        ),
+        ScenarioTemplate(
+            id="tpl-new-regulation",
+            name="New Regulation Readiness",
+            description="Assess readiness for an upcoming regulation.",
+            simulation_type=SimulationType.REGULATION_CHANGE,
+            default_parameters={
+                "new_regulations": [
+                    {
+                        "name": "",
+                        "requirements": [],
+                        "estimated_initial_compliance": 50.0,
+                    }
+                ],
+            },
+            tags=["regulation", "readiness", "gap-analysis"],
+        ),
+        ScenarioTemplate(
+            id="tpl-architecture-expansion",
+            name="Architecture Expansion",
+            description="Simulate adding new components or services to the architecture.",
+            simulation_type=SimulationType.ARCHITECTURE_CHANGE,
+            default_parameters={
+                "new_components": [{"name": "", "type": "", "location": ""}],
+                "removed_components": [],
+                "data_flows": [],
+            },
+            tags=["architecture", "expansion", "infrastructure"],
+        ),
+        ScenarioTemplate(
+            id="tpl-code-security-review",
+            name="Code Security Review",
+            description="Simulate code changes to evaluate compliance impact before merging.",
+            simulation_type=SimulationType.CODE_CHANGE,
+            default_parameters={
+                "language": "python",
+                "code_changes": [{"file": "", "content": "", "old_content": ""}],
+            },
+            tags=["code", "security", "review", "pre-merge"],
+        ),
+    ]

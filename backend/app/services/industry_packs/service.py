@@ -1,5 +1,6 @@
 """Industry Compliance Starter Packs Service."""
 
+from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
@@ -12,7 +13,11 @@ from app.services.industry_packs.models import (
     PackProvisionResult,
     PackStatus,
     PolicyTemplate,
+    ProvisioningResult,
     RegulationBundle,
+    WizardQuestion,
+    WizardStep,
+    WizardStepType,
 )
 
 logger = structlog.get_logger()
@@ -173,3 +178,169 @@ class IndustryPacksService:
             state.completed = True
 
         return state
+
+    # ── Guided Wizard ────────────────────────────────────────────────────
+
+    def get_wizard_steps(self, vertical: str) -> list[WizardStep]:
+        """Get the full guided wizard with branching logic for a vertical."""
+        steps = [
+            WizardStep(
+                step_type=WizardStepType.INDUSTRY_SELECT,
+                title="Select Your Industry",
+                description="Choose the industry vertical that best matches your business.",
+                questions=[
+                    WizardQuestion(
+                        id="vertical",
+                        question="What industry does your company operate in?",
+                        question_type="single_select",
+                        options=[
+                            {"value": "fintech", "label": "Fintech / Financial Services"},
+                            {"value": "healthtech", "label": "Healthtech / Healthcare"},
+                            {"value": "ai_company", "label": "AI / Machine Learning"},
+                            {"value": "ecommerce", "label": "E-Commerce / Retail"},
+                            {"value": "saas", "label": "SaaS / Cloud Services"},
+                            {"value": "insurance", "label": "Insurance / InsurTech"},
+                            {"value": "government", "label": "Government / Public Sector"},
+                        ],
+                    ),
+                ],
+            ),
+            WizardStep(
+                step_type=WizardStepType.REGULATION_CONFIG,
+                title="Configure Regulations",
+                description="Select which regulations apply to your organization.",
+                questions=[
+                    WizardQuestion(
+                        id="jurisdictions",
+                        question="Which jurisdictions do you operate in?",
+                        question_type="multi_select",
+                        options=[
+                            {"value": "us", "label": "United States"},
+                            {"value": "eu", "label": "European Union"},
+                            {"value": "uk", "label": "United Kingdom"},
+                            {"value": "apac", "label": "Asia-Pacific"},
+                            {"value": "global", "label": "Global"},
+                        ],
+                    ),
+                    WizardQuestion(
+                        id="handles_pii",
+                        question="Does your application process personal data (PII)?",
+                        question_type="boolean",
+                    ),
+                    WizardQuestion(
+                        id="handles_phi",
+                        question="Does your application process health information (PHI)?",
+                        question_type="boolean",
+                        depends_on="vertical",
+                        depends_value="healthtech",
+                    ),
+                    WizardQuestion(
+                        id="handles_payment",
+                        question="Does your application process payment card data?",
+                        question_type="boolean",
+                        depends_on="vertical",
+                        depends_value="fintech",
+                    ),
+                    WizardQuestion(
+                        id="uses_ai",
+                        question="Does your product use AI/ML models?",
+                        question_type="boolean",
+                    ),
+                ],
+            ),
+            WizardStep(
+                step_type=WizardStepType.TECH_STACK,
+                title="Technology Stack",
+                description="Tell us about your tech stack for tailored scanning.",
+                questions=[
+                    WizardQuestion(
+                        id="languages",
+                        question="What programming languages does your codebase use?",
+                        question_type="multi_select",
+                        options=[
+                            {"value": "python", "label": "Python"},
+                            {"value": "javascript", "label": "JavaScript/TypeScript"},
+                            {"value": "java", "label": "Java"},
+                            {"value": "go", "label": "Go"},
+                            {"value": "csharp", "label": "C#/.NET"},
+                            {"value": "ruby", "label": "Ruby"},
+                        ],
+                    ),
+                    WizardQuestion(
+                        id="cloud_provider",
+                        question="Which cloud provider do you use?",
+                        question_type="single_select",
+                        options=[
+                            {"value": "aws", "label": "AWS"},
+                            {"value": "gcp", "label": "Google Cloud"},
+                            {"value": "azure", "label": "Microsoft Azure"},
+                            {"value": "multi", "label": "Multi-Cloud"},
+                            {"value": "on_prem", "label": "On-Premises"},
+                        ],
+                    ),
+                ],
+            ),
+            WizardStep(
+                step_type=WizardStepType.REVIEW,
+                title="Review Configuration",
+                description="Review your configuration before provisioning.",
+                questions=[],
+            ),
+        ]
+        return steps
+
+    async def provision_with_wizard(
+        self,
+        vertical: str,
+        wizard_answers: dict[str, Any],
+    ) -> ProvisioningResult:
+        """Provision an industry pack using wizard answers for orchestrated setup."""
+        pack = _INDUSTRY_PACKS.get(IndustryVertical(vertical)) if vertical in [v.value for v in IndustryVertical] else None
+        if not pack:
+            return ProvisioningResult(
+                vertical=vertical,
+                status="failed",
+                warnings=[f"Unknown vertical: {vertical}"],
+            )
+
+        regulations_count = len(pack.regulations)
+        policies_count = len(pack.policies)
+
+        jurisdictions = wizard_answers.get("jurisdictions", ["us"])
+        handles_pii = wizard_answers.get("handles_pii", False)
+        uses_ai = wizard_answers.get("uses_ai", False)
+
+        extra_regs = 0
+        if handles_pii and "eu" in jurisdictions:
+            extra_regs += 1  # GDPR
+        if handles_pii and "us" in jurisdictions:
+            extra_regs += 1  # CCPA
+        if uses_ai and "eu" in jurisdictions:
+            extra_regs += 1  # EU AI Act
+
+        checklist = [
+            {"item": "Regulations activated", "status": "completed", "count": regulations_count + extra_regs},
+            {"item": "Policy templates created", "status": "completed", "count": policies_count},
+            {"item": "Scan configurations generated", "status": "completed", "count": len(wizard_answers.get("languages", ["python"]))},
+            {"item": "Compliance frameworks registered", "status": "completed", "count": regulations_count},
+            {"item": "Initial baseline scan", "status": "pending", "count": 0},
+        ]
+
+        result = ProvisioningResult(
+            vertical=vertical,
+            status="completed",
+            regulations_activated=regulations_count + extra_regs,
+            policies_created=policies_count,
+            scan_configs_created=len(wizard_answers.get("languages", ["python"])),
+            frameworks_registered=regulations_count,
+            checklist_items=checklist,
+        )
+
+        logger.info(
+            "Industry pack provisioned via wizard",
+            vertical=vertical,
+            regulations=result.regulations_activated,
+            policies=result.policies_created,
+        )
+
+        return result

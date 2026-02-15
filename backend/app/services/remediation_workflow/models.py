@@ -1,8 +1,9 @@
 """Automated Compliance Remediation Workflow models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -85,3 +86,109 @@ class WorkflowConfig:
     max_auto_fixes_per_day: int = 10
     notification_channels: list[str] = field(default_factory=lambda: ["slack"])
     approval_timeout_hours: int = 48
+
+
+class ApprovalStatus(str, Enum):
+    """Status of an approval in the chain."""
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    SKIPPED = "skipped"
+
+
+@dataclass
+class ApprovalStep:
+    """A step in the approval chain."""
+    id: UUID = field(default_factory=uuid4)
+    approver_role: str = ""
+    approver_name: str = ""
+    status: ApprovalStatus = ApprovalStatus.PENDING
+    comment: str = ""
+    decided_at: datetime | None = None
+    order: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "approver_role": self.approver_role,
+            "approver_name": self.approver_name,
+            "status": self.status.value,
+            "comment": self.comment,
+            "decided_at": self.decided_at.isoformat() if self.decided_at else None,
+            "order": self.order,
+        }
+
+
+@dataclass
+class ApprovalChain:
+    """Multi-level approval chain for a remediation workflow."""
+    id: UUID = field(default_factory=uuid4)
+    workflow_id: UUID | None = None
+    steps: list[ApprovalStep] = field(default_factory=list)
+    current_step: int = 0
+    is_complete: bool = False
+    final_status: str = "pending"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "workflow_id": str(self.workflow_id) if self.workflow_id else None,
+            "steps": [s.to_dict() for s in self.steps],
+            "current_step": self.current_step,
+            "is_complete": self.is_complete,
+            "final_status": self.final_status,
+        }
+
+
+@dataclass
+class RollbackRecord:
+    """Record of a workflow rollback."""
+    id: UUID = field(default_factory=uuid4)
+    workflow_id: UUID | None = None
+    reason: str = ""
+    rolled_back_by: str = ""
+    original_state: str = ""
+    rolled_back_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    files_reverted: list[str] = field(default_factory=list)
+    success: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "workflow_id": str(self.workflow_id) if self.workflow_id else None,
+            "reason": self.reason,
+            "rolled_back_by": self.rolled_back_by,
+            "original_state": self.original_state,
+            "rolled_back_at": self.rolled_back_at.isoformat(),
+            "files_reverted": self.files_reverted,
+            "success": self.success,
+        }
+
+
+@dataclass
+class RemediationAnalytics:
+    """Analytics for remediation workflows."""
+    total_workflows: int = 0
+    completed_workflows: int = 0
+    in_progress_workflows: int = 0
+    failed_workflows: int = 0
+    rolled_back_workflows: int = 0
+    avg_time_to_remediate_hours: float = 0.0
+    fix_success_rate: float = 0.0
+    auto_fix_rate: float = 0.0
+    top_violation_types: list[dict[str, Any]] = field(default_factory=list)
+    monthly_trend: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "total_workflows": self.total_workflows,
+            "completed_workflows": self.completed_workflows,
+            "in_progress_workflows": self.in_progress_workflows,
+            "failed_workflows": self.failed_workflows,
+            "rolled_back_workflows": self.rolled_back_workflows,
+            "avg_time_to_remediate_hours": self.avg_time_to_remediate_hours,
+            "fix_success_rate": self.fix_success_rate,
+            "auto_fix_rate": self.auto_fix_rate,
+            "top_violation_types": self.top_violation_types,
+            "monthly_trend": self.monthly_trend,
+        }

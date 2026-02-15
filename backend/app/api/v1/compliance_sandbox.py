@@ -448,3 +448,88 @@ async def terminate_sandbox(
     terminated = await service.terminate_sandbox(sandbox_id)
     if not terminated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sandbox not found")
+
+
+# --- What-If Simulation Endpoints ---
+
+
+class WhatIfScenarioSchema(BaseModel):
+    id: str
+    title: str
+    description: str
+    change_type: str
+    jurisdiction: str
+    regulation: str
+    effective_date: str
+    probability: float
+
+
+class WhatIfImpactSchema(BaseModel):
+    scenario_id: str
+    overall_risk_score: float
+    affected_modules: list[dict]
+    estimated_effort_hours: float
+    estimated_cost_usd: float
+    compliance_gap_count: int
+    recommendations: list[str]
+    heatmap: list[dict]
+
+
+class RunWhatIfRequest(BaseModel):
+    scenario_id: str = Field(..., description="What-if scenario to simulate")
+    repo: str = Field(default="", description="Repository to analyze")
+
+
+@router.get(
+    "/whatif-scenarios",
+    response_model=list[WhatIfScenarioSchema],
+    summary="List what-if scenarios",
+    description="List available regulatory change what-if simulation scenarios.",
+)
+async def list_whatif_scenarios(
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> list[WhatIfScenarioSchema]:
+    service = ComplianceSandboxService(db=db)
+    scenarios = await service.list_whatif_scenarios()
+    return [
+        WhatIfScenarioSchema(
+            id=s.id, title=s.title, description=s.description,
+            change_type=s.change_type, jurisdiction=s.jurisdiction,
+            regulation=s.regulation, effective_date=s.effective_date,
+            probability=s.probability,
+        )
+        for s in scenarios
+    ]
+
+
+@router.post(
+    "/whatif-simulate",
+    response_model=WhatIfImpactSchema,
+    summary="Run what-if simulation",
+    description="Simulate impact of a regulatory change on your codebase.",
+)
+async def run_whatif_simulation(
+    request: RunWhatIfRequest,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> WhatIfImpactSchema:
+    service = ComplianceSandboxService(db=db)
+    try:
+        impact = await service.run_whatif_simulation(
+            scenario_id=request.scenario_id, repo=request.repo,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return WhatIfImpactSchema(
+        scenario_id=impact.scenario_id,
+        overall_risk_score=impact.overall_risk_score,
+        affected_modules=impact.affected_modules,
+        estimated_effort_hours=impact.estimated_effort_hours,
+        estimated_cost_usd=impact.estimated_cost_usd,
+        compliance_gap_count=impact.compliance_gap_count,
+        recommendations=impact.recommendations,
+        heatmap=impact.heatmap,
+    )

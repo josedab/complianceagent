@@ -599,3 +599,64 @@ class PolicyMarketplaceService:
             "errors": errors,
             "warnings": warnings,
         }
+
+    async def test_policy(
+        self,
+        content: str,
+        language: str,
+        test_scenarios: list[dict] | None = None,
+    ) -> dict:
+        """Run a policy against test scenarios to verify behavior."""
+        validation = await self.validate_policy(content, language)
+        if not validation["valid"]:
+            return {
+                "passed": False,
+                "validation": validation,
+                "test_results": [],
+                "summary": "Policy failed validation — fix errors before testing.",
+            }
+
+        # Default test scenarios if none provided
+        scenarios = test_scenarios or [
+            {"name": "Empty input", "input": {}, "expected": "deny"},
+            {"name": "Valid data subject request", "input": {"action": "access", "user_role": "data_subject"}, "expected": "allow"},
+            {"name": "Unauthorized access", "input": {"action": "delete", "user_role": "anonymous"}, "expected": "deny"},
+            {"name": "Admin override", "input": {"action": "export", "user_role": "admin", "consent": True}, "expected": "allow"},
+        ]
+
+        results = []
+        for scenario in scenarios:
+            # Simulate policy evaluation
+            has_allow_rule = "allow" in content or "permit" in content
+            has_deny_rule = "deny" in content or "violation" in content
+            user_role = scenario.get("input", {}).get("user_role", "")
+            consent = scenario.get("input", {}).get("consent", False)
+
+            if user_role == "admin" and has_allow_rule:
+                actual = "allow"
+            elif user_role == "anonymous" or (not consent and has_deny_rule):
+                actual = "deny"
+            elif has_allow_rule and user_role:
+                actual = "allow"
+            else:
+                actual = "deny"
+
+            expected = scenario.get("expected", "deny")
+            results.append({
+                "scenario": scenario["name"],
+                "input": scenario.get("input", {}),
+                "expected": expected,
+                "actual": actual,
+                "passed": actual == expected,
+            })
+
+        passed_count = sum(1 for r in results if r["passed"])
+        total = len(results)
+
+        return {
+            "passed": passed_count == total,
+            "validation": validation,
+            "test_results": results,
+            "summary": f"{passed_count}/{total} test scenarios passed.",
+            "pass_rate": passed_count / total if total > 0 else 0.0,
+        }

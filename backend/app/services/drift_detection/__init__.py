@@ -4,12 +4,17 @@ from app.services.drift_detection.models import (
     AlertChannel,
     AlertConfig,
     AlertStatus,
+    CICDGateDecision,
+    CICDGateResult,
     ComplianceBaseline,
     DriftAlert,
     DriftEvent,
     DriftReport,
     DriftSeverity,
+    DriftTrend,
     DriftType,
+    TopDriftingFile,
+    WebhookDelivery,
 )
 from app.services.drift_detection.service import DriftDetectionService
 
@@ -19,10 +24,15 @@ __all__ = [
     "AlertChannel",
     "AlertConfig",
     "AlertStatus",
+    "CICDGateDecision",
+    "CICDGateResult",
     "ComplianceBaseline",
     "DriftAlert",
     "DriftEvent",
     "DriftReport",
     "DriftSeverity",
+    "DriftTrend",
     "DriftType",
+    "TopDriftingFile",
+    "WebhookDelivery",
 ]

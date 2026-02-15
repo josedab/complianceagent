@@ -17,9 +17,14 @@ from app.services.ide_agent.models import (
     AgentTriggerType,
     CodeLocation,
     ComplianceViolation,
+    FeedbackRating,
+    FeedbackStats,
     FixConfidence,
     ProposedFix,
+    RAGSearchResult,
     RefactorPlan,
+    RegulationEmbedding,
+    SuggestionFeedback,
 )
 
 
@@ -637,6 +642,152 @@ Format as JSON."""
                 return action
 
         return None
+
+    # ── RAG Regulation Search ────────────────────────────────────────────
+
+    async def _build_regulation_corpus(self) -> None:
+        """Build in-memory regulation corpus for RAG search."""
+        if hasattr(self, '_regulation_corpus') and self._regulation_corpus:
+            return
+
+        self._regulation_corpus: list[RegulationEmbedding] = []
+        regulations_data = [
+            {"regulation": "GDPR", "article": "Art. 5", "text": "Personal data shall be processed lawfully, fairly and in a transparent manner in relation to the data subject."},
+            {"regulation": "GDPR", "article": "Art. 6", "text": "Processing shall be lawful only if and to the extent that at least one legal basis applies including consent of the data subject."},
+            {"regulation": "GDPR", "article": "Art. 17", "text": "The data subject shall have the right to obtain from the controller the erasure of personal data without undue delay (right to be forgotten)."},
+            {"regulation": "GDPR", "article": "Art. 25", "text": "The controller shall implement appropriate technical and organisational measures for ensuring data protection by design and by default."},
+            {"regulation": "GDPR", "article": "Art. 32", "text": "The controller and processor shall implement appropriate technical measures to ensure a level of security appropriate to the risk, including encryption and pseudonymisation."},
+            {"regulation": "GDPR", "article": "Art. 33", "text": "In the case of a personal data breach, the controller shall notify the supervisory authority within 72 hours."},
+            {"regulation": "CCPA", "article": "§1798.100", "text": "A consumer shall have the right to request that a business disclose what personal information it collects, uses, and sells."},
+            {"regulation": "CCPA", "article": "§1798.105", "text": "A consumer shall have the right to request the deletion of personal information collected by the business."},
+            {"regulation": "CCPA", "article": "§1798.120", "text": "A consumer shall have the right to opt-out of the sale of personal information by the business."},
+            {"regulation": "HIPAA", "article": "§164.312(a)", "text": "Implement technical policies and procedures for electronic information systems that maintain ePHI to allow access only to authorized persons."},
+            {"regulation": "HIPAA", "article": "§164.312(e)", "text": "Implement technical security measures to guard against unauthorized access to ePHI transmitted over electronic communications networks."},
+            {"regulation": "HIPAA", "article": "§164.308(a)(5)", "text": "Implement a security awareness and training program for all members of the workforce including management."},
+            {"regulation": "EU AI Act", "article": "Art. 9", "text": "High-risk AI systems shall be developed on the basis of a risk management system that is continuously iterated throughout the lifecycle."},
+            {"regulation": "EU AI Act", "article": "Art. 10", "text": "High-risk AI systems shall be developed using training, validation and testing data sets that meet quality criteria."},
+            {"regulation": "EU AI Act", "article": "Art. 13", "text": "High-risk AI systems shall be designed and developed to ensure their operation is sufficiently transparent to enable users to interpret outputs."},
+            {"regulation": "SOC2", "article": "CC6.1", "text": "The entity implements logical access security software, infrastructure, and architectures over protected information assets."},
+            {"regulation": "SOC2", "article": "CC6.7", "text": "The entity restricts the transmission, movement, and removal of information to authorized users and processes."},
+            {"regulation": "PCI-DSS", "article": "Req. 3.4", "text": "Render PAN unreadable anywhere it is stored using cryptography, truncation, masking, or hashing."},
+            {"regulation": "PCI-DSS", "article": "Req. 6.5", "text": "Address common coding vulnerabilities in software development processes including injection flaws, buffer overflows, and cross-site scripting."},
+            {"regulation": "PCI-DSS", "article": "Req. 8.2", "text": "Employ at least one method of authentication to authenticate all users: password, token device, or biometric."},
+        ]
+
+        for reg in regulations_data:
+            self._regulation_corpus.append(RegulationEmbedding(
+                regulation=reg["regulation"],
+                article=reg["article"],
+                text=reg["text"],
+                metadata={"source": "built_in_corpus"},
+            ))
+
+    async def search_regulations(
+        self,
+        query: str,
+        regulations: list[str] | None = None,
+        top_k: int = 5,
+    ) -> list[RAGSearchResult]:
+        """Search regulation corpus using keyword matching (lightweight RAG)."""
+        await self._build_regulation_corpus()
+
+        query_terms = set(query.lower().split())
+        results: list[tuple[float, RegulationEmbedding]] = []
+
+        for entry in self._regulation_corpus:
+            if regulations and entry.regulation not in regulations:
+                continue
+
+            text_lower = entry.text.lower()
+            article_lower = entry.article.lower()
+            reg_lower = entry.regulation.lower()
+
+            # Score based on term overlap
+            text_terms = set(text_lower.split())
+            overlap = query_terms & text_terms
+            score = len(overlap) / max(len(query_terms), 1)
+
+            # Boost for regulation or article match
+            if any(t in reg_lower for t in query_terms):
+                score += 0.3
+            if any(t in article_lower for t in query_terms):
+                score += 0.2
+
+            if score > 0.1:
+                results.append((score, entry))
+
+        results.sort(key=lambda x: x[0], reverse=True)
+
+        return [
+            RAGSearchResult(
+                regulation=entry.regulation,
+                article=entry.article,
+                text=entry.text,
+                relevance_score=round(min(score, 1.0), 3),
+                metadata=entry.metadata,
+            )
+            for score, entry in results[:top_k]
+        ]
+
+    # ── Feedback Learning Loop ───────────────────────────────────────────
+
+    def submit_feedback(
+        self,
+        session_id: UUID | None,
+        violation_id: UUID | None,
+        fix_id: UUID | None,
+        rating: str,
+        comment: str = "",
+        was_applied: bool = False,
+        user_id: UUID | None = None,
+    ) -> SuggestionFeedback:
+        """Record feedback on a suggestion."""
+        if not hasattr(self, '_feedback_store'):
+            self._feedback_store: list[SuggestionFeedback] = []
+
+        feedback = SuggestionFeedback(
+            session_id=session_id,
+            violation_id=violation_id,
+            fix_id=fix_id,
+            rating=FeedbackRating(rating),
+            comment=comment,
+            was_applied=was_applied,
+            user_id=user_id,
+        )
+        self._feedback_store.append(feedback)
+
+        logger.info(
+            "Feedback submitted",
+            feedback_id=str(feedback.id),
+            rating=rating,
+            session_id=str(session_id) if session_id else None,
+        )
+        return feedback
+
+    def get_feedback_stats(self) -> FeedbackStats:
+        """Get aggregated feedback statistics."""
+        if not hasattr(self, '_feedback_store'):
+            self._feedback_store: list[SuggestionFeedback] = []
+
+        store = self._feedback_store
+        total = len(store)
+        if total == 0:
+            return FeedbackStats()
+
+        helpful = sum(1 for f in store if f.rating == FeedbackRating.HELPFUL)
+        not_helpful = sum(1 for f in store if f.rating == FeedbackRating.NOT_HELPFUL)
+        incorrect = sum(1 for f in store if f.rating == FeedbackRating.INCORRECT)
+        applied = sum(1 for f in store if f.was_applied)
+
+        return FeedbackStats(
+            total_feedback=total,
+            helpful_count=helpful,
+            not_helpful_count=not_helpful,
+            incorrect_count=incorrect,
+            application_rate=round(applied / total, 3) if total > 0 else 0.0,
+            top_appreciated_rules=[],
+            top_rejected_rules=[],
+        )
 
     def cancel_session(self, session_id: UUID) -> AgentSession | None:
         """Cancel an active session."""

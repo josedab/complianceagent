@@ -1,6 +1,7 @@
 """GitHub/GitLab Marketplace App Service."""
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
@@ -13,6 +14,9 @@ from app.services.marketplace_app.models import (
     InstallationSyncResult,
     MarketplaceListingInfo,
     MarketplacePlan,
+    PLAN_LIMITS,
+    UsageRecord,
+    UsageSummary,
     WebhookEvent,
 )
 
@@ -193,3 +197,119 @@ class MarketplaceAppService:
         repo = event.payload.get("repository", {}).get("full_name", "")
         logger.info("Push event received", repo=repo, ref=ref)
         return {"status": "received", "repo": repo, "ref": ref}
+
+    # ── Usage Metering ───────────────────────────────────────────────────
+
+    def record_usage(
+        self,
+        installation_id: UUID,
+        endpoint: str,
+        method: str = "GET",
+        response_time_ms: float = 0.0,
+        status_code: int = 200,
+        tokens_used: int = 0,
+    ) -> UsageRecord:
+        """Record an API usage event for metering."""
+        if not hasattr(self, '_usage_records'):
+            self._usage_records: list[UsageRecord] = []
+
+        record = UsageRecord(
+            installation_id=installation_id,
+            endpoint=endpoint,
+            method=method,
+            response_time_ms=response_time_ms,
+            status_code=status_code,
+            tokens_used=tokens_used,
+        )
+        self._usage_records.append(record)
+        return record
+
+    def get_usage_summary(
+        self,
+        installation_id: str,
+        period: str = "current_month",
+    ) -> UsageSummary:
+        """Get aggregated usage summary for an installation."""
+        if not hasattr(self, '_usage_records'):
+            self._usage_records: list[UsageRecord] = []
+
+        inst_records = [
+            r for r in self._usage_records
+            if str(r.installation_id) == installation_id
+        ]
+
+        total_requests = len(inst_records)
+        total_tokens = sum(r.tokens_used for r in inst_records)
+        avg_rt = (
+            sum(r.response_time_ms for r in inst_records) / total_requests
+            if total_requests > 0 else 0.0
+        )
+
+        endpoints: dict[str, int] = {}
+        for r in inst_records:
+            endpoints[r.endpoint] = endpoints.get(r.endpoint, 0) + 1
+
+        # Determine plan quota
+        installation = self._get_installation_by_id(installation_id)
+        plan = installation.plan.value if installation else "free"
+        limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+        quota_limit = limits["monthly_requests"]
+        quota_remaining = max(0, quota_limit - total_requests) if quota_limit > 0 else -1
+
+        return UsageSummary(
+            installation_id=installation_id,
+            period=period,
+            total_requests=total_requests,
+            total_tokens=total_tokens,
+            avg_response_time_ms=round(avg_rt, 2),
+            endpoints_breakdown=endpoints,
+            quota_limit=quota_limit,
+            quota_used=total_requests,
+            quota_remaining=quota_remaining,
+            overage=quota_limit > 0 and total_requests > quota_limit,
+        )
+
+    def _get_installation_by_id(self, installation_id: str) -> Any:
+        """Get installation by ID string."""
+        for inst in self._installations.values():
+            if str(inst.id) == installation_id:
+                return inst
+        return None
+
+    def check_plan_enforcement(
+        self,
+        installation_id: str,
+        action: str = "api_request",
+    ) -> dict[str, Any]:
+        """Check if an action is allowed under the current plan."""
+        installation = self._get_installation_by_id(installation_id)
+        if not installation:
+            return {"allowed": False, "reason": "Installation not found"}
+
+        plan = installation.plan.value
+        limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+
+        # Enterprise has unlimited
+        if limits["monthly_requests"] == -1:
+            return {"allowed": True, "plan": plan, "reason": "Enterprise unlimited"}
+
+        summary = self.get_usage_summary(installation_id)
+
+        if action == "api_request" and summary.overage:
+            return {
+                "allowed": False,
+                "plan": plan,
+                "reason": f"Monthly request quota exceeded ({summary.quota_used}/{summary.quota_limit})",
+                "upgrade_url": "/billing/upgrade",
+            }
+
+        repo_count = len(installation.repositories)
+        if action == "add_repo" and limits["repos"] > 0 and repo_count >= limits["repos"]:
+            return {
+                "allowed": False,
+                "plan": plan,
+                "reason": f"Repository limit reached ({repo_count}/{limits['repos']})",
+                "upgrade_url": "/billing/upgrade",
+            }
+
+        return {"allowed": True, "plan": plan, "reason": "Within plan limits"}

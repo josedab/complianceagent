@@ -97,6 +97,51 @@ class WizardStateResponse(BaseModel):
     completed: bool
 
 
+class WizardQuestionSchema(BaseModel):
+    """A question in a wizard step."""
+
+    id: str
+    question: str
+    question_type: str
+    options: list[dict[str, str]]
+    required: bool
+    depends_on: str | None
+    depends_value: str | None
+
+
+class WizardStepSchema(BaseModel):
+    """A step in the guided onboarding wizard."""
+
+    step_type: str
+    title: str
+    description: str
+    questions: list[WizardQuestionSchema]
+    completed: bool
+    answers: dict[str, Any]
+
+
+class ProvisionWithWizardRequest(BaseModel):
+    """Provision with wizard answers request."""
+
+    vertical: str = Field(..., description="Industry vertical")
+    wizard_answers: dict[str, Any] = Field(default_factory=dict, description="Answers from wizard")
+
+
+class ProvisioningResultSchema(BaseModel):
+    """Provisioning result from wizard."""
+
+    id: str
+    vertical: str
+    status: str
+    regulations_activated: int
+    policies_created: int
+    scan_configs_created: int
+    frameworks_registered: int
+    checklist_items: list[dict[str, Any]]
+    warnings: list[str]
+    provisioned_at: str
+
+
 # --- Endpoints ---
 
 
@@ -199,6 +244,22 @@ async def provision_pack(
     )
 
 
+@router.post(
+    "/provision-wizard",
+    response_model=ProvisioningResultSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Provision with wizard",
+)
+async def provision_with_wizard(
+    request: ProvisionWithWizardRequest,
+    db: DB,
+) -> ProvisioningResultSchema:
+    """Provision an industry pack using guided wizard answers."""
+    service = IndustryPacksService(db=db)
+    result = await service.provision_with_wizard(request.vertical, request.wizard_answers)
+    return ProvisioningResultSchema(**result.to_dict())
+
+
 @router.get(
     "/verticals",
     summary="List supported verticals",
@@ -211,3 +272,18 @@ async def list_verticals() -> dict:
             for v in IndustryVertical
         ]
     }
+
+
+@router.get(
+    "/{vertical}/wizard",
+    response_model=list[WizardStepSchema],
+    summary="Get wizard steps",
+)
+async def get_wizard_steps(
+    vertical: str,
+    db: DB,
+) -> list[WizardStepSchema]:
+    """Get guided onboarding wizard steps for an industry vertical."""
+    service = IndustryPacksService(db=db)
+    steps = service.get_wizard_steps(vertical)
+    return [WizardStepSchema(**s.to_dict()) for s in steps]

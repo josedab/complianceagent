@@ -217,3 +217,62 @@ async def get_listing_info(db: DB) -> dict:
         "install_url": info.install_url,
         "webhook_url": info.webhook_url,
     }
+
+
+# --- Usage Metering & Plan Enforcement ---
+
+
+class UsageSummarySchema(BaseModel):
+    """Usage metering summary."""
+
+    installation_id: str
+    period: str
+    total_requests: int
+    total_tokens: int
+    avg_response_time_ms: float
+    endpoints_breakdown: dict[str, int]
+    quota_limit: int
+    quota_used: int
+    quota_remaining: int
+    overage: bool
+
+
+class PlanEnforcementSchema(BaseModel):
+    """Plan enforcement check result."""
+
+    allowed: bool
+    plan: str = ""
+    reason: str = ""
+    upgrade_url: str | None = None
+
+
+@router.get(
+    "/installations/{installation_id}/usage",
+    response_model=UsageSummarySchema,
+    summary="Get usage summary",
+)
+async def get_usage_summary(
+    installation_id: str,
+    db: DB,
+    period: str = "current_month",
+) -> UsageSummarySchema:
+    """Get usage metering summary for an installation."""
+    service = MarketplaceAppService(db=db)
+    summary = service.get_usage_summary(installation_id, period)
+    return UsageSummarySchema(**summary.to_dict())
+
+
+@router.get(
+    "/installations/{installation_id}/plan-check",
+    response_model=PlanEnforcementSchema,
+    summary="Check plan enforcement",
+)
+async def check_plan_enforcement(
+    installation_id: str,
+    db: DB,
+    action: str = "api_request",
+) -> PlanEnforcementSchema:
+    """Check if an action is allowed under the installation's current plan."""
+    service = MarketplaceAppService(db=db)
+    result = service.check_plan_enforcement(installation_id, action)
+    return PlanEnforcementSchema(**result)

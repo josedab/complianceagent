@@ -72,6 +72,17 @@ class ValidatePolicyRequest(BaseModel):
     language: str
 
 
+class TestPolicyRequest(BaseModel):
+    """Request to test a policy against scenarios."""
+
+    content: str
+    language: str
+    test_scenarios: list[dict] | None = Field(
+        default=None,
+        description="Test scenarios with name, input, and expected outcome",
+    )
+
+
 # --- Helpers ---
 
 
@@ -371,6 +382,21 @@ async def list_bundles():
 async def validate_policy(request: ValidatePolicyRequest):
     """Validate a policy file for syntax and best practices."""
     result = await _service.validate_policy(request.content, request.language)
+    return result
+
+
+@router.post("/test")
+async def test_policy(request: TestPolicyRequest):
+    """Test a policy against scenarios to verify behavior.
+
+    Runs validation first, then executes test scenarios. If no scenarios
+    are provided, runs default compliance test cases.
+    """
+    result = await _service.test_policy(
+        content=request.content,
+        language=request.language,
+        test_scenarios=request.test_scenarios,
+    )
     return result
 
 

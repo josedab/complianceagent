@@ -1,7 +1,9 @@
 """Industry Compliance Starter Packs models."""
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -89,3 +91,91 @@ class OnboardingWizardState:
     tech_stack: list[str] = field(default_factory=list)
     selected_regulations: list[str] = field(default_factory=list)
     completed: bool = False
+
+
+class WizardStepType(str, Enum):
+    """Types of wizard steps."""
+
+    INDUSTRY_SELECT = "industry_select"
+    REGULATION_CONFIG = "regulation_config"
+    TECH_STACK = "tech_stack"
+    POLICY_TEMPLATES = "policy_templates"
+    REVIEW = "review"
+    PROVISION = "provision"
+    COMPLETE = "complete"
+
+
+@dataclass
+class WizardQuestion:
+    """A question in a wizard step with branching logic."""
+
+    id: str = ""
+    question: str = ""
+    question_type: str = "single_select"  # single_select, multi_select, text, boolean
+    options: list[dict[str, str]] = field(default_factory=list)
+    required: bool = True
+    depends_on: str | None = None
+    depends_value: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "question": self.question,
+            "question_type": self.question_type,
+            "options": self.options,
+            "required": self.required,
+            "depends_on": self.depends_on,
+            "depends_value": self.depends_value,
+        }
+
+
+@dataclass
+class WizardStep:
+    """A step in the guided onboarding wizard."""
+
+    step_type: WizardStepType = WizardStepType.INDUSTRY_SELECT
+    title: str = ""
+    description: str = ""
+    questions: list[WizardQuestion] = field(default_factory=list)
+    completed: bool = False
+    answers: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "step_type": self.step_type.value,
+            "title": self.title,
+            "description": self.description,
+            "questions": [q.to_dict() for q in self.questions],
+            "completed": self.completed,
+            "answers": self.answers,
+        }
+
+
+@dataclass
+class ProvisioningResult:
+    """Result of provisioning an industry pack."""
+
+    id: UUID = field(default_factory=uuid4)
+    vertical: str = ""
+    status: str = "completed"
+    regulations_activated: int = 0
+    policies_created: int = 0
+    scan_configs_created: int = 0
+    frameworks_registered: int = 0
+    checklist_items: list[dict[str, Any]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    provisioned_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "vertical": self.vertical,
+            "status": self.status,
+            "regulations_activated": self.regulations_activated,
+            "policies_created": self.policies_created,
+            "scan_configs_created": self.scan_configs_created,
+            "frameworks_registered": self.frameworks_registered,
+            "checklist_items": self.checklist_items,
+            "warnings": self.warnings,
+            "provisioned_at": self.provisioned_at.isoformat(),
+        }

@@ -1,11 +1,14 @@
 """API endpoints for Self-Hosted & Air-Gapped Deployment."""
 
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep
-from app.services.self_hosted import SelfHostedService, DeploymentMode, LicenseType
+from app.services.self_hosted import ClusterSize, DeploymentMode, LicenseType, SelfHostedService
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -144,3 +147,114 @@ async def create_backup(db: DB, copilot: CopilotDep) -> dict:
 async def get_helm_values(db: DB, copilot: CopilotDep) -> dict:
     service = SelfHostedService(db=db, copilot_client=copilot)
     return await service.get_helm_values()
+
+
+@router.get("/k8s-resources", summary="Calculate Kubernetes resource requirements")
+async def calculate_k8s_resources(
+    db: DB, copilot: CopilotDep, size: str = "medium",
+) -> dict:
+    """Calculate recommended K8s resources for a given cluster size."""
+    service = SelfHostedService(db=db, copilot_client=copilot)
+    try:
+        cluster_size = ClusterSize(size)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid size: {size}. Use: small, medium, large")
+    estimate = await service.calculate_k8s_resources(cluster_size)
+    return {
+        "cluster_size": estimate.cluster_size.value,
+        "cpu_cores": estimate.cpu_cores,
+        "memory_gi": estimate.memory_gi,
+        "storage_gi": estimate.storage_gi,
+        "node_count": estimate.node_count,
+        "estimated_monthly_cost_usd": estimate.estimated_monthly_cost_usd,
+        "components": estimate.components,
+    }
+
+
+@router.get("/airgapped-images", summary="List air-gapped container images")
+async def list_airgapped_images(db: DB, copilot: CopilotDep) -> list[dict]:
+    """List all container images required for air-gapped deployment."""
+    service = SelfHostedService(db=db, copilot_client=copilot)
+    images = await service.list_airgapped_images()
+    return [
+        {"name": img.name, "tag": img.tag, "size_mb": img.size_mb,
+         "digest": img.digest, "required": img.required}
+        for img in images
+    ]
+
+
+# ── Cryptographic License & Air-Gapped Schemas ──────────────────────────
+
+
+class CryptoLicenseSchema(BaseModel):
+    id: str
+    key_hash: str
+    organization: str
+    tier: str
+    features: list[str]
+    max_users: int
+    max_repos: int
+    issued_at: str
+    expires_at: str | None
+    is_valid: bool
+    validation_errors: list[str]
+
+
+class ValidateLicenseRequest(BaseModel):
+    license_key: str = Field(..., description="License key in header.payload.signature format")
+
+
+class OfflineBundleSchema(BaseModel):
+    id: str
+    name: str
+    version: str
+    regulations: list[str]
+    total_rules: int
+    size_mb: float
+    checksum: str
+    created_at: str
+    is_installed: bool
+    auto_update: bool
+
+
+class AirGapStatusSchema(BaseModel):
+    is_air_gapped: bool
+    local_llm_available: bool
+    local_llm_model: str
+    offline_bundles_installed: int
+    last_bundle_update: str | None
+    license_status: str
+    connectivity_check: str
+    storage_used_gb: float
+    storage_total_gb: float
+
+
+@router.post("/validate-license", response_model=CryptoLicenseSchema)
+async def validate_license_crypto(request: ValidateLicenseRequest, db: DB, copilot: CopilotDep) -> CryptoLicenseSchema:
+    """Validate a license key using cryptographic verification."""
+    service = SelfHostedService(db=db, copilot_client=copilot)
+    result = await service.validate_license_crypto(request.license_key)
+    return CryptoLicenseSchema(**result.to_dict())
+
+
+@router.get("/offline-bundles", response_model=list[OfflineBundleSchema])
+async def list_offline_bundles(db: DB, copilot: CopilotDep) -> list[OfflineBundleSchema]:
+    """List available offline regulation bundles."""
+    service = SelfHostedService(db=db, copilot_client=copilot)
+    bundles = await service.list_offline_regulation_bundles()
+    return [OfflineBundleSchema(**b.to_dict()) for b in bundles]
+
+
+@router.post("/offline-bundles/{bundle_id}/install")
+async def install_bundle(bundle_id: str, db: DB, copilot: CopilotDep) -> dict[str, Any]:
+    """Install an offline regulation bundle."""
+    service = SelfHostedService(db=db, copilot_client=copilot)
+    return await service.install_regulation_bundle(bundle_id)
+
+
+@router.get("/air-gap-status", response_model=AirGapStatusSchema)
+async def get_air_gap_status(db: DB, copilot: CopilotDep) -> AirGapStatusSchema:
+    """Get the current air-gapped deployment status."""
+    service = SelfHostedService(db=db, copilot_client=copilot)
+    status = await service.get_air_gap_status()
+    return AirGapStatusSchema(**status.to_dict())

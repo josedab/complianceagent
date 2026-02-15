@@ -1,8 +1,9 @@
 """GitHub/GitLab Marketplace App models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -84,3 +85,76 @@ class MarketplaceListingInfo:
     categories: list[str] = field(default_factory=lambda: ["compliance", "security", "code-quality"])
     install_url: str = ""
     webhook_url: str = ""
+
+
+@dataclass
+class UsageRecord:
+    """Record of API usage for billing/metering."""
+
+    id: UUID = field(default_factory=uuid4)
+    installation_id: UUID | None = None
+    endpoint: str = ""
+    method: str = "GET"
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    response_time_ms: float = 0.0
+    status_code: int = 200
+    tokens_used: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "installation_id": str(self.installation_id) if self.installation_id else None,
+            "endpoint": self.endpoint,
+            "method": self.method,
+            "timestamp": self.timestamp.isoformat(),
+            "response_time_ms": self.response_time_ms,
+            "status_code": self.status_code,
+            "tokens_used": self.tokens_used,
+        }
+
+
+@dataclass
+class UsageSummary:
+    """Aggregated usage summary for an installation."""
+
+    installation_id: str = ""
+    period: str = ""
+    total_requests: int = 0
+    total_tokens: int = 0
+    avg_response_time_ms: float = 0.0
+    endpoints_breakdown: dict[str, int] = field(default_factory=dict)
+    quota_limit: int = 0
+    quota_used: int = 0
+    quota_remaining: int = 0
+    overage: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "installation_id": self.installation_id,
+            "period": self.period,
+            "total_requests": self.total_requests,
+            "total_tokens": self.total_tokens,
+            "avg_response_time_ms": self.avg_response_time_ms,
+            "endpoints_breakdown": self.endpoints_breakdown,
+            "quota_limit": self.quota_limit,
+            "quota_used": self.quota_used,
+            "quota_remaining": self.quota_remaining,
+            "overage": self.overage,
+        }
+
+
+class PlanQuota(str, Enum):
+    """Plan-based quotas."""
+
+    FREE = "free"
+    TEAM = "team"
+    BUSINESS = "business"
+    ENTERPRISE = "enterprise"
+
+
+PLAN_LIMITS: dict[str, dict[str, int]] = {
+    "free": {"monthly_requests": 1000, "repos": 3, "scans_per_day": 5, "tokens": 50000},
+    "team": {"monthly_requests": 10000, "repos": 25, "scans_per_day": 50, "tokens": 500000},
+    "business": {"monthly_requests": 100000, "repos": 100, "scans_per_day": 500, "tokens": 5000000},
+    "enterprise": {"monthly_requests": -1, "repos": -1, "scans_per_day": -1, "tokens": -1},
+}

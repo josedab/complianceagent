@@ -1,8 +1,9 @@
 """Compliance Posture Scoring & Benchmarking models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -75,3 +76,93 @@ class PostureReport:
     action_items: list[str] = field(default_factory=list)
     generated_at: datetime | None = None
     format: str = "html"  # html, pdf, json
+
+
+@dataclass
+class DimensionDetail:
+    """Detailed breakdown of a single scoring dimension."""
+    dimension: str = ""
+    score: float = 0.0
+    max_score: float = 100.0
+    grade: str = "C"
+    findings_count: int = 0
+    critical_findings: int = 0
+    drivers: list[dict[str, Any]] = field(default_factory=list)
+    trend: str = "stable"  # improving, degrading, stable
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "dimension": self.dimension,
+            "score": self.score,
+            "max_score": self.max_score,
+            "grade": self.grade,
+            "findings_count": self.findings_count,
+            "critical_findings": self.critical_findings,
+            "drivers": self.drivers,
+            "trend": self.trend,
+        }
+
+
+@dataclass
+class DynamicPostureScore:
+    """Complete compliance posture score with all dimensions."""
+    overall_score: float = 0.0
+    overall_grade: str = "C"
+    dimensions: list[DimensionDetail] = field(default_factory=list)
+    calculated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    repo: str = ""
+    recommendations: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "overall_score": self.overall_score,
+            "overall_grade": self.overall_grade,
+            "dimensions": [d.to_dict() for d in self.dimensions],
+            "calculated_at": self.calculated_at.isoformat(),
+            "repo": self.repo,
+            "recommendations": self.recommendations,
+        }
+
+
+@dataclass
+class DynamicIndustryBenchmark:
+    """Benchmark comparison against industry peers."""
+    industry: str = ""
+    your_score: float = 0.0
+    industry_avg: float = 0.0
+    industry_median: float = 0.0
+    industry_p75: float = 0.0
+    industry_p90: float = 0.0
+    percentile: float = 0.0
+    peer_count: int = 0
+    dimension_comparison: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "industry": self.industry,
+            "your_score": self.your_score,
+            "industry_avg": self.industry_avg,
+            "industry_median": self.industry_median,
+            "industry_p75": self.industry_p75,
+            "industry_p90": self.industry_p90,
+            "percentile": self.percentile,
+            "peer_count": self.peer_count,
+            "dimension_comparison": self.dimension_comparison,
+        }
+
+
+@dataclass
+class ScoreHistory:
+    """Historical posture scores for trend tracking."""
+    repo: str = ""
+    history: list[dict[str, Any]] = field(default_factory=list)
+    trend: str = "stable"
+    improvement_rate: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "repo": self.repo,
+            "history": self.history,
+            "trend": self.trend,
+            "improvement_rate": self.improvement_rate,
+        }

@@ -1,31 +1,38 @@
 """Federated Compliance Intelligence Network."""
 
 from app.services.federated_intel.models import (
-    ThreatCategory,
-    IntelligenceType,
-    SharingLevel,
-    ComplianceThreat,
+    ComparativeInsight,
     CompliancePattern,
-    IntelligenceReport,
-    NetworkMember,
+    ComplianceThreat,
+    ContributorScore,
     FederatedNetwork,
+    IntelligenceReport,
+    IntelligenceType,
+    NetworkHealthMetrics,
+    NetworkMember,
+    SharingLevel,
+    ThreatCategory,
 )
 from app.services.federated_intel.network import (
     FederatedIntelligenceNetwork,
     get_federated_network,
 )
 
+
 __all__ = [
-    # Models
-    "ThreatCategory",
-    "IntelligenceType",
-    "SharingLevel",
-    "ComplianceThreat",
+    "ComparativeInsight",
     "CompliancePattern",
-    "IntelligenceReport",
-    "NetworkMember",
-    "FederatedNetwork",
+    "ComplianceThreat",
+    "ContributorScore",
     # Network
     "FederatedIntelligenceNetwork",
+    "FederatedNetwork",
+    "IntelligenceReport",
+    "IntelligenceType",
+    "NetworkHealthMetrics",
+    "NetworkMember",
+    "SharingLevel",
+    # Models
+    "ThreatCategory",
     "get_federated_network",
 ]

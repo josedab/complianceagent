@@ -332,3 +332,105 @@ class RefactorPlan:
             "test_coverage_gaps": self.test_coverage_gaps,
             "diff_preview": self.diff_preview,
         }
+
+
+class FeedbackRating(str, Enum):
+    """Rating for suggestion feedback."""
+
+    HELPFUL = "helpful"
+    NOT_HELPFUL = "not_helpful"
+    INCORRECT = "incorrect"
+    PARTIALLY_HELPFUL = "partially_helpful"
+
+
+@dataclass
+class RegulationEmbedding:
+    """A regulation chunk with embedding for RAG search."""
+
+    id: UUID = field(default_factory=uuid4)
+    regulation: str = ""
+    article: str = ""
+    text: str = ""
+    embedding: list[float] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "regulation": self.regulation,
+            "article": self.article,
+            "text": self.text,
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class RAGSearchResult:
+    """Result from RAG regulation search."""
+
+    regulation: str = ""
+    article: str = ""
+    text: str = ""
+    relevance_score: float = 0.0
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "regulation": self.regulation,
+            "article": self.article,
+            "text": self.text,
+            "relevance_score": self.relevance_score,
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class SuggestionFeedback:
+    """Feedback on a suggestion from the IDE copilot."""
+
+    id: UUID = field(default_factory=uuid4)
+    session_id: UUID | None = None
+    violation_id: UUID | None = None
+    fix_id: UUID | None = None
+    rating: FeedbackRating = FeedbackRating.HELPFUL
+    comment: str = ""
+    was_applied: bool = False
+    user_id: UUID | None = None
+    submitted_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "session_id": str(self.session_id) if self.session_id else None,
+            "violation_id": str(self.violation_id) if self.violation_id else None,
+            "fix_id": str(self.fix_id) if self.fix_id else None,
+            "rating": self.rating.value,
+            "comment": self.comment,
+            "was_applied": self.was_applied,
+            "user_id": str(self.user_id) if self.user_id else None,
+            "submitted_at": self.submitted_at.isoformat(),
+        }
+
+
+@dataclass
+class FeedbackStats:
+    """Aggregated feedback statistics."""
+
+    total_feedback: int = 0
+    helpful_count: int = 0
+    not_helpful_count: int = 0
+    incorrect_count: int = 0
+    application_rate: float = 0.0
+    top_appreciated_rules: list[str] = field(default_factory=list)
+    top_rejected_rules: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "total_feedback": self.total_feedback,
+            "helpful_count": self.helpful_count,
+            "not_helpful_count": self.not_helpful_count,
+            "incorrect_count": self.incorrect_count,
+            "application_rate": self.application_rate,
+            "top_appreciated_rules": self.top_appreciated_rules,
+            "top_rejected_rules": self.top_rejected_rules,
+        }

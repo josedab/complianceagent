@@ -140,3 +140,31 @@ class SandboxBadge:
     icon: str
     criteria: str
     earned_at: datetime | None = None
+
+
+@dataclass
+class WhatIfScenario:
+    """A what-if regulatory change simulation scenario."""
+
+    id: str = ""
+    title: str = ""
+    description: str = ""
+    change_type: str = ""  # new_regulation, amendment, repeal, enforcement
+    jurisdiction: str = ""
+    regulation: str = ""
+    effective_date: str = ""
+    probability: float = 0.5
+
+
+@dataclass
+class WhatIfImpact:
+    """Impact assessment for a what-if scenario."""
+
+    scenario_id: str = ""
+    overall_risk_score: float = 0.0
+    affected_modules: list[dict] = field(default_factory=list)
+    estimated_effort_hours: float = 0.0
+    estimated_cost_usd: float = 0.0
+    compliance_gap_count: int = 0
+    recommendations: list[str] = field(default_factory=list)
+    heatmap: list[dict] = field(default_factory=list)
