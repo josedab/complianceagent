@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+import jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
@@ -53,7 +53,7 @@ def create_access_token(
     )
 
     return jwt.encode(
-        payload.model_dump(mode="json"),
+        payload.model_dump(),
         settings.secret_key,
         algorithm=settings.algorithm,
     )
@@ -76,7 +76,7 @@ def create_refresh_token(
     )
 
     return jwt.encode(
-        payload.model_dump(mode="json"),
+        payload.model_dump(),
         settings.secret_key,
         algorithm=settings.algorithm,
     )
@@ -91,5 +91,5 @@ def decode_token(token: str) -> TokenPayload | None:
             algorithms=[settings.algorithm],
         )
         return TokenPayload(**payload)
-    except JWTError:
+    except jwt.PyJWTError:
         return None
