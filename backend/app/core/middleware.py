@@ -1,5 +1,6 @@
 """Rate limiting and exception handling middleware."""
 
+import asyncio
 import hashlib
 import time
 import traceback
@@ -188,6 +189,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.redis = redis_client
         self.key_prefix = key_prefix
         self.requests: dict[str, list[float]] = defaultdict(list)
+        self._memory_lock = asyncio.Lock()
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Skip rate limiting in development if configured
@@ -248,7 +250,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         if self.redis:
             return await self._check_redis_rate_limit(key, now, window_start, reset_time)
-        return self._check_memory_rate_limit(key, now, window_start, reset_time)
+        return await self._check_memory_rate_limit(key, now, window_start, reset_time)
 
     async def _check_redis_rate_limit(
         self, key: str, now: float, window_start: float, reset_time: int
@@ -274,26 +276,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.exception("Redis rate limit error", error=str(e))
             # Fall back to memory
-            return self._check_memory_rate_limit(key, now, window_start, reset_time)
+            return await self._check_memory_rate_limit(key, now, window_start, reset_time)
 
-    def _check_memory_rate_limit(
+    async def _check_memory_rate_limit(
         self, key: str, now: float, window_start: float, reset_time: int
     ) -> tuple[bool, int, int]:
         """In-memory rate limiting using sliding window."""
-        # Clean old requests
-        self.requests[key] = [t for t in self.requests[key] if t > window_start]
+        async with self._memory_lock:
+            # Clean old requests
+            self.requests[key] = [t for t in self.requests[key] if t > window_start]
 
-        # Check if over limit
-        count = len(self.requests[key])
-        is_limited = count >= self.calls
+            # Check if over limit
+            count = len(self.requests[key])
+            is_limited = count >= self.calls
 
-        if not is_limited:
-            # Record this request
-            self.requests[key].append(now)
-            count += 1
+            if not is_limited:
+                # Record this request
+                self.requests[key].append(now)
+                count += 1
 
-        remaining = max(0, self.calls - count)
-        return is_limited, remaining, reset_time
+            remaining = max(0, self.calls - count)
+            return is_limited, remaining, reset_time
 
     def _get_client_id(self, request: Request) -> str:
         """Get unique client identifier."""
