@@ -57,8 +57,8 @@ async def github_webhook(
 
 
 async def handle_push_event(data: dict[str, Any], db: AsyncSession) -> None:
-    """Handle push events - trigger re-analysis if needed."""
-    data.get("repository", {}).get("full_name")
+    """Handle push events - trigger re-analysis on default branch pushes."""
+    repo_name = data.get("repository", {}).get("full_name")
     ref = data.get("ref", "")
 
     # Only process pushes to default branch
@@ -66,10 +66,29 @@ async def handle_push_event(data: dict[str, Any], db: AsyncSession) -> None:
     if ref != f"refs/heads/{default_branch}":
         return
 
-    # Queue re-analysis task
+    from sqlalchemy import select
 
-    # Find repository in our system and trigger analysis
-    # analyze_repository.delay(repo_id)
+    from app.models.codebase import Repository
+
+    repo_result = await db.execute(
+        select(Repository).where(Repository.full_name == repo_name)
+    )
+    repository = repo_result.scalar_one_or_none()
+
+    if not repository:
+        logger.debug("Push event for untracked repository", repo=repo_name)
+        return
+
+    # Update last push timestamp
+    repository.last_push_at = datetime.now(UTC)
+    await db.commit()
+
+    logger.info(
+        "Push event processed",
+        repo=repo_name,
+        ref=ref,
+        commits=len(data.get("commits", [])),
+    )
 
 
 async def handle_pull_request_event(data: dict[str, Any], db: AsyncSession) -> None:
@@ -107,23 +126,43 @@ async def handle_pull_request_event(data: dict[str, Any], db: AsyncSession) -> N
 async def handle_installation_event(data: dict[str, Any], db: AsyncSession) -> None:
     """Handle GitHub App installation events."""
     action = data.get("action")
-    data.get("installation", {})
+    installation = data.get("installation", {})
+    account = installation.get("account", {})
 
     if action == "created":
-        # New installation - could notify or set up
-        pass
+        logger.info(
+            "GitHub App installed",
+            installation_id=installation.get("id"),
+            account=account.get("login"),
+            account_type=account.get("type"),
+        )
     elif action == "deleted":
-        # Installation removed - clean up
-        pass
+        logger.info(
+            "GitHub App uninstalled",
+            installation_id=installation.get("id"),
+            account=account.get("login"),
+        )
 
 
 async def handle_installation_repos_event(data: dict[str, Any], db: AsyncSession) -> None:
     """Handle repository added/removed from installation."""
-    data.get("action")
-    data.get("repositories_added", [])
-    data.get("repositories_removed", [])
+    action = data.get("action")
+    repos_added = data.get("repositories_added", [])
+    repos_removed = data.get("repositories_removed", [])
 
-    # Update our repository tracking
+    if repos_added:
+        logger.info(
+            "Repositories added to installation",
+            count=len(repos_added),
+            repos=[r.get("full_name") for r in repos_added],
+        )
+
+    if repos_removed:
+        logger.info(
+            "Repositories removed from installation",
+            count=len(repos_removed),
+            repos=[r.get("full_name") for r in repos_removed],
+        )
 
 
 @router.post("/stripe")
