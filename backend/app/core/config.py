@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     environment: Literal["development", "staging", "production"] = "development"
     debug: bool = False
     api_prefix: str = "/api/v1"
+    enable_experimental: bool = Field(
+        default=True,
+        description="Enable experimental/stub service routes. Disable in production to reduce attack surface.",
+    )
 
     # Security
     secret_key: str = Field(default="change-me-in-production-use-secrets-manager")
