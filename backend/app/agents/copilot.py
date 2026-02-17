@@ -1,10 +1,10 @@
 """GitHub Copilot SDK integration for AI-powered compliance analysis."""
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from threading import Lock
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -74,12 +74,11 @@ class CircuitBreaker:
         self.recovery_timeout = recovery_timeout_seconds
         self.half_open_max_calls = half_open_max_calls
         self._state = CircuitBreakerState()
-        self._lock = Lock()
+        self._lock = asyncio.Lock()
 
-    @property
-    def is_open(self) -> bool:
+    async def is_open(self) -> bool:
         """Check if circuit is open (blocking requests)."""
-        with self._lock:
+        async with self._lock:
             if self._state.state == "open":
                 # Check if recovery timeout has elapsed
                 if self._state.last_failure_time:
@@ -92,9 +91,9 @@ class CircuitBreaker:
                 return True
             return False
 
-    def record_success(self) -> None:
+    async def record_success(self) -> None:
         """Record a successful call."""
-        with self._lock:
+        async with self._lock:
             if self._state.state == "half-open":
                 self._state.success_count_in_half_open += 1
                 if self._state.success_count_in_half_open >= self.half_open_max_calls:
@@ -105,9 +104,9 @@ class CircuitBreaker:
                 # Reset failure count on success
                 self._state.failure_count = 0
 
-    def record_failure(self) -> None:
+    async def record_failure(self) -> None:
         """Record a failed call."""
-        with self._lock:
+        async with self._lock:
             self._state.failure_count += 1
             self._state.last_failure_time = datetime.now(UTC)
 
@@ -123,9 +122,9 @@ class CircuitBreaker:
                     threshold=self.failure_threshold,
                 )
 
-    def get_state(self) -> dict[str, Any]:
+    async def get_state(self) -> dict[str, Any]:
         """Get current circuit breaker state for monitoring."""
-        with self._lock:
+        async with self._lock:
             return {
                 "state": self._state.state,
                 "failure_count": self._state.failure_count,
@@ -226,7 +225,7 @@ class CopilotClient:
             raise RuntimeError(msg)
 
         # Check circuit breaker before making request
-        if _circuit_breaker.is_open:
+        if await _circuit_breaker.is_open():
             raise CircuitBreakerOpenError(recovery_seconds=60)
 
         metrics = get_metrics()
@@ -237,17 +236,17 @@ class CopilotClient:
             response = await self._client.post("/v1/chat/completions", json=payload)
         except httpx.ConnectError as e:
             metrics.inc_copilot_error()
-            _circuit_breaker.record_failure()
+            await _circuit_breaker.record_failure()
             raise CopilotConnectionError(f"Failed to connect to Copilot API: {e}") from e
         except httpx.ReadTimeout as e:
             metrics.inc_copilot_error()
-            _circuit_breaker.record_failure()
+            await _circuit_breaker.record_failure()
             raise CopilotTimeoutError(
                 f"Copilot API request timed out after {self.timeout}s"
             ) from e
         except httpx.TimeoutException as e:
             metrics.inc_copilot_error()
-            _circuit_breaker.record_failure()
+            await _circuit_breaker.record_failure()
             raise CopilotTimeoutError(f"Copilot API timeout: {e}") from e
 
         # Handle HTTP errors
@@ -257,7 +256,7 @@ class CopilotClient:
             raise CopilotAuthenticationError("Invalid or expired Copilot API key")
         if response.status_code == 429:
             metrics.inc_copilot_error()
-            _circuit_breaker.record_failure()
+            await _circuit_breaker.record_failure()
             retry_after = response.headers.get("Retry-After")
             raise CopilotRateLimitError(
                 "Copilot API rate limit exceeded",
@@ -265,7 +264,7 @@ class CopilotClient:
             )
         if response.status_code >= 500:
             metrics.inc_copilot_error()
-            _circuit_breaker.record_failure()
+            await _circuit_breaker.record_failure()
             raise CopilotConnectionError(
                 f"Copilot API server error: {response.status_code}",
                 details={"status_code": response.status_code, "body": response.text[:500]},
@@ -274,7 +273,7 @@ class CopilotClient:
         response.raise_for_status()
 
         # Record success for circuit breaker
-        _circuit_breaker.record_success()
+        await _circuit_breaker.record_success()
 
         # Record successful request latency
         latency = time.perf_counter() - start_time
@@ -594,9 +593,9 @@ async def get_copilot_client() -> CopilotClient:
     return create_copilot_client()
 
 
-def get_circuit_breaker_state() -> dict[str, Any]:
+async def get_circuit_breaker_state() -> dict[str, Any]:
     """Get circuit breaker state for monitoring and health checks."""
-    return _circuit_breaker.get_state()
+    return await _circuit_breaker.get_state()
 
 
 def reset_circuit_breaker() -> None:
