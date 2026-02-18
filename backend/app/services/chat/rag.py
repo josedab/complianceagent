@@ -90,9 +90,11 @@ class RAGPipeline:
         self,
         elasticsearch_client=None,
         db_session=None,
+        embedding_fn=None,
     ):
         self.es = elasticsearch_client
         self.db = db_session
+        self._embedding_fn = embedding_fn
 
     async def retrieve(
         self,
@@ -139,6 +141,16 @@ class RAGPipeline:
                 query, organization_id, repository
             )
             documents.extend(mapping_docs)
+
+        # Semantic vector search (pgvector) — supplements keyword search
+        if self.db and self._embedding_fn:
+            vector_docs = await self._vector_search(query, organization_id, max_documents)
+            # Merge vector results, deduplicating by id
+            seen_ids = {d.id for d in documents}
+            for doc in vector_docs:
+                if doc.id not in seen_ids:
+                    documents.append(doc)
+                    seen_ids.add(doc.id)
         
         # Sort by relevance and limit
         documents.sort(key=lambda d: d.relevance_score, reverse=True)
@@ -519,3 +531,74 @@ class RAGPipeline:
                 logger.warning(f"Similar search failed: {e}")
         
         return []
+
+    async def _vector_search(
+        self,
+        query: str,
+        organization_id: UUID,
+        max_results: int = 5,
+    ) -> list[RAGDocument]:
+        """Semantic search using pgvector cosine similarity.
+
+        Requires the ``pgvector`` extension and a ``compliance_embeddings``
+        table with columns (id, source_type, source_id, title, content,
+        embedding vector(1536), organization_id, metadata jsonb).
+        """
+        if not self.db or not self._embedding_fn:
+            return []
+
+        try:
+            query_embedding = await self._embedding_fn(query)
+        except Exception as e:
+            logger.warning("Failed to generate query embedding", error=str(e))
+            return []
+
+        try:
+            from sqlalchemy import text
+
+            sql = text("""
+                SELECT id, source_type, source_id, title, content, metadata,
+                       1 - (embedding <=> :embedding::vector) AS score
+                FROM compliance_embeddings
+                WHERE organization_id = :org_id
+                ORDER BY embedding <=> :embedding::vector
+                LIMIT :limit
+            """)
+
+            result = await self.db.execute(
+                sql,
+                {
+                    "embedding": str(query_embedding),
+                    "org_id": str(organization_id),
+                    "limit": max_results,
+                },
+            )
+            rows = result.fetchall()
+
+            documents = []
+            for row in rows:
+                source_type = row.source_type
+                try:
+                    source = RAGSource(source_type)
+                except ValueError:
+                    source = RAGSource.DOCUMENTATION
+
+                documents.append(RAGDocument(
+                    id=str(row.source_id),
+                    source=source,
+                    title=row.title or "",
+                    content=row.content or "",
+                    relevance_score=float(row.score),
+                    metadata=row.metadata or {},
+                ))
+
+            logger.info(
+                "Vector search completed",
+                query=query[:80],
+                results=len(documents),
+            )
+            return documents
+
+        except Exception as e:
+            logger.debug("Vector search unavailable (pgvector not configured)", error=str(e))
+            return []
