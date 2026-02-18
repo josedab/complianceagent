@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 import structlog
@@ -17,6 +18,56 @@ from app.services.monitoring.crawler import ChangeDetector, CrawlerResult, Regul
 logger = structlog.get_logger()
 
 
+@dataclass
+class MonitoringHealth:
+    """Health snapshot for the monitoring service."""
+
+    is_running: bool = False
+    last_cycle_at: datetime | None = None
+    last_cycle_duration_seconds: float = 0.0
+    total_cycles: int = 0
+    sources_checked: int = 0
+    changes_detected: int = 0
+    errors_total: int = 0
+    consecutive_cycle_failures: int = 0
+    backpressure_paused_sources: int = 0
+    uptime_seconds: float = 0.0
+    started_at: datetime | None = None
+
+
+@dataclass
+class SourceBackpressure:
+    """Per-source backpressure tracking — exponentially backs off failing sources."""
+
+    consecutive_failures: int = 0
+    next_eligible_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    skip_count: int = 0
+
+    @property
+    def is_paused(self) -> bool:
+        return datetime.now(UTC) < self.next_eligible_at
+
+    def record_failure(self) -> None:
+        self.consecutive_failures += 1
+        # Exponential backoff: 5m, 15m, 1h, 4h, 12h, max 24h
+        backoff_minutes = min(5 * (3 ** (self.consecutive_failures - 1)), 1440)
+        from datetime import timedelta
+        self.next_eligible_at = datetime.now(UTC) + timedelta(minutes=backoff_minutes)
+        self.skip_count += 1
+        logger.warning(
+            "Source backpressure activated",
+            failures=self.consecutive_failures,
+            backoff_minutes=backoff_minutes,
+        )
+
+    def record_success(self) -> None:
+        self.consecutive_failures = 0
+        self.next_eligible_at = datetime.now(UTC)
+
+
+MAX_CONSECUTIVE_SOURCE_FAILURES = 10
+
+
 class MonitoringService:
     """Service for monitoring regulatory sources."""
 
@@ -25,6 +76,19 @@ class MonitoringService:
         self.change_detector = ChangeDetector()
         self.on_change_callbacks: list[Callable] = []
         self._shutdown_event = asyncio.Event()
+        self._health = MonitoringHealth()
+        self._backpressure: dict[str, SourceBackpressure] = {}
+
+    def get_health(self) -> MonitoringHealth:
+        """Return current health snapshot."""
+        if self._health.started_at:
+            self._health.uptime_seconds = (
+                datetime.now(UTC) - self._health.started_at
+            ).total_seconds()
+        self._health.backpressure_paused_sources = sum(
+            1 for bp in self._backpressure.values() if bp.is_paused
+        )
+        return self._health
 
     def on_change(self, callback: Callable):
         """Register a callback for when changes are detected."""
@@ -37,35 +101,46 @@ class MonitoringService:
     async def start(self):
         """Start the monitoring service."""
         logger.info("Starting regulatory monitoring service")
+        self._health.is_running = True
+        self._health.started_at = datetime.now(UTC)
 
         while not self._shutdown_event.is_set():
+            cycle_start = datetime.now(UTC)
             try:
                 await self.check_all_sources()
+                self._health.consecutive_cycle_failures = 0
             except (SourceFetchError, SourceParseError) as e:
-                # Known monitoring errors - log and continue
                 logger.warning(
                     "Source monitoring error",
                     error_type=type(e).__name__,
                     error=str(e),
                 )
+                self._health.errors_total += 1
             except MonitoringError as e:
-                # Other monitoring errors - log and continue
                 logger.error(
                     "Monitoring service error",
                     error_type=type(e).__name__,
                     error=str(e),
                 )
+                self._health.errors_total += 1
+                self._health.consecutive_cycle_failures += 1
             except asyncio.CancelledError:
-                # Clean shutdown requested
                 logger.info("Monitoring service shutdown requested")
                 break
             except Exception as e:
-                # Unexpected errors - log with full traceback but continue
                 logger.exception(
                     "Unexpected error in monitoring loop",
                     error_type=type(e).__name__,
                     error=str(e),
                 )
+                self._health.errors_total += 1
+                self._health.consecutive_cycle_failures += 1
+
+            self._health.total_cycles += 1
+            self._health.last_cycle_at = datetime.now(UTC)
+            self._health.last_cycle_duration_seconds = (
+                datetime.now(UTC) - cycle_start
+            ).total_seconds()
 
             # Wait for next check interval or shutdown signal
             try:
@@ -74,13 +149,13 @@ class MonitoringService:
                     timeout=settings.monitoring_interval_hours * 3600,
                 )
             except asyncio.TimeoutError:
-                # Normal timeout - continue to next check
                 pass
 
+        self._health.is_running = False
         logger.info("Monitoring service stopped")
 
     async def check_all_sources(self):
-        """Check all active regulatory sources for changes."""
+        """Check all active regulatory sources for changes, respecting backpressure."""
         async with get_db_context() as db:
             result = await db.execute(
                 select(RegulatorySource)
@@ -89,7 +164,19 @@ class MonitoringService:
             )
             sources = list(result.scalars().all())
 
-        logger.info(f"Checking {len(sources)} regulatory sources")
+        # Filter out sources under backpressure
+        eligible_sources = []
+        for source in sources:
+            source_id = str(source.id)
+            bp = self._backpressure.get(source_id)
+            if bp and bp.is_paused:
+                logger.debug("Skipping source (backpressure)", source=source.name)
+                continue
+            eligible_sources.append(source)
+
+        logger.info(
+            f"Checking {len(eligible_sources)} sources ({len(sources) - len(eligible_sources)} paused)",
+        )
 
         # Process sources with concurrency limit
         semaphore = asyncio.Semaphore(settings.max_concurrent_crawlers)
@@ -99,13 +186,29 @@ class MonitoringService:
                 return await self.check_source(source)
 
         results = await asyncio.gather(
-            *[check_with_limit(source) for source in sources],
+            *[check_with_limit(source) for source in eligible_sources],
             return_exceptions=True,
         )
 
-        # Log results
-        changes_detected = sum(1 for r in results if isinstance(r, CrawlerResult) and r.has_changed)
-        errors = sum(1 for r in results if isinstance(r, Exception))
+        # Log results and update backpressure
+        changes_detected = 0
+        errors = 0
+        for i, r in enumerate(results):
+            source_id = str(eligible_sources[i].id)
+            if isinstance(r, Exception):
+                errors += 1
+                bp = self._backpressure.setdefault(source_id, SourceBackpressure())
+                bp.record_failure()
+            elif isinstance(r, CrawlerResult):
+                if r.has_changed:
+                    changes_detected += 1
+                bp = self._backpressure.get(source_id)
+                if bp:
+                    bp.record_success()
+
+        self._health.sources_checked += len(eligible_sources)
+        self._health.changes_detected += changes_detected
+        self._health.errors_total += errors
 
         logger.info(
             "Monitoring cycle complete",
