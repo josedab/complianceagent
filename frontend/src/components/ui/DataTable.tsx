@@ -166,22 +166,24 @@ export function DataTable<T extends Record<string, unknown>>({
             placeholder={searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label={searchPlaceholder}
             className="w-full max-w-sm px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
+      <div className="overflow-x-auto rounded-lg border border-gray-200" role="region" aria-label="Data table">
+        <table className="min-w-full divide-y divide-gray-200" role="grid">
           <thead className="bg-gray-50">
             <tr>
               {selectable && (
-                <th className="px-4 py-3 w-12">
+                <th className="px-4 py-3 w-12" scope="col">
                   <input
                     type="checkbox"
                     checked={allPageSelected}
                     onChange={handleSelectAll}
+                    aria-label="Select all rows on this page"
                     className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
                 </th>
@@ -189,12 +191,26 @@ export function DataTable<T extends Record<string, unknown>>({
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
+                  scope="col"
+                  aria-sort={
+                    sortColumn === String(column.key)
+                      ? sortDirection === 'asc' ? 'ascending' : 'descending'
+                      : undefined
+                  }
                   className={clsx(
                     'px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
                     column.sortable && 'cursor-pointer hover:bg-gray-100 select-none',
                     column.className
                   )}
                   onClick={() => column.sortable && handleSort(String(column.key))}
+                  onKeyDown={(e) => {
+                    if (column.sortable && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault()
+                      handleSort(String(column.key))
+                    }
+                  }}
+                  tabIndex={column.sortable ? 0 : undefined}
+                  role={column.sortable ? 'columnheader button' : 'columnheader'}
                 >
                   <div className="flex items-center gap-1">
                     {column.header}
@@ -231,6 +247,7 @@ export function DataTable<T extends Record<string, unknown>>({
                         type="checkbox"
                         checked={selectedIds.has(getRowId(item))}
                         onChange={() => handleSelectRow(item)}
+                        aria-label={`Select row ${index + 1}`}
                         className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                       />
                     </td>
@@ -254,8 +271,8 @@ export function DataTable<T extends Record<string, unknown>>({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
+        <nav className="flex items-center justify-between" aria-label="Table pagination">
+          <p className="text-sm text-gray-500" aria-live="polite">
             Showing {(currentPage - 1) * pageSize + 1} to{' '}
             {Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length} results
           </p>
@@ -263,9 +280,10 @@ export function DataTable<T extends Record<string, unknown>>({
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
+              aria-label="Previous page"
               className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -283,6 +301,8 @@ export function DataTable<T extends Record<string, unknown>>({
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
+                    aria-label={`Page ${pageNum}`}
+                    aria-current={currentPage === pageNum ? 'page' : undefined}
                     className={clsx(
                       'w-8 h-8 rounded-lg text-sm font-medium transition-colors',
                       currentPage === pageNum
@@ -298,12 +318,13 @@ export function DataTable<T extends Record<string, unknown>>({
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
+              aria-label="Next page"
               className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </nav>
       )}
     </div>
   )
