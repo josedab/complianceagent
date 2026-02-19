@@ -118,10 +118,8 @@ test-frontend-watch: ## Run frontend tests in watch mode
 	cd frontend && npm run test:watch
 
 test-e2e: ## Run end-to-end tests (requires all services running)
-	@echo "$(YELLOW)⚠️  E2E tests are not yet implemented.$(RESET)"
-	@echo "$(BLUE)To contribute E2E tests, see: docs/development/testing.md$(RESET)"
-	@echo "$(BLUE)Recommended stack: Playwright (already a backend dependency)$(RESET)"
-	@exit 0
+	cd backend && source .venv/bin/activate && pytest tests/e2e/ -v --timeout=60
+	@echo "$(GREEN)✓ E2E tests passed$(RESET)"
 
 ##@ Code Quality
 
