@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+import httpx
 import structlog
 
 from app.services.github.client import GitHubClient
@@ -330,3 +331,23 @@ class ChecksService:
                 f"/repos/{owner}/{repo}/check-runs/{check_run_id}/rerequest",
             )
             return response.status_code == 201
+
+    async def post_check_run(self, repo_owner: str, repo_name: str, head_sha: str,
+                             name: str, status: str, conclusion: str | None = None,
+                             title: str = "", summary: str = "",
+                             annotations: list | None = None,
+                             token: str = "") -> dict:
+        """Post a check run to GitHub Checks API."""
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/check-runs"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+        body: dict = {"name": name, "head_sha": head_sha, "status": status}
+        if conclusion:
+            body["conclusion"] = conclusion
+        if title or summary:
+            body["output"] = {"title": title, "summary": summary}
+            if annotations:
+                body["output"]["annotations"] = annotations[:50]  # GitHub limit
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=body, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json()

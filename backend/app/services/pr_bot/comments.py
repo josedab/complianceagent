@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
+import httpx
 import structlog
 
 from app.services.github.client import GitHubClient
@@ -331,3 +332,16 @@ class CommentService:
             if response.status_code in (200, 201):
                 return response.json().get("id")
             return None
+
+    async def post_review_comment(self, repo_owner: str, repo_name: str,
+                                   pr_number: int, body: str, commit_id: str,
+                                   path: str, line: int,
+                                   token: str = "") -> dict:
+        """Post an inline review comment on a PR."""
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/comments"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+        payload = {"body": body, "commit_id": commit_id, "path": path, "line": line}
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=payload, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json()

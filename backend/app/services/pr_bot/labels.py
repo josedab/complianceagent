@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+import httpx
 import structlog
 
 from app.services.github.client import GitHubClient
@@ -343,3 +344,14 @@ class LabelService:
                 f"/repos/{owner}/{repo}/issues/{pr_number}/labels/{ComplianceLabel.IN_PROGRESS.value}",
             )
             return response.status_code in (200, 204)
+
+    async def apply_labels_via_api(self, repo_owner: str, repo_name: str,
+                                   issue_number: int, labels: list[str],
+                                   token: str = "") -> dict:
+        """Apply labels to a PR/issue."""
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues/{issue_number}/labels"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json={"labels": labels}, headers=headers, timeout=30)
+            resp.raise_for_status()
+            return resp.json()
