@@ -15,8 +15,12 @@ env:
 jobs:
   # Backend Tests and Lint
   backend-test:
-    name: Backend Tests
+    name: Backend Tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
     
     services:
       postgres:
@@ -49,10 +53,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ matrix.python-version }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
 
       - name: Install dependencies
         working-directory: ./backend
