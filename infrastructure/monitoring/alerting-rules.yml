@@ -1,0 +1,107 @@
+# Prometheus alerting rules for ComplianceAgent
+
+groups:
+  - name: complianceagent-http
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: complianceagent
+        annotations:
+          summary: "High HTTP 5xx error rate"
+          description: "HTTP 5xx error rate is {{ $value | humanizePercentage }} (threshold: 5%) over the last 5 minutes."
+          runbook_url: "https://docs.complianceagent.io/runbooks/high-error-rate"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+          > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: complianceagent
+        annotations:
+          summary: "High P95 request latency"
+          description: "P95 request latency is {{ $value | humanizeDuration }} (threshold: 2s) over the last 5 minutes."
+          runbook_url: "https://docs.complianceagent.io/runbooks/high-latency"
+
+  - name: complianceagent-copilot
+    rules:
+      - alert: CopilotCircuitBreakerOpen
+        expr: copilot_circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+          service: complianceagent
+        annotations:
+          summary: "Copilot circuit breaker is open"
+          description: "The circuit breaker for the Copilot integration is open, indicating repeated upstream failures. Compliance analysis requests will be degraded."
+          runbook_url: "https://docs.complianceagent.io/runbooks/copilot-circuit-breaker"
+
+  - name: complianceagent-infrastructure
+    rules:
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: complianceagent
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} (threshold: 85%) on instance {{ $labels.instance }}."
+          runbook_url: "https://docs.complianceagent.io/runbooks/high-memory"
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          db_connection_pool_active_connections
+          >=
+          db_connection_pool_max_connections
+        for: 2m
+        labels:
+          severity: critical
+          service: complianceagent
+        annotations:
+          summary: "Database connection pool exhausted"
+          description: "Active DB connections ({{ $value }}) have reached the pool maximum. New queries will block or fail."
+          runbook_url: "https://docs.complianceagent.io/runbooks/db-pool-exhausted"
+
+  - name: complianceagent-workers
+    rules:
+      - alert: CeleryWorkerDown
+        expr: |
+          celery_workers_active == 0
+          or absent(celery_workers_active)
+        for: 3m
+        labels:
+          severity: critical
+          service: complianceagent
+        annotations:
+          summary: "No active Celery workers"
+          description: "No Celery workers have been active for over 3 minutes. Background tasks (compliance scans, report generation) are stalled."
+          runbook_url: "https://docs.complianceagent.io/runbooks/celery-worker-down"
+
+  - name: complianceagent-business
+    rules:
+      - alert: ComplianceScoreDrop
+        expr: |
+          (
+            avg_over_time(compliance_score_current[5m])
+            -
+            avg_over_time(compliance_score_current[1h] offset 5m)
+          ) < -10
+        for: 5m
+        labels:
+          severity: warning
+          service: complianceagent
+        annotations:
+          summary: "Compliance score dropped more than 10 points"
+          description: "The average compliance score dropped by {{ $value | humanize }} points in the last hour. Investigate recent policy changes or scan results."
+          runbook_url: "https://docs.complianceagent.io/runbooks/compliance-score-drop"

@@ -2,7 +2,7 @@
 # Run `make help` to see available commands
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev dev-down run-backend run-frontend run-workers test test-backend test-frontend lint lint-backend lint-frontend format type-check migrate migrate-new build up down logs clean pre-commit docker-build docker-push seed status check doctor check-all
+.PHONY: help install dev dev-down run-backend run-frontend run-workers test test-backend test-frontend lint lint-backend lint-frontend format type-check migrate migrate-new build up down logs clean pre-commit docker-build docker-push seed status check doctor check-all monitoring-up monitoring-down monitoring-logs
 
 # Colors for terminal output
 BLUE := \033[36m
@@ -264,6 +264,17 @@ changelog: ## Generate changelog (requires git-cliff)
 	@command -v git-cliff >/dev/null 2>&1 || { echo "$(YELLOW)Install git-cliff: cargo install git-cliff$(RESET)"; exit 1; }
 	git-cliff -o CHANGELOG.md
 	@echo "$(GREEN)✓ Changelog generated$(RESET)"
+
+##@ Monitoring
+
+monitoring-up: ## Start monitoring stack (Prometheus + Grafana)
+	docker compose -f infrastructure/monitoring/docker-compose.monitoring.yml up -d
+
+monitoring-down: ## Stop monitoring stack
+	docker compose -f infrastructure/monitoring/docker-compose.monitoring.yml down
+
+monitoring-logs: ## View monitoring stack logs
+	docker compose -f infrastructure/monitoring/docker-compose.monitoring.yml logs -f
 
 ##@ Documentation
 

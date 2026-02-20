@@ -252,7 +252,7 @@ resource "aws_s3_bucket_public_access_block" "documents" {
 # ECR Repositories
 resource "aws_ecr_repository" "backend" {
   name                 = "complianceagent/backend"
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true
@@ -261,7 +261,7 @@ resource "aws_ecr_repository" "backend" {
 
 resource "aws_ecr_repository" "frontend" {
   name                 = "complianceagent/frontend"
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true
