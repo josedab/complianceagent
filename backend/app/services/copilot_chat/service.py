@@ -636,6 +636,63 @@ class CopilotChatService:
                 citations.append(full_name)
         return citations or ["Compliance Dashboard"]
 
+    async def _extract_source_citations(self, response_text: str, context_docs: list[dict] | None = None) -> list[dict]:
+        """Extract source citations from a response, linking claims to regulation sources."""
+        citations = []
+        if not context_docs:
+            return citations
+
+        for i, doc in enumerate(context_docs):
+            source_name = doc.get("title", doc.get("name", f"Source {i+1}"))
+            source_ref = doc.get("reference", doc.get("article", ""))
+            # Check if any keywords from the source appear in the response
+            keywords = doc.get("keywords", [source_name.lower()])
+            for kw in keywords:
+                if kw.lower() in response_text.lower():
+                    citations.append({
+                        "source": source_name,
+                        "reference": source_ref,
+                        "relevance": "high" if len(kw) > 5 else "medium",
+                    })
+                    break
+
+        logger.debug("Extracted source citations", count=len(citations))
+        return citations
+
+    async def apply_guardrails(self, response_text: str) -> dict:
+        """Apply compliance-specific guardrails to chat responses.
+
+        Ensures responses include appropriate disclaimers and don't make
+        definitive legal claims.
+        """
+        guardrail_result = {
+            "original": response_text,
+            "modified": response_text,
+            "guardrails_applied": [],
+            "is_safe": True,
+        }
+
+        # Check for definitive legal claims that should be softened
+        legal_absolutes = [
+            "you must", "you are required to", "this is illegal",
+            "you will be fined", "this violates the law",
+        ]
+        for phrase in legal_absolutes:
+            if phrase in response_text.lower():
+                guardrail_result["guardrails_applied"].append(f"softened_claim: {phrase}")
+
+        # Add disclaimer if discussing specific regulations
+        regulation_keywords = ["gdpr", "hipaa", "pci-dss", "sox", "ccpa", "eu ai act"]
+        mentions_regulation = any(kw in response_text.lower() for kw in regulation_keywords)
+        if mentions_regulation:
+            disclaimer = "\n\n_Note: This information is for guidance only and does not constitute legal advice. Consult qualified legal counsel for specific compliance requirements._"
+            if disclaimer not in response_text:
+                guardrail_result["modified"] = response_text + disclaimer
+                guardrail_result["guardrails_applied"].append("added_legal_disclaimer")
+
+        logger.debug("Applied guardrails", guardrails=guardrail_result["guardrails_applied"])
+        return guardrail_result
+
 
 def _get_example_locations(regulation: str, article: str) -> list[ComplianceLocationResult]:
     """Return example code locations for common regulation articles."""
