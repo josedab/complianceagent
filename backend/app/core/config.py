@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     debug: bool = False
     api_prefix: str = "/api/v1"
     enable_experimental: bool = Field(
-        default=True,
-        description="Enable experimental/stub service routes. Disable in production to reduce attack surface.",
+        default=False,
+        description="Enable experimental/stub service routes. Set to true in development via .env.",
     )
 
     # Security
@@ -119,6 +119,18 @@ class Settings(BaseSettings):
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+
+    @model_validator(mode="after")
+    def _validate_secret_key_not_default_in_production(self) -> "Settings":
+        _default = "change-me-in-production-use-secrets-manager"
+        if self.environment in ("production", "staging") and self.secret_key == _default:
+            msg = (
+                f"SECRET_KEY must be changed from the default value "
+                f"when ENVIRONMENT={self.environment!r}. "
+                f"Set a strong random secret via environment variable or .env file."
+            )
+            raise ValueError(msg)
+        return self
 
 
 @lru_cache

@@ -3,6 +3,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -11,6 +12,36 @@ from app.api.v1 import router as api_v1_router
 from app.core.config import settings
 from app.core.metrics import MetricsMiddleware, get_metrics
 from app.core.middleware import GlobalExceptionHandlerMiddleware, RateLimitMiddleware
+
+
+logger = structlog.get_logger()
+
+
+def _setup_opentelemetry(app: FastAPI) -> None:
+    """Instrument the FastAPI app with OpenTelemetry if SDK is available."""
+    try:
+        from opentelemetry import trace
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+
+        resource = Resource.create(
+            {
+                "service.name": settings.app_name,
+                "service.version": settings.app_version,
+                "deployment.environment": settings.environment,
+            }
+        )
+        provider = TracerProvider(resource=resource)
+        trace.set_tracer_provider(provider)
+
+        FastAPIInstrumentor.instrument_app(
+            app,
+            excluded_urls="health,healthz,metrics",
+        )
+        logger.info("OpenTelemetry tracing enabled")
+    except Exception as exc:
+        logger.debug("OpenTelemetry instrumentation skipped", reason=str(exc))
 
 
 @asynccontextmanager
@@ -42,17 +73,36 @@ def create_app() -> FastAPI:
     # Metrics middleware
     app.add_middleware(MetricsMiddleware)
 
-    # CORS middleware
+    # CORS middleware — restrict methods/headers in non-development environments
+    _cors_methods = (
+        ["*"]
+        if settings.environment == "development"
+        else ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    )
+    _cors_headers = (
+        ["*"]
+        if settings.environment == "development"
+        else [
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "X-API-Key",
+            "X-Request-ID",
+        ]
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=_cors_methods,
+        allow_headers=_cors_headers,
     )
 
     # Include API router
     app.include_router(api_v1_router, prefix=settings.api_prefix)
+
+    # OpenTelemetry distributed tracing
+    _setup_opentelemetry(app)
 
     # Health check endpoint
     @app.get("/health")
