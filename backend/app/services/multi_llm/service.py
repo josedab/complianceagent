@@ -400,11 +400,22 @@ class MultiLLMService:
                 result.entities = self._extract_entities(ai_result)
                 result.confidence = self._avg_confidence(ai_result)
                 result.raw_response = ai_result
-            else:
-                # Simulated provider response for non-Copilot providers
-                result.obligations = [{"type": "must", "action": "comply", "subject": "controller"}]
-                result.entities = ["controller", "data subject"]
-                result.confidence = 0.80
+            elif config.provider in (LLMProvider.OPENAI, LLMProvider.ANTHROPIC):
+                ai_result = await self._call_external_llm(config, text, framework)
+                result.obligations = ai_result.get("requirements", [])
+                result.entities = self._extract_entities(ai_result)
+                result.confidence = self._avg_confidence(ai_result)
+                result.raw_response = ai_result
+            elif config.provider == LLMProvider.LOCAL:
+                # Local model: pass through Copilot client if available, else skip
+                if self.copilot:
+                    ai_result = await self.copilot.analyze_legal_text(text)
+                    result.obligations = ai_result.get("requirements", [])
+                    result.entities = self._extract_entities(ai_result)
+                    result.confidence = self._avg_confidence(ai_result) * 0.9
+                    result.raw_response = ai_result
+                else:
+                    result.error = "Local model not configured"
         except Exception as e:
             result.error = str(e)
             logger.exception("Provider failed", provider=config.provider.value)
@@ -445,6 +456,73 @@ class MultiLLMService:
             self._last_errors[key] = result.error
 
         return result
+
+    async def _call_external_llm(
+        self, config: ProviderConfig, text: str, framework: str
+    ) -> dict:
+        """Call OpenAI or Anthropic compatible API for regulatory parsing."""
+        import json
+
+        import httpx
+
+        system_prompt = (
+            "You are an expert regulatory compliance analyst. "
+            "Extract actionable requirements from the given legal text. "
+            "Return a JSON object with a 'requirements' array. Each requirement: "
+            '{"type":"must|should|may","action":"...","subject":"...","confidence":0.0-1.0}'
+        )
+        user_prompt = f"Framework: {framework}\n\nText:\n{text[:15000]}\n\nReturn JSON only."
+
+        if config.provider == LLMProvider.OPENAI:
+            url = config.base_url or "https://api.openai.com/v1/chat/completions"
+            headers = {"Authorization": f"Bearer {config.api_key}", "Content-Type": "application/json"}
+            payload = {
+                "model": config.model_name or "gpt-4o",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": config.temperature,
+                "max_tokens": config.max_tokens,
+            }
+        elif config.provider == LLMProvider.ANTHROPIC:
+            url = config.base_url or "https://api.anthropic.com/v1/messages"
+            headers = {
+                "x-api-key": config.api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": config.model_name or "claude-sonnet-4-20250514",
+                "max_tokens": config.max_tokens,
+                "system": system_prompt,
+                "messages": [{"role": "user", "content": user_prompt}],
+            }
+        else:
+            return {"requirements": []}
+
+        async with httpx.AsyncClient(timeout=config.timeout_seconds) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+
+        # Extract content from provider-specific response format
+        if config.provider == LLMProvider.OPENAI:
+            content = data["choices"][0]["message"]["content"]
+        else:  # Anthropic
+            content = data["content"][0]["text"]
+
+        # Parse JSON from response (strip markdown fences if present)
+        content = content.strip()
+        if content.startswith("```"):
+            lines = content.split("\n")
+            content = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+        try:
+            return json.loads(content.strip())
+        except json.JSONDecodeError:
+            logger.warning("Failed to parse external LLM response", provider=config.provider.value)
+            return {"requirements": []}
 
     def _build_consensus(
         self,
