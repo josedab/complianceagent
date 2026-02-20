@@ -371,36 +371,87 @@ class DriftDetectionService:
         event_id: str,
         channel: str,
     ) -> WebhookDelivery:
-        """Simulate delivering a webhook notification for a drift event."""
-        if not hasattr(self, '_webhook_deliveries'):
+        """Deliver a webhook notification for a drift event to the configured channel."""
+        import httpx
+
+        if not hasattr(self, "_webhook_deliveries"):
             self._webhook_deliveries: list[WebhookDelivery] = []
 
         config = self._config
-        url_map = {
-            "slack": config.slack_webhook_url or "https://hooks.slack.com/services/...",
-            "teams": config.teams_webhook_url or "https://outlook.office.com/webhook/...",
-            "pagerduty": config.pagerduty_routing_key or "https://events.pagerduty.com/v2/enqueue",
-            "email": "smtp://localhost:587",
-        }
+        event = next((e for e in self._events if str(e.id) == event_id), None)
+        alert_message = self._format_alert(event) if event else f"Drift event {event_id}"
+
+        url = ""
+        payload: dict = {}
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+
+        if channel == "slack" and config.slack_webhook_url:
+            url = config.slack_webhook_url
+            payload = {
+                "text": alert_message,
+                "blocks": [
+                    {"type": "section", "text": {"type": "mrkdwn", "text": alert_message}},
+                ],
+            }
+        elif channel == "teams" and config.teams_webhook_url:
+            url = config.teams_webhook_url
+            payload = {
+                "@type": "MessageCard",
+                "summary": "Compliance Drift Alert",
+                "themeColor": "FF0000",
+                "text": alert_message,
+            }
+        elif channel == "pagerduty" and config.pagerduty_routing_key:
+            url = "https://events.pagerduty.com/v2/enqueue"
+            severity_map = {"critical": "critical", "high": "error", "medium": "warning", "low": "info"}
+            pd_severity = severity_map.get(event.severity.value, "warning") if event else "warning"
+            payload = {
+                "routing_key": config.pagerduty_routing_key,
+                "event_action": "trigger",
+                "payload": {
+                    "summary": alert_message[:1024],
+                    "source": "complianceagent",
+                    "severity": pd_severity,
+                    "custom_details": {"event_id": event_id, "channel": channel},
+                },
+            }
+
+        status = "skipped"
+        response_code = 0
+        attempts = 0
+
+        if url:
+            attempts = 1
+            try:
+                async with httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.post(url, json=payload, headers=headers)
+                    response_code = resp.status_code
+                    status = "delivered" if resp.is_success else "failed"
+            except Exception as exc:
+                status = "failed"
+                logger.warning("Webhook delivery failed", channel=channel, error=str(exc))
+        else:
+            status = "skipped"
+            logger.debug("No webhook URL configured", channel=channel)
 
         delivery = WebhookDelivery(
             channel=channel,
-            url=url_map.get(channel, ""),
+            url=url,
             event_id=event_id,
-            payload={"event_id": event_id, "channel": channel, "type": "drift_alert"},
-            status="delivered",
-            response_code=200,
+            payload=payload,
+            status=status,
+            response_code=response_code,
             delivered_at=datetime.now(UTC),
-            attempts=1,
+            attempts=attempts,
         )
-
         self._webhook_deliveries.append(delivery)
 
         logger.info(
-            "Webhook delivered",
+            "Webhook delivery attempted",
             channel=channel,
             event_id=event_id,
-            delivery_id=str(delivery.id),
+            status=status,
+            response_code=response_code,
         )
         return delivery
 
