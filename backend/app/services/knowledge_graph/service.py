@@ -58,6 +58,10 @@ class KnowledgeGraphService:
         if include_code:
             await self._add_code_mappings(graph)
         
+        # Always add evidence and risk context
+        await self._add_evidence_nodes(graph)
+        await self._add_risk_nodes(graph)
+        
         # Store graph
         self._graphs[graph.id] = graph
         
@@ -176,10 +180,65 @@ class KnowledgeGraphService:
                         graph.add_edge(edge)
                         break
     
+    async def _add_evidence_nodes(self, graph: KnowledgeGraph) -> None:
+        """Add evidence and control nodes to the graph."""
+        # Evidence nodes link controls to regulations
+        control_frameworks = {
+            "soc2": ["CC1.1", "CC2.1", "CC3.1", "CC5.1", "CC6.1", "CC7.1", "CC8.1"],
+            "iso27001": ["A.5", "A.6", "A.7", "A.8", "A.9"],
+            "hipaa": ["164.308", "164.310", "164.312"],
+        }
+        for framework, controls in control_frameworks.items():
+            for ctrl_id in controls:
+                ctrl_node = GraphNode(
+                    node_type=NodeType.CONTROL,
+                    name=f"{framework.upper()} {ctrl_id}",
+                    description=f"Control {ctrl_id} from {framework.upper()}",
+                    external_id=f"{framework}:{ctrl_id}",
+                    group="controls",
+                    color="#9C27B0",
+                    size=1.2,
+                )
+                graph.add_node(ctrl_node)
+
+                # Link controls to matching regulation nodes
+                for reg_node in graph.nodes_by_type.get(NodeType.REGULATION, []):
+                    if framework in reg_node.name.lower():
+                        edge = GraphEdge(
+                            source_id=reg_node.id,
+                            target_id=ctrl_node.id,
+                            relation_type=RelationType.CONTAINS,
+                            weight=0.8,
+                        )
+                        graph.add_edge(edge)
+
+        logger.info("evidence_nodes_added", controls=sum(len(c) for c in control_frameworks.values()))
+
+    async def _add_risk_nodes(self, graph: KnowledgeGraph) -> None:
+        """Add risk assessment nodes linked to requirements."""
+        risk_categories = [
+            ("data_breach", "Data Breach Risk", "Risk of unauthorized access to sensitive data"),
+            ("non_compliance_fine", "Regulatory Fine Risk", "Risk of fines from non-compliance"),
+            ("audit_failure", "Audit Failure Risk", "Risk of failing compliance audit"),
+            ("vendor_exposure", "Vendor Exposure Risk", "Risk from third-party vendor non-compliance"),
+        ]
+        for risk_id, name, description in risk_categories:
+            risk_node = GraphNode(
+                node_type=NodeType.RISK,
+                name=name,
+                description=description,
+                external_id=risk_id,
+                group="risks",
+                color="#F44336",
+                size=1.5,
+            )
+            graph.add_node(risk_node)
+
+        logger.info("risk_nodes_added", count=len(risk_categories))
+
     def _apply_layout(self, graph: KnowledgeGraph) -> None:
-        """Apply a force-directed layout to the graph nodes."""
+        """Apply a deterministic force-directed layout to the graph nodes."""
         import math
-        import random
         
         # Group nodes by type for initial positioning
         type_positions = {
@@ -196,8 +255,9 @@ class KnowledgeGraphService:
         
         for node_type, nodes in graph.nodes_by_type.items():
             base_x, base_y = type_positions.get(node_type, (250, 150))
+            count = max(1, len(nodes))
             for i, node in enumerate(nodes):
-                angle = 2 * math.pi * i / max(1, len(nodes))
+                angle = 2 * math.pi * i / count
                 radius = 50 + 10 * i
                 node.x = base_x + radius * math.cos(angle)
                 node.y = base_y + radius * math.sin(angle)

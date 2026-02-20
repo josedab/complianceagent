@@ -1,9 +1,9 @@
 """Knowledge graph data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any
+from typing import Any  # noqa: F401 (used by consumer modules)
 from uuid import UUID, uuid4
 
 
@@ -57,10 +57,8 @@ class GraphNode:
     properties: dict = field(default_factory=dict)
     
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
-    
-    # For visualization
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     x: float = 0.0
     y: float = 0.0
     group: str = ""
@@ -81,7 +79,7 @@ class GraphEdge:
     properties: dict = field(default_factory=dict)
     
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -103,8 +101,8 @@ class KnowledgeGraph:
     node_count: int = 0
     edge_count: int = 0
     
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     
     def add_node(self, node: GraphNode) -> None:
         """Add a node to the graph."""
@@ -114,13 +112,13 @@ class KnowledgeGraph:
             self.nodes_by_type[node.node_type] = []
         self.nodes_by_type[node.node_type].append(node)
         self.node_count += 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
     
     def add_edge(self, edge: GraphEdge) -> None:
         """Add an edge to the graph."""
         self.edges.append(edge)
         self.edge_count += 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)
     
     def get_neighbors(self, node_id: UUID) -> list[GraphNode]:
         """Get all nodes connected to a given node."""
