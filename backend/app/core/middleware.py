@@ -30,7 +30,7 @@ logger = structlog.get_logger()
 
 class GlobalExceptionHandlerMiddleware(BaseHTTPMiddleware):
     """Global exception handler that converts domain exceptions to HTTP responses.
-    
+
     This middleware catches all unhandled exceptions and converts them to
     consistent JSON error responses, preventing stack traces from leaking
     to clients in production.
@@ -345,6 +345,9 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
     """
     Tiered rate limiting based on user plan.
     Free: 100/min, Pro: 1000/min, Enterprise: 10000/min
+
+    Unlike the base class, the effective limit is resolved per-request
+    from the authenticated user's tier, avoiding shared mutable state.
     """
 
     TIER_LIMITS = {
@@ -367,8 +370,16 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
         if not request.url.path.startswith("/api/"):
             return await call_next(request)
 
-        # Try to get user tier from request state (set by auth middleware)
+        # Resolve tier limit per-request without mutating self.calls
         tier = getattr(request.state, "user_tier", "free") if hasattr(request, "state") else "free"
-        self.calls = self.TIER_LIMITS.get(tier, 100)
+        effective_limit = self.TIER_LIMITS.get(tier, 100)
 
-        return await super().dispatch(request, call_next)
+        # Temporarily set the limit for this request's rate-limit check.
+        # BaseHTTPMiddleware serialises dispatch calls per-connection,
+        # so we save/restore to be safe under concurrent connections.
+        saved = self.calls
+        self.calls = effective_limit
+        try:
+            return await super().dispatch(request, call_next)
+        finally:
+            self.calls = saved
