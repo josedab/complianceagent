@@ -12,65 +12,51 @@
 
 ComplianceAgent is an AI-powered platform that automatically monitors regulatory changes, maps them to your codebase, and generates compliant code modifications—transforming compliance from a reactive burden into a proactive, automated workflow.
 
+> **Status**: v0.1.0 (Alpha) — Core features are production-ready. See [Service Status](backend/app/services/STATUS.md) for implementation details.
+
 ## 🚀 Features
 
-### Core Capabilities
-- **Regulatory Monitoring**: Continuously track 100+ regulatory sources (GDPR, CCPA, EU AI Act, HIPAA, etc.)
-- **AI-Powered Parsing**: Extract actionable requirements from legal text using GitHub Copilot SDK
+### Core Platform (Implemented)
+- **Regulatory Monitoring**: Continuously crawl 20+ regulatory sources across GDPR, CCPA, EU AI Act, HIPAA, PCI-DSS, SOX, NIS2, and more — with automatic change detection and backpressure
+- **AI-Powered Parsing**: Extract actionable requirements from legal text using GitHub Copilot SDK with circuit breaker and retry logic
 - **Codebase Mapping**: Identify exactly which code is affected by each requirement
 - **Code Generation**: Generate compliant code modifications with full audit trails
-- **Multi-Jurisdiction**: Handle conflicting requirements across regions with configurable resolution strategies
-- **Compliance Dashboard**: Real-time status, alerts, and progress tracking
+- **Tamper-Proof Audit Trail**: SHA-256 hash chain verification for all compliance events
+- **Multi-Jurisdiction**: Handle conflicting requirements across 20+ jurisdictions with configurable resolution strategies
 
-### Developer Tools
-- **IDE Compliance Copilot**: Real-time compliance suggestions in VS Code/JetBrains with quick-fixes
-- **CI/CD Compliance Gates**: GitHub Action and GitLab CI with SARIF output to block non-compliant PRs
+### Developer Tools (Implemented)
+- **IDE Compliance Linting**: 25+ pre-built compliance patterns for GDPR, HIPAA, PCI-DSS, SOC 2, EU AI Act with AI-powered quick fixes via Copilot SDK
+- **CI/CD Compliance Gates**: GitHub Action with SARIF output to block non-compliant PRs
+- **PR Bot**: Automated compliance analysis on PR open/sync with GitHub Checks, inline comments, and smart labeling
 - **Compliance-as-Code Templates**: Pre-built templates for GDPR consent, HIPAA PHI, PCI tokenization
-- **Multi-Cloud Compliance**: Analyze Terraform, CloudFormation, and Kubernetes for compliance
 
-### Intelligence & Analytics
-- **Regulatory Prediction Engine**: ML-powered 6-12 month advance warnings on upcoming regulations
-- **Compliance Knowledge Graph**: Natural language queries and visualization of compliance relationships
-- **Compliance Simulation Sandbox**: What-if analysis for code, architecture, and vendor changes
-- **Automated Evidence Collection**: SOC 2, ISO 27001, HIPAA, PCI-DSS control mapping
+### Intelligence & Analytics (Implemented)
+- **Compliance Dashboard**: Real-time status, scoring, alerts, and progress tracking
+- **Posture Scoring**: 7-dimension compliance scoring with industry benchmarking
+- **Health Monitoring**: Service health with Prometheus metrics and Grafana dashboards
 
-### AI-Powered Assistance
-- **Vendor/Third-Party Risk**: Dependency scanning and vendor compliance assessment
-- **Regulatory Chatbot**: Conversational compliance assistant with codebase context
-
-### 🆕 Next-Gen Features (v0.2.0)
-
-#### Automated Compliance PR Bot
-- **Automatic PR Analysis**: Triggered on PR open/sync via GitHub webhooks
-- **GitHub Checks Integration**: Creates status checks with detailed compliance reports
-- **Smart Labeling**: Auto-labels PRs based on compliance risk (compliance-critical, compliance-warning, compliance-ok)
-- **Inline Review Comments**: Posts contextual comments on specific lines with fix suggestions
-- **Merge Blocking**: Optionally block merging PRs with critical compliance violations
-- **Batch Processing**: Analyze multiple PRs in parallel with Redis-backed queue
-
-#### Compliance Copilot Chat
-- **Context-Aware Conversations**: Maintains conversation history with RAG-enhanced responses
-- **Streaming Responses**: Real-time SSE streaming for responsive chat experience
-- **Multi-Source RAG**: Retrieves context from regulations, codebase mappings, and compliance policies
-- **Code Analysis**: Dedicated endpoint for analyzing code snippets for compliance issues
-- **Regulation Explanations**: Deep-dive explanations of specific regulatory articles
-- **Action Triggers**: Chat-to-action pipeline (create issues, trigger scans, approve suppressions)
-
-#### Real-Time IDE Compliance Linting
-- **25+ Compliance Patterns**: Pre-built rules for GDPR, HIPAA, PCI-DSS, SOC 2, EU AI Act
-- **AI-Powered Quick Fixes**: Intelligent code fix suggestions with compliance annotations
-- **Bulk Fix All**: Apply all quick fixes in a document with one command
-- **Team Suppressions**: Share false-positive suppressions across the team
-- **Learning System**: Feedback loop improves detection accuracy over time
-- **Multi-Framework Support**: JavaScript, TypeScript, Python, Java, Go, C#
-
-### Enterprise Features
+### Enterprise Features (Implemented)
 - **SSO/SAML Authentication**: Enterprise identity provider integration
-- **SCIM User Provisioning**: Automatic user management
-- **Audit Trail**: Tamper-proof hash chain verification
-- **Multi-tenant Architecture**: Organization-based isolation
-- **API Access**: Full REST API for automation
-- **Custom Workflows**: Configurable approval processes
+- **Multi-tenant Architecture**: Organization-based isolation with RBAC
+- **API Access**: Full REST API with OpenAPI documentation
+- **Audit Trail**: Tamper-proof hash chain with export and verification
+
+### 🗺️ Roadmap (In Development)
+
+The following features are in active development and available behind the `ENABLE_EXPERIMENTAL=true` flag:
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Compliance Copilot Chat | Beta | RAG-enhanced conversational assistant with pgvector semantic search |
+| Regulatory Prediction Engine | Planned | ML-powered advance warnings on upcoming regulations |
+| Compliance Knowledge Graph | Planned | Natural language queries and relationship visualization |
+| Compliance Simulation Sandbox | Planned | What-if analysis for code and architecture changes |
+| Multi-Cloud Compliance | Planned | Terraform, CloudFormation, and Kubernetes analysis |
+| Vendor/Third-Party Risk | Planned | Dependency scanning and vendor compliance assessment |
+| VS Code Extension | Beta | Real-time compliance linting (pattern-matching mode) |
+| GitHub Marketplace App | Planned | One-click compliance scanning for any repository |
+
+> See the full [Changelog](CHANGELOG.md) and [Architecture Decision Records](docs/architecture/) for technical details.
 
 ## 📋 Tech Stack
 
@@ -416,8 +402,14 @@ npm run test:coverage
 
 ### End-to-End Tests
 
-> **Note:** E2E tests are not yet implemented. See `docs/development/testing.md`
-> for contribution guidelines. Run `make test-e2e` for current status.
+```bash
+# Start all services first
+make dev && make run-backend &
+make run-frontend &
+
+# Run E2E tests with Playwright
+make test-e2e
+```
 
 ## 🚢 Deployment
 
