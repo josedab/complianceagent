@@ -2,7 +2,7 @@
 
 import json
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -370,6 +370,36 @@ class PolicyGenerator:
         """Convert rule name to valid Rego identifier."""
         return re.sub(r'[^a-z0-9_]', '_', name.lower())
     
+    async def generate_policy_bundle(self, framework: str, output_format: str = "yaml") -> dict:
+        """Generate a compliance policy bundle in the specified format.
+
+        Supports: yaml, rego, python, typescript
+        """
+        supported_formats = ["yaml", "rego", "python", "typescript"]
+        if output_format not in supported_formats:
+            return {"error": f"Unsupported format: {output_format}. Use: {supported_formats}"}
+
+        bundle = {
+            "framework": framework,
+            "format": output_format,
+            "generated_at": datetime.now(UTC).isoformat(),
+            "policies": [],
+            "version": "1.0.0",
+        }
+
+        # Generate format-specific skeleton
+        if output_format == "yaml":
+            bundle["content"] = f"# {framework} Compliance Policy Bundle\nversion: 1.0.0\nframework: {framework}\npolicies: []\n"
+        elif output_format == "rego":
+            bundle["content"] = f'package compliance.{framework}\n\ndefault allow = false\n\n# {framework} compliance rules\n'
+        elif output_format == "python":
+            bundle["content"] = f'"""Compliance policy bundle for {framework}."""\n\nFRAMEWORK = "{framework}"\nVERSION = "1.0.0"\n\ndef check_compliance(resource: dict) -> bool:\n    return True\n'
+        elif output_format == "typescript":
+            bundle["content"] = f'// {framework} Compliance Policy Bundle\nexport const FRAMEWORK = "{framework}";\nexport const VERSION = "1.0.0";\n\nexport function checkCompliance(resource: Record<string, unknown>): boolean {{ return true; }}\n'
+
+        logger.info("policy_bundle_generated", framework=framework, format=output_format)
+        return bundle
+
     async def export_package(
         self,
         package_id: UUID,

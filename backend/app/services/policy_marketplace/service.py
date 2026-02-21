@@ -1,8 +1,8 @@
 """Policy Marketplace Service - Community marketplace for compliance policy packs."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 
@@ -235,6 +235,55 @@ class PolicyMarketplaceService:
         self._purchases: dict[UUID, list[Purchase]] = {}
         self._bundles: dict[UUID, PolicyBundle] = {b.id: b for b in SAMPLE_BUNDLES}
         self._versions: dict[UUID, PolicyPackVersion] = {}
+        self._published_policies: dict[str, dict] = {}
+
+    async def publish_policy(self, policy_data: dict) -> dict:
+        """Publish a new policy pack to the marketplace."""
+        policy_id = str(uuid4())
+        now = datetime.now(UTC).isoformat()
+        policy = {
+            "id": policy_id,
+            "name": policy_data.get("name", "Untitled Policy"),
+            "description": policy_data.get("description", ""),
+            "version": policy_data.get("version", "1.0.0"),
+            "framework": policy_data.get("framework", "custom"),
+            "author": policy_data.get("author", "anonymous"),
+            "rules": policy_data.get("rules", []),
+            "published_at": now,
+            "updated_at": now,
+            "downloads": 0,
+            "rating": 0.0,
+            "status": "published",
+        }
+        self._published_policies[policy_id] = policy
+        logger.info("policy_published", policy_id=policy_id, name=policy["name"])
+        return policy
+
+    async def rate_policy(self, policy_id: str, rating: float, reviewer: str = "") -> dict:
+        """Rate a policy pack (1-5 stars)."""
+        rating = max(1.0, min(5.0, rating))
+        policy = self._published_policies.get(policy_id)
+        if not policy:
+            return {"error": "policy_not_found"}
+
+        reviews = policy.setdefault("reviews", [])
+        reviews.append({"rating": rating, "reviewer": reviewer, "at": datetime.now(UTC).isoformat()})
+        policy["rating"] = sum(r["rating"] for r in reviews) / len(reviews)
+        logger.info("policy_rated", policy_id=policy_id, rating=rating, avg=policy["rating"])
+        return {"policy_id": policy_id, "new_rating": policy["rating"], "total_reviews": len(reviews)}
+
+    async def search_policies(self, query: str = "", framework: str = "", limit: int = 20) -> list[dict]:
+        """Search marketplace policies by name, description, or framework."""
+        results = []
+        for policy in self._published_policies.values():
+            if query and query.lower() not in (policy["name"] + policy["description"]).lower():
+                continue
+            if framework and framework.lower() != policy["framework"].lower():
+                continue
+            results.append(policy)
+            if len(results) >= limit:
+                break
+        return results
 
     async def list_packs(
         self,
