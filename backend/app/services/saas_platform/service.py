@@ -25,6 +25,7 @@ class SaaSPlatformService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self._trials: dict = {}
 
     async def provision_tenant(self, config: TenantConfig) -> TenantProvisionResult:
         """Provision a new SaaS tenant."""
@@ -299,6 +300,60 @@ class SaaSPlatformService:
         limit_key, current_value = check
         max_value = limits.get(limit_key, 0)
         return current_value < max_value
+
+    async def start_trial(self, tenant_id, plan="professional", trial_days=14):
+        """Start a trial for a tenant."""
+        now = datetime.now(UTC)
+        trial_end = now + timedelta(days=trial_days)
+        trial_record = {
+            "tenant_id": tenant_id,
+            "plan": plan,
+            "trial_start": now.isoformat(),
+            "trial_end": trial_end.isoformat(),
+            "status": "trial",
+            "converted": False,
+        }
+        self._trials[tenant_id] = trial_record
+        logger.info("Trial started", tenant_id=str(tenant_id), plan=plan, trial_days=trial_days)
+        return {
+            "tenant_id": tenant_id,
+            "plan": plan,
+            "trial_start": now.isoformat(),
+            "trial_end": trial_end.isoformat(),
+            "status": "trial",
+        }
+
+    async def check_trial_status(self, tenant_id):
+        """Check if a trial has expired."""
+        trial = self._trials.get(tenant_id)
+        if not trial:
+            raise ValueError(f"No trial found for tenant {tenant_id}")
+        now = datetime.now(UTC)
+        trial_end = datetime.fromisoformat(trial["trial_end"])
+        days_remaining = max(0, (trial_end - now).days)
+        status = "active" if now < trial_end else "expired"
+        return {
+            "tenant_id": tenant_id,
+            "status": status,
+            "days_remaining": days_remaining,
+        }
+
+    async def convert_trial(self, tenant_id, payment_method="stripe"):
+        """Convert a trial to a paid subscription."""
+        trial = self._trials.get(tenant_id)
+        if not trial:
+            raise ValueError(f"No trial found for tenant {tenant_id}")
+        now = datetime.now(UTC)
+        trial["status"] = "active"
+        trial["converted"] = True
+        trial["converted_at"] = now.isoformat()
+        trial["payment_method"] = payment_method
+        logger.info("Trial converted", tenant_id=str(tenant_id), payment_method=payment_method)
+        return {
+            "tenant_id": tenant_id,
+            "status": "active",
+            "converted_at": now.isoformat(),
+        }
 
     @staticmethod
     def _get_default_limits(plan: TenantPlan) -> ResourceLimits:

@@ -342,3 +342,63 @@ async def check_resource_limit(
         resource=resource,
         within_limits=within_limits,
     )
+
+
+# ============================================================================
+# Trial Management
+# ============================================================================
+
+
+class StartTrialRequest(BaseModel):
+    """Request to start a free trial."""
+    plan: str = Field(default="professional", description="Trial plan tier")
+    trial_days: int = Field(default=14, ge=7, le=30, description="Trial duration in days")
+
+
+class TrialStatusResponse(BaseModel):
+    """Trial status response."""
+    tenant_id: str
+    status: str
+    plan: str | None = None
+    trial_start: str | None = None
+    trial_end: str | None = None
+    days_remaining: int | None = None
+    converted_at: str | None = None
+
+
+@router.post("/{tenant_id}/trial", response_model=TrialStatusResponse)
+async def start_trial(
+    tenant_id: UUID,
+    request: StartTrialRequest,
+    db: DB,
+) -> TrialStatusResponse:
+    """Start a free trial for a tenant."""
+    service = get_saas_platform_service(db)
+    result = await service.start_trial(
+        tenant_id=str(tenant_id),
+        plan=request.plan,
+        trial_days=request.trial_days,
+    )
+    return TrialStatusResponse(**{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()})
+
+
+@router.get("/{tenant_id}/trial", response_model=TrialStatusResponse)
+async def get_trial_status(
+    tenant_id: UUID,
+    db: DB,
+) -> TrialStatusResponse:
+    """Check the current trial status for a tenant."""
+    service = get_saas_platform_service(db)
+    result = await service.check_trial_status(tenant_id=str(tenant_id))
+    return TrialStatusResponse(**{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()})
+
+
+@router.post("/{tenant_id}/trial/convert", response_model=TrialStatusResponse)
+async def convert_trial(
+    tenant_id: UUID,
+    db: DB,
+) -> TrialStatusResponse:
+    """Convert a trial tenant to a paid subscription."""
+    service = get_saas_platform_service(db)
+    result = await service.convert_trial(tenant_id=str(tenant_id))
+    return TrialStatusResponse(**{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()})
