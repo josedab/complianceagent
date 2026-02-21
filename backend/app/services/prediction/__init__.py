@@ -12,11 +12,12 @@ from app.services.prediction.models import (
     RegulatorySignal,
     SignalType,
 )
-from app.services.prediction.sources import DraftLegislationMonitor
+from app.services.prediction.sources import DraftLegislationMonitor, SignalAggregator
 
 
 __all__ = [
     "DraftLegislationMonitor",
+    "SignalAggregator",
     "PredictedRegulation",
     "PredictionConfidence",
     "RegulatoryPredictionEngine",

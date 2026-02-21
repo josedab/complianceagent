@@ -352,3 +352,54 @@ Return JSON only."""
             })
 
         return status
+
+
+class SignalAggregator:
+    """Aggregates regulatory signals from multiple sources for prediction analysis."""
+
+    def __init__(self):
+        self._sources: list[dict] = []
+        self._signals: list = []
+        self.logger = structlog.get_logger()
+
+    def register_source(self, name: str, source_type: str, url: str = "") -> None:
+        """Register a regulatory signal source."""
+        self._sources.append({
+            "name": name,
+            "source_type": source_type,
+            "url": url,
+            "registered_at": datetime.now(UTC).isoformat(),
+        })
+        self.logger.info("signal_source_registered", name=name, source_type=source_type)
+
+    async def aggregate_signals(
+        self,
+        jurisdictions: list[str] | None = None,
+        frameworks: list[str] | None = None,
+    ) -> dict:
+        """Aggregate signals from all registered sources."""
+        self.logger.info(
+            "signal_aggregation_started",
+            source_count=len(self._sources),
+            jurisdictions=jurisdictions,
+        )
+
+        result = {
+            "sources_checked": len(self._sources),
+            "signals_found": len(self._signals),
+            "jurisdictions": jurisdictions or [],
+            "frameworks": frameworks or [],
+            "aggregated_at": datetime.now(UTC).isoformat(),
+            "signals": self._signals,
+        }
+
+        self.logger.info("signal_aggregation_completed", signals=len(self._signals))
+        return result
+
+    def add_signal(self, signal) -> None:
+        """Add a signal to the aggregation."""
+        self._signals.append(signal)
+
+    @property
+    def source_count(self) -> int:
+        return len(self._sources)
