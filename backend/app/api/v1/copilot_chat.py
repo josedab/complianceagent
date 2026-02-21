@@ -1,4 +1,8 @@
-"""API endpoints for Compliance Copilot Chat (Non-Technical Users)."""
+"""API endpoints for Compliance Copilot Chat (Non-Technical Users).
+
+.. deprecated:: 0.2.0
+    Use ``/api/v1/chat`` endpoints instead. This module will be removed in v1.0.0.
+"""
 
 from collections.abc import AsyncIterator
 
@@ -15,7 +19,7 @@ from app.services.copilot_chat import (
 
 
 logger = structlog.get_logger()
-router = APIRouter()
+router = APIRouter(deprecated=True)
 
 
 # --- Request Models ---

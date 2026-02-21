@@ -1,4 +1,8 @@
-"""Chatbot API endpoints."""
+"""Chatbot API endpoints.
+
+.. deprecated:: 0.2.0
+    Use ``/api/v1/chat`` endpoints instead. This module will be removed in v1.0.0.
+"""
 
 from datetime import datetime
 from typing import Any
@@ -10,7 +14,7 @@ from pydantic import BaseModel
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 
 
-router = APIRouter()
+router = APIRouter(deprecated=True)
 
 
 class ChatSessionResponse(BaseModel):

@@ -385,3 +385,51 @@ async def get_supported_types() -> dict[str, list[str]]:
         "regulations": ["GDPR", "HIPAA", "PCI-DSS", "SOC2", "ISO27001"],
         "severity_levels": [s.value for s in ViolationSeverity],
     }
+
+
+# ============================================================================
+# Multi-Cloud Compliance Posture
+# ============================================================================
+
+
+class MultiCloudPostureResponse(BaseModel):
+    """Multi-cloud compliance posture summary."""
+    providers: list[str]
+    terraform_rules: int
+    k8s_rules: int
+    cfn_rules: int
+    total_scans: int
+    last_scan: dict | None = None
+
+
+class ScanHistoryResponse(BaseModel):
+    """Scan history entry."""
+    scanned_at: str
+    provider_count: int
+    total_violations: int
+    critical_count: int
+    results_summary: dict
+
+
+@router.get(
+    "/posture",
+    response_model=MultiCloudPostureResponse,
+    summary="Get multi-cloud compliance posture",
+)
+async def get_multi_cloud_posture() -> MultiCloudPostureResponse:
+    """Get compliance posture summary across all cloud providers."""
+    analyzer = get_infrastructure_analyzer()
+    posture = await analyzer.get_multi_cloud_posture()
+    return MultiCloudPostureResponse(**posture)
+
+
+@router.get(
+    "/scan-history",
+    response_model=list[ScanHistoryResponse],
+    summary="Get infrastructure scan history",
+)
+async def get_scan_history(limit: int = Query(default=20, ge=1, le=100)) -> list[ScanHistoryResponse]:
+    """Get historical infrastructure scan results."""
+    analyzer = get_infrastructure_analyzer()
+    history = await analyzer.get_scan_history(limit=limit)
+    return [ScanHistoryResponse(**h) for h in history]
