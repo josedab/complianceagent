@@ -53,6 +53,7 @@ class EvidenceVaultService:
         self.db = db
         self._chains: dict[ControlFramework, EvidenceChain] = {}
         self._auditor_sessions: dict[UUID, AuditorSession] = {}
+        self._token_to_session: dict[str, UUID] = {}
         self._reports: dict[UUID, AuditReport] = {}
         self._blockchain_anchors: dict[str, BlockchainAnchor] = {}
         self._timeline_events: list[AuditTimelineEvent] = []
@@ -183,8 +184,13 @@ class EvidenceVaultService:
         frameworks: list[ControlFramework] | None = None,
         expires_hours: int = 72,
     ) -> AuditorSession:
-        """Create a read-only auditor portal session."""
+        """Create a read-only auditor portal session with a time-limited access token."""
+        import hashlib
+        import secrets
         from datetime import timedelta
+
+        access_token = secrets.token_urlsafe(48)
+        token_hash = hashlib.sha256(access_token.encode()).hexdigest()
 
         session = AuditorSession(
             auditor_email=auditor_email,
@@ -195,10 +201,24 @@ class EvidenceVaultService:
             expires_at=datetime.now(UTC) + timedelta(hours=expires_hours),
             created_at=datetime.now(UTC),
         )
+        # Store the hash; return the raw token to the caller once
+        session.access_token_hash = token_hash
+        session.access_token = access_token  # only returned on creation
 
         self._auditor_sessions[session.id] = session
-        logger.info("Auditor session created", email=auditor_email, firm=firm)
+        self._token_to_session[token_hash] = session.id
+        logger.info("Auditor session created", email=auditor_email, firm=firm, expires_hours=expires_hours)
         return session
+
+    async def get_session_by_token(self, access_token: str) -> AuditorSession | None:
+        """Look up an auditor session by its access token (constant-time compare)."""
+        import hashlib
+
+        token_hash = hashlib.sha256(access_token.encode()).hexdigest()
+        session_id = self._token_to_session.get(token_hash)
+        if not session_id:
+            return None
+        return await self.get_auditor_session(session_id)
 
     async def get_auditor_session(self, session_id: UUID) -> AuditorSession | None:
         """Get an auditor session."""
@@ -210,6 +230,40 @@ class EvidenceVaultService:
     async def list_auditor_sessions(self) -> list[AuditorSession]:
         """List all auditor sessions."""
         return list(self._auditor_sessions.values())
+
+    async def validate_auditor_session(self, session_id: str) -> dict:
+        """Validate an auditor session and check expiry."""
+        try:
+            sid = UUID(session_id)
+        except (ValueError, AttributeError):
+            return {"valid": False, "reason": "invalid_session_id"}
+
+        session = self._auditor_sessions.get(sid)
+        if not session:
+            return {"valid": False, "reason": "session_not_found"}
+
+        if session.expires_at and datetime.now(UTC) > session.expires_at:
+            session.is_active = False
+            return {"valid": False, "reason": "session_expired"}
+
+        if not session.is_active:
+            return {"valid": False, "reason": "session_revoked"}
+
+        return {"valid": True, "session_id": str(session.id), "auditor_email": session.auditor_email}
+
+    async def revoke_auditor_session(self, session_id: str) -> bool:
+        """Revoke an auditor session before expiry."""
+        try:
+            sid = UUID(session_id)
+        except (ValueError, AttributeError):
+            return False
+
+        session = self._auditor_sessions.get(sid)
+        if not session:
+            return False
+        session.is_active = False
+        logger.info("auditor_session_revoked", session_id=session_id)
+        return True
 
     async def generate_report(
         self,
@@ -249,6 +303,45 @@ class EvidenceVaultService:
     async def get_report(self, report_id: UUID) -> AuditReport | None:
         """Get a generated report."""
         return self._reports.get(report_id)
+
+    async def generate_readiness_report(self, framework: ControlFramework) -> dict:
+        """Generate an audit readiness report for a framework.
+
+        Analyzes evidence completeness, control coverage, and identifies gaps.
+        """
+        mappings = await self.get_control_mappings(framework)
+        chain = self._chains.get(framework, EvidenceChain())
+
+        total_controls = len(mappings)
+        covered_controls = sum(1 for m in mappings if m.evidence_ids)
+        coverage_pct = (covered_controls / total_controls * 100) if total_controls > 0 else 0
+
+        gaps = [
+            {"control": m.control_id, "control_name": m.control_name, "status": "missing_evidence"}
+            for m in mappings
+            if not m.evidence_ids
+        ]
+
+        report = {
+            "framework": framework.value,
+            "generated_at": datetime.now(UTC).isoformat(),
+            "total_controls": total_controls,
+            "covered_controls": covered_controls,
+            "coverage_percentage": round(coverage_pct, 1),
+            "evidence_count": len(chain.items),
+            "gaps": gaps,
+            "readiness_score": "ready" if coverage_pct >= 80 else "needs_work" if coverage_pct >= 50 else "not_ready",
+            "recommendations": [],
+        }
+
+        if gaps:
+            report["recommendations"].append(f"Address {len(gaps)} control(s) with missing evidence")
+        if coverage_pct < 80:
+            report["recommendations"].append("Increase evidence coverage to at least 80% before audit")
+
+        logger.info("readiness_report_generated", framework=framework.value,
+                    coverage=coverage_pct, gaps=len(gaps))
+        return report
 
     # ── Coverage Metrics ─────────────────────────────────────────────────
 

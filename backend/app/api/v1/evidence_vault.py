@@ -3,7 +3,7 @@
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
@@ -516,3 +516,68 @@ async def get_blockchain_anchor(framework: str, db: DB) -> BlockchainAnchorSchem
         confirmed_at=anchor.confirmed_at.isoformat() if anchor.confirmed_at else None,
         cost_usd=anchor.cost_usd,
     )
+
+
+# ============================================================================
+# Auditor Session Management & Readiness Reports
+# ============================================================================
+
+
+class ReadinessReportSchema(BaseModel):
+    """Audit readiness report response."""
+    framework: str
+    generated_at: str
+    total_controls: int
+    covered_controls: int
+    coverage_percentage: float
+    evidence_count: int
+    gaps: list[dict] = []
+    readiness_score: str
+    recommendations: list[str] = []
+
+
+class SessionValidationSchema(BaseModel):
+    """Auditor session validation response."""
+    valid: bool
+    reason: str | None = None
+    session: dict | None = None
+
+
+@router.get(
+    "/auditor-sessions/{session_id}/validate",
+    response_model=SessionValidationSchema,
+    summary="Validate auditor session",
+)
+async def validate_auditor_session(session_id: str, db: DB) -> SessionValidationSchema:
+    """Validate an auditor session and check if it's still active."""
+    service = EvidenceVaultService(db=db)
+    result = await service.validate_auditor_session(session_id)
+    return SessionValidationSchema(**result)
+
+
+@router.post(
+    "/auditor-sessions/{session_id}/revoke",
+    summary="Revoke auditor session",
+)
+async def revoke_auditor_session(session_id: str, db: DB) -> dict:
+    """Revoke an auditor session before expiry."""
+    service = EvidenceVaultService(db=db)
+    success = await service.revoke_auditor_session(session_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"session_id": session_id, "status": "revoked"}
+
+
+@router.get(
+    "/readiness/{framework}",
+    response_model=ReadinessReportSchema,
+    summary="Generate audit readiness report",
+)
+async def get_readiness_report(framework: str, db: DB) -> ReadinessReportSchema:
+    """Generate an audit readiness report for a specific framework.
+
+    Analyzes evidence completeness, control coverage, and identifies gaps.
+    """
+    service = EvidenceVaultService(db=db)
+    report = await service.generate_readiness_report(framework)
+    return ReadinessReportSchema(**report)
