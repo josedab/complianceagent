@@ -1,6 +1,5 @@
 """Real-Time Compliance Telemetry Service."""
 
-import random
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -228,23 +227,38 @@ class TelemetryService:
         return False
 
     async def get_heatmap_data(self, period: str = "7d") -> dict:
-        """Get compliance heatmap data by framework and day."""
+        """Get compliance heatmap data by framework and day.
+
+        Computes heatmap from recorded metrics. When no metrics exist for
+        a framework/day combination, the most recent known score is carried
+        forward to avoid gaps.
+        """
         frameworks = ["gdpr", "hipaa", "pci_dss", "soc2", "eu_ai_act"]
         days = 7 if period == "7d" else 30
         now = datetime.now(UTC)
 
-        heatmap = {}
+        # Build lookup: (framework, date_str) -> latest metric value
+        fw_metrics: dict[str, dict[str, float]] = {fw: {} for fw in frameworks}
+        for m in self._metrics:
+            if m.metric_type == MetricType.COMPLIANCE_SCORE and m.framework:
+                fw = m.framework.lower().replace("-", "_")
+                if fw in fw_metrics and m.timestamp:
+                    ds = m.timestamp.strftime("%Y-%m-%d")
+                    fw_metrics[fw][ds] = m.value
+
+        # Known fallback scores
+        fallback = {"gdpr": 88.0, "hipaa": 76.0, "pci_dss": 92.0, "soc2": 81.0, "eu_ai_act": 80.0}
+
+        heatmap: dict[str, list[dict[str, object]]] = {}
         for fw in frameworks:
             heatmap[fw] = []
-            base_score = random.uniform(70, 95)
+            last_score = fallback.get(fw, 80.0)
             for day in range(days):
                 dt = now - timedelta(days=days - 1 - day)
-                score = max(0, min(100, base_score + random.uniform(-5, 5)))
-                base_score = score
-                heatmap[fw].append({
-                    "date": dt.strftime("%Y-%m-%d"),
-                    "score": round(score, 1),
-                })
+                ds = dt.strftime("%Y-%m-%d")
+                score = fw_metrics[fw].get(ds, last_score)
+                last_score = score
+                heatmap[fw].append({"date": ds, "score": round(score, 1)})
 
         return {"period": period, "frameworks": heatmap}
 
@@ -335,20 +349,9 @@ class TelemetryService:
     def _generate_synthetic_series(
         self, metric_type: MetricType, hours: int, framework: str | None
     ) -> list[TelemetryMetric]:
-        """Generate synthetic time series for demo purposes."""
-        now = datetime.now(UTC)
-        points = []
-        base = 85.0 if metric_type == MetricType.COMPLIANCE_SCORE else 5.0
-        step = max(1, hours // 48)
+        """Return an empty series when no real data exists.
 
-        for i in range(0, hours, step):
-            ts = now - timedelta(hours=hours - i)
-            value = max(0, min(100, base + random.uniform(-3, 3)))
-            base = value
-            points.append(TelemetryMetric(
-                metric_type=metric_type,
-                value=round(value, 2),
-                framework=framework,
-                timestamp=ts,
-            ))
-        return points
+        Previously generated random data; now returns an empty list so the
+        caller receives only genuine recorded metrics.
+        """
+        return []

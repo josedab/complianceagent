@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.digital_twin.models import (
     ComplianceIssue,
@@ -25,7 +26,8 @@ logger = structlog.get_logger()
 class ComplianceSimulator:
     """Simulates compliance impact of proposed changes."""
 
-    def __init__(self, snapshot_manager: SnapshotManager | None = None):
+    def __init__(self, db: AsyncSession | None = None, snapshot_manager: SnapshotManager | None = None):
+        self.db = db
         self.snapshot_manager = snapshot_manager or get_snapshot_manager()
         self._scenarios: dict[UUID, SimulationScenario] = {}
         self._results: dict[UUID, SimulationResult] = {}
@@ -484,6 +486,22 @@ class ComplianceSimulator:
             recommendations.append("Changes appear compliant - proceed with standard review")
         
         return recommendations
+
+    async def persist_result(self, result: SimulationResult) -> None:
+        """Persist a simulation result to the database.
+
+        Falls back to in-memory storage until DB table is created.
+        """
+        logger.info(
+            "Persisting simulation result",
+            result_id=str(result.id),
+            scenario_id=str(result.scenario_id),
+            passed=result.passed,
+            score_delta=result.score_delta,
+            has_db=self.db is not None,
+        )
+        # Fallback: store in-memory until DB table exists
+        self._results[result.id] = result
 
     async def get_scenario(self, scenario_id: UUID) -> SimulationScenario | None:
         """Get a scenario by ID."""

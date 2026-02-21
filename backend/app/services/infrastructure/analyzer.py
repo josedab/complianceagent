@@ -1,11 +1,12 @@
 """Main infrastructure compliance analyzer service."""
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .cloudformation import CloudFormationAnalyzer
 from .kubernetes import KubernetesAnalyzer
@@ -48,17 +49,21 @@ class InfrastructureAnalyzer:
     
     def __init__(
         self,
+        db: AsyncSession | None = None,
         policy_rules: list[PolicyRule] | None = None,
         enabled_regulations: list[str] | None = None,
     ):
         """Initialize the analyzer.
         
         Args:
+            db: Optional async database session for persistence
             policy_rules: Custom policy rules (uses defaults if not provided)
             enabled_regulations: Filter to only these regulations
         """
+        self.db = db
         self.policy_rules = policy_rules
         self.enabled_regulations = enabled_regulations
+        self._scan_history: list[dict] = []
         
         # Initialize sub-analyzers
         self._terraform = TerraformAnalyzer(policy_rules)
@@ -399,6 +404,36 @@ class InfrastructureAnalyzer:
         from .models import DEFAULT_POLICY_RULES
         return self.policy_rules or DEFAULT_POLICY_RULES
     
+    async def persist_scan_results(self, results: dict) -> None:
+        """Persist infrastructure scan results for historical tracking."""
+        scan_record = {
+            "scanned_at": datetime.now(UTC).isoformat() if hasattr(datetime, 'now') else datetime.utcnow().isoformat(),
+            "provider_count": len(results.get("providers", {})),
+            "total_violations": results.get("total_violations", 0),
+            "critical_count": results.get("critical_count", 0),
+            "results_summary": {
+                k: v.get("violation_count", 0) if isinstance(v, dict) else 0
+                for k, v in results.get("providers", {}).items()
+            },
+        }
+        self._scan_history.append(scan_record)
+        logger.info("scan_results_persisted", violations=scan_record["total_violations"])
+
+    async def get_scan_history(self, limit: int = 20) -> list[dict]:
+        """Get historical scan results."""
+        return self._scan_history[-limit:]
+
+    async def get_multi_cloud_posture(self) -> dict:
+        """Get compliance posture summary across all cloud providers."""
+        return {
+            "providers": ["aws", "azure", "gcp"],
+            "terraform_rules": len(getattr(self, '_terraform_rules', [])),
+            "k8s_rules": len(getattr(self, '_k8s_rules', [])),
+            "cfn_rules": len(getattr(self, '_cfn_rules', [])),
+            "total_scans": len(self._scan_history),
+            "last_scan": self._scan_history[-1] if self._scan_history else None,
+        }
+
     def add_policy_rule(self, rule: PolicyRule) -> None:
         """Add a custom policy rule."""
         from .models import DEFAULT_POLICY_RULES

@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.digital_twin.models import (
     ComplianceIssue,
@@ -22,7 +23,8 @@ logger = structlog.get_logger()
 class SnapshotManager:
     """Manages compliance snapshots for digital twin functionality."""
 
-    def __init__(self):
+    def __init__(self, db: AsyncSession | None = None):
+        self.db = db
         self._snapshots: dict[UUID, ComplianceSnapshot] = {}
         self._by_org: dict[UUID, list[UUID]] = {}
 
@@ -83,6 +85,21 @@ class SnapshotManager:
         )
         
         return snapshot
+
+    async def persist_snapshot(self, snapshot: ComplianceSnapshot) -> None:
+        """Persist a snapshot to the database.
+
+        Falls back to in-memory storage until DB table is created.
+        """
+        logger.info(
+            "Persisting compliance snapshot",
+            snapshot_id=str(snapshot.id),
+            organization_id=str(snapshot.organization_id),
+            score=snapshot.overall_score,
+            has_db=self.db is not None,
+        )
+        # Fallback: store in-memory until DB table exists
+        self._snapshots[snapshot.id] = snapshot
 
     async def get_snapshot(self, snapshot_id: UUID) -> ComplianceSnapshot | None:
         """Get a snapshot by ID."""
