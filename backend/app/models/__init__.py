@@ -54,6 +54,19 @@ from app.models.testing import (
 )
 from app.models.user import User
 
+# Strategic Features models
+from app.models.strategic_features import (
+    AuditWorkspaceRecord,
+    BoardReportRecord,
+    ControlTestRecord,
+    ControlTestResultRecord,
+    DependencyScanRecord,
+    EntityNodeRecord,
+    GapAnalysisRecord,
+    ImpactPredictionRecord,
+    PendingLegislationRecord,
+)
+
 
 __all__ = [
     # Architecture Review
@@ -99,4 +112,14 @@ __all__ = [
     # Risk Quantification
     "ViolationRisk",
     "WhatIfScenario",
+    # Strategic Features
+    "AuditWorkspaceRecord",
+    "BoardReportRecord",
+    "ControlTestRecord",
+    "ControlTestResultRecord",
+    "DependencyScanRecord",
+    "EntityNodeRecord",
+    "GapAnalysisRecord",
+    "ImpactPredictionRecord",
+    "PendingLegislationRecord",
 ]
