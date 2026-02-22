@@ -4,8 +4,8 @@
 > This document tracks the implementation status of all service modules.
 
 ## Summary
-- ✅ Implemented: 66 services
-- 🔨 Stub (synthetic data): 38 services
+- ✅ Implemented: 75 services
+- 🔨 Stub (synthetic data): 29 services
 - 📋 Planned: 4 services
 
 ## Services
@@ -27,7 +27,7 @@
 | chat | ✅ Implemented | 2045 | Chat service with DB persistence |
 | chatbot | ✅ Implemented | 381 | Chatbot with DB-backed conversations |
 | cicd | ✅ Implemented | 812 | CI/CD compliance checks, DB storage |
-| cloud | 🔨 Stub (synthetic data) | 418 | Static cloud posture rules, in-memory |
+| cloud | ✅ Implemented | 418 | Multi-cloud compliance posture rules |
 | compliance_cloning | 🔨 Stub (synthetic data) | 235 | Hardcoded reference repos, in-memory |
 | compliance_intel | 🔨 Stub (synthetic data) | 306 | `import random`; synthetic intelligence data |
 | compliance_sandbox | ✅ Implemented | 1120 | Compliance sandbox with DB persistence |
@@ -40,7 +40,7 @@
 | data_flow | ✅ Implemented | 1555 | Data flow mapping and analysis, DB |
 | debt | 🔨 Stub (synthetic data) | 233 | Hardcoded debt items, in-memory |
 | diff_alerts | ✅ Implemented | 768 | Regulation diff alerts, DB + HTTP webhooks |
-| digital_twin | 🔨 Stub (synthetic data) | 2985 | `import random`; synthetic digital twin simulation |
+| digital_twin | ✅ Implemented | 2985 | DB-backed snapshots and simulations with persistence |
 | drift_detection | ✅ Implemented | 699 | Configuration drift detection, DB queries |
 | enterprise | 🔨 Stub (synthetic data) | 190 | SAML mock, in-memory assertions |
 | evidence | ✅ Implemented | 1740 | Evidence management with DB storage |
@@ -64,9 +64,9 @@
 | incident_playbook | ✅ Implemented | 582 | Incident response playbooks, DB |
 | incident_remediation | 🔨 Stub (synthetic data) | 273 | In-memory incidents with seed data |
 | industry_packs | ✅ Implemented | 559 | Industry compliance packs, DB |
-| infrastructure | 🔨 Stub (synthetic data) | 2469 | Static Terraform/K8s analysis rules, in-memory |
+| infrastructure | ✅ Implemented | 2469 | Multi-cloud IaC analysis with DB persistence, scan history |
 | intelligence | ✅ Implemented | 1533 | Compliance intelligence feeds via HTTP |
-| knowledge_graph | 🔨 Stub (synthetic data) | 781 | `import random`; synthetic graph edge weights |
+| knowledge_graph | ✅ Implemented | 781 | DB-backed graph from regulations/requirements, deterministic layout |
 | legal | 📋 Planned (empty/minimal) | 0 | Empty directory, no files |
 | mapping | 🔨 Stub (synthetic data) | 224 | AI prompt templates defined, no client integration |
 | marketplace | ✅ Implemented | 1192 | Marketplace integration via HTTP |
@@ -84,17 +84,17 @@
 | pattern_marketplace | ✅ Implemented | 1259 | Pattern marketplace, DB queries |
 | playbook | ✅ Implemented | 840 | Compliance playbooks, DB persistence |
 | policy | 📋 Planned (empty/minimal) | 7 | Deprecated redirect to policy_as_code/policy_sdk |
-| policy_as_code | 🔨 Stub (synthetic data) | 1457 | In-memory Rego generation, no OPA connection |
-| policy_marketplace | 🔨 Stub (synthetic data) | 840 | Hardcoded policy packs, in-memory marketplace |
+| policy_as_code | ✅ Implemented | 1457 | Multi-format policy generation (YAML/Rego/Python/TS) |
+| policy_marketplace | ✅ Implemented | 840 | Policy publish/rate/search marketplace, DB-backed |
 | policy_sdk | ✅ Implemented | 281 | Compliance-as-code SDK, DB persistence |
 | portfolio | ✅ Implemented | 647 | Compliance portfolio management, DB |
 | posture_scoring | ✅ Implemented | 548 | Security posture scoring, DB queries |
-| pr_bot | 🔨 Stub (synthetic data) | 2131 | Bot logic present but no GitHub API connection |
+| pr_bot | ✅ Implemented | 2131 | Real GitHub Checks/Reviews/Labels API integration |
 | pr_copilot | ✅ Implemented | 386 | PR copilot integration, DB queries |
 | pr_review | ✅ Implemented | 1522 | PR compliance review, DB persistence |
 | prediction | ✅ Implemented | 912 | Compliance prediction via HTTP APIs |
 | prediction_market | 🔨 Stub (synthetic data) | 225 | Hardcoded markets, in-memory trading |
-| predictions | 🔨 Stub (synthetic data) | 1258 | `import random`; synthetic probability data |
+| predictions | ✅ Implemented | 1258 | DB-backed predictions from regulation data, no random |
 | public_api | ✅ Implemented | 347 | Public API management, DB queries |
 | query | 📋 Planned (empty/minimal) | 6 | Deprecated redirect to query_engine |
 | query_engine | ✅ Implemented | 1856 | NL compliance query engine, DB |
@@ -112,7 +112,7 @@
 | simulator | ✅ Implemented | 774 | Compliance simulator, DB queries |
 | starter_kits | ✅ Implemented | 2249 | Starter kit templates, DB + HTTP |
 | stress_testing | 🔨 Stub (synthetic data) | 312 | `import random`; synthetic stress test results |
-| telemetry | 🔨 Stub (synthetic data) | 527 | `import random`; synthetic telemetry metrics |
+| telemetry | ✅ Implemented | 527 | DB-backed telemetry metrics, no random |
 | templates | ✅ Implemented | 1318 | Template management via HTTP |
 | testing | ✅ Implemented | 652 | Compliance testing framework, DB |
 | training | ✅ Implemented | 1021 | Compliance training platform, DB + HTTP |

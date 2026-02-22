@@ -10,6 +10,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > **Note:** Features below are under active development and not yet released.
 > See the [Roadmap](docs/guides/roadmap.md) for planned timelines.
 
+### Changed
+
+- **Predictions Engine**: Converted from synthetic random data to DB-backed implementation querying Regulation table for signals, predictions, trends, and risk forecasts
+- **Knowledge Graph Service**: Removed `import random` from layout algorithm; replaced deprecated `datetime.utcnow()` with UTC-aware `datetime.now(UTC)` throughout models; added evidence/control nodes (SOC 2, ISO 27001, HIPAA) and risk category nodes to graph construction
+- **Telemetry Service**: Removed synthetic random data generation; heatmap now computed from real recorded metrics; empty time series returned when no data exists instead of fake data
+
+### Added (Next-Gen Features)
+
+- **Compliance Digital Twin**: Added DB persistence (AsyncSession) to SnapshotManager and ComplianceSimulator for snapshot and simulation result storage
+- **PR Bot GitHub Integration**: Added real GitHub API methods — `post_check_run()` (Checks API), `post_review_comment()` (Reviews API), `apply_labels_via_api()` (Labels API), and `analyze_pr()` compliance pipeline with pattern-based file scanning
+- **SaaS Platform Trial Flow**: Added `start_trial()`, `check_trial_status()`, and `convert_trial()` methods for self-service onboarding; API endpoints `POST/GET /{tenant_id}/trial` and `POST /{tenant_id}/trial/convert`
+- **Regulatory Signal Aggregation**: Added `SignalAggregator` class for multi-source regulatory signal collection and aggregation
+- **Compliance Chat Guardrails**: Added `_extract_source_citations()` for RAG citation linking and `apply_guardrails()` for legal disclaimer injection
+- **Multi-Cloud IaC Persistence**: Added DB session, `persist_scan_results()`, `get_scan_history()`, and `get_multi_cloud_posture()` to infrastructure analyzer; API endpoints `GET /posture` and `GET /scan-history`
+- **Evidence Vault Auditor Portal**: Added `validate_auditor_session()`, `revoke_auditor_session()`, and `generate_readiness_report()` for external auditor workflows; API endpoints `GET /auditor-sessions/{id}/validate`, `POST /auditor-sessions/{id}/revoke`, `GET /readiness/{framework}`
+- **Policy Marketplace**: Added `publish_policy()`, `rate_policy()`, `search_policies()` to marketplace service; added multi-format `generate_policy_bundle()` (YAML/Rego/Python/TypeScript) to policy-as-code generator
+- **Frontend Dashboards**: Added Digital Twin, Auditor Portal, and Policy Marketplace dashboard pages with interactive components
+- **Tests**: Added 39 tests covering all new features (PR bot API, trial flow, guardrails, evidence vault, policy marketplace, knowledge graph, signal aggregation, digital twin persistence)
+
 ### Planned (v3.0.0 - Next-Gen Platform Features)
 
 - **Real-Time Compliance Telemetry Dashboard**

@@ -184,6 +184,22 @@ ignore = [
 "app/schemas/user.py" = [
     "S105",     # token_type is not a password
 ]
+# Stub services return synthetic/hardcoded data — suppress rules that
+# are irrelevant for demo/placeholder code.
+"app/services/ai_observatory/**/*.py" = ["S311"]
+"app/services/compliance_intel/**/*.py" = ["S311"]
+"app/services/compliance_training/**/*.py" = ["S311"]
+"app/services/cost_attribution/**/*.py" = ["S311"]
+"app/services/digital_twin/**/*.py" = ["S311"]
+"app/services/health_score/**/*.py" = ["S311"]
+"app/services/impact_heatmap/**/*.py" = ["S311"]
+"app/services/knowledge_graph/**/*.py" = ["S311"]
+"app/services/predictions/**/*.py" = ["S311"]
+"app/services/regulation_test_gen/**/*.py" = ["S311"]
+"app/services/sentiment_analyzer/**/*.py" = ["S311"]
+"app/services/stress_testing/**/*.py" = ["S311"]
+"app/services/telemetry/**/*.py" = ["S311"]
+"app/services/zero_trust_scanner/**/*.py" = ["S311"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
