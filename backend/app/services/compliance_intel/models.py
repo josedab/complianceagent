@@ -29,6 +29,7 @@ class PrivacyLevel(str, Enum):
 @dataclass
 class FederatedParticipant:
     """An organization participating in the network."""
+
     id: UUID = field(default_factory=uuid4)
     organization_name: str = ""
     industry: str = ""
@@ -43,6 +44,7 @@ class FederatedParticipant:
 @dataclass
 class AnonymizedPattern:
     """A privacy-preserving compliance pattern."""
+
     id: UUID = field(default_factory=uuid4)
     framework: str = ""
     control_id: str = ""
@@ -59,6 +61,7 @@ class AnonymizedPattern:
 @dataclass
 class IndustryInsight:
     """An insight derived from federated data."""
+
     id: UUID = field(default_factory=uuid4)
     insight_type: InsightType = InsightType.COMMON_PATTERN
     title: str = ""
@@ -74,6 +77,7 @@ class IndustryInsight:
 @dataclass
 class NetworkStats:
     """Statistics about the federated network."""
+
     total_participants: int = 0
     active_participants: int = 0
     total_patterns: int = 0

@@ -1,8 +1,7 @@
 """AI Model Compliance Observatory Service."""
 
-import random
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +16,19 @@ from app.services.ai_observatory.models import (
     ModelStatus,
     ObservatoryDashboard,
 )
+
+
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
 
 
 logger = structlog.get_logger()
@@ -138,10 +150,10 @@ class AIObservatoryService:
             for metric_type in BiasMetricType:
                 threshold = thresholds[metric_type]
                 if metric_type == BiasMetricType.DISPARATE_IMPACT:
-                    value = round(random.uniform(0.6, 1.0), 4)
+                    value = round(_deterministic_float("seed_1", 0.6, 1.0), 4)
                     is_passing = value >= threshold
                 else:
-                    value = round(random.uniform(0.0, 0.25), 4)
+                    value = round(_deterministic_float("seed_2", 0.0, 0.25), 4)
                     is_passing = value <= threshold
 
                 metric = BiasMetric(
@@ -171,17 +183,17 @@ class AIObservatoryService:
             return None
 
         features = {
-            "feature_a": round(random.uniform(0.1, 0.4), 3),
-            "feature_b": round(random.uniform(0.05, 0.3), 3),
-            "feature_c": round(random.uniform(0.02, 0.2), 3),
-            "feature_d": round(random.uniform(0.01, 0.15), 3),
-            "feature_e": round(random.uniform(0.005, 0.1), 3),
+            "feature_a": round(_deterministic_float("seed_3", 0.1, 0.4), 3),
+            "feature_b": round(_deterministic_float("seed_4", 0.05, 0.3), 3),
+            "feature_c": round(_deterministic_float("seed_5", 0.02, 0.2), 3),
+            "feature_d": round(_deterministic_float("seed_6", 0.01, 0.15), 3),
+            "feature_e": round(_deterministic_float("seed_7", 0.005, 0.1), 3),
         }
         # Normalize
         total = sum(features.values())
         features = {k: round(v / total, 3) for k, v in features.items()}
 
-        coverage = round(random.uniform(0.6, 0.98), 2)
+        coverage = round(_deterministic_float("seed_8", 0.6, 0.98), 2)
         report = ExplainabilityReport(
             model_id=model_id,
             method="SHAP",
@@ -233,7 +245,7 @@ class AIObservatoryService:
         doc_complete = len(issues) == 0
         human_oversight = (
             model.risk_level not in (AIRiskLevel.HIGH_RISK, AIRiskLevel.PROHIBITED)
-            or random.random() > 0.5
+            or _deterministic_float("seed_9") > 0.5
         )
         overall = len(issues) == 0 and (not bias_metrics or not failing_bias)
 

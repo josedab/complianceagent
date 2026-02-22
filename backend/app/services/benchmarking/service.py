@@ -17,6 +17,7 @@ from app.services.benchmarking.models import (
     PredictionResult,
 )
 
+
 logger = structlog.get_logger()
 
 # Built-in GDPR benchmark corpus
@@ -39,7 +40,9 @@ _GDPR_CORPUS = BenchmarkCorpus(
             article_ref="Art. 17(1)",
             text="The data subject shall have the right to obtain from the controller the erasure of personal data concerning him or her without undue delay.",
             labels=[AnnotationLabel.OBLIGATION],
-            obligations=[{"type": "must", "subject": "controller", "action": "erase personal data"}],
+            obligations=[
+                {"type": "must", "subject": "controller", "action": "erase personal data"}
+            ],
             entities=["data subject", "controller"],
             annotator="expert-legal-v1",
         ),
@@ -48,7 +51,9 @@ _GDPR_CORPUS = BenchmarkCorpus(
             article_ref="Art. 33(1)",
             text="In the case of a personal data breach, the controller shall without undue delay and, where feasible, not later than 72 hours after having become aware of it, notify the personal data breach to the supervisory authority.",
             labels=[AnnotationLabel.OBLIGATION],
-            obligations=[{"type": "must", "subject": "controller", "action": "notify breach within 72 hours"}],
+            obligations=[
+                {"type": "must", "subject": "controller", "action": "notify breach within 72 hours"}
+            ],
             entities=["controller", "supervisory authority"],
             annotator="expert-legal-v1",
         ),
@@ -57,7 +62,9 @@ _GDPR_CORPUS = BenchmarkCorpus(
             article_ref="Art. 25(1)",
             text="The controller shall implement appropriate technical and organisational measures for ensuring that, by default, only personal data which are necessary for each specific purpose of the processing are processed.",
             labels=[AnnotationLabel.OBLIGATION],
-            obligations=[{"type": "must", "subject": "controller", "action": "implement data minimization"}],
+            obligations=[
+                {"type": "must", "subject": "controller", "action": "implement data minimization"}
+            ],
             entities=["controller"],
             annotator="expert-legal-v1",
         ),
@@ -105,7 +112,9 @@ class BenchmarkingService:
         """Add a custom benchmark corpus."""
         corpus.created_at = datetime.now(UTC)
         self._custom_corpora[corpus.framework] = corpus
-        logger.info("Added benchmark corpus", framework=corpus.framework, passages=corpus.total_passages)
+        logger.info(
+            "Added benchmark corpus", framework=corpus.framework, passages=corpus.total_passages
+        )
         return corpus
 
     async def run_benchmark(
@@ -164,7 +173,9 @@ class BenchmarkingService:
         )
 
         if all_predictions:
-            result.avg_latency_ms = sum(p.latency_ms for _, p in all_predictions) / len(all_predictions)
+            result.avg_latency_ms = sum(p.latency_ms for _, p in all_predictions) / len(
+                all_predictions
+            )
 
         result.status = BenchmarkStatus.COMPLETED
         result.completed_at = datetime.now(UTC)
@@ -190,7 +201,9 @@ class BenchmarkingService:
         if result_id:
             result = self._results_cache.get(result_id)
         else:
-            completed = [r for r in self._results_cache.values() if r.status == BenchmarkStatus.COMPLETED]
+            completed = [
+                r for r in self._results_cache.values() if r.status == BenchmarkStatus.COMPLETED
+            ]
             result = completed[-1] if completed else None
 
         return result.to_scorecard() if result else None

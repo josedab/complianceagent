@@ -125,29 +125,33 @@ class CICDComplianceAnalyzer:
                 for suggestion in ai_suggestions:
                     # Check if this issue was already found by pattern matching
                     existing = any(
-                        i["line"] == suggestion.diagnostic.range.start.line + 1 and
-                        i["code"] == suggestion.diagnostic.code
+                        i["line"] == suggestion.diagnostic.range.start.line + 1
+                        and i["code"] == suggestion.diagnostic.code
                         for i in issues
                     )
 
                     if not existing:
-                        issues.append({
-                            "file": filepath,
-                            "line": suggestion.diagnostic.range.start.line + 1,
-                            "column": suggestion.diagnostic.range.start.character + 1,
-                            "end_line": suggestion.diagnostic.range.end.line + 1,
-                            "end_column": suggestion.diagnostic.range.end.character + 1,
-                            "code": suggestion.diagnostic.code,
-                            "message": suggestion.diagnostic.message,
-                            "severity": suggestion.diagnostic.severity.value,
-                            "regulation": suggestion.diagnostic.regulation,
-                            "article_reference": suggestion.diagnostic.article_reference,
-                            "category": suggestion.diagnostic.category.value if suggestion.diagnostic.category else None,
-                            "fix_code": suggestion.fix_code,
-                            "fix_explanation": suggestion.explanation,
-                            "ai_generated": True,
-                            "confidence": suggestion.confidence,
-                        })
+                        issues.append(
+                            {
+                                "file": filepath,
+                                "line": suggestion.diagnostic.range.start.line + 1,
+                                "column": suggestion.diagnostic.range.start.character + 1,
+                                "end_line": suggestion.diagnostic.range.end.line + 1,
+                                "end_column": suggestion.diagnostic.range.end.character + 1,
+                                "code": suggestion.diagnostic.code,
+                                "message": suggestion.diagnostic.message,
+                                "severity": suggestion.diagnostic.severity.value,
+                                "regulation": suggestion.diagnostic.regulation,
+                                "article_reference": suggestion.diagnostic.article_reference,
+                                "category": suggestion.diagnostic.category.value
+                                if suggestion.diagnostic.category
+                                else None,
+                                "fix_code": suggestion.fix_code,
+                                "fix_explanation": suggestion.explanation,
+                                "ai_generated": True,
+                                "confidence": suggestion.confidence,
+                            }
+                        )
 
             except Exception as e:
                 logger.warning(f"AI analysis failed for {filepath}: {e}")
@@ -193,7 +197,9 @@ class CICDComplianceAnalyzer:
         counts = {
             "error": sum(1 for i in all_issues if i.get("severity") == "error"),
             "warning": sum(1 for i in all_issues if i.get("severity") == "warning"),
-            "info": sum(1 for i in all_issues if i.get("severity") in ("info", "information", "hint")),
+            "info": sum(
+                1 for i in all_issues if i.get("severity") in ("info", "information", "hint")
+            ),
         }
 
         # Count by regulation

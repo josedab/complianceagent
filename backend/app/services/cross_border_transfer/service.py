@@ -1,7 +1,7 @@
 """Cross-Border Data Transfer Automation Service."""
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,7 @@ from app.services.cross_border_transfer.models import (
     TransferReport,
     TransferRisk,
 )
+
 
 logger = structlog.get_logger()
 
@@ -271,7 +272,9 @@ class CrossBorderTransferService:
         results = list(self._alerts)
         if acknowledged is not None:
             results = [a for a in results if a.acknowledged == acknowledged]
-        return sorted(results, key=lambda a: a.created_at or datetime.min, reverse=True)
+        return sorted(
+            results, key=lambda a: a.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )
 
     async def acknowledge_alert(self, alert_id: UUID) -> TransferAlert | None:
         """Acknowledge a transfer alert."""

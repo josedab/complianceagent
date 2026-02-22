@@ -11,6 +11,7 @@ from app.services.compliance_training.models import (
 )
 from app.services.compliance_training.service import ComplianceTrainingService
 
+
 __all__ = [
     "ComplianceTrainingService",
     "ContentFormat",

@@ -1,7 +1,6 @@
 """Stripe integration for Pattern Marketplace purchases."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 

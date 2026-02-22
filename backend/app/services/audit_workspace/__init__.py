@@ -2,4 +2,13 @@
 
 from app.services.audit_workspace.service import AuditWorkspaceService
 
-__all__ = ["AuditWorkspaceService"]
+
+__all__ = [
+    "AuditFramework",
+    "AuditWorkspace",
+    "AuditWorkspaceService",
+    "ControlGap",
+    "GapAnalysisResult",
+    "GapStatus",
+    "WorkspacePhase",
+]

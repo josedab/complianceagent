@@ -21,7 +21,7 @@ logger = structlog.get_logger()
 @dataclass
 class AuditEventData:
     """Data transfer object for audit events - reduces parameter count.
-    
+
     This is the preferred way to pass audit event data. Use with AuditService.log().
     """
 
@@ -55,10 +55,10 @@ class AuditService:
 
     async def log(self, event: AuditEventData) -> AuditTrail:
         """Create an audit trail entry from AuditEventData.
-        
+
         This is the preferred method for logging audit events. It uses a structured
         data object instead of many individual parameters.
-        
+
         Example:
             event = AuditEventData(
                 organization_id=org_id,
@@ -108,7 +108,7 @@ class AuditService:
         user_agent: str | None = None,
     ) -> AuditTrail:
         """Create an audit trail entry.
-        
+
         .. deprecated:: 0.2.0
             Use :meth:`log` with :class:`AuditEventData` instead for cleaner code.
             This method will be removed in version 1.0.0.
@@ -212,7 +212,9 @@ class AuditService:
     def _compute_entry_hash(self, entry: AuditTrail, previous_hash: str | None) -> str:
         """Compute tamper-proof hash for entry."""
         # Handle event_type whether it's an enum or string
-        event_type = entry.event_type.value if hasattr(entry.event_type, "value") else entry.event_type
+        event_type = (
+            entry.event_type.value if hasattr(entry.event_type, "value") else entry.event_type
+        )
 
         data = {
             "organization_id": str(entry.organization_id),
@@ -246,10 +248,12 @@ class AuditService:
         for entry in entries:
             # Check that previous_hash matches
             if entry.previous_hash != previous_hash:
-                invalid_entries.append({
-                    "entry_id": str(entry.id),
-                    "issue": "previous_hash mismatch",
-                })
+                invalid_entries.append(
+                    {
+                        "entry_id": str(entry.id),
+                        "issue": "previous_hash mismatch",
+                    }
+                )
 
             # Recompute and verify entry hash
             self._compute_entry_hash(entry, previous_hash)

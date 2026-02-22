@@ -1,9 +1,5 @@
 """Alert notification service for Slack, Teams, and email."""
 
-import json
-from datetime import datetime
-from typing import Any
-
 import httpx
 import structlog
 
@@ -12,6 +8,7 @@ from app.services.diff_alerts.models import (
     NotificationConfig,
     RegulatoryAlert,
 )
+
 
 logger = structlog.get_logger()
 
@@ -25,11 +22,11 @@ class AlertNotifier:
     async def send_alert(self, alert: RegulatoryAlert) -> dict[str, bool]:
         """
         Send alert to all configured channels.
-        
+
         Returns dict of channel -> success status
         """
         results = {}
-        
+
         # Check minimum severity
         severity_order = {
             AlertSeverity.LOW: 0,
@@ -37,11 +34,13 @@ class AlertNotifier:
             AlertSeverity.HIGH: 2,
             AlertSeverity.CRITICAL: 3,
         }
-        
+
         if severity_order.get(alert.severity, 0) < severity_order.get(self.config.min_severity, 0):
-            logger.debug("Alert below minimum severity threshold", 
-                        alert_severity=alert.severity.value,
-                        min_severity=self.config.min_severity.value)
+            logger.debug(
+                "Alert below minimum severity threshold",
+                alert_severity=alert.severity.value,
+                min_severity=self.config.min_severity.value,
+            )
             return {}
 
         # Send to Slack
@@ -71,92 +70,75 @@ class AlertNotifier:
             AlertSeverity.LOW: "ℹ️",
         }
         emoji = severity_emoji.get(alert.severity, "📋")
-        
+
         blocks = [
             {
                 "type": "header",
                 "text": {
                     "type": "plain_text",
                     "text": f"{emoji} Regulatory Change Alert",
-                    "emoji": True
-                }
+                    "emoji": True,
+                },
             },
             {
                 "type": "section",
                 "fields": [
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Regulation:*\n{alert.regulation_name}"
-                    },
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Severity:*\n{alert.severity.value.upper()}"
-                    },
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Framework:*\n{alert.framework}"
-                    },
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Jurisdiction:*\n{alert.jurisdiction}"
-                    }
-                ]
+                    {"type": "mrkdwn", "text": f"*Regulation:*\n{alert.regulation_name}"},
+                    {"type": "mrkdwn", "text": f"*Severity:*\n{alert.severity.value.upper()}"},
+                    {"type": "mrkdwn", "text": f"*Framework:*\n{alert.framework}"},
+                    {"type": "mrkdwn", "text": f"*Jurisdiction:*\n{alert.jurisdiction}"},
+                ],
             },
         ]
-        
+
         # Add impact summary if available
         if alert.impact_analysis:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*Summary:*\n{alert.impact_analysis.summary}"
-                }
-            })
-            
-            if alert.impact_analysis.key_changes:
-                changes_text = "\n".join(f"• {c}" for c in alert.impact_analysis.key_changes[:5])
-                blocks.append({
+            blocks.append(
+                {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": f"*Key Changes:*\n{changes_text}"
+                        "text": f"*Summary:*\n{alert.impact_analysis.summary}",
+                    },
+                }
+            )
+
+            if alert.impact_analysis.key_changes:
+                changes_text = "\n".join(f"• {c}" for c in alert.impact_analysis.key_changes[:5])
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text": f"*Key Changes:*\n{changes_text}"},
                     }
-                })
+                )
 
         # Add action buttons
-        blocks.append({
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "✓ Acknowledge",
-                        "emoji": True
+        blocks.append(
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "✓ Acknowledge", "emoji": True},
+                        "style": "primary",
+                        "value": str(alert.id),
+                        "action_id": "acknowledge_alert",
                     },
-                    "style": "primary",
-                    "value": str(alert.id),
-                    "action_id": "acknowledge_alert"
-                },
-                {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "View Details",
-                        "emoji": True
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "View Details", "emoji": True},
+                        "url": f"https://complianceagent.ai/alerts/{alert.id}",
+                        "action_id": "view_alert",
                     },
-                    "url": f"https://complianceagent.ai/alerts/{alert.id}",
-                    "action_id": "view_alert"
-                }
-            ]
-        })
+                ],
+            }
+        )
 
         payload = {
             "blocks": blocks,
             "text": f"Regulatory Change Alert: {alert.regulation_name}",
         }
-        
+
         if self.config.slack_channel:
             payload["channel"] = self.config.slack_channel
 
@@ -186,34 +168,27 @@ class AlertNotifier:
             AlertSeverity.MEDIUM: "accent",
             AlertSeverity.LOW: "good",
         }
-        
+
         facts = [
             {"title": "Regulation", "value": alert.regulation_name},
             {"title": "Severity", "value": alert.severity.value.upper()},
             {"title": "Framework", "value": alert.framework},
             {"title": "Jurisdiction", "value": alert.jurisdiction},
         ]
-        
+
         body = [
             {
                 "type": "TextBlock",
                 "size": "Large",
                 "weight": "Bolder",
                 "text": "🔔 Regulatory Change Alert",
-                "color": severity_color.get(alert.severity, "default")
+                "color": severity_color.get(alert.severity, "default"),
             },
-            {
-                "type": "FactSet",
-                "facts": facts
-            }
+            {"type": "FactSet", "facts": facts},
         ]
-        
+
         if alert.impact_analysis:
-            body.append({
-                "type": "TextBlock",
-                "text": alert.impact_analysis.summary,
-                "wrap": True
-            })
+            body.append({"type": "TextBlock", "text": alert.impact_analysis.summary, "wrap": True})
 
         card = {
             "type": "message",
@@ -229,12 +204,12 @@ class AlertNotifier:
                             {
                                 "type": "Action.OpenUrl",
                                 "title": "View Details",
-                                "url": f"https://complianceagent.ai/alerts/{alert.id}"
+                                "url": f"https://complianceagent.ai/alerts/{alert.id}",
                             }
-                        ]
-                    }
+                        ],
+                    },
                 }
-            ]
+            ],
         }
 
         try:
@@ -267,43 +242,49 @@ class AlertNotifier:
     def format_alert_message(self, alert: RegulatoryAlert) -> str:
         """Format alert as plain text message."""
         lines = [
-            f"REGULATORY CHANGE ALERT",
-            f"========================",
-            f"",
+            "REGULATORY CHANGE ALERT",
+            "========================",
+            "",
             f"Regulation: {alert.regulation_name}",
             f"Severity: {alert.severity.value.upper()}",
             f"Framework: {alert.framework}",
             f"Jurisdiction: {alert.jurisdiction}",
             f"Detected: {alert.created_at.isoformat()}",
         ]
-        
+
         if alert.impact_analysis:
-            lines.extend([
-                f"",
-                f"IMPACT SUMMARY",
-                f"--------------",
-                alert.impact_analysis.summary,
-                f"",
-                f"KEY CHANGES:",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "IMPACT SUMMARY",
+                    "--------------",
+                    alert.impact_analysis.summary,
+                    "",
+                    "KEY CHANGES:",
+                ]
+            )
             for change in alert.impact_analysis.key_changes:
                 lines.append(f"  • {change}")
-            
-            lines.extend([
-                f"",
-                f"RECOMMENDED ACTIONS:",
-            ])
+
+            lines.extend(
+                [
+                    "",
+                    "RECOMMENDED ACTIONS:",
+                ]
+            )
             for action in alert.impact_analysis.recommended_actions:
                 lines.append(f"  • {action}")
 
         if alert.diff:
-            lines.extend([
-                f"",
-                f"CHANGE METRICS",
-                f"--------------",
-                f"Lines added: {alert.diff.additions_count}",
-                f"Lines removed: {alert.diff.deletions_count}",
-                f"Similarity: {alert.diff.similarity_ratio:.0%}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "CHANGE METRICS",
+                    "--------------",
+                    f"Lines added: {alert.diff.additions_count}",
+                    f"Lines removed: {alert.diff.deletions_count}",
+                    f"Similarity: {alert.diff.similarity_ratio:.0%}",
+                ]
+            )
 
         return "\n".join(lines)

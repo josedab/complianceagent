@@ -3,7 +3,6 @@
 import difflib
 import hashlib
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID
 
 import structlog
@@ -21,6 +20,7 @@ from app.services.diff_alerts.models import (
     RegulatoryAlert,
     TextDiff,
 )
+
 
 logger = structlog.get_logger()
 
@@ -45,21 +45,19 @@ class RegulatoryDiffService:
     ) -> RegulatoryAlert | None:
         """
         Detect changes between old and new regulatory text.
-        
+
         Args:
             regulation_id: ID of the regulation being checked
             new_text: New version of the regulatory text
             old_text: Previous version (if None, fetch from cache/DB)
-            
+
         Returns:
             RegulatoryAlert if changes detected, None otherwise
         """
         # Get regulation details
-        result = await self.db.execute(
-            select(Regulation).where(Regulation.id == regulation_id)
-        )
+        result = await self.db.execute(select(Regulation).where(Regulation.id == regulation_id))
         regulation = result.scalar_one_or_none()
-        
+
         if not regulation:
             raise ValueError(f"Regulation {regulation_id} not found")
 
@@ -74,7 +72,7 @@ class RegulatoryDiffService:
 
         # Generate diff
         diff = self._generate_diff(old_text, new_text)
-        
+
         if not diff.has_changes:
             return None
 
@@ -116,47 +114,51 @@ class RegulatoryDiffService:
         """Generate a structured diff between two text versions."""
         old_lines = old_text.splitlines(keepends=True)
         new_lines = new_text.splitlines(keepends=True)
-        
+
         differ = difflib.unified_diff(
             old_lines,
             new_lines,
             lineterm="",
         )
-        
+
         changes: list[DiffChange] = []
         additions = 0
         deletions = 0
         modifications = 0
-        
+
         old_line_num = 0
         new_line_num = 0
-        
+
         # Parse unified diff output
         for line in differ:
-            if line.startswith("---") or line.startswith("+++"):
+            if line.startswith(("---", "+++")):
                 continue
-            elif line.startswith("@@"):
+            if line.startswith("@@"):
                 # Parse hunk header
                 continue
-            elif line.startswith("-"):
+            if line.startswith("-"):
                 deletions += 1
-                changes.append(DiffChange(
-                    change_type=DiffChangeType.REMOVED,
-                    line_number_old=old_line_num,
-                    line_number_new=None,
-                    old_text=line[1:].rstrip("\n"),
-                    new_text=None,
-                ))
+                changes.append(
+                    DiffChange(
+                        change_type=DiffChangeType.REMOVED,
+                        line_number_old=old_line_num,
+                        line_number_new=None,
+                        old_text=line[1:].rstrip("\n"),
+                        new_text=None,
+                    )
+                )
                 old_line_num += 1
             elif line.startswith("+"):
                 additions += 1
-                changes.append(DiffChange(
-                    change_type=DiffChangeType.ADDED,
-                    line_number_old=None,
-                    line_number_new=new_line_num,
-                    old_text=None,
-                    new_text=line[1:].rstrip("\n"),
-                ))
+                changes.append(
+                    DiffChange(
+                        change_type=DiffChangeType.ADDED,
+                        line_number_old=None,
+                        line_number_new=new_line_num,
+                        old_text=None,
+                        new_text=line[1:].rstrip("\n"),
+                    )
+                )
                 new_line_num += 1
             else:
                 old_line_num += 1
@@ -181,19 +183,19 @@ class RegulatoryDiffService:
     def _calculate_severity(self, diff: TextDiff) -> AlertSeverity:
         """Calculate alert severity based on diff metrics."""
         total_changes = diff.additions_count + diff.deletions_count
-        
+
         # Major structural changes
         if diff.similarity_ratio < 0.5:
             return AlertSeverity.CRITICAL
-        
+
         # Significant changes
         if total_changes > 50 or diff.similarity_ratio < 0.7:
             return AlertSeverity.HIGH
-        
+
         # Moderate changes
         if total_changes > 10 or diff.similarity_ratio < 0.9:
             return AlertSeverity.MEDIUM
-        
+
         return AlertSeverity.LOW
 
     async def _analyze_impact(
@@ -214,7 +216,7 @@ class RegulatoryDiffService:
                 changes_summary.append(f"+ {change.new_text}")
             elif change.change_type == DiffChangeType.REMOVED:
                 changes_summary.append(f"- {change.old_text}")
-        
+
         prompt = f"""Analyze the following changes to {regulation_name} and provide an impact assessment.
 
 Changes detected:
@@ -245,18 +247,19 @@ Return only valid JSON."""
                     temperature=0.3,
                     max_tokens=2048,
                 )
-            
+
             # Parse JSON response
             import json
+
             result = json.loads(response.content.strip().strip("```json").strip("```"))
-            
+
             urgency_map = {
                 "critical": AlertSeverity.CRITICAL,
                 "high": AlertSeverity.HIGH,
                 "medium": AlertSeverity.MEDIUM,
                 "low": AlertSeverity.LOW,
             }
-            
+
             return ImpactAnalysis(
                 summary=result.get("summary", ""),
                 key_changes=result.get("key_changes", []),
@@ -264,14 +267,13 @@ Return only valid JSON."""
                 compliance_impact=result.get("compliance_impact", ""),
                 recommended_actions=result.get("recommended_actions", []),
                 urgency_level=urgency_map.get(
-                    result.get("urgency_level", "medium").lower(),
-                    AlertSeverity.MEDIUM
+                    result.get("urgency_level", "medium").lower(), AlertSeverity.MEDIUM
                 ),
                 affected_frameworks=result.get("affected_frameworks", []),
                 affected_requirements=result.get("affected_requirements", []),
                 confidence=result.get("confidence", 0.0),
             )
-            
+
         except Exception as e:
             logger.error("AI impact analysis failed", error=str(e))
             return None

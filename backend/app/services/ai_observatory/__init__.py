@@ -12,9 +12,10 @@ from app.services.ai_observatory.models import (
 )
 from app.services.ai_observatory.service import AIObservatoryService
 
+
 __all__ = [
-    "AIObservatoryService",
     "AIModel",
+    "AIObservatoryService",
     "AIRiskLevel",
     "BiasMetric",
     "BiasMetricType",

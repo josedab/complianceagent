@@ -84,24 +84,96 @@ class AuditWorkspace:
 
 # SOC 2 Type II control framework (13 trust services criteria)
 _SOC2_CONTROLS: list[dict[str, Any]] = [
-    {"id": "CC1.1", "name": "COSO Principles", "evidence": ["Code of conduct", "Org chart", "Risk assessment"]},
-    {"id": "CC2.1", "name": "Internal Communication", "evidence": ["Security policies", "Acceptable use policy"]},
-    {"id": "CC3.1", "name": "Risk Assessment", "evidence": ["Risk register", "Risk treatment plan"]},
-    {"id": "CC4.1", "name": "Monitoring Activities", "evidence": ["SOC metrics dashboard", "Management review minutes"]},
-    {"id": "CC5.1", "name": "Control Activities", "evidence": ["Change management policy", "Approval workflows"]},
-    {"id": "CC6.1", "name": "Logical Access", "evidence": ["Access control policy", "User provisioning logs", "MFA config"]},
-    {"id": "CC6.2", "name": "User Lifecycle", "evidence": ["Onboarding/offboarding procedures", "Access reviews"]},
-    {"id": "CC6.3", "name": "Role-Based Access", "evidence": ["RBAC matrix", "Privilege access reviews"]},
-    {"id": "CC6.6", "name": "Encryption in Transit", "evidence": ["TLS configuration", "Certificate inventory"]},
-    {"id": "CC6.7", "name": "Encryption at Rest", "evidence": ["Encryption configuration", "Key management policy"]},
-    {"id": "CC7.1", "name": "Vulnerability Management", "evidence": ["Vulnerability scan reports", "Patching logs"]},
-    {"id": "CC7.2", "name": "Security Monitoring", "evidence": ["SIEM configuration", "Alert rules", "Incident logs"]},
-    {"id": "CC7.3", "name": "Incident Response", "evidence": ["IR plan", "IR test results", "Post-mortem reports"]},
-    {"id": "CC8.1", "name": "Change Management", "evidence": ["PR review requirements", "Deployment logs", "Rollback procedures"]},
-    {"id": "A1.1", "name": "System Availability", "evidence": ["SLA documentation", "Uptime reports", "Health checks"]},
-    {"id": "A1.2", "name": "Disaster Recovery", "evidence": ["DR plan", "Backup configuration", "DR test results"]},
-    {"id": "C1.1", "name": "Data Confidentiality", "evidence": ["Data classification policy", "Encryption evidence"]},
-    {"id": "PI1.1", "name": "Processing Integrity", "evidence": ["Input validation evidence", "Data quality checks"]},
+    {
+        "id": "CC1.1",
+        "name": "COSO Principles",
+        "evidence": ["Code of conduct", "Org chart", "Risk assessment"],
+    },
+    {
+        "id": "CC2.1",
+        "name": "Internal Communication",
+        "evidence": ["Security policies", "Acceptable use policy"],
+    },
+    {
+        "id": "CC3.1",
+        "name": "Risk Assessment",
+        "evidence": ["Risk register", "Risk treatment plan"],
+    },
+    {
+        "id": "CC4.1",
+        "name": "Monitoring Activities",
+        "evidence": ["SOC metrics dashboard", "Management review minutes"],
+    },
+    {
+        "id": "CC5.1",
+        "name": "Control Activities",
+        "evidence": ["Change management policy", "Approval workflows"],
+    },
+    {
+        "id": "CC6.1",
+        "name": "Logical Access",
+        "evidence": ["Access control policy", "User provisioning logs", "MFA config"],
+    },
+    {
+        "id": "CC6.2",
+        "name": "User Lifecycle",
+        "evidence": ["Onboarding/offboarding procedures", "Access reviews"],
+    },
+    {
+        "id": "CC6.3",
+        "name": "Role-Based Access",
+        "evidence": ["RBAC matrix", "Privilege access reviews"],
+    },
+    {
+        "id": "CC6.6",
+        "name": "Encryption in Transit",
+        "evidence": ["TLS configuration", "Certificate inventory"],
+    },
+    {
+        "id": "CC6.7",
+        "name": "Encryption at Rest",
+        "evidence": ["Encryption configuration", "Key management policy"],
+    },
+    {
+        "id": "CC7.1",
+        "name": "Vulnerability Management",
+        "evidence": ["Vulnerability scan reports", "Patching logs"],
+    },
+    {
+        "id": "CC7.2",
+        "name": "Security Monitoring",
+        "evidence": ["SIEM configuration", "Alert rules", "Incident logs"],
+    },
+    {
+        "id": "CC7.3",
+        "name": "Incident Response",
+        "evidence": ["IR plan", "IR test results", "Post-mortem reports"],
+    },
+    {
+        "id": "CC8.1",
+        "name": "Change Management",
+        "evidence": ["PR review requirements", "Deployment logs", "Rollback procedures"],
+    },
+    {
+        "id": "A1.1",
+        "name": "System Availability",
+        "evidence": ["SLA documentation", "Uptime reports", "Health checks"],
+    },
+    {
+        "id": "A1.2",
+        "name": "Disaster Recovery",
+        "evidence": ["DR plan", "Backup configuration", "DR test results"],
+    },
+    {
+        "id": "C1.1",
+        "name": "Data Confidentiality",
+        "evidence": ["Data classification policy", "Encryption evidence"],
+    },
+    {
+        "id": "PI1.1",
+        "name": "Processing Integrity",
+        "evidence": ["Input validation evidence", "Data quality checks"],
+    },
 ]
 
 
@@ -137,7 +209,11 @@ class AuditWorkspaceService:
         if not workspace:
             return GapAnalysisResult()
 
-        controls = _SOC2_CONTROLS if workspace.framework == AuditFramework.SOC2_TYPE_II else _SOC2_CONTROLS[:10]
+        controls = (
+            _SOC2_CONTROLS
+            if workspace.framework == AuditFramework.SOC2_TYPE_II
+            else _SOC2_CONTROLS[:10]
+        )
         gaps: list[ControlGap] = []
 
         # Simulate gap analysis (in production, checks real infrastructure)
@@ -153,18 +229,24 @@ class AuditWorkspaceService:
                 status = GapStatus.NOT_STARTED
                 severity = "high"
 
-            gaps.append(ControlGap(
-                control_id=ctrl["id"],
-                control_name=ctrl["name"],
-                description=f"Gap analysis for {ctrl['name']}",
-                status=status,
-                severity=severity,
-                evidence_required=ctrl["evidence"],
-                evidence_collected=ctrl["evidence"][:1] if status != GapStatus.NOT_STARTED else [],
-            ))
+            gaps.append(
+                ControlGap(
+                    control_id=ctrl["id"],
+                    control_name=ctrl["name"],
+                    description=f"Gap analysis for {ctrl['name']}",
+                    status=status,
+                    severity=severity,
+                    evidence_required=ctrl["evidence"],
+                    evidence_collected=ctrl["evidence"][:1]
+                    if status != GapStatus.NOT_STARTED
+                    else [],
+                )
+            )
 
         fully_met = sum(1 for g in gaps if g.status == GapStatus.VERIFIED)
-        partially_met = sum(1 for g in gaps if g.status in (GapStatus.IN_PROGRESS, GapStatus.EVIDENCE_COLLECTED))
+        partially_met = sum(
+            1 for g in gaps if g.status in (GapStatus.IN_PROGRESS, GapStatus.EVIDENCE_COLLECTED)
+        )
         not_met = sum(1 for g in gaps if g.status == GapStatus.NOT_STARTED)
         total = len(gaps)
         readiness = round((fully_met / total) * 100, 1) if total > 0 else 0.0
@@ -183,7 +265,9 @@ class AuditWorkspaceService:
         )
 
         workspace.gap_analysis = result
-        workspace.evidence_coverage_pct = round((fully_met + partially_met * 0.5) / total * 100, 1) if total > 0 else 0.0
+        workspace.evidence_coverage_pct = (
+            round((fully_met + partially_met * 0.5) / total * 100, 1) if total > 0 else 0.0
+        )
 
         logger.info(
             "gap_analysis_complete",

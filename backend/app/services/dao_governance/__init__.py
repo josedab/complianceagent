@@ -11,6 +11,7 @@ from app.services.dao_governance.models import (
 )
 from app.services.dao_governance.service import DAOGovernanceService
 
+
 __all__ = [
     "DAOGovernanceService",
     "GovernanceMember",

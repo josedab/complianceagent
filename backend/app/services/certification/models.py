@@ -1,13 +1,14 @@
 """AI Compliance Training Certification Program data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from uuid import UUID, uuid4
 
 
 class CourseLevel(str, Enum):
     """Course difficulty level."""
+
     BEGINNER = "beginner"
     INTERMEDIATE = "intermediate"
     ADVANCED = "advanced"
@@ -16,6 +17,7 @@ class CourseLevel(str, Enum):
 
 class ModuleType(str, Enum):
     """Type of course module."""
+
     LESSON = "lesson"
     QUIZ = "quiz"
     LAB = "lab"
@@ -24,6 +26,7 @@ class ModuleType(str, Enum):
 
 class QuestionType(str, Enum):
     """Types of quiz questions."""
+
     MULTIPLE_CHOICE = "multiple_choice"
     TRUE_FALSE = "true_false"
     CODE_REVIEW = "code_review"
@@ -32,6 +35,7 @@ class QuestionType(str, Enum):
 
 class CertificateStatus(str, Enum):
     """Certificate lifecycle status."""
+
     IN_PROGRESS = "in_progress"
     EXAM_SCHEDULED = "exam_scheduled"
     PASSED = "passed"
@@ -42,6 +46,7 @@ class CertificateStatus(str, Enum):
 @dataclass
 class Question:
     """Quiz or assessment question."""
+
     id: UUID = field(default_factory=uuid4)
     module_id: UUID | None = None
     type: QuestionType = QuestionType.MULTIPLE_CHOICE
@@ -56,6 +61,7 @@ class Question:
 @dataclass
 class Module:
     """Course module (lesson, quiz, lab, or assessment)."""
+
     id: UUID = field(default_factory=uuid4)
     course_id: UUID | None = None
     title: str = ""
@@ -70,6 +76,7 @@ class Module:
 @dataclass
 class Course:
     """Certification course."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     description: str = ""
@@ -90,6 +97,7 @@ class Course:
 @dataclass
 class Enrollment:
     """User enrollment in a course."""
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID | None = None
     course_id: UUID | None = None
@@ -104,12 +112,13 @@ class Enrollment:
 @dataclass
 class Certificate:
     """Professional certification credential."""
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID | None = None
     course_id: UUID | None = None
     certificate_number: str = ""
     issued_at: datetime = field(default_factory=datetime.utcnow)
-    expires_at: datetime = field(default_factory=lambda: datetime.utcnow() + timedelta(days=730))
+    expires_at: datetime = field(default_factory=lambda: datetime.now(UTC) + timedelta(days=730))
     status: CertificateStatus = CertificateStatus.PASSED
     score: float = 0.0
     verification_url: str = ""
@@ -119,6 +128,7 @@ class Certificate:
 @dataclass
 class TutorConversation:
     """AI tutor interaction record."""
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID | None = None
     course_id: UUID | None = None
@@ -132,6 +142,7 @@ class TutorConversation:
 @dataclass
 class LearningPath:
     """Curated sequence of courses for a target role."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     description: str = ""
@@ -143,6 +154,7 @@ class LearningPath:
 @dataclass
 class CourseProgress:
     """Detailed progress tracking for a user in a course."""
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID | None = None
     course_id: UUID | None = None

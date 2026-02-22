@@ -79,15 +79,24 @@ _LICENSE_DB: dict[str, LicenseCategory] = {
 
 # Known data-sharing SDKs
 _DATA_SHARING_PACKAGES: set[str] = {
-    "analytics-node", "segment-analytics", "mixpanel",
-    "amplitude-js", "hotjar", "fullstory",
-    "sentry", "datadog", "newrelic",
+    "analytics-node",
+    "segment-analytics",
+    "mixpanel",
+    "amplitude-js",
+    "hotjar",
+    "fullstory",
+    "sentry",
+    "datadog",
+    "newrelic",
 }
 
 # Deprecated crypto patterns
 _DEPRECATED_CRYPTO: set[str] = {
-    "pycrypto", "python-jose", "itsdangerous",
-    "md5", "sha1",
+    "pycrypto",
+    "python-jose",
+    "itsdangerous",
+    "md5",
+    "sha1",
 }
 
 
@@ -126,7 +135,9 @@ class DependencyScannerService:
 
             # License compliance
             if proprietary_project and license_cat == LicenseCategory.STRONG_COPYLEFT:
-                issues.append(f"Strong copyleft license ({license_id}) in proprietary project — legal review required")
+                issues.append(
+                    f"Strong copyleft license ({license_id}) in proprietary project — legal review required"
+                )
                 risk_level = RiskLevel.CRITICAL
             elif license_cat == LicenseCategory.UNKNOWN:
                 issues.append("Unknown license — manual review required")
@@ -134,26 +145,41 @@ class DependencyScannerService:
 
             # Data sharing
             if data_sharing:
-                issues.append(f"{pkg} may transmit data to third parties — verify GDPR/CCPA compliance")
+                issues.append(
+                    f"{pkg} may transmit data to third parties — verify GDPR/CCPA compliance"
+                )
                 risk_level = max_risk(risk_level, RiskLevel.HIGH)
 
             # Deprecated crypto
             if deprecated:
-                issues.append(f"{pkg} uses deprecated cryptography — upgrade required for HIPAA/PCI compliance")
+                issues.append(
+                    f"{pkg} uses deprecated cryptography — upgrade required for HIPAA/PCI compliance"
+                )
                 risk_level = max_risk(risk_level, RiskLevel.HIGH)
 
-            risks.append(DependencyRisk(
-                package=pkg, version=version, ecosystem=ecosystem,
-                license=license_id, license_category=license_cat,
-                risk_level=risk_level, issues=issues,
-                data_sharing=data_sharing, deprecated_crypto=deprecated,
-            ))
+            risks.append(
+                DependencyRisk(
+                    package=pkg,
+                    version=version,
+                    ecosystem=ecosystem,
+                    license=license_id,
+                    license_category=license_cat,
+                    risk_level=risk_level,
+                    issues=issues,
+                    data_sharing=data_sharing,
+                    deprecated_crypto=deprecated,
+                )
+            )
 
         result = DependencyScanResult(
             total_dependencies=len(dependencies),
             critical_risks=sum(1 for r in risks if r.risk_level == RiskLevel.CRITICAL),
             high_risks=sum(1 for r in risks if r.risk_level == RiskLevel.HIGH),
-            license_violations=sum(1 for r in risks if r.license_category in (LicenseCategory.STRONG_COPYLEFT, LicenseCategory.UNKNOWN)),
+            license_violations=sum(
+                1
+                for r in risks
+                if r.license_category in (LicenseCategory.STRONG_COPYLEFT, LicenseCategory.UNKNOWN)
+            ),
             deprecated_crypto_count=sum(1 for r in risks if r.deprecated_crypto),
             data_sharing_count=sum(1 for r in risks if r.data_sharing),
             risks=[r for r in risks if r.risk_level != RiskLevel.NONE],
@@ -176,5 +202,11 @@ class DependencyScannerService:
 
 
 def max_risk(a: RiskLevel, b: RiskLevel) -> RiskLevel:
-    order = {RiskLevel.NONE: 0, RiskLevel.LOW: 1, RiskLevel.MEDIUM: 2, RiskLevel.HIGH: 3, RiskLevel.CRITICAL: 4}
+    order = {
+        RiskLevel.NONE: 0,
+        RiskLevel.LOW: 1,
+        RiskLevel.MEDIUM: 2,
+        RiskLevel.HIGH: 3,
+        RiskLevel.CRITICAL: 4,
+    }
     return a if order.get(a, 0) >= order.get(b, 0) else b

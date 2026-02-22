@@ -11,11 +11,12 @@ from app.services.control_testing.models import (
 )
 from app.services.control_testing.service import ControlTestingService
 
+
 __all__ = [
     "ControlFramework",
     "ControlTest",
-    "ControlTestingService",
     "ControlTestSuite",
+    "ControlTestingService",
     "EvidenceType",
     "TestFrequency",
     "TestResult",

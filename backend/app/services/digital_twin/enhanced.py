@@ -1,15 +1,15 @@
 """Enhanced Digital Twin - Time Travel, Drift Detection, Breach Simulation."""
 
-from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
-from dataclasses import dataclass, field
-from enum import Enum
 
 import structlog
 
+from app.services.digital_twin.models import ComplianceSnapshot
 from app.services.digital_twin.snapshot import SnapshotManager, get_snapshot_manager
-from app.services.digital_twin.models import ComplianceSnapshot, ComplianceIssue
 
 
 logger = structlog.get_logger()
@@ -17,6 +17,7 @@ logger = structlog.get_logger()
 
 class DriftType(str, Enum):
     """Types of compliance drift."""
+
     SCORE_DEGRADATION = "score_degradation"
     NEW_VIOLATION = "new_violation"
     REGULATION_CHANGE = "regulation_change"
@@ -26,6 +27,7 @@ class DriftType(str, Enum):
 
 class BreachScenario(str, Enum):
     """Types of breach scenarios for simulation."""
+
     DATA_EXFILTRATION = "data_exfiltration"
     RANSOMWARE = "ransomware"
     INSIDER_THREAT = "insider_threat"
@@ -37,6 +39,7 @@ class BreachScenario(str, Enum):
 @dataclass
 class DriftEvent:
     """A compliance drift event."""
+
     id: UUID = field(default_factory=uuid4)
     drift_type: DriftType = DriftType.SCORE_DEGRADATION
     detected_at: datetime = field(default_factory=datetime.utcnow)
@@ -53,30 +56,31 @@ class DriftEvent:
 @dataclass
 class BreachImpact:
     """Impact assessment for a simulated breach."""
+
     id: UUID = field(default_factory=uuid4)
     scenario: BreachScenario = BreachScenario.DATA_EXFILTRATION
     simulated_at: datetime = field(default_factory=datetime.utcnow)
-    
+
     # Data impact
     data_types_affected: list[str] = field(default_factory=list)
     records_at_risk: int = 0
     data_sensitivity: str = "medium"
-    
+
     # Regulatory impact
     regulatory_notifications_required: list[dict[str, Any]] = field(default_factory=list)
     notification_deadline_hours: int = 72
     estimated_fine_range: tuple[float, float] = (0, 0)
-    
+
     # Operational impact
     affected_systems: list[str] = field(default_factory=list)
     estimated_downtime_hours: float = 0.0
     recovery_time_estimate_hours: float = 0.0
-    
+
     # Compliance implications
     compliance_score_impact: float = 0.0
     controls_failed: list[str] = field(default_factory=list)
     required_remediation: list[str] = field(default_factory=list)
-    
+
     # Financial impact
     breach_cost_estimate: float = 0.0
     litigation_risk: str = "medium"
@@ -85,6 +89,7 @@ class BreachImpact:
 @dataclass
 class TimelinePoint:
     """A point on the compliance timeline."""
+
     timestamp: datetime
     snapshot_id: UUID | None
     score: float
@@ -95,18 +100,18 @@ class TimelinePoint:
 
 class EnhancedDigitalTwin:
     """Enhanced digital twin with time-travel and breach simulation."""
-    
+
     def __init__(self, snapshot_manager: SnapshotManager | None = None):
         self.snapshot_manager = snapshot_manager or get_snapshot_manager()
         self._drift_events: dict[UUID, DriftEvent] = {}
         self._drift_by_org: dict[UUID, list[UUID]] = {}
         self._breach_simulations: dict[UUID, BreachImpact] = {}
         self._auto_remediation_enabled: dict[UUID, bool] = {}
-    
+
     # =========================
     # TIME TRAVEL FUNCTIONALITY
     # =========================
-    
+
     async def get_compliance_at_point_in_time(
         self,
         organization_id: UUID,
@@ -114,14 +119,14 @@ class EnhancedDigitalTwin:
     ) -> ComplianceSnapshot | None:
         """Get compliance state at a specific point in time."""
         snapshots = await self.snapshot_manager.list_snapshots(organization_id, limit=1000)
-        
+
         # Find closest snapshot at or before target time
         candidates = [s for s in snapshots if s.created_at <= target_time]
         if not candidates:
             return None
-        
+
         return max(candidates, key=lambda s: s.created_at)
-    
+
     async def get_compliance_timeline(
         self,
         organization_id: UUID,
@@ -131,39 +136,44 @@ class EnhancedDigitalTwin:
     ) -> list[TimelinePoint]:
         """Get compliance timeline showing score evolution."""
         if not end_date:
-            end_date = datetime.utcnow()
+            end_date = datetime.now(UTC)
         if not start_date:
             start_date = end_date - timedelta(days=90)
-        
+
         snapshots = await self.snapshot_manager.list_snapshots(organization_id, limit=1000)
         snapshots = [s for s in snapshots if start_date <= s.created_at <= end_date]
-        
+
         # Get drift events in range
         org_drift_ids = self._drift_by_org.get(organization_id, [])
         drift_events = [
-            self._drift_events[did] for did in org_drift_ids
-            if did in self._drift_events and start_date <= self._drift_events[did].detected_at <= end_date
+            self._drift_events[did]
+            for did in org_drift_ids
+            if did in self._drift_events
+            and start_date <= self._drift_events[did].detected_at <= end_date
         ]
-        
+
         timeline = []
         for snapshot in sorted(snapshots, key=lambda s: s.created_at):
             # Find drift events near this snapshot
             nearby_drifts = [
-                d.id for d in drift_events
+                d.id
+                for d in drift_events
                 if abs((d.detected_at - snapshot.created_at).total_seconds()) < 86400
             ]
-            
-            timeline.append(TimelinePoint(
-                timestamp=snapshot.created_at,
-                snapshot_id=snapshot.id,
-                score=snapshot.overall_score,
-                status=snapshot.overall_status.value if snapshot.overall_status else "unknown",
-                key_events=[],  # Would be populated from audit log
-                drift_events=nearby_drifts,
-            ))
-        
+
+            timeline.append(
+                TimelinePoint(
+                    timestamp=snapshot.created_at,
+                    snapshot_id=snapshot.id,
+                    score=snapshot.overall_score,
+                    status=snapshot.overall_status.value if snapshot.overall_status else "unknown",
+                    key_events=[],  # Would be populated from audit log
+                    drift_events=nearby_drifts,
+                )
+            )
+
         return timeline
-    
+
     async def compare_time_periods(
         self,
         organization_id: UUID,
@@ -176,16 +186,16 @@ class EnhancedDigitalTwin:
         # Get snapshots for each period
         p1_snapshot = await self.get_compliance_at_point_in_time(organization_id, period1_end)
         p2_snapshot = await self.get_compliance_at_point_in_time(organization_id, period2_end)
-        
+
         if not p1_snapshot or not p2_snapshot:
             return {"error": "Insufficient snapshot data for comparison"}
-        
+
         return await self.snapshot_manager.compare_snapshots(p1_snapshot.id, p2_snapshot.id)
-    
+
     # =======================
     # DRIFT DETECTION
     # =======================
-    
+
     async def detect_drift(
         self,
         organization_id: UUID,
@@ -193,14 +203,14 @@ class EnhancedDigitalTwin:
     ) -> list[DriftEvent]:
         """Detect compliance drift by comparing recent snapshots."""
         snapshots = await self.snapshot_manager.list_snapshots(organization_id, limit=10)
-        
+
         if len(snapshots) < 2:
             return []
-        
+
         drift_events = []
         latest = snapshots[0]
         previous = snapshots[1]
-        
+
         # Score degradation
         score_delta = latest.overall_score - previous.overall_score
         if score_delta < -threshold:
@@ -209,12 +219,12 @@ class EnhancedDigitalTwin:
                 snapshot_before_id=previous.id,
                 snapshot_after_id=latest.id,
                 severity="high" if score_delta < -0.15 else "medium",
-                description=f"Compliance score dropped by {abs(score_delta)*100:.1f}%",
+                description=f"Compliance score dropped by {abs(score_delta) * 100:.1f}%",
                 score_delta=score_delta,
             )
             drift_events.append(event)
             self._store_drift_event(organization_id, event)
-        
+
         # New violations
         prev_codes = {i.code for i in previous.issues}
         for issue in latest.issues:
@@ -228,7 +238,7 @@ class EnhancedDigitalTwin:
                 )
                 drift_events.append(event)
                 self._store_drift_event(organization_id, event)
-        
+
         # Regulation score changes
         prev_regs = {r.regulation: r for r in previous.regulations}
         for reg in latest.regulations:
@@ -238,23 +248,25 @@ class EnhancedDigitalTwin:
                     event = DriftEvent(
                         drift_type=DriftType.CONTROL_WEAKENING,
                         severity="high" if reg.score < 0.6 else "medium",
-                        description=f"{reg.regulation} compliance dropped from {prev_reg.score*100:.0f}% to {reg.score*100:.0f}%",
+                        description=f"{reg.regulation} compliance dropped from {prev_reg.score * 100:.0f}% to {reg.score * 100:.0f}%",
                         affected_regulations=[reg.regulation],
                         score_delta=reg.score - prev_reg.score,
                     )
                     drift_events.append(event)
                     self._store_drift_event(organization_id, event)
-        
-        logger.info("Drift detection completed", org_id=str(organization_id), drift_count=len(drift_events))
+
+        logger.info(
+            "Drift detection completed", org_id=str(organization_id), drift_count=len(drift_events)
+        )
         return drift_events
-    
+
     def _store_drift_event(self, organization_id: UUID, event: DriftEvent) -> None:
         """Store a drift event."""
         self._drift_events[event.id] = event
         if organization_id not in self._drift_by_org:
             self._drift_by_org[organization_id] = []
         self._drift_by_org[organization_id].append(event.id)
-    
+
     async def get_drift_history(
         self,
         organization_id: UUID,
@@ -265,7 +277,7 @@ class EnhancedDigitalTwin:
         events = [self._drift_events[eid] for eid in event_ids if eid in self._drift_events]
         events.sort(key=lambda e: e.detected_at, reverse=True)
         return events[:limit]
-    
+
     async def enable_auto_remediation(
         self,
         organization_id: UUID,
@@ -274,11 +286,11 @@ class EnhancedDigitalTwin:
         """Enable or disable automatic drift remediation."""
         self._auto_remediation_enabled[organization_id] = enabled
         return enabled
-    
+
     # =======================
     # BREACH SIMULATION
     # =======================
-    
+
     async def simulate_breach(
         self,
         organization_id: UUID,
@@ -287,10 +299,10 @@ class EnhancedDigitalTwin:
     ) -> BreachImpact:
         """Simulate a breach scenario and assess impact."""
         params = parameters or {}
-        
+
         # Get current compliance state
         current_snapshot = await self.snapshot_manager.get_latest_snapshot(organization_id)
-        
+
         # Scenario-specific impact calculation
         if scenario == BreachScenario.DATA_EXFILTRATION:
             impact = self._simulate_data_exfiltration(current_snapshot, params)
@@ -306,19 +318,19 @@ class EnhancedDigitalTwin:
             impact = self._simulate_supply_chain_attack(current_snapshot, params)
         else:
             raise ValueError(f"Unknown breach scenario: {scenario}")
-        
+
         impact.scenario = scenario
         self._breach_simulations[impact.id] = impact
-        
+
         logger.info(
             "Breach simulation completed",
             scenario=scenario.value,
             records_at_risk=impact.records_at_risk,
             cost_estimate=impact.breach_cost_estimate,
         )
-        
+
         return impact
-    
+
     def _simulate_data_exfiltration(
         self,
         snapshot: ComplianceSnapshot | None,
@@ -327,35 +339,41 @@ class EnhancedDigitalTwin:
         """Simulate data exfiltration breach."""
         records = params.get("records_affected", 10000)
         data_types = params.get("data_types", ["PII", "email", "name"])
-        
+
         # Calculate regulatory notifications
         notifications = []
         if any(dt in ["PII", "personal_data", "email"] for dt in data_types):
-            notifications.append({
-                "regulation": "GDPR",
-                "authority": "Data Protection Authority",
-                "deadline_hours": 72,
-                "required": True,
-            })
-            notifications.append({
-                "regulation": "CCPA",
-                "authority": "California AG",
-                "deadline_hours": 72,
-                "required": records > 500,
-            })
-        
+            notifications.append(
+                {
+                    "regulation": "GDPR",
+                    "authority": "Data Protection Authority",
+                    "deadline_hours": 72,
+                    "required": True,
+                }
+            )
+            notifications.append(
+                {
+                    "regulation": "CCPA",
+                    "authority": "California AG",
+                    "deadline_hours": 72,
+                    "required": records > 500,
+                }
+            )
+
         if any(dt in ["PHI", "health", "medical"] for dt in data_types):
-            notifications.append({
-                "regulation": "HIPAA",
-                "authority": "HHS/OCR",
-                "deadline_hours": 60 * 24,  # 60 days
-                "required": True,
-            })
-        
+            notifications.append(
+                {
+                    "regulation": "HIPAA",
+                    "authority": "HHS/OCR",
+                    "deadline_hours": 60 * 24,  # 60 days
+                    "required": True,
+                }
+            )
+
         # Cost calculation (based on IBM cost of data breach)
         cost_per_record = 165 if "PHI" in data_types else 150
         base_cost = records * cost_per_record
-        
+
         return BreachImpact(
             data_types_affected=data_types,
             records_at_risk=records,
@@ -378,7 +396,7 @@ class EnhancedDigitalTwin:
             breach_cost_estimate=base_cost,
             litigation_risk="high" if records > 10000 else "medium",
         )
-    
+
     def _simulate_ransomware(
         self,
         snapshot: ComplianceSnapshot | None,
@@ -386,7 +404,7 @@ class EnhancedDigitalTwin:
     ) -> BreachImpact:
         """Simulate ransomware attack."""
         systems_affected = params.get("systems", ["all_production"])
-        
+
         return BreachImpact(
             data_types_affected=["all_data"],
             records_at_risk=params.get("records", 100000),
@@ -413,7 +431,7 @@ class EnhancedDigitalTwin:
             breach_cost_estimate=params.get("ransom_demand", 500000) + 2000000,  # Ransom + recovery
             litigation_risk="high",
         )
-    
+
     def _simulate_insider_threat(
         self,
         snapshot: ComplianceSnapshot | None,
@@ -443,7 +461,7 @@ class EnhancedDigitalTwin:
             breach_cost_estimate=750000,
             litigation_risk="medium",
         )
-    
+
     def _simulate_api_breach(
         self,
         snapshot: ComplianceSnapshot | None,
@@ -456,7 +474,12 @@ class EnhancedDigitalTwin:
             data_sensitivity="high",
             regulatory_notifications_required=[
                 {"regulation": "GDPR", "authority": "DPA", "deadline_hours": 72, "required": True},
-                {"regulation": "PCI-DSS", "authority": "Card brands", "deadline_hours": 24, "required": True},
+                {
+                    "regulation": "PCI-DSS",
+                    "authority": "Card brands",
+                    "deadline_hours": 24,
+                    "required": True,
+                },
             ],
             notification_deadline_hours=24,
             estimated_fine_range=(50000, 2000000),
@@ -475,7 +498,7 @@ class EnhancedDigitalTwin:
             breach_cost_estimate=1200000,
             litigation_risk="high",
         )
-    
+
     def _simulate_third_party_compromise(
         self,
         snapshot: ComplianceSnapshot | None,
@@ -483,7 +506,7 @@ class EnhancedDigitalTwin:
     ) -> BreachImpact:
         """Simulate third-party/vendor compromise."""
         vendor_name = params.get("vendor", "Analytics Provider")
-        
+
         return BreachImpact(
             data_types_affected=["shared_data", "integration_data"],
             records_at_risk=params.get("records", 50000),
@@ -497,7 +520,11 @@ class EnhancedDigitalTwin:
             estimated_downtime_hours=12,
             recovery_time_estimate_hours=120,
             compliance_score_impact=-0.18,
-            controls_failed=["vendor_risk_management", "data_sharing_controls", "third_party_monitoring"],
+            controls_failed=[
+                "vendor_risk_management",
+                "data_sharing_controls",
+                "third_party_monitoring",
+            ],
             required_remediation=[
                 f"Disable {vendor_name} integration",
                 "Audit all third-party data sharing",
@@ -508,7 +535,7 @@ class EnhancedDigitalTwin:
             breach_cost_estimate=900000,
             litigation_risk="medium",
         )
-    
+
     def _simulate_supply_chain_attack(
         self,
         snapshot: ComplianceSnapshot | None,
@@ -541,11 +568,11 @@ class EnhancedDigitalTwin:
             breach_cost_estimate=5000000,
             litigation_risk="critical",
         )
-    
+
     async def get_breach_simulation(self, simulation_id: UUID) -> BreachImpact | None:
         """Get a breach simulation by ID."""
         return self._breach_simulations.get(simulation_id)
-    
+
     async def list_breach_simulations(self, limit: int = 20) -> list[BreachImpact]:
         """List recent breach simulations."""
         simulations = list(self._breach_simulations.values())

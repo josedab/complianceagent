@@ -1,7 +1,7 @@
 """Codebase Graph Model - Dependency and data flow graph for compliance analysis."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -14,6 +14,7 @@ logger = structlog.get_logger()
 
 class CodeNodeType(str, Enum):
     """Types of nodes in the codebase graph."""
+
     MODULE = "module"
     CLASS = "class"
     FUNCTION = "function"
@@ -29,6 +30,7 @@ class CodeNodeType(str, Enum):
 
 class DataFlowType(str, Enum):
     """Types of data flow relationships."""
+
     CALLS = "calls"
     IMPORTS = "imports"
     INHERITS = "inherits"
@@ -43,6 +45,7 @@ class DataFlowType(str, Enum):
 
 class DataSensitivity(str, Enum):
     """Data sensitivity classifications."""
+
     PUBLIC = "public"
     INTERNAL = "internal"
     CONFIDENTIAL = "confidential"
@@ -56,6 +59,7 @@ class DataSensitivity(str, Enum):
 @dataclass
 class CodeNode:
     """A node in the codebase graph."""
+
     id: UUID = field(default_factory=uuid4)
     node_type: CodeNodeType = CodeNodeType.FILE
     name: str = ""
@@ -64,20 +68,20 @@ class CodeNode:
     start_line: int | None = None
     end_line: int | None = None
     language: str = ""
-    
+
     # Data handling
     data_types_handled: list[str] = field(default_factory=list)
     data_sensitivity: list[DataSensitivity] = field(default_factory=list)
-    
+
     # Compliance annotations
     compliance_annotations: list[str] = field(default_factory=list)
     compliance_issues: list[str] = field(default_factory=list)
-    
+
     # Metadata
     description: str = ""
     documentation: str = ""
     properties: dict[str, Any] = field(default_factory=dict)
-    
+
     # Visualization
     x: float = 0.0
     y: float = 0.0
@@ -89,21 +93,22 @@ class CodeNode:
 @dataclass
 class DataFlowEdge:
     """An edge representing data flow between nodes."""
+
     id: UUID = field(default_factory=uuid4)
     source_id: UUID = field(default_factory=uuid4)
     target_id: UUID = field(default_factory=uuid4)
     flow_type: DataFlowType = DataFlowType.CALLS
-    
+
     # Data characteristics
     data_types: list[str] = field(default_factory=list)
     data_sensitivity: list[DataSensitivity] = field(default_factory=list)
     is_encrypted: bool = False
     is_logged: bool = False
-    
+
     # Compliance status
     compliance_status: str = "unknown"
     compliance_issues: list[str] = field(default_factory=list)
-    
+
     # Metadata
     weight: float = 1.0
     label: str = ""
@@ -113,22 +118,23 @@ class DataFlowEdge:
 @dataclass
 class DataFlow:
     """A complete data flow path through the codebase."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     description: str = ""
-    
+
     # Flow path
     nodes: list[UUID] = field(default_factory=list)
     edges: list[UUID] = field(default_factory=list)
-    
+
     # Entry/exit points
     entry_point: UUID | None = None
     exit_points: list[UUID] = field(default_factory=list)
-    
+
     # Data characteristics
     data_types: list[str] = field(default_factory=list)
     data_sensitivity: list[DataSensitivity] = field(default_factory=list)
-    
+
     # Compliance
     regulations_affected: list[str] = field(default_factory=list)
     compliance_status: str = "unknown"
@@ -139,62 +145,63 @@ class DataFlow:
 @dataclass
 class CodebaseGraph:
     """Complete codebase graph with nodes, edges, and data flows."""
+
     id: UUID = field(default_factory=uuid4)
     repository_id: UUID | None = None
     organization_id: UUID | None = None
     name: str = ""
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
-    
+
     # Graph components
     nodes: list[CodeNode] = field(default_factory=list)
     edges: list[DataFlowEdge] = field(default_factory=list)
     data_flows: list[DataFlow] = field(default_factory=list)
-    
+
     # Indexes
     _nodes_by_id: dict[UUID, CodeNode] = field(default_factory=dict)
     _edges_by_source: dict[UUID, list[DataFlowEdge]] = field(default_factory=dict)
     _edges_by_target: dict[UUID, list[DataFlowEdge]] = field(default_factory=dict)
     _nodes_by_type: dict[CodeNodeType, list[CodeNode]] = field(default_factory=dict)
-    
+
     # Statistics
     commit_sha: str | None = None
     files_analyzed: int = 0
     languages: list[str] = field(default_factory=list)
-    
+
     def add_node(self, node: CodeNode) -> None:
         """Add a node to the graph."""
         self.nodes.append(node)
         self._nodes_by_id[node.id] = node
-        
+
         if node.node_type not in self._nodes_by_type:
             self._nodes_by_type[node.node_type] = []
         self._nodes_by_type[node.node_type].append(node)
-    
+
     def add_edge(self, edge: DataFlowEdge) -> None:
         """Add an edge to the graph."""
         self.edges.append(edge)
-        
+
         if edge.source_id not in self._edges_by_source:
             self._edges_by_source[edge.source_id] = []
         self._edges_by_source[edge.source_id].append(edge)
-        
+
         if edge.target_id not in self._edges_by_target:
             self._edges_by_target[edge.target_id] = []
         self._edges_by_target[edge.target_id].append(edge)
-    
+
     def get_node(self, node_id: UUID) -> CodeNode | None:
         """Get a node by ID."""
         return self._nodes_by_id.get(node_id)
-    
+
     def get_outgoing_edges(self, node_id: UUID) -> list[DataFlowEdge]:
         """Get edges originating from a node."""
         return self._edges_by_source.get(node_id, [])
-    
+
     def get_incoming_edges(self, node_id: UUID) -> list[DataFlowEdge]:
         """Get edges targeting a node."""
         return self._edges_by_target.get(node_id, [])
-    
+
     def get_neighbors(self, node_id: UUID) -> list[CodeNode]:
         """Get neighboring nodes."""
         neighbors = []
@@ -207,17 +214,14 @@ class CodebaseGraph:
             if node:
                 neighbors.append(node)
         return neighbors
-    
+
     def find_nodes_handling_data(
         self,
         sensitivity: DataSensitivity,
     ) -> list[CodeNode]:
         """Find all nodes handling data of a specific sensitivity."""
-        return [
-            node for node in self.nodes
-            if sensitivity in node.data_sensitivity
-        ]
-    
+        return [node for node in self.nodes if sensitivity in node.data_sensitivity]
+
     def get_data_flow_path(
         self,
         start_id: UUID,
@@ -226,31 +230,31 @@ class CodebaseGraph:
     ) -> list[list[UUID]]:
         """Find paths between two nodes."""
         paths = []
-        
+
         def dfs(current: UUID, target: UUID, path: list[UUID], depth: int):
             if depth > max_depth:
                 return
             if current == target:
                 paths.append(path.copy())
                 return
-            
+
             for edge in self.get_outgoing_edges(current):
                 if edge.target_id not in path:
                     path.append(edge.target_id)
                     dfs(edge.target_id, target, path, depth + 1)
                     path.pop()
-        
+
         dfs(start_id, end_id, [start_id], 0)
         return paths
-    
+
     @property
     def node_count(self) -> int:
         return len(self.nodes)
-    
+
     @property
     def edge_count(self) -> int:
         return len(self.edges)
-    
+
     @property
     def sensitive_data_nodes(self) -> list[CodeNode]:
         """Get nodes handling sensitive data."""
@@ -261,8 +265,7 @@ class CodebaseGraph:
             DataSensitivity.RESTRICTED,
         }
         return [
-            node for node in self.nodes
-            if any(s in sensitive_types for s in node.data_sensitivity)
+            node for node in self.nodes if any(s in sensitive_types for s in node.data_sensitivity)
         ]
 
 
@@ -283,31 +286,31 @@ class CodebaseGraphBuilder:
         graph = CodebaseGraph(
             repository_id=repository_id,
             organization_id=organization_id,
-            name=f"Codebase Graph - {datetime.utcnow().strftime('%Y-%m-%d')}",
+            name=f"Codebase Graph - {datetime.now(UTC).strftime('%Y-%m-%d')}",
             commit_sha=commit_sha,
         )
-        
+
         # Analyze each file
         for file_path, content in files.items():
             await self._analyze_file(graph, file_path, content)
-        
+
         # Detect data flows
         await self._detect_data_flows(graph)
-        
+
         # Apply compliance analysis
         await self._analyze_compliance(graph)
-        
+
         # Calculate layout
         self._apply_layout(graph)
-        
+
         # Update statistics
         graph.files_analyzed = len(files)
-        graph.languages = list(set(n.language for n in graph.nodes if n.language))
-        graph.updated_at = datetime.utcnow()
-        
+        graph.languages = list({n.language for n in graph.nodes if n.language})
+        graph.updated_at = datetime.now(UTC)
+
         # Store graph
         self._graphs[graph.id] = graph
-        
+
         logger.info(
             "codebase_graph_built",
             graph_id=str(graph.id),
@@ -315,7 +318,7 @@ class CodebaseGraphBuilder:
             edges=graph.edge_count,
             data_flows=len(graph.data_flows),
         )
-        
+
         return graph
 
     async def _analyze_file(
@@ -327,7 +330,7 @@ class CodebaseGraphBuilder:
         """Analyze a single file and add nodes/edges."""
         # Detect language
         language = self._detect_language(file_path)
-        
+
         # Create file node
         file_node = CodeNode(
             node_type=CodeNodeType.FILE,
@@ -336,12 +339,12 @@ class CodebaseGraphBuilder:
             file_path=file_path,
             language=language,
         )
-        
+
         # Analyze content for data handling patterns
         self._detect_data_handling(file_node, content)
-        
+
         graph.add_node(file_node)
-        
+
         # Extract functions/classes (simplified pattern matching)
         if language == "python":
             await self._analyze_python_file(graph, file_node, content)
@@ -370,39 +373,68 @@ class CodebaseGraphBuilder:
     def _detect_data_handling(self, node: CodeNode, content: str) -> None:
         """Detect what types of data a file handles."""
         content_lower = content.lower()
-        
+
         # PII indicators
         pii_patterns = [
-            "email", "phone", "address", "ssn", "social_security",
-            "name", "user_name", "first_name", "last_name", "dob",
-            "date_of_birth", "password", "credentials",
+            "email",
+            "phone",
+            "address",
+            "ssn",
+            "social_security",
+            "name",
+            "user_name",
+            "first_name",
+            "last_name",
+            "dob",
+            "date_of_birth",
+            "password",
+            "credentials",
         ]
         if any(p in content_lower for p in pii_patterns):
             node.data_sensitivity.append(DataSensitivity.PII)
             node.data_types_handled.append("pii")
-        
+
         # PHI indicators (HIPAA)
         phi_patterns = [
-            "patient", "medical", "health", "diagnosis", "treatment",
-            "prescription", "insurance", "hipaa", "phi",
+            "patient",
+            "medical",
+            "health",
+            "diagnosis",
+            "treatment",
+            "prescription",
+            "insurance",
+            "hipaa",
+            "phi",
         ]
         if any(p in content_lower for p in phi_patterns):
             node.data_sensitivity.append(DataSensitivity.PHI)
             node.data_types_handled.append("phi")
-        
+
         # PCI indicators
         pci_patterns = [
-            "credit_card", "card_number", "cvv", "expiry", "payment",
-            "stripe", "billing", "pan", "cardholder",
+            "credit_card",
+            "card_number",
+            "cvv",
+            "expiry",
+            "payment",
+            "stripe",
+            "billing",
+            "pan",
+            "cardholder",
         ]
         if any(p in content_lower for p in pci_patterns):
             node.data_sensitivity.append(DataSensitivity.PCI)
             node.data_types_handled.append("pci")
-        
+
         # Financial data
         financial_patterns = [
-            "account_number", "balance", "transaction", "bank",
-            "routing_number", "wire", "ach",
+            "account_number",
+            "balance",
+            "transaction",
+            "bank",
+            "routing_number",
+            "wire",
+            "ach",
         ]
         if any(p in content_lower for p in financial_patterns):
             node.data_sensitivity.append(DataSensitivity.FINANCIAL)
@@ -416,9 +448,9 @@ class CodebaseGraphBuilder:
     ) -> None:
         """Analyze Python file for functions and classes."""
         import re
-        
+
         # Find class definitions
-        class_pattern = r'class\s+(\w+)(?:\([^)]*\))?:'
+        class_pattern = r"class\s+(\w+)(?:\([^)]*\))?:"
         for match in re.finditer(class_pattern, content):
             class_name = match.group(1)
             class_node = CodeNode(
@@ -426,12 +458,12 @@ class CodebaseGraphBuilder:
                 name=class_name,
                 qualified_name=f"{file_node.qualified_name}:{class_name}",
                 file_path=file_node.file_path,
-                start_line=content[:match.start()].count('\n') + 1,
+                start_line=content[: match.start()].count("\n") + 1,
                 language="python",
             )
-            self._detect_data_handling(class_node, content[match.start():])
+            self._detect_data_handling(class_node, content[match.start() :])
             graph.add_node(class_node)
-            
+
             # Link file -> class
             edge = DataFlowEdge(
                 source_id=file_node.id,
@@ -440,23 +472,23 @@ class CodebaseGraphBuilder:
                 label="contains",
             )
             graph.add_edge(edge)
-        
+
         # Find function definitions
-        func_pattern = r'def\s+(\w+)\s*\([^)]*\):'
+        func_pattern = r"def\s+(\w+)\s*\([^)]*\):"
         for match in re.finditer(func_pattern, content):
             func_name = match.group(1)
-            if func_name.startswith('_'):
+            if func_name.startswith("_"):
                 continue  # Skip private methods
-            
+
             func_node = CodeNode(
                 node_type=CodeNodeType.FUNCTION,
                 name=func_name,
                 qualified_name=f"{file_node.qualified_name}:{func_name}",
                 file_path=file_node.file_path,
-                start_line=content[:match.start()].count('\n') + 1,
+                start_line=content[: match.start()].count("\n") + 1,
                 language="python",
             )
-            self._detect_data_handling(func_node, content[match.start():match.start()+500])
+            self._detect_data_handling(func_node, content[match.start() : match.start() + 500])
             graph.add_node(func_node)
 
     async def _analyze_js_file(
@@ -467,14 +499,14 @@ class CodebaseGraphBuilder:
     ) -> None:
         """Analyze JavaScript/TypeScript file."""
         import re
-        
+
         # Find function definitions
         func_patterns = [
-            r'function\s+(\w+)\s*\(',
-            r'const\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>',
-            r'const\s+(\w+)\s*=\s*(?:async\s*)?function',
+            r"function\s+(\w+)\s*\(",
+            r"const\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>",
+            r"const\s+(\w+)\s*=\s*(?:async\s*)?function",
         ]
-        
+
         for pattern in func_patterns:
             for match in re.finditer(pattern, content):
                 func_name = match.group(1)
@@ -483,27 +515,34 @@ class CodebaseGraphBuilder:
                     name=func_name,
                     qualified_name=f"{file_node.qualified_name}:{func_name}",
                     file_path=file_node.file_path,
-                    start_line=content[:match.start()].count('\n') + 1,
+                    start_line=content[: match.start()].count("\n") + 1,
                     language=file_node.language,
                 )
-                self._detect_data_handling(func_node, content[match.start():match.start()+500])
+                self._detect_data_handling(func_node, content[match.start() : match.start() + 500])
                 graph.add_node(func_node)
 
     async def _detect_data_flows(self, graph: CodebaseGraph) -> None:
         """Detect data flow patterns in the graph."""
         # Find API endpoints that handle data
         api_nodes = [
-            n for n in graph.nodes
-            if n.node_type == CodeNodeType.FUNCTION and
-            any(d in n.name.lower() for d in ["get", "post", "put", "delete", "create", "update"])
+            n
+            for n in graph.nodes
+            if n.node_type == CodeNodeType.FUNCTION
+            and any(
+                d in n.name.lower() for d in ["get", "post", "put", "delete", "create", "update"]
+            )
         ]
-        
+
         # Find database-related nodes
         db_nodes = [
-            n for n in graph.nodes
-            if any(d in n.name.lower() for d in ["query", "insert", "update", "delete", "select", "save"])
+            n
+            for n in graph.nodes
+            if any(
+                d in n.name.lower()
+                for d in ["query", "insert", "update", "delete", "select", "save"]
+            )
         ]
-        
+
         # Create data flows between API and DB nodes
         for api_node in api_nodes:
             for db_node in db_nodes:
@@ -513,11 +552,15 @@ class CodebaseGraphBuilder:
                         source_id=api_node.id,
                         target_id=db_node.id,
                         flow_type=DataFlowType.CALLS,
-                        data_types=list(set(api_node.data_types_handled + db_node.data_types_handled)),
-                        data_sensitivity=list(set(api_node.data_sensitivity + db_node.data_sensitivity)),
+                        data_types=list(
+                            set(api_node.data_types_handled + db_node.data_types_handled)
+                        ),
+                        data_sensitivity=list(
+                            set(api_node.data_sensitivity + db_node.data_sensitivity)
+                        ),
                     )
                     graph.add_edge(edge)
-        
+
         # Identify complete data flows
         sensitive_nodes = graph.sensitive_data_nodes
         for node in sensitive_nodes:
@@ -529,7 +572,7 @@ class CodebaseGraphBuilder:
                 data_types=node.data_types_handled,
                 data_sensitivity=node.data_sensitivity,
             )
-            
+
             # Trace downstream
             visited = {node.id}
             queue = [node.id]
@@ -541,7 +584,7 @@ class CodebaseGraphBuilder:
                         flow.nodes.append(edge.target_id)
                         flow.edges.append(edge.id)
                         queue.append(edge.target_id)
-            
+
             if len(flow.nodes) > 1:
                 graph.data_flows.append(flow)
 
@@ -549,7 +592,7 @@ class CodebaseGraphBuilder:
         """Analyze compliance status of nodes and data flows."""
         for node in graph.nodes:
             issues = []
-            
+
             # Check for unencrypted sensitive data
             if node.data_sensitivity and DataSensitivity.PII in node.data_sensitivity:
                 # Check for encryption patterns
@@ -558,46 +601,47 @@ class CodebaseGraphBuilder:
                     for ann in ["encrypted", "secure", "protected"]
                 ):
                     issues.append("PII may not be encrypted")
-            
+
             if DataSensitivity.PHI in node.data_sensitivity:
                 issues.append("PHI handling requires HIPAA compliance review")
-            
+
             if DataSensitivity.PCI in node.data_sensitivity:
                 issues.append("PCI data handling requires PCI-DSS compliance review")
-            
+
             node.compliance_issues = issues
-        
+
         # Analyze data flows
         for flow in graph.data_flows:
             if DataSensitivity.PII in flow.data_sensitivity:
                 flow.regulations_affected.append("GDPR")
                 flow.regulations_affected.append("CCPA")
-            
+
             if DataSensitivity.PHI in flow.data_sensitivity:
                 flow.regulations_affected.append("HIPAA")
-            
+
             if DataSensitivity.PCI in flow.data_sensitivity:
                 flow.regulations_affected.append("PCI-DSS")
-            
+
             # Calculate compliance score
             total_nodes = len(flow.nodes)
             nodes_with_issues = sum(
-                1 for nid in flow.nodes
-                if (n := graph.get_node(nid)) and n.compliance_issues
+                1 for nid in flow.nodes if (n := graph.get_node(nid)) and n.compliance_issues
             )
-            
+
             if total_nodes > 0:
                 flow.compliance_score = 1.0 - (nodes_with_issues / total_nodes)
                 flow.compliance_status = (
-                    "compliant" if flow.compliance_score >= 0.9
-                    else "partial" if flow.compliance_score >= 0.5
+                    "compliant"
+                    if flow.compliance_score >= 0.9
+                    else "partial"
+                    if flow.compliance_score >= 0.5
                     else "non_compliant"
                 )
 
     def _apply_layout(self, graph: CodebaseGraph) -> None:
         """Apply layout algorithm to graph nodes."""
         import math
-        
+
         # Group by node type
         type_positions = {
             CodeNodeType.API_ENDPOINT: (0, 0),
@@ -607,7 +651,7 @@ class CodebaseGraphBuilder:
             CodeNodeType.DATABASE_TABLE: (600, 0),
             CodeNodeType.EXTERNAL_SERVICE: (800, 0),
         }
-        
+
         for node_type, nodes in graph._nodes_by_type.items():
             base_x, base_y = type_positions.get(node_type, (300, 200))
             for i, node in enumerate(nodes):
@@ -628,7 +672,7 @@ class CodebaseGraphBuilder:
         graph = self._graphs.get(graph_id)
         if not graph:
             raise ValueError(f"Graph not found: {graph_id}")
-        
+
         return {
             "id": str(graph.id),
             "name": graph.name,

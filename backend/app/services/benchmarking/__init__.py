@@ -13,12 +13,12 @@ from app.services.benchmarking.service import BenchmarkingService
 
 
 __all__ = [
-    "BenchmarkingService",
     "AnnotatedPassage",
     "AnnotationLabel",
     "BenchmarkCorpus",
     "BenchmarkResult",
     "BenchmarkStatus",
+    "BenchmarkingService",
     "MetricScores",
     "PredictionResult",
 ]

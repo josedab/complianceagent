@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -57,15 +57,15 @@ _SCENARIOS: list[SandboxScenario] = [
                 description="The /users endpoint returns full SSN and date of birth without masking.",
                 file_path="services/user_service.py",
                 code_snippet=(
-                    'def get_user(user_id):\n'
-                    '    user = db.query(User).get(user_id)\n'
+                    "def get_user(user_id):\n"
+                    "    user = db.query(User).get(user_id)\n"
                     '    return {"name": user.name, "email": user.email,\n'
                     '            "ssn": user.ssn, "dob": user.dob}'
                 ),
                 hint="Sensitive fields like SSN should be masked or excluded from API responses.",
                 solution_snippet=(
-                    'def get_user(user_id):\n'
-                    '    user = db.query(User).get(user_id)\n'
+                    "def get_user(user_id):\n"
+                    "    user = db.query(User).get(user_id)\n"
                     '    return {"name": user.name, "email": user.email,\n'
                     '            "ssn": mask_ssn(user.ssn), "dob": None}'
                 ),
@@ -86,12 +86,12 @@ _SCENARIOS: list[SandboxScenario] = [
                 ),
                 hint="GDPR requires freely given, specific, informed consent before processing for marketing.",
                 solution_snippet=(
-                    'def register_user(email, name, marketing_consent=False):\n'
-                    '    user = create_user(email, name)\n'
-                    '    if marketing_consent:\n'
-                    '        record_consent(user.id, "marketing", datetime.utcnow())\n'
-                    '        add_to_marketing_list(email)\n'
-                    '    return user'
+                    "def register_user(email, name, marketing_consent=False):\n"
+                    "    user = create_user(email, name)\n"
+                    "    if marketing_consent:\n"
+                    '        record_consent(user.id, "marketing", datetime.now(UTC))\n'
+                    "        add_to_marketing_list(email)\n"
+                    "    return user"
                 ),
                 points=15,
                 regulation_article="GDPR Art. 7 - Conditions for Consent",
@@ -113,12 +113,12 @@ _SCENARIOS: list[SandboxScenario] = [
                     "def delete_user(user_id):\n"
                     "    user = db.query(User).get(user_id)\n"
                     "    user.is_deleted = True\n"
-                    "    user.deletion_scheduled_at = datetime.utcnow() + timedelta(days=30)\n"
+                    "    user.deletion_scheduled_at = datetime.now(UTC) + timedelta(days=30)\n"
                     "    db.commit()\n"
                     "\n"
                     "def purge_expired_users():\n"
                     "    expired = db.query(User).filter(\n"
-                    "        User.deletion_scheduled_at <= datetime.utcnow()\n"
+                    "        User.deletion_scheduled_at <= datetime.now(UTC)\n"
                     "    ).all()\n"
                     "    for u in expired:\n"
                     "        db.delete(u)\n"
@@ -154,21 +154,21 @@ _SCENARIOS: list[SandboxScenario] = [
                 description="Medical diagnoses and treatment notes are stored without encryption.",
                 file_path="models/patient.py",
                 code_snippet=(
-                    'class Patient(Base):\n'
+                    "class Patient(Base):\n"
                     '    __tablename__ = "patients"\n'
-                    '    id = Column(Integer, primary_key=True)\n'
-                    '    name = Column(String)\n'
-                    '    diagnosis = Column(String)  # PHI stored in plaintext\n'
-                    '    treatment_notes = Column(Text)  # PHI stored in plaintext'
+                    "    id = Column(Integer, primary_key=True)\n"
+                    "    name = Column(String)\n"
+                    "    diagnosis = Column(String)  # PHI stored in plaintext\n"
+                    "    treatment_notes = Column(Text)  # PHI stored in plaintext"
                 ),
                 hint="Use column-level encryption (e.g., AES-256) for PHI fields.",
                 solution_snippet=(
-                    'class Patient(Base):\n'
+                    "class Patient(Base):\n"
                     '    __tablename__ = "patients"\n'
-                    '    id = Column(Integer, primary_key=True)\n'
-                    '    name = Column(String)\n'
-                    '    diagnosis = Column(EncryptedString(key=PHI_KEY))\n'
-                    '    treatment_notes = Column(EncryptedText(key=PHI_KEY))'
+                    "    id = Column(Integer, primary_key=True)\n"
+                    "    name = Column(String)\n"
+                    "    diagnosis = Column(EncryptedString(key=PHI_KEY))\n"
+                    "    treatment_notes = Column(EncryptedText(key=PHI_KEY))"
                 ),
                 points=20,
                 regulation_article="HIPAA §164.312(a)(2)(iv) - Encryption",
@@ -181,17 +181,17 @@ _SCENARIOS: list[SandboxScenario] = [
                 file_path="api/patients.py",
                 code_snippet=(
                     '@app.get("/patients/{patient_id}")\n'
-                    'def get_patient(patient_id: int, current_user: User):\n'
-                    '    return db.query(Patient).get(patient_id)'
+                    "def get_patient(patient_id: int, current_user: User):\n"
+                    "    return db.query(Patient).get(patient_id)"
                 ),
                 hint="Check that the current user has the appropriate role (e.g., physician, nurse) for the requested patient.",
                 solution_snippet=(
                     '@app.get("/patients/{patient_id}")\n'
-                    'def get_patient(patient_id: int, current_user: User):\n'
-                    '    if not has_patient_access(current_user, patient_id):\n'
+                    "def get_patient(patient_id: int, current_user: User):\n"
+                    "    if not has_patient_access(current_user, patient_id):\n"
                     '        raise HTTPException(403, "Insufficient access")\n'
-                    '    log_access(current_user.id, patient_id)\n'
-                    '    return db.query(Patient).get(patient_id)'
+                    "    log_access(current_user.id, patient_id)\n"
+                    "    return db.query(Patient).get(patient_id)"
                 ),
                 points=20,
                 regulation_article="HIPAA §164.312(a)(1) - Access Control",
@@ -204,21 +204,21 @@ _SCENARIOS: list[SandboxScenario] = [
                 file_path="api/patients.py",
                 code_snippet=(
                     '@app.get("/patients")\n'
-                    'def list_patients(current_user: User):\n'
-                    '    return db.query(Patient).all()'
+                    "def list_patients(current_user: User):\n"
+                    "    return db.query(Patient).all()"
                 ),
                 hint="Every access to PHI must be logged with who, what, when, and why.",
                 solution_snippet=(
                     '@app.get("/patients")\n'
-                    'def list_patients(current_user: User):\n'
-                    '    patients = db.query(Patient).all()\n'
-                    '    audit_log.record(\n'
-                    '        user_id=current_user.id,\n'
+                    "def list_patients(current_user: User):\n"
+                    "    patients = db.query(Patient).all()\n"
+                    "    audit_log.record(\n"
+                    "        user_id=current_user.id,\n"
                     '        action="list_patients",\n'
-                    '        resource_count=len(patients),\n'
-                    '        timestamp=datetime.utcnow(),\n'
-                    '    )\n'
-                    '    return patients'
+                    "        resource_count=len(patients),\n"
+                    "        timestamp=datetime.now(UTC),\n"
+                    "    )\n"
+                    "    return patients"
                 ),
                 points=15,
                 regulation_article="HIPAA §164.312(b) - Audit Controls",
@@ -250,20 +250,20 @@ _SCENARIOS: list[SandboxScenario] = [
                 description="The payment table stores the full 16-digit PAN in a plaintext column.",
                 file_path="models/payment.py",
                 code_snippet=(
-                    'class Payment(Base):\n'
+                    "class Payment(Base):\n"
                     '    __tablename__ = "payments"\n'
-                    '    id = Column(Integer, primary_key=True)\n'
-                    '    card_number = Column(String(16))  # full PAN\n'
-                    '    amount = Column(Numeric)'
+                    "    id = Column(Integer, primary_key=True)\n"
+                    "    card_number = Column(String(16))  # full PAN\n"
+                    "    amount = Column(Numeric)"
                 ),
                 hint="Replace full PAN storage with a tokenised reference from the payment processor.",
                 solution_snippet=(
-                    'class Payment(Base):\n'
+                    "class Payment(Base):\n"
                     '    __tablename__ = "payments"\n'
-                    '    id = Column(Integer, primary_key=True)\n'
-                    '    card_token = Column(String(64))  # tokenised reference\n'
-                    '    card_last_four = Column(String(4))\n'
-                    '    amount = Column(Numeric)'
+                    "    id = Column(Integer, primary_key=True)\n"
+                    "    card_token = Column(String(64))  # tokenised reference\n"
+                    "    card_last_four = Column(String(4))\n"
+                    "    amount = Column(Numeric)"
                 ),
                 points=25,
                 regulation_article="PCI-DSS Req. 3.4 - Render PAN Unreadable",
@@ -276,18 +276,18 @@ _SCENARIOS: list[SandboxScenario] = [
                 file_path="api/admin.py",
                 code_snippet=(
                     '@app.post("/admin/login")\n'
-                    'def admin_login(username: str, password: str):\n'
-                    '    user = authenticate(username, password)\n'
-                    '    return create_session(user)'
+                    "def admin_login(username: str, password: str):\n"
+                    "    user = authenticate(username, password)\n"
+                    "    return create_session(user)"
                 ),
                 hint="PCI-DSS requires multi-factor authentication for administrative access.",
                 solution_snippet=(
                     '@app.post("/admin/login")\n'
-                    'def admin_login(username: str, password: str, mfa_code: str):\n'
-                    '    user = authenticate(username, password)\n'
-                    '    if not verify_mfa(user, mfa_code):\n'
+                    "def admin_login(username: str, password: str, mfa_code: str):\n"
+                    "    user = authenticate(username, password)\n"
+                    "    if not verify_mfa(user, mfa_code):\n"
                     '        raise HTTPException(401, "MFA verification failed")\n'
-                    '    return create_session(user)'
+                    "    return create_session(user)"
                 ),
                 points=20,
                 regulation_article="PCI-DSS Req. 8.3 - Multi-Factor Authentication",
@@ -320,20 +320,20 @@ _SCENARIOS: list[SandboxScenario] = [
                 description="When a data breach is detected there is no process to notify the supervisory authority within 72 hours.",
                 file_path="services/security_service.py",
                 code_snippet=(
-                    'def handle_breach(breach_details):\n'
+                    "def handle_breach(breach_details):\n"
                     '    log.error("Data breach detected", details=breach_details)\n'
-                    '    # TODO: notify authorities'
+                    "    # TODO: notify authorities"
                 ),
                 hint="Implement an automated notification pipeline that alerts the DPO and submits to the supervisory authority within 72 hours.",
                 solution_snippet=(
-                    'def handle_breach(breach_details):\n'
+                    "def handle_breach(breach_details):\n"
                     '    log.error("Data breach detected", details=breach_details)\n'
-                    '    breach_record = create_breach_record(breach_details)\n'
-                    '    notify_dpo(breach_record)\n'
-                    '    schedule_authority_notification(\n'
-                    '        breach_record, deadline_hours=72\n'
-                    '    )\n'
-                    '    notify_affected_users(breach_record)'
+                    "    breach_record = create_breach_record(breach_details)\n"
+                    "    notify_dpo(breach_record)\n"
+                    "    schedule_authority_notification(\n"
+                    "        breach_record, deadline_hours=72\n"
+                    "    )\n"
+                    "    notify_affected_users(breach_record)"
                 ),
                 points=25,
                 regulation_article="GDPR Art. 33 - Notification to Supervisory Authority",
@@ -352,17 +352,17 @@ _SCENARIOS: list[SandboxScenario] = [
                 ),
                 hint="High-risk processing (profiling, large-scale monitoring) requires a DPIA before deployment.",
                 solution_snippet=(
-                    'def deploy_profiling_model(model, user_dataset):\n'
-                    '    dpia = create_dpia(\n'
+                    "def deploy_profiling_model(model, user_dataset):\n"
+                    "    dpia = create_dpia(\n"
                     '        processing_type="automated_profiling",\n'
                     '        data_categories=["behavioral", "demographic"],\n'
-                    '        risk_assessment=assess_risk(user_dataset),\n'
-                    '    )\n'
-                    '    if not dpia.approved:\n'
+                    "        risk_assessment=assess_risk(user_dataset),\n"
+                    "    )\n"
+                    "    if not dpia.approved:\n"
                     '        raise ComplianceError("DPIA approval required")\n'
-                    '    predictions = model.predict(user_dataset)\n'
-                    '    store_predictions(predictions)\n'
-                    '    return predictions'
+                    "    predictions = model.predict(user_dataset)\n"
+                    "    store_predictions(predictions)\n"
+                    "    return predictions"
                 ),
                 points=20,
                 regulation_article="GDPR Art. 35 - Data Protection Impact Assessment",
@@ -395,27 +395,27 @@ _SCENARIOS: list[SandboxScenario] = [
                 file_path="api/billing.py",
                 code_snippet=(
                     '@app.get("/billing/{patient_id}")\n'
-                    'def get_billing(patient_id):\n'
-                    '    patient = db.query(Patient).get(patient_id)\n'
-                    '    return {\n'
+                    "def get_billing(patient_id):\n"
+                    "    patient = db.query(Patient).get(patient_id)\n"
+                    "    return {\n"
                     '        "diagnosis": patient.diagnosis,\n'
                     '        "card_number": patient.card_number,\n'
                     '        "amount_due": patient.balance,\n'
-                    '    }'
+                    "    }"
                 ),
                 hint="Separate PHI from payment data and mask or tokenise both appropriately.",
                 solution_snippet=(
                     '@app.get("/billing/{patient_id}")\n'
-                    'def get_billing(patient_id, current_user: User):\n'
-                    '    if not has_billing_access(current_user, patient_id):\n'
+                    "def get_billing(patient_id, current_user: User):\n"
+                    "    if not has_billing_access(current_user, patient_id):\n"
                     '        raise HTTPException(403, "Access denied")\n'
-                    '    patient = db.query(Patient).get(patient_id)\n'
+                    "    patient = db.query(Patient).get(patient_id)\n"
                     '    audit_log.record(current_user.id, "view_billing", patient_id)\n'
-                    '    return {\n'
+                    "    return {\n"
                     '        "diagnosis": "[REDACTED]",\n'
                     '        "card_last_four": patient.card_last_four,\n'
                     '        "amount_due": patient.balance,\n'
-                    '    }'
+                    "    }"
                 ),
                 points=30,
                 regulation_article="HIPAA §164.502 / PCI-DSS Req. 3.3",
@@ -434,16 +434,16 @@ _SCENARIOS: list[SandboxScenario] = [
                 ),
                 hint="Create a unified audit log that captures both PHI access and payment processing events.",
                 solution_snippet=(
-                    'def process_payment(patient_id, amount, current_user):\n'
-                    '    patient = get_patient(patient_id)\n'
-                    '    audit_log.record(\n'
-                    '        user_id=current_user.id,\n'
+                    "def process_payment(patient_id, amount, current_user):\n"
+                    "    patient = get_patient(patient_id)\n"
+                    "    audit_log.record(\n"
+                    "        user_id=current_user.id,\n"
                     '        actions=["phi_access", "payment_processing"],\n'
-                    '        resource_id=patient_id,\n'
+                    "        resource_id=patient_id,\n"
                     '        details={"amount": amount},\n'
-                    '    )\n'
-                    '    charge_card(patient.card_token, amount)\n'
-                    '    update_balance(patient_id, amount)'
+                    "    )\n"
+                    "    charge_card(patient.card_token, amount)\n"
+                    "    update_balance(patient_id, amount)"
                 ),
                 points=25,
                 regulation_article="HIPAA §164.312(b) / PCI-DSS Req. 10.1",
@@ -459,12 +459,48 @@ _SCENARIO_MAP: dict[str, SandboxScenario] = {s.id: s for s in _SCENARIOS}
 # ---------------------------------------------------------------------------
 
 _BADGES: list[SandboxBadge] = [
-    SandboxBadge(id="first-fix", name="First Fix", description="Fixed your first compliance violation", icon="🔧", criteria="Complete 1 violation fix"),
-    SandboxBadge(id="gdpr-guardian", name="GDPR Guardian", description="Completed a GDPR scenario with 100% score", icon="🛡️", criteria="Score 100% on any GDPR scenario"),
-    SandboxBadge(id="hipaa-hero", name="HIPAA Hero", description="Completed a HIPAA scenario with 100% score", icon="🏥", criteria="Score 100% on any HIPAA scenario"),
-    SandboxBadge(id="speed-runner", name="Speed Runner", description="Completed a scenario in under half the estimated time", icon="⚡", criteria="Finish before 50% of estimated time"),
-    SandboxBadge(id="no-hints", name="No Hints Needed", description="Completed a scenario without using any hints", icon="🧠", criteria="Complete a scenario with 0 hints used"),
-    SandboxBadge(id="multi-reg", name="Multi-Regulation Master", description="Completed the multi-regulation expert scenario", icon="🏆", criteria="Complete the hipaa-pci-combined scenario"),
+    SandboxBadge(
+        id="first-fix",
+        name="First Fix",
+        description="Fixed your first compliance violation",
+        icon="🔧",
+        criteria="Complete 1 violation fix",
+    ),
+    SandboxBadge(
+        id="gdpr-guardian",
+        name="GDPR Guardian",
+        description="Completed a GDPR scenario with 100% score",
+        icon="🛡️",
+        criteria="Score 100% on any GDPR scenario",
+    ),
+    SandboxBadge(
+        id="hipaa-hero",
+        name="HIPAA Hero",
+        description="Completed a HIPAA scenario with 100% score",
+        icon="🏥",
+        criteria="Score 100% on any HIPAA scenario",
+    ),
+    SandboxBadge(
+        id="speed-runner",
+        name="Speed Runner",
+        description="Completed a scenario in under half the estimated time",
+        icon="⚡",
+        criteria="Finish before 50% of estimated time",
+    ),
+    SandboxBadge(
+        id="no-hints",
+        name="No Hints Needed",
+        description="Completed a scenario without using any hints",
+        icon="🧠",
+        criteria="Complete a scenario with 0 hints used",
+    ),
+    SandboxBadge(
+        id="multi-reg",
+        name="Multi-Regulation Master",
+        description="Completed the multi-regulation expert scenario",
+        icon="🏆",
+        criteria="Complete the hipaa-pci-combined scenario",
+    ),
 ]
 
 _BADGE_MAP: dict[str, SandboxBadge] = {b.id: b for b in _BADGES}
@@ -499,7 +535,9 @@ class ComplianceSandboxService:
         if regulation is not None:
             reg_lower = regulation.lower()
             scenarios = [s for s in scenarios if reg_lower in s.regulation.lower()]
-        logger.info("scenarios_listed", count=len(scenarios), difficulty=difficulty, regulation=regulation)
+        logger.info(
+            "scenarios_listed", count=len(scenarios), difficulty=difficulty, regulation=regulation
+        )
         return scenarios
 
     async def get_scenario(self, scenario_id: str) -> SandboxScenario | None:
@@ -519,7 +557,7 @@ class ComplianceSandboxService:
         if scenario is None:
             raise ValueError(f"Scenario not found: {scenario_id}")
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         resources = SandboxResources(max_duration_minutes=scenario.estimated_minutes + 30)
         sandbox = SandboxEnvironment(
             id=uuid4(),
@@ -530,7 +568,10 @@ class ComplianceSandboxService:
             created_at=now,
             expires_at=now + timedelta(minutes=resources.max_duration_minutes),
             resources=resources,
-            connection_info={"workspace_url": f"/sandbox/{scenario_id}/workspace", "terminal_url": f"/sandbox/{scenario_id}/terminal"},
+            connection_info={
+                "workspace_url": f"/sandbox/{scenario_id}/workspace",
+                "terminal_url": f"/sandbox/{scenario_id}/terminal",
+            },
             progress=SandboxProgress(total_violations=len(scenario.violations)),
         )
 
@@ -549,7 +590,11 @@ class ComplianceSandboxService:
     async def get_sandbox(self, sandbox_id: UUID) -> SandboxEnvironment | None:
         """Get sandbox environment status."""
         sandbox = _sandboxes.get(sandbox_id)
-        if sandbox and sandbox.expires_at < datetime.utcnow() and sandbox.status == SandboxStatus.RUNNING:
+        if (
+            sandbox
+            and sandbox.expires_at < datetime.now(UTC)
+            and sandbox.status == SandboxStatus.RUNNING
+        ):
             sandbox.status = SandboxStatus.EXPIRED
         return sandbox
 
@@ -610,7 +655,7 @@ class ComplianceSandboxService:
             sandbox.progress.completed_violations = len(fixes)
             sandbox.progress.score += points_earned
 
-        elapsed = (datetime.utcnow() - sandbox.created_at).total_seconds() / 60.0
+        elapsed = (datetime.now(UTC) - sandbox.created_at).total_seconds() / 60.0
         sandbox.progress.time_elapsed_minutes = round(elapsed, 1)
 
         logger.info(
@@ -625,7 +670,9 @@ class ComplianceSandboxService:
             "violation_id": violation_id,
             "passed": passed,
             "points_earned": points_earned,
-            "feedback": f"✅ Correct! +{points_earned} points" if passed else "❌ Not quite. Review the regulation article and try again.",
+            "feedback": f"✅ Correct! +{points_earned} points"
+            if passed
+            else "❌ Not quite. Review the regulation article and try again.",
             "regulation_article": violation.regulation_article,
         }
 
@@ -642,7 +689,7 @@ class ComplianceSandboxService:
         fixed = _violation_fixes.get(sandbox_id, set())
         all_ids = {v.id for v in scenario.violations}
         max_score = sum(v.points for v in scenario.violations)
-        elapsed = (datetime.utcnow() - sandbox.created_at).total_seconds() / 60.0
+        elapsed = (datetime.now(UTC) - sandbox.created_at).total_seconds() / 60.0
         completion_pct = round(len(fixed) / max(len(all_ids), 1) * 100, 1)
 
         badge_earned = self._evaluate_badge(sandbox, scenario, fixed, elapsed)
@@ -662,7 +709,7 @@ class ComplianceSandboxService:
         )
 
         sandbox.status = SandboxStatus.COMPLETED
-        sandbox.progress.completed_at = datetime.utcnow()
+        sandbox.progress.completed_at = datetime.now(UTC)
         _results[result.id] = result
 
         logger.info(
@@ -702,9 +749,10 @@ class ComplianceSandboxService:
 
     async def cleanup_expired(self) -> int:
         """Clean up expired sandbox environments."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         expired_ids = [
-            sid for sid, s in _sandboxes.items()
+            sid
+            for sid, s in _sandboxes.items()
             if s.expires_at < now and s.status == SandboxStatus.RUNNING
         ]
         for sid in expired_ids:
@@ -725,7 +773,12 @@ class ComplianceSandboxService:
                 continue
             uid = str(sandbox.user_id)
             if uid not in user_scores:
-                user_scores[uid] = {"user_id": uid, "total_score": 0, "scenarios_completed": 0, "badges_count": 0}
+                user_scores[uid] = {
+                    "user_id": uid,
+                    "total_score": 0,
+                    "scenarios_completed": 0,
+                    "badges_count": 0,
+                }
             user_scores[uid]["total_score"] += result.score
             user_scores[uid]["scenarios_completed"] += 1
             user_scores[uid]["badges_count"] = len(_user_badges.get(sandbox.user_id, []))
@@ -739,33 +792,51 @@ class ComplianceSandboxService:
         """List available what-if regulatory change scenarios."""
         return [
             WhatIfScenario(
-                id="whatif-us-federal-privacy", title="US Federal Privacy Act Passes",
+                id="whatif-us-federal-privacy",
+                title="US Federal Privacy Act Passes",
                 description="Simulate impact of a comprehensive US federal privacy law replacing state patchwork.",
-                change_type="new_regulation", jurisdiction="US Federal", regulation="ADPPA",
-                effective_date="2027-01-01", probability=0.65,
+                change_type="new_regulation",
+                jurisdiction="US Federal",
+                regulation="ADPPA",
+                effective_date="2027-01-01",
+                probability=0.65,
             ),
             WhatIfScenario(
-                id="whatif-eu-ai-enforcement", title="EU AI Act Strict Enforcement",
+                id="whatif-eu-ai-enforcement",
+                title="EU AI Act Strict Enforcement",
                 description="Simulate impact of aggressive EU AI Act enforcement with high-risk classification.",
-                change_type="enforcement", jurisdiction="EU", regulation="EU AI Act",
-                effective_date="2026-08-01", probability=0.85,
+                change_type="enforcement",
+                jurisdiction="EU",
+                regulation="EU AI Act",
+                effective_date="2026-08-01",
+                probability=0.85,
             ),
             WhatIfScenario(
-                id="whatif-gdpr-amendment", title="GDPR Amendment: AI-Specific Rules",
+                id="whatif-gdpr-amendment",
+                title="GDPR Amendment: AI-Specific Rules",
                 description="Simulate GDPR amendment adding specific requirements for AI-driven personal data processing.",
-                change_type="amendment", jurisdiction="EU", regulation="GDPR",
-                effective_date="2027-06-01", probability=0.45,
+                change_type="amendment",
+                jurisdiction="EU",
+                regulation="GDPR",
+                effective_date="2027-06-01",
+                probability=0.45,
             ),
             WhatIfScenario(
-                id="whatif-ccpa-expansion", title="CCPA Biometric Data Expansion",
+                id="whatif-ccpa-expansion",
+                title="CCPA Biometric Data Expansion",
                 description="Simulate CCPA expanding to cover biometric data with strict consent requirements.",
-                change_type="amendment", jurisdiction="California", regulation="CCPA/CPRA",
-                effective_date="2026-07-01", probability=0.70,
+                change_type="amendment",
+                jurisdiction="California",
+                regulation="CCPA/CPRA",
+                effective_date="2026-07-01",
+                probability=0.70,
             ),
         ]
 
     async def run_whatif_simulation(
-        self, scenario_id: str, repo: str = "",
+        self,
+        scenario_id: str,
+        repo: str = "",
     ) -> WhatIfImpact:
         """Run a what-if simulation and return impact assessment."""
         scenarios = await self.list_whatif_scenarios()
@@ -776,7 +847,10 @@ class ComplianceSandboxService:
         # Simulate impact analysis
         impact_data = {
             "whatif-us-federal-privacy": {
-                "risk": 8.5, "hours": 320, "cost": 48000, "gaps": 12,
+                "risk": 8.5,
+                "hours": 320,
+                "cost": 48000,
+                "gaps": 12,
                 "modules": [
                     {"name": "auth/consent", "impact": "high", "changes_required": 8},
                     {"name": "data/storage", "impact": "high", "changes_required": 6},
@@ -790,7 +864,10 @@ class ComplianceSandboxService:
                 ],
             },
             "whatif-eu-ai-enforcement": {
-                "risk": 9.0, "hours": 480, "cost": 72000, "gaps": 18,
+                "risk": 9.0,
+                "hours": 480,
+                "cost": 72000,
+                "gaps": 18,
                 "modules": [
                     {"name": "ai/models", "impact": "critical", "changes_required": 12},
                     {"name": "ai/training", "impact": "high", "changes_required": 8},
@@ -806,20 +883,30 @@ class ComplianceSandboxService:
         }
 
         defaults = {
-            "risk": 6.0, "hours": 160, "cost": 24000, "gaps": 8,
+            "risk": 6.0,
+            "hours": 160,
+            "cost": 24000,
+            "gaps": 8,
             "modules": [
                 {"name": "core/compliance", "impact": "medium", "changes_required": 4},
                 {"name": "api/endpoints", "impact": "medium", "changes_required": 3},
             ],
-            "recs": ["Review current compliance posture", "Engage legal counsel for interpretation"],
+            "recs": [
+                "Review current compliance posture",
+                "Engage legal counsel for interpretation",
+            ],
         }
 
         data = impact_data.get(scenario_id, defaults)
 
         # Generate heatmap data
         heatmap = [
-            {"area": m["name"], "current_risk": 3.0, "projected_risk": m["changes_required"] * 1.2,
-             "delta": m["changes_required"] * 1.2 - 3.0}
+            {
+                "area": m["name"],
+                "current_risk": 3.0,
+                "projected_risk": m["changes_required"] * 1.2,
+                "delta": m["changes_required"] * 1.2 - 3.0,
+            }
             for m in data["modules"]
         ]
 
@@ -856,11 +943,19 @@ class ComplianceSandboxService:
             badge_id = "first-fix"
 
         # Perfect score on GDPR
-        if "gdpr-guardian" not in earned_ids and "gdpr" in scenario.regulation.lower() and fixed == all_ids:
+        if (
+            "gdpr-guardian" not in earned_ids
+            and "gdpr" in scenario.regulation.lower()
+            and fixed == all_ids
+        ):
             badge_id = "gdpr-guardian"
 
         # Perfect score on HIPAA
-        if "hipaa-hero" not in earned_ids and "hipaa" in scenario.regulation.lower() and fixed == all_ids:
+        if (
+            "hipaa-hero" not in earned_ids
+            and "hipaa" in scenario.regulation.lower()
+            and fixed == all_ids
+        ):
             badge_id = "hipaa-hero"
 
         # Speed runner
@@ -872,7 +967,11 @@ class ComplianceSandboxService:
             badge_id = "no-hints"
 
         # Multi-reg master
-        if "multi-reg" not in earned_ids and scenario.id == "hipaa-pci-combined" and fixed == all_ids:
+        if (
+            "multi-reg" not in earned_ids
+            and scenario.id == "hipaa-pci-combined"
+            and fixed == all_ids
+        ):
             badge_id = "multi-reg"
 
         if badge_id and badge_id in _BADGE_MAP:
@@ -882,7 +981,7 @@ class ComplianceSandboxService:
                 description=_BADGE_MAP[badge_id].description,
                 icon=_BADGE_MAP[badge_id].icon,
                 criteria=_BADGE_MAP[badge_id].criteria,
-                earned_at=datetime.utcnow(),
+                earned_at=datetime.now(UTC),
             )
             user_badge_list.append(badge)
 
@@ -899,14 +998,38 @@ class ComplianceSandboxService:
             return "👏 Great job! You caught most of the violations. Review the missed ones to strengthen your knowledge."
         if completion_pct >= 50:
             return "👍 Good progress! You're on the right track. Try revisiting the hints for the remaining violations."
-        return "📚 Keep learning! Review the regulation articles and try again to improve your score."
+        return (
+            "📚 Keep learning! Review the regulation articles and try again to improve your score."
+        )
 
 
 def _extract_keywords(solution: str) -> list[str]:
     """Extract meaningful keywords from a solution snippet for matching."""
-    noise = {"def", "return", "self", "the", "and", "for", "not", "if", "else", "in", "is", "a", "to", "of"}
+    noise = {
+        "def",
+        "return",
+        "self",
+        "the",
+        "and",
+        "for",
+        "not",
+        "if",
+        "else",
+        "in",
+        "is",
+        "a",
+        "to",
+        "of",
+    }
     words: list[str] = []
-    for token in solution.lower().replace("(", " ").replace(")", " ").replace(",", " ").replace(":", " ").split():
+    for token in (
+        solution.lower()
+        .replace("(", " ")
+        .replace(")", " ")
+        .replace(",", " ")
+        .replace(":", " ")
+        .split()
+    ):
         cleaned = token.strip("\"' ")
         if len(cleaned) > 2 and cleaned not in noise and not cleaned.startswith("#"):
             words.append(cleaned)

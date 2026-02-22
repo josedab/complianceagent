@@ -1,9 +1,7 @@
 """Multi-cloud compliance posture analysis for IaC."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
-from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
@@ -190,7 +188,12 @@ CLOUD_COMPLIANCE_RULES: list[ComplianceRule] = [
         category=ComplianceRuleCategory.DATA_RESIDENCY,
         regulations=["GDPR"],
         severity="critical",
-        resource_types=["aws_s3_bucket", "aws_db_instance", "azurerm_storage_account", "google_storage_bucket"],
+        resource_types=[
+            "aws_s3_bucket",
+            "aws_db_instance",
+            "azurerm_storage_account",
+            "google_storage_bucket",
+        ],
         check_pattern=r'region\s*=\s*"(eu-|europe-|EU)',
         remediation="Deploy resources in EU regions (eu-west-1, europe-west1, etc.)",
     ),
@@ -213,12 +216,14 @@ class CloudComplianceAnalyzer:
         import re
 
         findings = []
-        lines = content.split("\n")
+        content.split("\n")
 
         # Filter rules by regulation
         active_rules = self.rules
         if regulations:
-            active_rules = [r for r in self.rules if any(reg in r.regulations for reg in regulations)]
+            active_rules = [
+                r for r in self.rules if any(reg in r.regulations for reg in regulations)
+            ]
 
         # Find all resource blocks
         resource_pattern = re.compile(r'resource\s+"([^"]+)"\s+"([^"]+)"', re.MULTILINE)
@@ -253,17 +258,19 @@ class CloudComplianceAnalyzer:
 
                 # Check if rule pattern is present
                 if not re.search(rule.check_pattern, resource_content, re.IGNORECASE | re.DOTALL):
-                    findings.append(IaCFinding(
-                        rule_id=rule.id,
-                        file_path=file_path,
-                        line_number=line_number,
-                        resource_name=resource_name,
-                        resource_type=resource_type,
-                        severity=rule.severity,
-                        message=f"{rule.name}: {rule.description}",
-                        regulation=", ".join(rule.regulations),
-                        remediation=rule.remediation,
-                    ))
+                    findings.append(
+                        IaCFinding(
+                            rule_id=rule.id,
+                            file_path=file_path,
+                            line_number=line_number,
+                            resource_name=resource_name,
+                            resource_type=resource_type,
+                            severity=rule.severity,
+                            message=f"{rule.name}: {rule.description}",
+                            regulation=", ".join(rule.regulations),
+                            remediation=rule.remediation,
+                        )
+                    )
 
         return findings
 
@@ -275,6 +282,7 @@ class CloudComplianceAnalyzer:
     ) -> list[IaCFinding]:
         """Analyze CloudFormation template for compliance issues."""
         import json
+
         import yaml
 
         findings = []
@@ -323,17 +331,19 @@ class CloudComplianceAnalyzer:
                         issue_found = True
 
                 if issue_found:
-                    findings.append(IaCFinding(
-                        rule_id=rule.id,
-                        file_path=file_path,
-                        line_number=0,  # Line numbers harder to track in YAML/JSON
-                        resource_name=name,
-                        resource_type=resource_type,
-                        severity=rule.severity,
-                        message=f"{rule.name}: {rule.description}",
-                        regulation=", ".join(rule.regulations),
-                        remediation=rule.remediation,
-                    ))
+                    findings.append(
+                        IaCFinding(
+                            rule_id=rule.id,
+                            file_path=file_path,
+                            line_number=0,  # Line numbers harder to track in YAML/JSON
+                            resource_name=name,
+                            resource_type=resource_type,
+                            severity=rule.severity,
+                            message=f"{rule.name}: {rule.description}",
+                            regulation=", ".join(rule.regulations),
+                            remediation=rule.remediation,
+                        )
+                    )
 
         return findings
 
@@ -371,31 +381,35 @@ class CloudComplianceAnalyzer:
                 security_context = spec.get("securityContext", {})
 
                 if not security_context.get("runAsNonRoot"):
-                    findings.append(IaCFinding(
-                        rule_id="K8S-SEC-001",
-                        file_path=file_path,
-                        resource_name=name,
-                        resource_type=f"kubernetes_{kind.lower()}",
-                        severity="high",
-                        message="Pod Security Context: Pods must run as non-root user",
-                        regulation="SOC 2, ISO 27001",
-                        remediation="Set securityContext.runAsNonRoot: true",
-                    ))
+                    findings.append(
+                        IaCFinding(
+                            rule_id="K8S-SEC-001",
+                            file_path=file_path,
+                            resource_name=name,
+                            resource_type=f"kubernetes_{kind.lower()}",
+                            severity="high",
+                            message="Pod Security Context: Pods must run as non-root user",
+                            regulation="SOC 2, ISO 27001",
+                            remediation="Set securityContext.runAsNonRoot: true",
+                        )
+                    )
 
             # Check NetworkPolicy
             if kind == "NetworkPolicy":
                 policy_types = doc.get("spec", {}).get("policyTypes", [])
                 if "Ingress" not in policy_types or "Egress" not in policy_types:
-                    findings.append(IaCFinding(
-                        rule_id="K8S-NET-001",
-                        file_path=file_path,
-                        resource_name=name,
-                        resource_type="kubernetes_network_policy",
-                        severity="medium",
-                        message="Network Policy should include both Ingress and Egress",
-                        regulation="PCI-DSS, SOC 2",
-                        remediation="Add both Ingress and Egress to policyTypes",
-                    ))
+                    findings.append(
+                        IaCFinding(
+                            rule_id="K8S-NET-001",
+                            file_path=file_path,
+                            resource_name=name,
+                            resource_type="kubernetes_network_policy",
+                            severity="medium",
+                            message="Network Policy should include both Ingress and Egress",
+                            regulation="PCI-DSS, SOC 2",
+                            remediation="Add both Ingress and Egress to policyTypes",
+                        )
+                    )
 
         return findings
 
@@ -412,7 +426,4 @@ class CloudComplianceAnalyzer:
             CloudProvider.KUBERNETES: "kubernetes_",
         }
         prefix = provider_prefixes.get(provider, "")
-        return [
-            r for r in self.rules
-            if any(rt.startswith(prefix) for rt in r.resource_types)
-        ]
+        return [r for r in self.rules if any(rt.startswith(prefix) for rt in r.resource_types)]

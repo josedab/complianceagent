@@ -1,26 +1,32 @@
 """Compliance Copilot Chat Service."""
 
-from app.services.chat.conversation import ConversationManager, ConversationState, Message, MessageRole
-from app.services.chat.rag import RAGPipeline, RAGContext, RAGSource, RAGDocument
-from app.services.chat.assistant import ComplianceAssistant, ChatMessage, ChatResponse
-from app.services.chat.actions import ActionHandler, ChatAction, ActionType, ActionResult
+from app.services.chat.actions import ActionHandler, ActionResult, ActionType, ChatAction
+from app.services.chat.assistant import ChatMessage, ChatResponse, ComplianceAssistant
+from app.services.chat.conversation import (
+    ConversationManager,
+    ConversationState,
+    Message,
+    MessageRole,
+)
+from app.services.chat.rag import RAGContext, RAGDocument, RAGPipeline, RAGSource
+
 
 __all__ = [
+    "ActionHandler",
+    "ActionResult",
+    "ActionType",
+    "ChatAction",
+    "ChatMessage",
+    "ChatResponse",
+    "ComplianceAssistant",
     "ConversationManager",
     "ConversationState",
     "Message",
     "MessageRole",
-    "RAGPipeline",
     "RAGContext",
-    "RAGSource",
     "RAGDocument",
-    "ComplianceAssistant",
-    "ChatMessage",
-    "ChatResponse",
-    "ActionHandler",
-    "ChatAction",
-    "ActionType",
-    "ActionResult",
+    "RAGPipeline",
+    "RAGSource",
 ]
 
 

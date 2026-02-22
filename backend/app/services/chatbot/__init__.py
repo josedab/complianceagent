@@ -8,7 +8,7 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -55,7 +55,7 @@ class ComplianceChatbot:
     """
 
     SYSTEM_PROMPT = """You are a compliance expert assistant for software development teams.
-You help answer questions about regulatory compliance including GDPR, CCPA, HIPAA, SOX, PCI-DSS, 
+You help answer questions about regulatory compliance including GDPR, CCPA, HIPAA, SOX, PCI-DSS,
 EU AI Act, and other regulations.
 
 Guidelines:
@@ -168,7 +168,7 @@ When answering:
             )
 
         session.messages.append(assistant_message)
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(UTC)
 
         return assistant_message
 
@@ -271,11 +271,11 @@ Return JSON with: answer, regulation, article, action"""
                 )
 
             import json
+
             content = response.content.strip()
             if content.startswith("```"):
                 content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
+                content = content.removeprefix("json")
             return json.loads(content.rstrip("`"))
 
         except Exception as e:
@@ -329,11 +329,11 @@ Return JSON only."""
                 )
 
             import json
+
             content = response.content.strip()
             if content.startswith("```"):
                 content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
+                content = content.removeprefix("json")
             return json.loads(content.rstrip("`"))
 
         except Exception as e:

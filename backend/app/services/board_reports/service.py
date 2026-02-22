@@ -85,13 +85,15 @@ class BoardReportsService:
             score = scores.get(fw, 80.0)
             status = "green" if score >= 85 else ("yellow" if score >= 70 else "red")
             trend = "improving" if score >= 85 else ("stable" if score >= 75 else "declining")
-            highlights.append(ComplianceHighlight(
-                category=fw,
-                status=status,
-                score=score,
-                trend=trend,
-                summary=f"{fw} compliance is at {score}% — {trend}.",
-            ))
+            highlights.append(
+                ComplianceHighlight(
+                    category=fw,
+                    status=status,
+                    score=score,
+                    trend=trend,
+                    summary=f"{fw} compliance is at {score}% — {trend}.",
+                )
+            )
 
         # Generate AI narrative if Copilot is available
         narrative = await self._generate_narrative(overall, highlights, period)
@@ -106,9 +108,21 @@ class BoardReportsService:
             narrative=narrative,
             highlights=highlights,
             top_risks=[
-                {"risk": "HIPAA PHI encryption gap in legacy module", "severity": "high", "eta": "2 weeks"},
-                {"risk": "GDPR consent banner missing on mobile", "severity": "medium", "eta": "1 week"},
-                {"risk": "SOC 2 access review overdue for 3 users", "severity": "low", "eta": "3 days"},
+                {
+                    "risk": "HIPAA PHI encryption gap in legacy module",
+                    "severity": "high",
+                    "eta": "2 weeks",
+                },
+                {
+                    "risk": "GDPR consent banner missing on mobile",
+                    "severity": "medium",
+                    "eta": "1 week",
+                },
+                {
+                    "risk": "SOC 2 access review overdue for 3 users",
+                    "severity": "low",
+                    "eta": "3 days",
+                },
             ],
             action_items=[
                 f"Prioritize HIPAA remediation — score at {scores.get('HIPAA', 0)}%",
@@ -169,6 +183,7 @@ class BoardReportsService:
         if self.copilot and hasattr(self.copilot, "chat"):
             try:
                 from app.agents.copilot import CopilotMessage
+
                 prompt = (
                     f"Write a 3-paragraph executive summary for a board meeting about "
                     f"compliance posture for {period}. Overall score: {overall:.1f}%. "
@@ -185,9 +200,13 @@ class BoardReportsService:
                 logger.debug("AI narrative failed, using template", error=str(exc))
 
         # Template fallback
-        status_word = "strong" if overall >= 85 else ("adequate" if overall >= 70 else "needs attention")
+        status_word = (
+            "strong" if overall >= 85 else ("adequate" if overall >= 70 else "needs attention")
+        )
         declining = [h for h in highlights if h.trend == "declining"]
-        declining_note = f" {declining[0].category} requires immediate attention." if declining else ""
+        declining_note = (
+            f" {declining[0].category} requires immediate attention." if declining else ""
+        )
 
         return (
             f"Our overall compliance posture for {period} is {status_word} at {overall:.1f}%.{declining_note} "
@@ -221,5 +240,5 @@ th{{background:#1e293b;color:white}}.green{{color:#16a34a}}.yellow{{color:#ca8a0
 <table><tr><th>Framework</th><th>Score</th><th>Status</th><th>Trend</th></tr>{highlights_html}</table>
 <h2>Top Risks</h2><ul>{"".join(f"<li><strong>{r['severity'].upper()}</strong>: {r['risk']}</li>" for r in summary.top_risks)}</ul>
 <h2>Action Items</h2><ol>{"".join(f"<li>{a}</li>" for a in summary.action_items)}</ol>
-<footer><p>Generated {report.generated_at.strftime('%Y-%m-%d %H:%M UTC') if report.generated_at else 'N/A'} by ComplianceAgent</p></footer>
+<footer><p>Generated {report.generated_at.strftime("%Y-%m-%d %H:%M UTC") if report.generated_at else "N/A"} by ComplianceAgent</p></footer>
 </body></html>"""

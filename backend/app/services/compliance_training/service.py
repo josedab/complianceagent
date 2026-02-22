@@ -1,8 +1,7 @@
 """Continuous Compliance Training Copilot Service."""
 
-import random
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +15,19 @@ from app.services.compliance_training.models import (
     TrainingModule,
     TrainingTrigger,
 )
+
+
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
 
 
 logger = structlog.get_logger()
@@ -248,7 +260,7 @@ class ComplianceTrainingService:
             total_developers=total,
             avg_score=avg_score,
             modules_completed=modules_done,
-            violation_reduction_pct=round(random.uniform(5.0, 35.0), 1),
+            violation_reduction_pct=round(_deterministic_float("seed_1", 5.0, 35.0), 1),
             skill_distribution=skill_dist,
             top_gaps=top_gaps,
             generated_at=datetime.now(UTC),

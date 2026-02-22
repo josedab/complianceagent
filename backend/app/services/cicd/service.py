@@ -4,7 +4,6 @@ import hashlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
 
 import structlog
 
@@ -100,7 +99,9 @@ class CICDComplianceService:
             results["total_issues"] = len(issues)
             results["critical_count"] = sum(1 for i in issues if i.get("severity") == "error")
             results["warning_count"] = sum(1 for i in issues if i.get("severity") == "warning")
-            results["info_count"] = sum(1 for i in issues if i.get("severity") not in ("error", "warning"))
+            results["info_count"] = sum(
+                1 for i in issues if i.get("severity") not in ("error", "warning")
+            )
 
         # Determine pass/fail
         fail_threshold = self.SEVERITY_ORDER.get(request.fail_on_severity, 0)
@@ -162,11 +163,11 @@ class CICDComplianceService:
 
 | Metric | Count |
 |--------|-------|
-| Files Analyzed | {results['files_analyzed']} |
+| Files Analyzed | {results["files_analyzed"]} |
 | Total Issues | {len(issues)} |
-| 🔴 Critical | {results['critical_count']} |
-| 🟡 Warnings | {results['warning_count']} |
-| 🔵 Info | {results['info_count']} |
+| 🔴 Critical | {results["critical_count"]} |
+| 🟡 Warnings | {results["warning_count"]} |
+| 🔵 Info | {results["info_count"]} |
 
 **Regulations Checked:** {regulations_str}
 """
@@ -191,7 +192,11 @@ class CICDComplianceService:
                 md += "|------|------|-------|------------|\n"
                 for issue in errors[:15]:
                     file_name = issue["file"].split("/")[-1]
-                    msg = issue["message"][:60] + "..." if len(issue["message"]) > 60 else issue["message"]
+                    msg = (
+                        issue["message"][:60] + "..."
+                        if len(issue["message"]) > 60
+                        else issue["message"]
+                    )
                     reg = issue.get("regulation", "N/A")
                     md += f"| `{file_name}` | {issue['line']} | {msg} | {reg} |\n"
                 if len(errors) > 15:
@@ -204,7 +209,11 @@ class CICDComplianceService:
                 md += "|------|------|-------|------------|\n"
                 for issue in warnings[:10]:
                     file_name = issue["file"].split("/")[-1]
-                    msg = issue["message"][:60] + "..." if len(issue["message"]) > 60 else issue["message"]
+                    msg = (
+                        issue["message"][:60] + "..."
+                        if len(issue["message"]) > 60
+                        else issue["message"]
+                    )
                     reg = issue.get("regulation", "N/A")
                     md += f"| `{file_name}` | {issue['line']} | {msg} | {reg} |\n"
                 if len(warnings) > 10:
@@ -274,21 +283,23 @@ class CICDComplianceService:
         }
 
         for issue in result.issues:
-            issues.append({
-                "description": issue.get("message", "Compliance issue"),
-                "check_name": issue.get("code", "COMPLIANCE"),
-                "fingerprint": hashlib.md5(
-                    f"{issue.get('file')}:{issue.get('line')}:{issue.get('code')}".encode()
-                ).hexdigest(),
-                "severity": severity_map.get(issue.get("severity", "info"), "minor"),
-                "location": {
-                    "path": issue.get("file", "unknown"),
-                    "lines": {
-                        "begin": issue.get("line", 1),
-                        "end": issue.get("end_line", issue.get("line", 1)),
+            issues.append(
+                {
+                    "description": issue.get("message", "Compliance issue"),
+                    "check_name": issue.get("code", "COMPLIANCE"),
+                    "fingerprint": hashlib.md5(
+                        f"{issue.get('file')}:{issue.get('line')}:{issue.get('code')}".encode()
+                    ).hexdigest(),
+                    "severity": severity_map.get(issue.get("severity", "info"), "minor"),
+                    "location": {
+                        "path": issue.get("file", "unknown"),
+                        "lines": {
+                            "begin": issue.get("line", 1),
+                            "end": issue.get("end_line", issue.get("line", 1)),
+                        },
                     },
-                },
-                "categories": [issue.get("regulation", "Compliance")],
-            })
+                    "categories": [issue.get("regulation", "Compliance")],
+                }
+            )
 
         return issues

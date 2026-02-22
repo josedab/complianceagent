@@ -1,42 +1,41 @@
 """Action Handler - Execute actions triggered from chat."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
 
-logger = structlog.get_logger()
 
-# UTC timezone for Python < 3.11 compatibility
-UTC = timezone.utc
+logger = structlog.get_logger()
 
 
 class ActionType(str, Enum):
     """Types of actions that can be triggered from chat."""
+
     # Code actions
     GENERATE_FIX = "generate_fix"
     CREATE_PR = "create_pr"
     ANALYZE_FILE = "analyze_file"
     ANALYZE_REPOSITORY = "analyze_repository"
-    
+
     # Navigation actions
     SHOW_FILE = "show_file"
     SHOW_REQUIREMENT = "show_requirement"
     SHOW_MAPPING = "show_mapping"
     SHOW_REGULATION = "show_regulation"
-    
+
     # Query actions
     SEARCH_CODE = "search_code"
     SEARCH_REGULATIONS = "search_regulations"
     EXPLAIN_REGULATION = "explain_regulation"
-    
+
     # Status actions
     GET_COMPLIANCE_STATUS = "get_compliance_status"
     GET_VIOLATIONS = "get_violations"
-    
+
     # Context actions
     SET_REPOSITORY = "set_repository"
     SET_REGULATION_FILTER = "set_regulation_filter"
@@ -45,21 +44,22 @@ class ActionType(str, Enum):
 @dataclass
 class ChatAction:
     """An action to be executed from chat."""
+
     id: UUID = field(default_factory=uuid4)
     type: ActionType = ActionType.SHOW_FILE
     parameters: dict[str, Any] = field(default_factory=dict)
-    
+
     # Display info
     label: str = ""
     description: str = ""
     icon: str = "arrow-right"  # UI icon name
-    
+
     # Execution state
     executed: bool = False
     executed_at: datetime | None = None
     result: dict[str, Any] | None = None
     error: str | None = None
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": str(self.id),
@@ -111,17 +111,17 @@ class ActionHandler:
             action_type=action.type.value,
             action_id=str(action.id),
         )
-        
+
         try:
             handler = self._get_handler(action.type)
             result = await handler(action, organization_id, user_id, access_token)
-            
+
             action.executed = True
             action.executed_at = datetime.now(UTC)
             action.result = result
-            
+
             return result
-            
+
         except Exception as e:
             action.executed = True
             action.executed_at = datetime.now(UTC)
@@ -156,14 +156,13 @@ class ActionHandler:
         """Generate a fix for a compliance issue."""
         if not self.copilot:
             raise ValueError("Copilot client not available")
-        
-        requirement_id = action.parameters.get("requirement_id")
+
+        action.parameters.get("requirement_id")
         file_path = action.parameters.get("file_path")
         violation = action.parameters.get("violation")
-        
+
         # Generate fix using Copilot
-        from app.agents.copilot import CopilotMessage
-        
+
         async with self.copilot:
             response = await self.copilot.generate_compliant_code(
                 requirement={"title": violation.get("message", "Fix compliance issue")},
@@ -171,7 +170,7 @@ class ActionHandler:
                 existing_code={file_path: action.parameters.get("file_content", "")},
                 language=action.parameters.get("language", "python"),
             )
-        
+
         return {
             "success": True,
             "fix": response,
@@ -183,7 +182,7 @@ class ActionHandler:
     ) -> dict[str, Any]:
         """Create a PR with fixes."""
         from app.workers.pr_bot_tasks import create_fix_pr
-        
+
         result = create_fix_pr.delay(
             owner=action.parameters.get("owner"),
             repo=action.parameters.get("repo"),
@@ -192,7 +191,7 @@ class ActionHandler:
             access_token=token or "",
             organization_id=str(org_id),
         )
-        
+
         return {
             "success": True,
             "task_id": result.id,
@@ -205,12 +204,12 @@ class ActionHandler:
         """Analyze a file for compliance issues."""
         file_path = action.parameters.get("file_path")
         content = action.parameters.get("content", "")
-        
+
         from app.services.pr_review.analyzer import PRAnalyzer
-        
+
         analyzer = PRAnalyzer()
         violations = await analyzer.analyze_diff_content(content, file_path)
-        
+
         return {
             "success": True,
             "file_path": file_path,
@@ -232,11 +231,11 @@ class ActionHandler:
     ) -> dict[str, Any]:
         """Trigger repository analysis."""
         from app.workers.analysis_tasks import analyze_repository
-        
+
         repository_id = action.parameters.get("repository_id")
-        
+
         result = analyze_repository.delay(repository_id, str(org_id))
-        
+
         return {
             "success": True,
             "task_id": result.id,
@@ -253,16 +252,16 @@ class ActionHandler:
                 "error": "GitHub access not available",
                 "action_url": f"/files/{action.parameters.get('file_path')}",
             }
-        
+
         owner = action.parameters.get("owner")
         repo = action.parameters.get("repo")
         path = action.parameters.get("file_path")
-        
+
         from app.services.github.client import GitHubClient
-        
+
         async with GitHubClient(access_token=token) as client:
             file = await client.get_file_content(owner, repo, path)
-            
+
             return {
                 "success": True,
                 "file_path": path,
@@ -276,23 +275,24 @@ class ActionHandler:
         """Get requirement details."""
         if not self.db:
             return {"success": False, "error": "Database not available"}
-        
+
         from sqlalchemy import select
         from sqlalchemy.orm import selectinload
+
         from app.models.requirement import Requirement
-        
+
         requirement_id = UUID(action.parameters.get("requirement_id"))
-        
+
         result = await self.db.execute(
             select(Requirement)
             .options(selectinload(Requirement.regulation))
             .where(Requirement.id == requirement_id)
         )
         req = result.scalar_one_or_none()
-        
+
         if not req:
             return {"success": False, "error": "Requirement not found"}
-        
+
         return {
             "success": True,
             "requirement": {
@@ -313,13 +313,14 @@ class ActionHandler:
         """Get mapping details."""
         if not self.db:
             return {"success": False, "error": "Database not available"}
-        
+
         from sqlalchemy import select
         from sqlalchemy.orm import selectinload
+
         from app.models.codebase import CodebaseMapping
-        
+
         mapping_id = UUID(action.parameters.get("mapping_id"))
-        
+
         result = await self.db.execute(
             select(CodebaseMapping)
             .options(
@@ -329,10 +330,10 @@ class ActionHandler:
             .where(CodebaseMapping.id == mapping_id)
         )
         mapping = result.scalar_one_or_none()
-        
+
         if not mapping:
             return {"success": False, "error": "Mapping not found"}
-        
+
         return {
             "success": True,
             "mapping": {
@@ -352,20 +353,19 @@ class ActionHandler:
         """Get regulation details."""
         if not self.db:
             return {"success": False, "error": "Database not available"}
-        
+
         from sqlalchemy import select
+
         from app.models.regulation import Regulation
-        
+
         regulation_id = UUID(action.parameters.get("regulation_id"))
-        
-        result = await self.db.execute(
-            select(Regulation).where(Regulation.id == regulation_id)
-        )
+
+        result = await self.db.execute(select(Regulation).where(Regulation.id == regulation_id))
         reg = result.scalar_one_or_none()
-        
+
         if not reg:
             return {"success": False, "error": "Regulation not found"}
-        
+
         return {
             "success": True,
             "regulation": {
@@ -384,14 +384,15 @@ class ActionHandler:
         """Search code in repositories."""
         query = action.parameters.get("query", "")
         repository = action.parameters.get("repository")
-        
+
         if self.github and token:
             owner, repo = repository.split("/") if repository else (None, None)
-            
+
             from app.services.github.client import GitHubClient
+
             async with GitHubClient(access_token=token) as client:
                 results = await client.search_code(query, owner, repo)
-                
+
                 return {
                     "success": True,
                     "results": [
@@ -404,7 +405,7 @@ class ActionHandler:
                     ],
                     "total": len(results),
                 }
-        
+
         return {"success": False, "error": "GitHub access not available"}
 
     async def _handle_search_regulations(
@@ -413,12 +414,13 @@ class ActionHandler:
         """Search regulations."""
         if not self.db:
             return {"success": False, "error": "Database not available"}
-        
+
         query = action.parameters.get("query", "")
-        
-        from sqlalchemy import select, or_
+
+        from sqlalchemy import or_, select
+
         from app.models.regulation import Regulation
-        
+
         result = await self.db.execute(
             select(Regulation)
             .where(
@@ -430,7 +432,7 @@ class ActionHandler:
             .limit(10)
         )
         regs = list(result.scalars().all())
-        
+
         return {
             "success": True,
             "results": [
@@ -449,27 +451,29 @@ class ActionHandler:
     ) -> dict[str, Any]:
         """Get explanation of a regulation."""
         regulation = action.parameters.get("regulation")
-        
+
         # Use Copilot to generate explanation
         if self.copilot:
             from app.agents.copilot import CopilotMessage
-            
+
             async with self.copilot:
                 response = await self.copilot.chat(
-                    messages=[CopilotMessage(
-                        role="user",
-                        content=f"Explain {regulation} regulation for software developers. Focus on practical implementation requirements.",
-                    )],
+                    messages=[
+                        CopilotMessage(
+                            role="user",
+                            content=f"Explain {regulation} regulation for software developers. Focus on practical implementation requirements.",
+                        )
+                    ],
                     system_message="You are a compliance expert. Provide clear, actionable explanations.",
                     temperature=0.5,
                 )
-                
+
                 return {
                     "success": True,
                     "regulation": regulation,
                     "explanation": response.content,
                 }
-        
+
         return {"success": False, "error": "Copilot not available"}
 
     async def _handle_get_compliance_status(
@@ -478,22 +482,23 @@ class ActionHandler:
         """Get compliance status for a repository."""
         if not self.db:
             return {"success": False, "error": "Database not available"}
-        
+
         repository = action.parameters.get("repository")
-        
+
         from sqlalchemy import select
+
         from app.models.codebase import Repository
-        
+
         result = await self.db.execute(
             select(Repository)
             .where(Repository.full_name == repository)
             .where(Repository.organization_id == org_id)
         )
         repo = result.scalar_one_or_none()
-        
+
         if not repo:
             return {"success": False, "error": "Repository not found"}
-        
+
         return {
             "success": True,
             "repository": repository,
@@ -511,37 +516,39 @@ class ActionHandler:
         """Get violations for a repository or file."""
         if not self.db:
             return {"success": False, "error": "Database not available"}
-        
+
         repository = action.parameters.get("repository")
         file_path = action.parameters.get("file_path")
-        
+
         from sqlalchemy import select
         from sqlalchemy.orm import selectinload
+
         from app.models.codebase import CodebaseMapping, Repository
-        
-        query = (
-            select(CodebaseMapping)
-            .options(selectinload(CodebaseMapping.requirement))
-        )
-        
+
+        query = select(CodebaseMapping).options(selectinload(CodebaseMapping.requirement))
+
         if repository:
             query = query.join(Repository).where(Repository.full_name == repository)
-        
+
         result = await self.db.execute(query.limit(20))
         mappings = list(result.scalars().all())
-        
+
         violations = []
         for mapping in mappings:
             if mapping.gaps:
                 for gap in mapping.gaps:
                     if not file_path or gap.get("file_path") == file_path:
-                        violations.append({
-                            "requirement": mapping.requirement.title if mapping.requirement else "Unknown",
-                            "severity": gap.get("severity"),
-                            "description": gap.get("description"),
-                            "file_path": gap.get("file_path"),
-                        })
-        
+                        violations.append(
+                            {
+                                "requirement": mapping.requirement.title
+                                if mapping.requirement
+                                else "Unknown",
+                                "severity": gap.get("severity"),
+                                "description": gap.get("description"),
+                                "file_path": gap.get("file_path"),
+                            }
+                        )
+
         return {
             "success": True,
             "violations": violations,
@@ -587,35 +594,44 @@ class ActionHandler:
         """Extract potential actions from an assistant response."""
         actions = []
         content_lower = response_content.lower()
-        
+
         # Detect fix suggestions
-        if "would you like me to generate a fix" in content_lower or "i can fix this" in content_lower:
-            actions.append(ChatAction(
-                type=ActionType.GENERATE_FIX,
-                label="Generate Fix",
-                description="Generate a compliance fix for this issue",
-                icon="wrench",
-                parameters=context,
-            ))
-        
+        if (
+            "would you like me to generate a fix" in content_lower
+            or "i can fix this" in content_lower
+        ):
+            actions.append(
+                ChatAction(
+                    type=ActionType.GENERATE_FIX,
+                    label="Generate Fix",
+                    description="Generate a compliance fix for this issue",
+                    icon="wrench",
+                    parameters=context,
+                )
+            )
+
         # Detect PR creation suggestions
         if "create a pr" in content_lower or "create a pull request" in content_lower:
-            actions.append(ChatAction(
-                type=ActionType.CREATE_PR,
-                label="Create PR",
-                description="Create a pull request with the fixes",
-                icon="git-pull-request",
-                parameters=context,
-            ))
-        
+            actions.append(
+                ChatAction(
+                    type=ActionType.CREATE_PR,
+                    label="Create PR",
+                    description="Create a pull request with the fixes",
+                    icon="git-pull-request",
+                    parameters=context,
+                )
+            )
+
         # Detect analysis suggestions
         if "analyze" in content_lower and context.get("repository"):
-            actions.append(ChatAction(
-                type=ActionType.ANALYZE_REPOSITORY,
-                label="Analyze Repository",
-                description=f"Run compliance analysis on {context.get('repository')}",
-                icon="search",
-                parameters={"repository_id": context.get("repository_id")},
-            ))
-        
+            actions.append(
+                ChatAction(
+                    type=ActionType.ANALYZE_REPOSITORY,
+                    label="Analyze Repository",
+                    description=f"Run compliance analysis on {context.get('repository')}",
+                    icon="search",
+                    parameters={"repository_id": context.get("repository_id")},
+                )
+            )
+
         return actions

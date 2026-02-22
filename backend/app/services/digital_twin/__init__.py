@@ -1,43 +1,43 @@
 """Compliance Digital Twin - Simulation and What-If Analysis."""
 
-from app.services.digital_twin.snapshot import SnapshotManager, get_snapshot_manager
-from app.services.digital_twin.simulator import ComplianceSimulator
-from app.services.digital_twin.models import (
-    ComplianceSnapshot,
-    SimulationScenario,
-    SimulationResult,
-    ScenarioType,
-)
-from app.services.digital_twin.migration_planner import (
-    MigrationPlanner,
-    MigrationPlan,
-    MigrationTask,
-    MigrationMilestone,
-    MigrationPhase,
-    TaskPriority,
-    TaskStatus,
-    get_migration_planner,
-)
 from app.services.digital_twin.codebase_graph import (
     CodebaseGraph,
     CodebaseGraphBuilder,
     CodeNode,
-    DataFlowEdge,
-    DataFlow,
     CodeNodeType,
+    DataFlow,
+    DataFlowEdge,
     DataFlowType,
     DataSensitivity,
     get_codebase_graph_builder,
 )
 from app.services.digital_twin.enhanced import (
-    EnhancedDigitalTwin,
-    DriftType,
+    BreachImpact,
     BreachScenario,
     DriftEvent,
-    BreachImpact,
+    DriftType,
+    EnhancedDigitalTwin,
     TimelinePoint,
     get_enhanced_digital_twin,
 )
+from app.services.digital_twin.migration_planner import (
+    MigrationMilestone,
+    MigrationPhase,
+    MigrationPlan,
+    MigrationPlanner,
+    MigrationTask,
+    TaskPriority,
+    TaskStatus,
+    get_migration_planner,
+)
+from app.services.digital_twin.models import (
+    ComplianceSnapshot,
+    ScenarioType,
+    SimulationResult,
+    SimulationScenario,
+)
+from app.services.digital_twin.simulator import ComplianceSimulator
+from app.services.digital_twin.snapshot import SnapshotManager, get_snapshot_manager
 
 
 # Global simulator instance
@@ -53,41 +53,39 @@ def get_compliance_simulator() -> ComplianceSimulator:
 
 
 __all__ = [
-    # Snapshot management
-    "SnapshotManager",
-    "get_snapshot_manager",
-    # Simulation
-    "ComplianceSimulator",
-    "ComplianceSnapshot",
-    "SimulationScenario",
-    "SimulationResult",
-    "ScenarioType",
-    "get_compliance_simulator",
-    # Migration planning
-    "MigrationPlanner",
-    "MigrationPlan",
-    "MigrationTask",
-    "MigrationMilestone",
-    "MigrationPhase",
-    "TaskPriority",
-    "TaskStatus",
-    "get_migration_planner",
-    # Codebase graph
+    "BreachImpact",
+    "BreachScenario",
+    "CodeNode",
+    "CodeNodeType",
     "CodebaseGraph",
     "CodebaseGraphBuilder",
-    "CodeNode",
-    "DataFlowEdge",
+    "ComplianceIssue",
+    "ComplianceSimulator",
+    "ComplianceSnapshot",
+    "ComplianceStatus",
     "DataFlow",
-    "CodeNodeType",
+    "DataFlowEdge",
     "DataFlowType",
     "DataSensitivity",
-    "get_codebase_graph_builder",
-    # Enhanced Digital Twin (Phase 3)
-    "EnhancedDigitalTwin",
-    "DriftType",
-    "BreachScenario",
     "DriftEvent",
-    "BreachImpact",
+    "DriftType",
+    "EnhancedDigitalTwin",
+    "MigrationMilestone",
+    "MigrationPhase",
+    "MigrationPlan",
+    "MigrationPlanner",
+    "MigrationTask",
+    "RegulationCompliance",
+    "ScenarioType",
+    "SimulationResult",
+    "SimulationScenario",
+    "SnapshotManager",
+    "TaskPriority",
+    "TaskStatus",
     "TimelinePoint",
+    "get_codebase_graph_builder",
+    "get_compliance_simulator",
     "get_enhanced_digital_twin",
+    "get_migration_planner",
+    "get_snapshot_manager",
 ]

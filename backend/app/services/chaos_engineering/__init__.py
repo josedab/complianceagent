@@ -9,6 +9,7 @@ from app.services.chaos_engineering.models import (
 )
 from app.services.chaos_engineering.service import ChaosEngineeringService
 
+
 __all__ = [
     "ChaosEngineeringService",
     "ChaosExperiment",

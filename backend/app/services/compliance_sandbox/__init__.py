@@ -27,4 +27,6 @@ __all__ = [
     "SandboxStatus",
     "ViolationScenario",
     "ViolationType",
+    "WhatIfImpact",
+    "WhatIfScenario",
 ]

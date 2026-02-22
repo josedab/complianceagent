@@ -221,14 +221,16 @@ class SARIFGenerator:
             if issue.get("severity") in ("info", "hint", "information"):
                 level = "notice"
 
-            annotations.append({
-                "path": issue.get("file", "unknown"),
-                "start_line": issue.get("line", 1),
-                "end_line": issue.get("end_line", issue.get("line", 1)),
-                "annotation_level": level,
-                "message": issue.get("message", "Compliance issue"),
-                "title": f"{issue.get('regulation', 'Compliance')}: {issue.get('code', 'UNKNOWN')}",
-                "raw_details": issue.get("article_reference", ""),
-            })
+            annotations.append(
+                {
+                    "path": issue.get("file", "unknown"),
+                    "start_line": issue.get("line", 1),
+                    "end_line": issue.get("end_line", issue.get("line", 1)),
+                    "annotation_level": level,
+                    "message": issue.get("message", "Compliance issue"),
+                    "title": f"{issue.get('regulation', 'Compliance')}: {issue.get('code', 'UNKNOWN')}",
+                    "raw_details": issue.get("article_reference", ""),
+                }
+            )
 
         return annotations

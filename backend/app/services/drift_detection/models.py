@@ -110,7 +110,7 @@ class AlertConfig:
 class CICDGateDecision(str, Enum):
     """CI/CD gate pass/fail decision."""
 
-    PASS = "pass"
+    PASS = "pass"  # noqa: S105
     FAIL = "fail"
     WARN = "warn"
 

@@ -636,24 +636,28 @@ class CopilotChatService:
                 citations.append(full_name)
         return citations or ["Compliance Dashboard"]
 
-    async def _extract_source_citations(self, response_text: str, context_docs: list[dict] | None = None) -> list[dict]:
+    async def _extract_source_citations(
+        self, response_text: str, context_docs: list[dict] | None = None
+    ) -> list[dict]:
         """Extract source citations from a response, linking claims to regulation sources."""
         citations = []
         if not context_docs:
             return citations
 
         for i, doc in enumerate(context_docs):
-            source_name = doc.get("title", doc.get("name", f"Source {i+1}"))
+            source_name = doc.get("title", doc.get("name", f"Source {i + 1}"))
             source_ref = doc.get("reference", doc.get("article", ""))
             # Check if any keywords from the source appear in the response
             keywords = doc.get("keywords", [source_name.lower()])
             for kw in keywords:
                 if kw.lower() in response_text.lower():
-                    citations.append({
-                        "source": source_name,
-                        "reference": source_ref,
-                        "relevance": "high" if len(kw) > 5 else "medium",
-                    })
+                    citations.append(
+                        {
+                            "source": source_name,
+                            "reference": source_ref,
+                            "relevance": "high" if len(kw) > 5 else "medium",
+                        }
+                    )
                     break
 
         logger.debug("Extracted source citations", count=len(citations))
@@ -674,8 +678,11 @@ class CopilotChatService:
 
         # Check for definitive legal claims that should be softened
         legal_absolutes = [
-            "you must", "you are required to", "this is illegal",
-            "you will be fined", "this violates the law",
+            "you must",
+            "you are required to",
+            "this is illegal",
+            "you will be fined",
+            "this violates the law",
         ]
         for phrase in legal_absolutes:
             if phrase in response_text.lower():

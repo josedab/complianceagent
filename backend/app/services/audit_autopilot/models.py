@@ -32,6 +32,7 @@ class EvidenceStatus(str, Enum):
 @dataclass
 class ControlMapping:
     """Mapping of a control to collected evidence."""
+
     control_id: str = ""
     control_name: str = ""
     description: str = ""
@@ -45,6 +46,7 @@ class ControlMapping:
 @dataclass
 class GapAnalysis:
     """Gap analysis results for an audit framework."""
+
     id: UUID = field(default_factory=uuid4)
     framework: AuditFramework = AuditFramework.SOC2_TYPE2
     total_controls: int = 0
@@ -67,6 +69,7 @@ class GapAnalysis:
 @dataclass
 class EvidencePackage:
     """Auto-generated evidence package for auditors."""
+
     id: UUID = field(default_factory=uuid4)
     framework: AuditFramework = AuditFramework.SOC2_TYPE2
     title: str = ""
@@ -81,6 +84,7 @@ class EvidencePackage:
 @dataclass
 class AuditReadinessReport:
     """Complete audit readiness report."""
+
     id: UUID = field(default_factory=uuid4)
     framework: AuditFramework = AuditFramework.SOC2_TYPE2
     gap_analysis: GapAnalysis = field(default_factory=GapAnalysis)
@@ -102,6 +106,7 @@ class RemediationStatus(str, Enum):
 @dataclass
 class EvidenceTimelineEntry:
     """An entry in the evidence collection timeline."""
+
     id: UUID = field(default_factory=uuid4)
     framework: AuditFramework = AuditFramework.SOC2_TYPE2
     control_id: str = ""
@@ -116,6 +121,7 @@ class EvidenceTimelineEntry:
 @dataclass
 class RemediationTracker:
     """Track remediation of a control gap."""
+
     id: UUID = field(default_factory=uuid4)
     framework: AuditFramework = AuditFramework.SOC2_TYPE2
     control_id: str = ""

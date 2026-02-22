@@ -10,6 +10,7 @@ from app.services.api_monetization.models import (
 )
 from app.services.api_monetization.service import APIMonetizationService
 
+
 __all__ = [
     "APIMonetizationService",
     "APIRevenueStats",

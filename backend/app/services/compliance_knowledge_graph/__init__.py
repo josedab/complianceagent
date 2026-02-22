@@ -2,4 +2,13 @@
 
 from app.services.compliance_knowledge_graph.service import ComplianceKnowledgeGraphService
 
-__all__ = ["ComplianceKnowledgeGraphService"]
+
+__all__ = [
+    "ComplianceKnowledgeGraphService",
+    "EdgeType",
+    "GraphEdge",
+    "GraphNode",
+    "GraphQueryResult",
+    "GraphStats",
+    "NodeType",
+]

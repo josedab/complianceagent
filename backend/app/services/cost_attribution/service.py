@@ -1,6 +1,5 @@
 """Compliance Cost Attribution Engine Service."""
 
-import random
 from datetime import UTC, datetime
 
 import structlog
@@ -15,6 +14,19 @@ from app.services.cost_attribution.models import (
     RegulationCostSummary,
     ROIAnalysis,
 )
+
+
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
 
 
 logger = structlog.get_logger()
@@ -86,7 +98,7 @@ class CostAttributionService:
 
         # If no real data, generate realistic mock
         if not reg_costs:
-            total = round(random.uniform(50000, 500000), 2)
+            total = round(_deterministic_float("seed_1", 50000, 500000), 2)
             by_category = {
                 CostCategory.ENGINEERING.value: round(total * 0.4, 2),
                 CostCategory.LEGAL_REVIEW.value: round(total * 0.2, 2),
@@ -106,25 +118,25 @@ class CostAttributionService:
         ]
         if not top_modules:
             top_modules = [
-                {"module": mod, "cost": round(random.uniform(5000, 50000), 2)}
-                for mod in random.sample(_MODULES, 3)
+                {"module": mod, "cost": round(_deterministic_float("seed_2", 5000, 50000), 2)}
+                for mod in _MODULES[:3]
             ]
 
         return RegulationCostSummary(
             regulation=regulation,
             total_cost=round(total, 2),
             cost_by_category=by_category,
-            trend_pct=round(random.uniform(-15, 25), 1),
+            trend_pct=round(_deterministic_float("seed_3", -15, 25), 1),
             top_modules=top_modules,
             period="monthly",
         )
 
     async def analyze_roi(self, regulation: str) -> ROIAnalysis:
         """Analyze ROI for compliance investment in a regulation."""
-        investment = round(random.uniform(100000, 1000000), 2)
+        investment = round(_deterministic_float("seed_4", 100000, 1000000), 2)
         # Savings from avoided fines and reduced audit costs
-        avg_fine = random.uniform(500000, 50000000)
-        probability = random.uniform(0.05, 0.3)
+        avg_fine = _deterministic_float("seed_5", 500000, 50000000)
+        probability = _deterministic_float("seed_6", 0.05, 0.3)
         savings = round(avg_fine * probability + investment * 0.15, 2)
         roi = round(((savings - investment) / investment) * 100, 1)
 
@@ -148,9 +160,9 @@ class CostAttributionService:
 
     async def model_market_exit(self, jurisdiction: str) -> MarketExitScenario:
         """Model the cost of exiting a market/jurisdiction."""
-        current_cost = round(random.uniform(200000, 2000000), 2)
-        exit_cost = round(random.uniform(100000, 500000), 2)
-        revenue = round(random.uniform(1000000, 50000000), 2)
+        current_cost = round(_deterministic_float("seed_7", 200000, 2000000), 2)
+        exit_cost = round(_deterministic_float("seed_8", 100000, 500000), 2)
+        revenue = round(_deterministic_float("seed_9", 1000000, 50000000), 2)
 
         if revenue > current_cost * 5:
             recommendation = "STAY — Revenue significantly exceeds compliance costs"
@@ -182,9 +194,15 @@ class CostAttributionService:
 
         # Generate mock data if no real entries
         if not self._costs:
-            total = round(random.uniform(500000, 5000000), 2)
-            by_reg = {reg: round(random.uniform(50000, 500000), 2) for reg in _REGULATIONS}
-            by_cat = {cat.value: round(random.uniform(30000, 300000), 2) for cat in CostCategory}
+            total = round(_deterministic_float("seed_10", 500000, 5000000), 2)
+            by_reg = {
+                reg: round(_deterministic_float("seed_11", 50000, 500000), 2)
+                for reg in _REGULATIONS
+            }
+            by_cat = {
+                cat.value: round(_deterministic_float("seed_12", 30000, 300000), 2)
+                for cat in CostCategory
+            }
 
         top_drivers = [
             {
@@ -199,10 +217,10 @@ class CostAttributionService:
             total_compliance_cost=round(total, 2),
             cost_by_regulation=by_reg,
             cost_by_category=by_cat,
-            month_over_month_change=round(random.uniform(-10, 15), 1),
+            month_over_month_change=round(_deterministic_float("seed_13", -10, 15), 1),
             top_cost_drivers=top_drivers,
             roi_summary={
-                "avg_roi_pct": round(random.uniform(50, 300), 1),
+                "avg_roi_pct": round(_deterministic_float("seed_14", 50, 300), 1),
                 "total_investment": round(total * 0.6, 2),
                 "total_savings": round(total * 1.5, 2),
             },
@@ -213,7 +231,7 @@ class CostAttributionService:
 
     async def list_summaries(self) -> list[RegulationCostSummary]:
         """List cost summaries for all regulations."""
-        regulations = set(c.regulation for c in self._costs)
+        regulations = {c.regulation for c in self._costs}
         if not regulations:
             regulations = set(_REGULATIONS)
 

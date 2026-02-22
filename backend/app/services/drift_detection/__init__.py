@@ -20,7 +20,6 @@ from app.services.drift_detection.service import DriftDetectionService
 
 
 __all__ = [
-    "DriftDetectionService",
     "AlertChannel",
     "AlertConfig",
     "AlertStatus",
@@ -28,6 +27,7 @@ __all__ = [
     "CICDGateResult",
     "ComplianceBaseline",
     "DriftAlert",
+    "DriftDetectionService",
     "DriftEvent",
     "DriftReport",
     "DriftSeverity",

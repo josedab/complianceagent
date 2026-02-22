@@ -133,7 +133,11 @@ class BenchmarkResult:
                 "recall": round(self.entity_scores.recall, 4),
             },
             "frameworks": {
-                fw: {"f1": round(s.f1, 4), "precision": round(s.precision, 4), "recall": round(s.recall, 4)}
+                fw: {
+                    "f1": round(s.f1, 4),
+                    "precision": round(s.precision, 4),
+                    "recall": round(s.recall, 4),
+                }
                 for fw, s in self.framework_scores.items()
             },
             "avg_latency_ms": round(self.avg_latency_ms, 2),

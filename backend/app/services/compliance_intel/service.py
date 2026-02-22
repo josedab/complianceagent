@@ -1,7 +1,5 @@
 """Federated Compliance Intelligence Network Service."""
 
-import hashlib
-import random
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -18,26 +16,88 @@ from app.services.compliance_intel.models import (
     PrivacyLevel,
 )
 
+
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
+
+
 logger = structlog.get_logger()
 
 # Built-in anonymized compliance patterns
 _SEED_PATTERNS: list[dict] = [
-    {"framework": "gdpr", "control": "Art.25", "desc": "Data protection by design using encryption-first architecture",
-     "adoption": 72.0, "effectiveness": 85.0, "industry": "saas"},
-    {"framework": "gdpr", "control": "Art.17", "desc": "Automated data deletion pipeline with retention policies",
-     "adoption": 65.0, "effectiveness": 90.0, "industry": "saas"},
-    {"framework": "hipaa", "control": "Security Rule", "desc": "End-to-end PHI encryption with key rotation",
-     "adoption": 88.0, "effectiveness": 92.0, "industry": "healthtech"},
-    {"framework": "pci_dss", "control": "Req 3", "desc": "Card tokenization with vault-based storage",
-     "adoption": 95.0, "effectiveness": 96.0, "industry": "fintech"},
-    {"framework": "soc2", "control": "CC6.1", "desc": "Zero-trust access model with JIT provisioning",
-     "adoption": 45.0, "effectiveness": 88.0, "industry": "saas"},
-    {"framework": "eu_ai_act", "control": "Art.13", "desc": "Automated model card generation for transparency",
-     "adoption": 25.0, "effectiveness": 78.0, "industry": "ai_companies"},
-    {"framework": "soc2", "control": "CC8.1", "desc": "GitOps-based change management with audit trail",
-     "adoption": 58.0, "effectiveness": 85.0, "industry": "saas"},
-    {"framework": "gdpr", "control": "Art.33", "desc": "Automated breach detection and 72-hour notification workflow",
-     "adoption": 42.0, "effectiveness": 82.0, "industry": "fintech"},
+    {
+        "framework": "gdpr",
+        "control": "Art.25",
+        "desc": "Data protection by design using encryption-first architecture",
+        "adoption": 72.0,
+        "effectiveness": 85.0,
+        "industry": "saas",
+    },
+    {
+        "framework": "gdpr",
+        "control": "Art.17",
+        "desc": "Automated data deletion pipeline with retention policies",
+        "adoption": 65.0,
+        "effectiveness": 90.0,
+        "industry": "saas",
+    },
+    {
+        "framework": "hipaa",
+        "control": "Security Rule",
+        "desc": "End-to-end PHI encryption with key rotation",
+        "adoption": 88.0,
+        "effectiveness": 92.0,
+        "industry": "healthtech",
+    },
+    {
+        "framework": "pci_dss",
+        "control": "Req 3",
+        "desc": "Card tokenization with vault-based storage",
+        "adoption": 95.0,
+        "effectiveness": 96.0,
+        "industry": "fintech",
+    },
+    {
+        "framework": "soc2",
+        "control": "CC6.1",
+        "desc": "Zero-trust access model with JIT provisioning",
+        "adoption": 45.0,
+        "effectiveness": 88.0,
+        "industry": "saas",
+    },
+    {
+        "framework": "eu_ai_act",
+        "control": "Art.13",
+        "desc": "Automated model card generation for transparency",
+        "adoption": 25.0,
+        "effectiveness": 78.0,
+        "industry": "ai_companies",
+    },
+    {
+        "framework": "soc2",
+        "control": "CC8.1",
+        "desc": "GitOps-based change management with audit trail",
+        "adoption": 58.0,
+        "effectiveness": 85.0,
+        "industry": "saas",
+    },
+    {
+        "framework": "gdpr",
+        "control": "Art.33",
+        "desc": "Automated breach detection and 72-hour notification workflow",
+        "adoption": 42.0,
+        "effectiveness": 82.0,
+        "industry": "fintech",
+    },
 ]
 
 
@@ -50,11 +110,16 @@ class ComplianceIntelService:
         self._participants: dict[UUID, FederatedParticipant] = {}
         self._patterns: list[AnonymizedPattern] = [
             AnonymizedPattern(
-                framework=p["framework"], control_id=p["control"],
-                pattern_description=p["desc"], adoption_rate=p["adoption"],
-                effectiveness_score=p["effectiveness"], industry=p["industry"],
-                sample_size=random.randint(50, 300), created_at=datetime.now(UTC),
-            ) for p in _SEED_PATTERNS
+                framework=p["framework"],
+                control_id=p["control"],
+                pattern_description=p["desc"],
+                adoption_rate=p["adoption"],
+                effectiveness_score=p["effectiveness"],
+                industry=p["industry"],
+                sample_size=_deterministic_int("seed_1", 50, 300),
+                created_at=datetime.now(UTC),
+            )
+            for p in _SEED_PATTERNS
         ]
         self._insights: list[IndustryInsight] = []
 
@@ -170,7 +235,9 @@ class ComplianceIntelService:
             for p in sorted(patterns, key=lambda x: x.adoption_rate, reverse=True)[:5]
         ]
 
-    def _generate_insights(self, industry: str | None, framework: str | None) -> list[IndustryInsight]:
+    def _generate_insights(
+        self, industry: str | None, framework: str | None
+    ) -> list[IndustryInsight]:
         patterns = self._patterns
         if industry:
             patterns = [p for p in patterns if p.industry == industry]
@@ -180,7 +247,9 @@ class ComplianceIntelService:
         insights = []
         for p in patterns[:10]:
             insight = IndustryInsight(
-                insight_type=InsightType.COMMON_PATTERN if p.adoption_rate > 50 else InsightType.BEST_PRACTICE,
+                insight_type=InsightType.COMMON_PATTERN
+                if p.adoption_rate > 50
+                else InsightType.BEST_PRACTICE,
                 title=f"{p.framework.upper()} — {p.control_id}",
                 description=p.pattern_description,
                 framework=p.framework,
@@ -203,7 +272,7 @@ class ComplianceIntelService:
         """Add Laplace noise for differential privacy."""
         sensitivity = 10.0
         scale = sensitivity / epsilon
-        noise = random.uniform(-1, 1) * scale
+        noise = _deterministic_float("seed_2", -1, 1) * scale
         return value + noise
 
     @staticmethod

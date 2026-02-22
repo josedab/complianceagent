@@ -2,4 +2,11 @@
 
 from app.services.board_reports.service import BoardReportsService
 
-__all__ = ["BoardReportsService"]
+
+__all__ = [
+    "BoardReport",
+    "BoardReportsService",
+    "ComplianceHighlight",
+    "ExecutiveSummary",
+    "ReportFormat",
+]

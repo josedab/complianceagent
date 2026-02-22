@@ -85,7 +85,10 @@ class JurisdictionConflictResolver:
         },
     }
 
-    def __init__(self, default_strategy: ConflictResolutionStrategy = ConflictResolutionStrategy.MOST_RESTRICTIVE):
+    def __init__(
+        self,
+        default_strategy: ConflictResolutionStrategy = ConflictResolutionStrategy.MOST_RESTRICTIVE,
+    ):
         self.default_strategy = default_strategy
 
     def detect_conflicts(
@@ -241,9 +244,9 @@ class JurisdictionConflictResolver:
             "action": strictest.action,
             "deadline_days": strictest.deadline_days,
             "source_requirements": [r.reference_id for r in requirements],
-            "source_jurisdictions": list({
-                r.regulation.jurisdiction.value for r in requirements if r.regulation
-            }),
+            "source_jurisdictions": list(
+                {r.regulation.jurisdiction.value for r in requirements if r.regulation}
+            ),
         }
 
     def _resolve_jurisdiction_specific(
@@ -282,7 +285,9 @@ class JurisdictionConflictResolver:
         min_deadline = None
 
         for req in requirements:
-            all_actions.append(f"[{req.regulation.jurisdiction.value if req.regulation else 'Unknown'}] {req.action}")
+            all_actions.append(
+                f"[{req.regulation.jurisdiction.value if req.regulation else 'Unknown'}] {req.action}"
+            )
             all_data_types.update(req.data_types)
             all_processes.update(req.processes)
             if req.deadline_days:

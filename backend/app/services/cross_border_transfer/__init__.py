@@ -14,10 +14,11 @@ from app.services.cross_border_transfer.models import (
 )
 from app.services.cross_border_transfer.service import CrossBorderTransferService
 
+
 __all__ = [
-    "CrossBorderTransferService",
     "AdequacyDecision",
     "AdequacyStatus",
+    "CrossBorderTransferService",
     "DataFlow",
     "Jurisdiction",
     "SCCDocument",

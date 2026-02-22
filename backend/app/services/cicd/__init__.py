@@ -8,5 +8,7 @@ from app.services.cicd.service import CICDComplianceService
 __all__ = [
     "CICDComplianceAnalyzer",
     "CICDComplianceService",
+    "CICDScanRequest",
+    "CICDScanResult",
     "SARIFGenerator",
 ]

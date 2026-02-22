@@ -26,23 +26,75 @@ logger = structlog.get_logger()
 _SEED_NODES: list[dict[str, Any]] = [
     {"type": NodeType.FRAMEWORK, "label": "GDPR", "props": {"jurisdiction": "EU", "articles": 99}},
     {"type": NodeType.FRAMEWORK, "label": "HIPAA", "props": {"jurisdiction": "US", "sections": 12}},
-    {"type": NodeType.FRAMEWORK, "label": "SOC 2", "props": {"jurisdiction": "Global", "categories": 5}},
-    {"type": NodeType.REQUIREMENT, "label": "GDPR Art.17 Right to Erasure", "props": {"framework": "GDPR", "article": "17"}},
-    {"type": NodeType.REQUIREMENT, "label": "GDPR Art.7 Consent", "props": {"framework": "GDPR", "article": "7"}},
-    {"type": NodeType.REQUIREMENT, "label": "GDPR Art.32 Security", "props": {"framework": "GDPR", "article": "32"}},
-    {"type": NodeType.REQUIREMENT, "label": "HIPAA §164.312 Technical Safeguards", "props": {"framework": "HIPAA"}},
-    {"type": NodeType.REQUIREMENT, "label": "HIPAA §164.502 Minimum Necessary", "props": {"framework": "HIPAA"}},
-    {"type": NodeType.REQUIREMENT, "label": "SOC 2 CC6.1 Access Controls", "props": {"framework": "SOC 2"}},
-    {"type": NodeType.REQUIREMENT, "label": "SOC 2 CC7.2 Monitoring", "props": {"framework": "SOC 2"}},
-    {"type": NodeType.CODE_FILE, "label": "src/api/users.py", "props": {"language": "python", "pii": True}},
-    {"type": NodeType.CODE_FILE, "label": "src/auth/login.py", "props": {"language": "python", "auth": True}},
-    {"type": NodeType.CODE_FILE, "label": "src/db/models.py", "props": {"language": "python", "storage": True}},
+    {
+        "type": NodeType.FRAMEWORK,
+        "label": "SOC 2",
+        "props": {"jurisdiction": "Global", "categories": 5},
+    },
+    {
+        "type": NodeType.REQUIREMENT,
+        "label": "GDPR Art.17 Right to Erasure",
+        "props": {"framework": "GDPR", "article": "17"},
+    },
+    {
+        "type": NodeType.REQUIREMENT,
+        "label": "GDPR Art.7 Consent",
+        "props": {"framework": "GDPR", "article": "7"},
+    },
+    {
+        "type": NodeType.REQUIREMENT,
+        "label": "GDPR Art.32 Security",
+        "props": {"framework": "GDPR", "article": "32"},
+    },
+    {
+        "type": NodeType.REQUIREMENT,
+        "label": "HIPAA §164.312 Technical Safeguards",
+        "props": {"framework": "HIPAA"},
+    },
+    {
+        "type": NodeType.REQUIREMENT,
+        "label": "HIPAA §164.502 Minimum Necessary",
+        "props": {"framework": "HIPAA"},
+    },
+    {
+        "type": NodeType.REQUIREMENT,
+        "label": "SOC 2 CC6.1 Access Controls",
+        "props": {"framework": "SOC 2"},
+    },
+    {
+        "type": NodeType.REQUIREMENT,
+        "label": "SOC 2 CC7.2 Monitoring",
+        "props": {"framework": "SOC 2"},
+    },
+    {
+        "type": NodeType.CODE_FILE,
+        "label": "src/api/users.py",
+        "props": {"language": "python", "pii": True},
+    },
+    {
+        "type": NodeType.CODE_FILE,
+        "label": "src/auth/login.py",
+        "props": {"language": "python", "auth": True},
+    },
+    {
+        "type": NodeType.CODE_FILE,
+        "label": "src/db/models.py",
+        "props": {"language": "python", "storage": True},
+    },
     {"type": NodeType.CONTROL, "label": "Encryption at Rest", "props": {"status": "implemented"}},
     {"type": NodeType.CONTROL, "label": "MFA Authentication", "props": {"status": "implemented"}},
     {"type": NodeType.CONTROL, "label": "Audit Logging", "props": {"status": "implemented"}},
     {"type": NodeType.CONTROL, "label": "Data Deletion API", "props": {"status": "partial"}},
-    {"type": NodeType.EVIDENCE, "label": "Encryption config audit", "props": {"collected": "2025-01-15"}},
-    {"type": NodeType.EVIDENCE, "label": "Access review Q4 2024", "props": {"collected": "2024-12-20"}},
+    {
+        "type": NodeType.EVIDENCE,
+        "label": "Encryption config audit",
+        "props": {"collected": "2025-01-15"},
+    },
+    {
+        "type": NodeType.EVIDENCE,
+        "label": "Access review Q4 2024",
+        "props": {"collected": "2024-12-20"},
+    },
 ]
 
 
@@ -59,7 +111,9 @@ class ComplianceKnowledgeGraphService:
     def _init_seed_graph(self) -> None:
         node_ids: dict[str, UUID] = {}
         for item in _SEED_NODES:
-            node = GraphNode(node_type=item["type"], label=item["label"], properties=item.get("props", {}))
+            node = GraphNode(
+                node_type=item["type"], label=item["label"], properties=item.get("props", {})
+            )
             self._nodes[node.id] = node
             node_ids[item["label"]] = node.id
 
@@ -87,7 +141,9 @@ class ComplianceKnowledgeGraphService:
             src_id = node_ids.get(src_label)
             tgt_id = node_ids.get(tgt_label)
             if src_id and tgt_id:
-                self._edges.append(GraphEdge(source_id=src_id, target_id=tgt_id, edge_type=edge_type))
+                self._edges.append(
+                    GraphEdge(source_id=src_id, target_id=tgt_id, edge_type=edge_type)
+                )
 
     async def query(self, natural_language: str) -> GraphQueryResult:
         """Natural language query over the compliance graph."""
@@ -100,8 +156,7 @@ class ComplianceKnowledgeGraphService:
 
         matched_ids = {n.id for n in matched_nodes}
         matched_edges = [
-            e for e in self._edges
-            if e.source_id in matched_ids or e.target_id in matched_ids
+            e for e in self._edges if e.source_id in matched_ids or e.target_id in matched_ids
         ]
 
         # Expand to connected nodes

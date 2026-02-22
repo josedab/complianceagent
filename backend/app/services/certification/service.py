@@ -2,7 +2,7 @@
 
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -112,15 +112,11 @@ class CertificationService:
         if module_id_str not in enrollment.completed_modules:
             enrollment.completed_modules.append(module_id_str)
 
-        enrollment.progress_pct = (
-            len(enrollment.completed_modules) / len(course.modules) * 100
-        )
+        enrollment.progress_pct = len(enrollment.completed_modules) / len(course.modules) * 100
 
         # Advance to next module
         current_order = module.order
-        next_module = next(
-            (m for m in course.modules if m.order == current_order + 1), None
-        )
+        next_module = next((m for m in course.modules if m.order == current_order + 1), None)
         if next_module:
             enrollment.current_module = next_module.title
 
@@ -168,11 +164,13 @@ class CertificationService:
             if is_correct:
                 earned_points += question.points
 
-            results.append({
-                "question_id": str(question.id),
-                "correct": is_correct,
-                "explanation": question.explanation,
-            })
+            results.append(
+                {
+                    "question_id": str(question.id),
+                    "correct": is_correct,
+                    "explanation": question.explanation,
+                }
+            )
 
         score = (earned_points / total_points) * 100
         passed = score >= module.passing_score
@@ -180,9 +178,7 @@ class CertificationService:
 
         if passed and str(module_id) not in enrollment.completed_modules:
             enrollment.completed_modules.append(str(module_id))
-            enrollment.progress_pct = (
-                len(enrollment.completed_modules) / len(course.modules) * 100
-            )
+            enrollment.progress_pct = len(enrollment.completed_modules) / len(course.modules) * 100
 
         logger.info(
             "quiz_submitted",
@@ -277,11 +273,13 @@ class CertificationService:
             if is_correct:
                 earned_points += question.points
 
-            results.append({
-                "question_id": str(question.id),
-                "correct": is_correct,
-                "explanation": question.explanation,
-            })
+            results.append(
+                {
+                    "question_id": str(question.id),
+                    "correct": is_correct,
+                    "explanation": question.explanation,
+                }
+            )
 
         score = (earned_points / total_points) * 100
         passed = score >= 75.0
@@ -309,7 +307,9 @@ class CertificationService:
             "certificate": {
                 "certificate_number": cert.certificate_number,
                 "verification_url": cert.verification_url,
-            } if cert else None,
+            }
+            if cert
+            else None,
         }
 
     async def issue_certificate(
@@ -322,10 +322,10 @@ class CertificationService:
         course = self._courses.get(course_id)
         title = course.title if course else "Unknown"
 
-        cert_number = f"CERT-{secrets.token_hex(4).upper()}-{datetime.utcnow().strftime('%Y')}"
-        credential_id = hashlib.sha256(
-            f"{user_id}:{course_id}:{cert_number}".encode()
-        ).hexdigest()[:16]
+        cert_number = f"CERT-{secrets.token_hex(4).upper()}-{datetime.now(UTC).strftime('%Y')}"
+        credential_id = hashlib.sha256(f"{user_id}:{course_id}:{cert_number}".encode()).hexdigest()[
+            :16
+        ]
 
         certificate = Certificate(
             user_id=user_id,
@@ -349,17 +349,14 @@ class CertificationService:
         """Verify a certificate by its number."""
         for cert in self._certificates.values():
             if cert.certificate_number == certificate_number:
-                if cert.expires_at < datetime.utcnow():
+                if cert.expires_at < datetime.now(UTC):
                     cert.status = CertificateStatus.EXPIRED
                 return cert
         return None
 
     async def get_user_certificates(self, user_id: UUID) -> list[Certificate]:
         """Get all certificates for a user."""
-        return [
-            c for c in self._certificates.values()
-            if c.user_id == user_id
-        ]
+        return [c for c in self._certificates.values() if c.user_id == user_id]
 
     async def get_learning_paths(self) -> list[LearningPath]:
         """Get curated learning paths."""
@@ -423,10 +420,7 @@ class CertificationService:
 
     async def list_enrollments(self, user_id: UUID) -> list[Enrollment]:
         """List all enrollments for a user."""
-        return [
-            e for e in self._enrollments.values()
-            if e.user_id == user_id
-        ]
+        return [e for e in self._enrollments.values() if e.user_id == user_id]
 
     # --- Private Helpers ---
 
@@ -468,16 +462,18 @@ class CertificationService:
     def _create_gdpr_course(self, course_id: UUID) -> Course:
         """Create GDPR for Developers certification course."""
         modules = []
-        for i, (title, mtype) in enumerate([
-            ("Introduction to GDPR Principles", ModuleType.LESSON),
-            ("Data Subject Rights Implementation", ModuleType.LESSON),
-            ("Lawful Basis for Processing", ModuleType.QUIZ),
-            ("Privacy by Design Patterns", ModuleType.LAB),
-            ("Data Protection Impact Assessments", ModuleType.LESSON),
-            ("Cross-Border Data Transfers", ModuleType.QUIZ),
-            ("Breach Notification Implementation", ModuleType.LAB),
-            ("GDPR Certification Exam", ModuleType.ASSESSMENT),
-        ]):
+        for i, (title, mtype) in enumerate(
+            [
+                ("Introduction to GDPR Principles", ModuleType.LESSON),
+                ("Data Subject Rights Implementation", ModuleType.LESSON),
+                ("Lawful Basis for Processing", ModuleType.QUIZ),
+                ("Privacy by Design Patterns", ModuleType.LAB),
+                ("Data Protection Impact Assessments", ModuleType.LESSON),
+                ("Cross-Border Data Transfers", ModuleType.QUIZ),
+                ("Breach Notification Implementation", ModuleType.LAB),
+                ("GDPR Certification Exam", ModuleType.ASSESSMENT),
+            ]
+        ):
             mod = Module(
                 course_id=course_id,
                 title=title,
@@ -492,7 +488,12 @@ class CertificationService:
                         module_id=mod.id,
                         type=QuestionType.MULTIPLE_CHOICE,
                         question_text="What is the maximum GDPR fine for serious infringements?",
-                        options=["€10 million", "€20 million or 4% of global turnover", "€50 million", "€5 million"],
+                        options=[
+                            "€10 million",
+                            "€20 million or 4% of global turnover",
+                            "€50 million",
+                            "€5 million",
+                        ],
                         correct_answer="€20 million or 4% of global turnover",
                         explanation="Article 83(5) GDPR specifies fines up to €20M or 4% of total worldwide annual turnover.",
                         points=10,
@@ -548,14 +549,16 @@ class CertificationService:
     def _create_ai_act_course(self, course_id: UUID) -> Course:
         """Create EU AI Act Implementation certification course."""
         modules = []
-        for i, (title, mtype) in enumerate([
-            ("EU AI Act Overview & Risk Classification", ModuleType.LESSON),
-            ("High-Risk AI System Requirements", ModuleType.LESSON),
-            ("AI Risk Classification Quiz", ModuleType.QUIZ),
-            ("Transparency & Documentation Lab", ModuleType.LAB),
-            ("Conformity Assessment Procedures", ModuleType.LESSON),
-            ("AI Act Certification Exam", ModuleType.ASSESSMENT),
-        ]):
+        for i, (title, mtype) in enumerate(
+            [
+                ("EU AI Act Overview & Risk Classification", ModuleType.LESSON),
+                ("High-Risk AI System Requirements", ModuleType.LESSON),
+                ("AI Risk Classification Quiz", ModuleType.QUIZ),
+                ("Transparency & Documentation Lab", ModuleType.LAB),
+                ("Conformity Assessment Procedures", ModuleType.LESSON),
+                ("AI Act Certification Exam", ModuleType.ASSESSMENT),
+            ]
+        ):
             mod = Module(
                 course_id=course_id,
                 title=title,
@@ -630,14 +633,16 @@ class CertificationService:
     def _create_hipaa_course(self, course_id: UUID) -> Course:
         """Create HIPAA Security Rules certification course."""
         modules = []
-        for i, (title, mtype) in enumerate([
-            ("HIPAA Fundamentals & PHI Identification", ModuleType.LESSON),
-            ("Administrative Safeguards", ModuleType.LESSON),
-            ("Technical Safeguards Quiz", ModuleType.QUIZ),
-            ("Encryption & Access Control Lab", ModuleType.LAB),
-            ("Audit Controls & Integrity", ModuleType.LESSON),
-            ("HIPAA Security Certification Exam", ModuleType.ASSESSMENT),
-        ]):
+        for i, (title, mtype) in enumerate(
+            [
+                ("HIPAA Fundamentals & PHI Identification", ModuleType.LESSON),
+                ("Administrative Safeguards", ModuleType.LESSON),
+                ("Technical Safeguards Quiz", ModuleType.QUIZ),
+                ("Encryption & Access Control Lab", ModuleType.LAB),
+                ("Audit Controls & Integrity", ModuleType.LESSON),
+                ("HIPAA Security Certification Exam", ModuleType.ASSESSMENT),
+            ]
+        ):
             mod = Module(
                 course_id=course_id,
                 title=title,
@@ -708,14 +713,16 @@ class CertificationService:
     def _create_soc2_course(self, course_id: UUID) -> Course:
         """Create SOC 2 Compliance Engineering certification course."""
         modules = []
-        for i, (title, mtype) in enumerate([
-            ("SOC 2 Trust Service Criteria Overview", ModuleType.LESSON),
-            ("Security & Availability Controls", ModuleType.LESSON),
-            ("Trust Criteria Quiz", ModuleType.QUIZ),
-            ("Continuous Monitoring Lab", ModuleType.LAB),
-            ("Evidence Collection & Audit Preparation", ModuleType.LESSON),
-            ("SOC 2 Certification Exam", ModuleType.ASSESSMENT),
-        ]):
+        for i, (title, mtype) in enumerate(
+            [
+                ("SOC 2 Trust Service Criteria Overview", ModuleType.LESSON),
+                ("Security & Availability Controls", ModuleType.LESSON),
+                ("Trust Criteria Quiz", ModuleType.QUIZ),
+                ("Continuous Monitoring Lab", ModuleType.LAB),
+                ("Evidence Collection & Audit Preparation", ModuleType.LESSON),
+                ("SOC 2 Certification Exam", ModuleType.ASSESSMENT),
+            ]
+        ):
             mod = Module(
                 course_id=course_id,
                 title=title,

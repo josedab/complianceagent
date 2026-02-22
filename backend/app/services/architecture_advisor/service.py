@@ -201,7 +201,9 @@ class ArchitectureAdvisorService:
         result.detected_patterns = detected
 
         # Find risks based on detected patterns and regulations
-        target_regulations = {r.upper().replace("-", "_") for r in (regulations or ["GDPR", "HIPAA", "PCI-DSS"])}
+        target_regulations = {
+            r.upper().replace("-", "_") for r in (regulations or ["GDPR", "HIPAA", "PCI-DSS"])
+        }
         detected_types = {p.pattern_type for p in detected}
 
         for anti in _ANTI_PATTERNS:
@@ -214,7 +216,11 @@ class ArchitectureAdvisorService:
                     title=anti["title"],
                     description=anti["description"],
                     recommendation=anti["recommendation"],
-                    affected_components=[p.evidence[0] for p in detected if p.pattern_type == anti["pattern"] and p.evidence],
+                    affected_components=[
+                        p.evidence[0]
+                        for p in detected
+                        if p.pattern_type == anti["pattern"] and p.evidence
+                    ],
                 )
                 result.risks.append(risk)
 
@@ -301,19 +307,17 @@ class ArchitectureAdvisorService:
             await self.db.commit()
         except Exception:
             await self.db.rollback()
-            logger.warning("Failed to persist architecture review, continuing with in-memory result")
+            logger.warning(
+                "Failed to persist architecture review, continuing with in-memory result"
+            )
 
     async def _enhance_with_copilot(self, result: DesignReviewResult) -> None:
         """Use Copilot to provide deeper AI-powered risk analysis."""
         try:
             from app.agents.copilot import CopilotMessage
 
-            patterns_summary = ", ".join(
-                p.pattern_type.value for p in result.detected_patterns
-            )
-            risks_summary = "; ".join(
-                f"{r.title} ({r.severity.value})" for r in result.risks[:5]
-            )
+            patterns_summary = ", ".join(p.pattern_type.value for p in result.detected_patterns)
+            risks_summary = "; ".join(f"{r.title} ({r.severity.value})" for r in result.risks[:5])
 
             prompt = (
                 f"Analyze these architecture compliance risks for repository '{result.repo}':\n"
@@ -341,7 +345,9 @@ class ArchitectureAdvisorService:
                     ArchitectureRecommendation(
                         title="AI Analysis Summary",
                         description=response.content.strip(),
-                        regulation=result.regulations_analyzed[0] if result.regulations_analyzed else "General",
+                        regulation=result.regulations_analyzed[0]
+                        if result.regulations_analyzed
+                        else "General",
                         recommended_pattern="ai_insight",
                         effort_estimate_days=0,
                         impact=RiskSeverity.INFO,
@@ -409,58 +415,88 @@ class ArchitectureAdvisorService:
 
         # Detect Docker/Kubernetes → likely microservices
         if any("docker-compose" in f or "kubernetes" in f or "k8s" in f for f in file_set):
-            patterns.append(ArchitecturePattern(
-                pattern_type=PatternType.MICROSERVICES,
-                confidence=0.75,
-                evidence=[f for f in files if "docker" in f.lower() or "k8s" in f.lower()][:3],
-                description="Docker Compose / Kubernetes configuration detected",
-            ))
+            patterns.append(
+                ArchitecturePattern(
+                    pattern_type=PatternType.MICROSERVICES,
+                    confidence=0.75,
+                    evidence=[f for f in files if "docker" in f.lower() or "k8s" in f.lower()][:3],
+                    description="Docker Compose / Kubernetes configuration detected",
+                )
+            )
 
         # Detect Terraform/CloudFormation → infrastructure patterns
         if any("terraform" in f or "cloudformation" in f for f in file_set):
             if any("lambda" in f or "function" in f for f in file_set):
-                patterns.append(ArchitecturePattern(
-                    pattern_type=PatternType.SERVERLESS,
-                    confidence=0.70,
-                    evidence=[f for f in files if "lambda" in f.lower() or "function" in f.lower()][:3],
-                    description="Serverless function definitions detected",
-                ))
+                patterns.append(
+                    ArchitecturePattern(
+                        pattern_type=PatternType.SERVERLESS,
+                        confidence=0.70,
+                        evidence=[
+                            f for f in files if "lambda" in f.lower() or "function" in f.lower()
+                        ][:3],
+                        description="Serverless function definitions detected",
+                    )
+                )
 
         # Detect event-driven patterns
-        if any(kw in f for f in file_set for kw in ["kafka", "rabbitmq", "celery", "event", "queue"]):
-            patterns.append(ArchitecturePattern(
-                pattern_type=PatternType.EVENT_DRIVEN,
-                confidence=0.70,
-                evidence=[f for f in files if any(kw in f.lower() for kw in ["kafka", "celery", "event", "queue"])][:3],
-                description="Event-driven / message queue components detected",
-            ))
+        if any(
+            kw in f for f in file_set for kw in ["kafka", "rabbitmq", "celery", "event", "queue"]
+        ):
+            patterns.append(
+                ArchitecturePattern(
+                    pattern_type=PatternType.EVENT_DRIVEN,
+                    confidence=0.70,
+                    evidence=[
+                        f
+                        for f in files
+                        if any(kw in f.lower() for kw in ["kafka", "celery", "event", "queue"])
+                    ][:3],
+                    description="Event-driven / message queue components detected",
+                )
+            )
 
         # Detect API gateway
         if any(kw in f for f in file_set for kw in ["gateway", "nginx", "kong", "traefik"]):
-            patterns.append(ArchitecturePattern(
-                pattern_type=PatternType.API_GATEWAY,
-                confidence=0.65,
-                evidence=[f for f in files if any(kw in f.lower() for kw in ["gateway", "nginx"])][:3],
-                description="API Gateway configuration detected",
-            ))
+            patterns.append(
+                ArchitecturePattern(
+                    pattern_type=PatternType.API_GATEWAY,
+                    confidence=0.65,
+                    evidence=[
+                        f for f in files if any(kw in f.lower() for kw in ["gateway", "nginx"])
+                    ][:3],
+                    description="API Gateway configuration detected",
+                )
+            )
 
         # Detect data lake patterns
-        if any(kw in f for f in file_set for kw in ["datalake", "data_lake", "warehouse", "spark", "airflow"]):
-            patterns.append(ArchitecturePattern(
-                pattern_type=PatternType.DATA_LAKE,
-                confidence=0.70,
-                evidence=[f for f in files if any(kw in f.lower() for kw in ["lake", "warehouse", "spark"])][:3],
-                description="Data lake / warehouse infrastructure detected",
-            ))
+        if any(
+            kw in f
+            for f in file_set
+            for kw in ["datalake", "data_lake", "warehouse", "spark", "airflow"]
+        ):
+            patterns.append(
+                ArchitecturePattern(
+                    pattern_type=PatternType.DATA_LAKE,
+                    confidence=0.70,
+                    evidence=[
+                        f
+                        for f in files
+                        if any(kw in f.lower() for kw in ["lake", "warehouse", "spark"])
+                    ][:3],
+                    description="Data lake / warehouse infrastructure detected",
+                )
+            )
 
         # Default: assume monolith if single app directory
         if not patterns:
-            patterns.append(ArchitecturePattern(
-                pattern_type=PatternType.MONOLITH,
-                confidence=0.50,
-                evidence=files[:3] if files else [],
-                description="Single application structure (assumed monolith)",
-            ))
+            patterns.append(
+                ArchitecturePattern(
+                    pattern_type=PatternType.MONOLITH,
+                    confidence=0.50,
+                    evidence=files[:3] if files else [],
+                    description="Single application structure (assumed monolith)",
+                )
+            )
 
         return patterns
 
@@ -498,9 +534,14 @@ class ArchitectureAdvisorService:
                 score.data_flow_score = max(0, score.data_flow_score - penalty)
 
         score.overall_score = int(
-            (score.data_isolation_score + score.encryption_score +
-             score.audit_trail_score + score.access_control_score +
-             score.data_flow_score) / 5
+            (
+                score.data_isolation_score
+                + score.encryption_score
+                + score.audit_trail_score
+                + score.access_control_score
+                + score.data_flow_score
+            )
+            / 5
         )
 
         score.risks_found = len(review.risks)
