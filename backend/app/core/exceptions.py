@@ -37,7 +37,9 @@ class CopilotParsingError(CopilotError):
     """Failed to parse Copilot response."""
 
     def __init__(self, message: str, raw_content: str | None = None):
-        super().__init__(message, {"raw_content_preview": raw_content[:500] if raw_content else None})
+        super().__init__(
+            message, {"raw_content_preview": raw_content[:500] if raw_content else None}
+        )
         self.raw_content = raw_content
 
 

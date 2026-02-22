@@ -120,7 +120,6 @@ class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
 
 
-
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get database session."""
     async with async_session_maker() as session:

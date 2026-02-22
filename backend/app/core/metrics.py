@@ -2,7 +2,6 @@
 
 import time
 from collections.abc import Callable
-from typing import Any
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -112,7 +111,7 @@ class MetricsCollector:
                 p50 = self._calculate_percentile(latencies, 50)
                 p95 = self._calculate_percentile(latencies, 95)
                 p99 = self._calculate_percentile(latencies, 99)
-                avg = sum(latencies) / len(latencies)
+                sum(latencies) / len(latencies)
                 lines.append(
                     f'http_request_duration_seconds{{method="{method}",path="{path}",quantile="0.5"}} {p50:.6f}'
                 )
@@ -136,15 +135,21 @@ class MetricsCollector:
             lines.append(f'errors_total{{type="{error_type}"}} {count}')
 
         # Compliance metrics
-        lines.append("# HELP complianceagent_regulations_processed_total Total regulations processed")
+        lines.append(
+            "# HELP complianceagent_regulations_processed_total Total regulations processed"
+        )
         lines.append("# TYPE complianceagent_regulations_processed_total counter")
         lines.append(f"complianceagent_regulations_processed_total {self._regulations_processed}")
 
-        lines.append("# HELP complianceagent_requirements_extracted_total Total requirements extracted")
+        lines.append(
+            "# HELP complianceagent_requirements_extracted_total Total requirements extracted"
+        )
         lines.append("# TYPE complianceagent_requirements_extracted_total counter")
         lines.append(f"complianceagent_requirements_extracted_total {self._requirements_extracted}")
 
-        lines.append("# HELP complianceagent_repositories_analyzed_total Total repositories analyzed")
+        lines.append(
+            "# HELP complianceagent_repositories_analyzed_total Total repositories analyzed"
+        )
         lines.append("# TYPE complianceagent_repositories_analyzed_total counter")
         lines.append(f"complianceagent_repositories_analyzed_total {self._repositories_analyzed}")
 
@@ -170,8 +175,12 @@ class MetricsCollector:
             lines.append(f'complianceagent_copilot_duration_seconds{{quantile="0.5"}} {p50:.6f}')
             lines.append(f'complianceagent_copilot_duration_seconds{{quantile="0.95"}} {p95:.6f}')
             lines.append(f'complianceagent_copilot_duration_seconds{{quantile="0.99"}} {p99:.6f}')
-            lines.append(f"complianceagent_copilot_duration_seconds_sum {sum(self._copilot_latency):.6f}")
-            lines.append(f"complianceagent_copilot_duration_seconds_count {len(self._copilot_latency)}")
+            lines.append(
+                f"complianceagent_copilot_duration_seconds_sum {sum(self._copilot_latency):.6f}"
+            )
+            lines.append(
+                f"complianceagent_copilot_duration_seconds_count {len(self._copilot_latency)}"
+            )
 
         return "\n".join(lines) + "\n"
 
