@@ -56,10 +56,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/complianceagent/complianceagent"
-Documentation = "https://docs.complianceagent.io/sdk"
-Repository = "https://github.com/complianceagent/complianceagent"
-Changelog = "https://github.com/complianceagent/complianceagent/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/josedab/complianceagent"
+Documentation = "https://github.com/josedab/complianceagent/tree/main/shared/compliance-sdk-python#readme"
+Repository = "https://github.com/josedab/complianceagent"
+Changelog = "https://github.com/josedab/complianceagent/blob/main/CHANGELOG.md"
+Issues = "https://github.com/josedab/complianceagent/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["complianceagent"]

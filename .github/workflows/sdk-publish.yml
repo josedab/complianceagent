@@ -1,0 +1,123 @@
+name: Publish Python SDK
+
+on:
+  push:
+    tags:
+      - "sdk-v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (build only, do not publish)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    working-directory: shared/compliance-sdk-python
+
+jobs:
+  test:
+    name: Test SDK
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install -e ".[dev]"
+
+      - name: Lint
+        run: |
+          source .venv/bin/activate
+          ruff check .
+          ruff format --check .
+
+      - name: Type check
+        run: |
+          source .venv/bin/activate
+          mypy complianceagent
+
+      - name: Test
+        run: |
+          source .venv/bin/activate
+          pytest tests/ -v --cov=complianceagent
+
+  build:
+    name: Build distribution
+    needs: [test]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-dist
+          path: shared/compliance-sdk-python/dist/
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [build]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/sdk-v')
+    runs-on: ubuntu-latest
+    environment: testpypi
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-dist
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [publish-testpypi]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/sdk-v')
+    runs-on: ubuntu-latest
+    environment: pypi
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

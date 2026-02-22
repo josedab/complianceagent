@@ -1,0 +1,40 @@
+# ComplianceAgent GitHub App Configuration
+# Use this template to register the app at https://github.com/settings/apps/new
+
+name: ComplianceAgent
+description: >-
+  AI-powered compliance scanning for pull requests. Automatically detects
+  GDPR, HIPAA, PCI-DSS, SOC 2, and EU AI Act issues in code changes.
+
+url: https://github.com/josedab/complianceagent
+
+# Webhook
+webhook_url: https://api.complianceagent.ai/api/v1/marketplace-app/webhook
+webhook_secret: ${GITHUB_WEBHOOK_SECRET}
+
+# Permissions (minimum required)
+permissions:
+  checks: write            # Create check runs on PRs
+  pull_requests: write     # Post review comments
+  contents: read           # Read repository files
+  metadata: read           # Access repo metadata
+  statuses: write          # Set commit statuses
+
+# Events to subscribe to
+events:
+  - pull_request           # PR opened/synced/reopened
+  - push                   # Pushes to default branch
+  - check_run              # Check run requested
+  - installation           # App installed/uninstalled
+
+# Marketplace listing
+public: true
+setup_url: https://complianceagent.ai/setup
+setup_on_update: true
+
+# Pricing plans (GitHub Marketplace)
+# Configured via GitHub Marketplace portal:
+#   Free:       3 repos, 50 scans/month
+#   Team:       25 repos, 500 scans/month ($29/mo)
+#   Business:   Unlimited repos, 5000 scans/month ($99/mo)
+#   Enterprise: Custom (contact sales)

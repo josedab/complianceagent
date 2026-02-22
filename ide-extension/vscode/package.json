@@ -15,6 +15,18 @@
     "Linters",
     "Other"
   ],
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e293b",
+    "theme": "dark"
+  },
+  "badges": [
+    {
+      "url": "https://img.shields.io/github/actions/workflow/status/josedab/complianceagent/ci.yml?branch=main",
+      "href": "https://github.com/josedab/complianceagent/actions",
+      "description": "Build Status"
+    }
+  ],
   "keywords": [
     "compliance",
     "gdpr",
