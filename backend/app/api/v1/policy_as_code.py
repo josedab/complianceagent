@@ -9,8 +9,6 @@ from pydantic import BaseModel, Field
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 from app.services.policy_as_code import (
     PolicyFormat,
-    PolicyGenerator,
-    PolicyValidator,
     get_policy_generator,
     get_policy_validator,
 )
@@ -26,7 +24,7 @@ router = APIRouter()
 
 class PolicyRuleRequest(BaseModel):
     """Request model for a policy rule."""
-    
+
     name: str
     description: str
     regulation: str = "Custom"
@@ -40,18 +38,16 @@ class PolicyRuleRequest(BaseModel):
 
 class CreatePackageRequest(BaseModel):
     """Request to create a custom policy package."""
-    
+
     name: str
-    namespace: str = Field(
-        description="Rego namespace (e.g., 'compliance.custom')"
-    )
+    namespace: str = Field(description="Rego namespace (e.g., 'compliance.custom')")
     description: str
     rules: list[PolicyRuleRequest]
 
 
 class PolicyRuleResponse(BaseModel):
     """Response model for a policy rule."""
-    
+
     id: str
     name: str
     description: str
@@ -66,7 +62,7 @@ class PolicyRuleResponse(BaseModel):
 
 class PolicyPackageResponse(BaseModel):
     """Response model for a policy package."""
-    
+
     id: str
     name: str
     namespace: str
@@ -81,14 +77,14 @@ class PolicyPackageResponse(BaseModel):
 
 class PolicyPackageDetailResponse(PolicyPackageResponse):
     """Detailed response with rules."""
-    
+
     rules: list[PolicyRuleResponse]
     rego_code: str | None
 
 
 class TemplateResponse(BaseModel):
     """Response model for a policy template."""
-    
+
     id: str
     name: str
     description: str
@@ -101,7 +97,7 @@ class TemplateResponse(BaseModel):
 
 class ValidationResultResponse(BaseModel):
     """Response model for validation result."""
-    
+
     id: str
     policy_id: str
     valid: bool
@@ -116,16 +112,14 @@ class ValidationResultResponse(BaseModel):
 
 class EvaluateRequest(BaseModel):
     """Request to evaluate a policy."""
-    
+
     package_id: str
-    input_data: dict[str, Any] = Field(
-        description="Input data to evaluate against the policy"
-    )
+    input_data: dict[str, Any] = Field(description="Input data to evaluate against the policy")
 
 
 class EvaluateResponse(BaseModel):
     """Response from policy evaluation."""
-    
+
     allow: bool
     violations: list[dict[str, Any]]
     compliance_score: float | None
@@ -144,7 +138,7 @@ async def list_templates(
     db: DB,
 ) -> list[TemplateResponse]:
     """List available compliance policy templates.
-    
+
     Pre-built templates are available for common regulations:
     - GDPR (data protection, privacy)
     - HIPAA (healthcare)
@@ -153,7 +147,7 @@ async def list_templates(
     """
     generator = get_policy_generator()
     templates = await generator.get_templates()
-    
+
     return [
         TemplateResponse(
             id=t.id,
@@ -179,13 +173,13 @@ async def get_template(
     """Get a specific compliance policy template by regulation."""
     generator = get_policy_generator()
     template = await generator.get_template(regulation)
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No template found for regulation: {regulation}",
         )
-    
+
     return TemplateResponse(
         id=template.id,
         name=template.name,
@@ -206,11 +200,11 @@ async def instantiate_template(
     db: DB,
 ) -> PolicyPackageDetailResponse:
     """Create a policy package from a pre-built template.
-    
+
     This generates ready-to-use Rego policies for the specified regulation.
     """
     generator = get_policy_generator()
-    
+
     try:
         package = await generator.create_package_from_template(
             regulation=regulation,
@@ -220,8 +214,8 @@ async def instantiate_template(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
-    
+        ) from e
+
     return PolicyPackageDetailResponse(
         id=str(package.id),
         name=package.name,
@@ -266,7 +260,7 @@ async def list_packages(
     """List all policy packages for the organization."""
     generator = get_policy_generator()
     packages = await generator.list_packages(organization_id=organization.id)
-    
+
     return [
         PolicyPackageResponse(
             id=str(p.id),
@@ -292,13 +286,13 @@ async def create_package(
     db: DB,
 ) -> PolicyPackageDetailResponse:
     """Create a custom policy package.
-    
+
     Define your own compliance rules and generate Rego policies.
     """
     generator = get_policy_generator()
-    
+
     rules = [r.model_dump() for r in request.rules]
-    
+
     package = await generator.create_custom_package(
         name=request.name,
         namespace=request.namespace,
@@ -306,7 +300,7 @@ async def create_package(
         rules=rules,
         organization_id=organization.id,
     )
-    
+
     return PolicyPackageDetailResponse(
         id=str(package.id),
         name=package.name,
@@ -346,22 +340,22 @@ async def get_package(
 ) -> PolicyPackageDetailResponse:
     """Get a policy package by ID."""
     generator = get_policy_generator()
-    
+
     try:
         pkg_uuid = UUID(package_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid package ID format",
-        )
-    
+        ) from exc
+
     package = await generator.get_package(pkg_uuid)
     if not package:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Package not found",
         )
-    
+
     return PolicyPackageDetailResponse(
         id=str(package.id),
         name=package.name,
@@ -401,7 +395,7 @@ async def export_package(
     db: DB = None,
 ) -> dict[str, Any]:
     """Export a policy package in the specified format.
-    
+
     Supported formats:
     - raw: Raw Rego code
     - opa-bundle: OPA bundle format
@@ -410,23 +404,23 @@ async def export_package(
     - kyverno: Kyverno policy format
     """
     generator = get_policy_generator()
-    
+
     try:
         pkg_uuid = UUID(package_id)
         format_enum = PolicyFormat(format)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid package ID or format",
-        )
-    
+        ) from exc
+
     try:
         return await generator.export_package(pkg_uuid, format_enum)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
 
 # ============================================================================
@@ -443,30 +437,30 @@ async def validate_package(
     db: DB = None,
 ) -> ValidationResultResponse:
     """Validate a policy package.
-    
+
     Performs syntax and semantic validation, and optionally runs test cases.
     Requires OPA CLI for full validation (falls back to basic checks).
     """
     generator = get_policy_generator()
     validator = get_policy_validator()
-    
+
     try:
         pkg_uuid = UUID(package_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid package ID format",
-        )
-    
+        ) from exc
+
     package = await generator.get_package(pkg_uuid)
     if not package:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Package not found",
         )
-    
+
     result = await validator.validate_package(package, run_tests=run_tests)
-    
+
     return ValidationResultResponse(
         id=str(result.id),
         policy_id=str(result.policy_id),
@@ -489,36 +483,36 @@ async def evaluate_policy(
     db: DB,
 ) -> EvaluateResponse:
     """Evaluate input data against a policy package.
-    
+
     Returns compliance result (allow/deny), violations, and score.
     """
-    from datetime import datetime
-    
+    from datetime import UTC, datetime
+
     generator = get_policy_generator()
     validator = get_policy_validator()
-    
+
     try:
         pkg_uuid = UUID(request.package_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid package ID format",
-        )
-    
+        ) from exc
+
     package = await generator.get_package(pkg_uuid)
     if not package:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Package not found",
         )
-    
+
     result = await validator.evaluate_policy(package, request.input_data)
-    
+
     return EvaluateResponse(
         allow=result.get("allow", False),
         violations=result.get("violations", []),
         compliance_score=result.get("compliance_score"),
-        evaluated_at=datetime.utcnow().isoformat(),
+        evaluated_at=datetime.now(UTC).isoformat(),
     )
 
 
@@ -535,12 +529,12 @@ async def quick_generate(
     db: DB,
 ) -> dict[str, Any]:
     """Quickly generate policies for multiple regulations.
-    
+
     Returns combined Rego code for all specified regulations.
     """
     generator = get_policy_generator()
     packages = []
-    
+
     for regulation in regulations:
         try:
             package = await generator.create_package_from_template(
@@ -551,20 +545,22 @@ async def quick_generate(
         except ValueError:
             # Skip unknown regulations
             continue
-    
+
     if not packages:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No templates found for regulations: {regulations}",
         )
-    
+
     # Combine all Rego code
-    combined_rego = "\n\n".join([
-        f"# {'=' * 70}\n# {p.name}\n# {'=' * 70}\n\n{p.rego_package}"
-        for p in packages
-        if p.rego_package
-    ])
-    
+    combined_rego = "\n\n".join(
+        [
+            f"# {'=' * 70}\n# {p.name}\n# {'=' * 70}\n\n{p.rego_package}"
+            for p in packages
+            if p.rego_package
+        ]
+    )
+
     return {
         "regulations": [p.regulations[0] for p in packages if p.regulations],
         "total_rules": sum(p.total_rules for p in packages),

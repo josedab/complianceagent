@@ -2,15 +2,12 @@
 
 from datetime import date, datetime
 from typing import Any
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 from app.services.prediction import (
-    PredictionConfidence,
-    RegulatoryPredictionEngine,
     get_prediction_engine,
 )
 
@@ -466,3 +463,213 @@ async def list_regulatory_signals(
         )
         for s in signals
     ]
+
+
+# ---------------------------------------------------------------------------
+# v2: ML Prediction Engine with Signal Ingestion & Impact Assessment
+# ---------------------------------------------------------------------------
+
+
+class IngestSignalRequest(BaseModel):
+    """Request to ingest a regulatory signal."""
+
+    source: str = Field(
+        ...,
+        description="Signal source: legislative, committee, publication, news, enforcement, industry",
+    )
+    strength: str = Field("moderate", description="Signal strength: strong, moderate, weak")
+    jurisdiction: str = Field(..., description="Jurisdiction code (e.g., 'EU', 'US-CA')")
+    framework: str = Field(..., description="Regulatory framework (e.g., 'gdpr', 'hipaa')")
+    title: str = Field(..., description="Signal title")
+    description: str = Field("", description="Signal description")
+    url: str | None = Field(None, description="Source URL")
+
+
+class MLPredictionSchema(BaseModel):
+    """An ML-generated regulatory prediction."""
+
+    id: str
+    title: str
+    description: str
+    jurisdiction: str
+    framework: str
+    predicted_effective_date: str | None
+    confidence: str
+    confidence_score: float
+    impact_level: str
+    supporting_signals: list[str]
+    affected_areas: list[str]
+    preparation_recommendations: list[str]
+
+
+class MLImpactAssessmentSchema(BaseModel):
+    """Impact assessment of a predicted regulation."""
+
+    prediction_id: str
+    repository: str
+    affected_components: list[str]
+    estimated_effort_hours: float
+    risk_score: float
+    preparation_timeline: list[dict]
+
+
+class AccuracyMetricsSchema(BaseModel):
+    """Prediction accuracy metrics."""
+
+    total_predictions: int
+    correct_predictions: int
+    partially_correct: int
+    incorrect_predictions: int
+    accuracy_rate: float
+    avg_lead_time_days: float
+
+
+@router.post("/v2/signals", summary="Ingest regulatory signal")
+async def ingest_regulatory_signal(
+    request: IngestSignalRequest,
+    db: DB,
+) -> dict:
+    """Ingest a new regulatory signal for prediction analysis."""
+    from app.services.predictions.prediction_engine import (
+        PredictionEngine,
+        RegulatorySignal,
+        SignalSource,
+        SignalStrength,
+    )
+
+    engine = PredictionEngine(db=db)
+    signal = RegulatorySignal(
+        source=SignalSource(request.source),
+        strength=SignalStrength(request.strength),
+        jurisdiction=request.jurisdiction,
+        framework=request.framework,
+        title=request.title,
+        description=request.description,
+        url=request.url,
+    )
+    result = await engine.ingest_signal(signal)
+    return {
+        "id": str(result.id),
+        "source": result.source.value,
+        "framework": result.framework,
+        "jurisdiction": result.jurisdiction,
+        "detected_at": result.detected_at.isoformat(),
+    }
+
+
+@router.post(
+    "/v2/generate", response_model=list[MLPredictionSchema], summary="Generate ML predictions"
+)
+async def generate_ml_predictions(
+    db: DB,
+    jurisdiction: str | None = None,
+    framework: str | None = None,
+) -> list[MLPredictionSchema]:
+    """Generate ML-powered predictions from accumulated signals."""
+    from app.services.predictions.prediction_engine import PredictionEngine
+
+    engine = PredictionEngine(db=db)
+    predictions = await engine.generate_predictions(jurisdiction=jurisdiction, framework=framework)
+    return [
+        MLPredictionSchema(
+            id=str(p.id),
+            title=p.title,
+            description=p.description,
+            jurisdiction=p.jurisdiction,
+            framework=p.framework,
+            predicted_effective_date=p.predicted_effective_date.isoformat()
+            if p.predicted_effective_date
+            else None,
+            confidence=p.confidence.value,
+            confidence_score=p.confidence_score,
+            impact_level=p.impact_level.value,
+            supporting_signals=[str(s) for s in p.supporting_signals],
+            affected_areas=p.affected_areas,
+            preparation_recommendations=p.preparation_recommendations,
+        )
+        for p in predictions
+    ]
+
+
+@router.get(
+    "/v2/ml-predictions", response_model=list[MLPredictionSchema], summary="List ML predictions"
+)
+async def list_ml_predictions(
+    db: DB,
+    jurisdiction: str | None = None,
+    min_confidence: float = 0.0,
+    limit: int = 50,
+) -> list[MLPredictionSchema]:
+    """List ML-generated predictions with optional filters."""
+    from app.services.predictions.prediction_engine import PredictionEngine
+
+    engine = PredictionEngine(db=db)
+    predictions = await engine.list_predictions(
+        jurisdiction=jurisdiction,
+        min_confidence=min_confidence,
+        limit=limit,
+    )
+    return [
+        MLPredictionSchema(
+            id=str(p.id),
+            title=p.title,
+            description=p.description,
+            jurisdiction=p.jurisdiction,
+            framework=p.framework,
+            predicted_effective_date=p.predicted_effective_date.isoformat()
+            if p.predicted_effective_date
+            else None,
+            confidence=p.confidence.value,
+            confidence_score=p.confidence_score,
+            impact_level=p.impact_level.value,
+            supporting_signals=[str(s) for s in p.supporting_signals],
+            affected_areas=p.affected_areas,
+            preparation_recommendations=p.preparation_recommendations,
+        )
+        for p in predictions
+    ]
+
+
+@router.post(
+    "/v2/impact", response_model=MLImpactAssessmentSchema, summary="Assess prediction impact"
+)
+async def assess_prediction_impact(
+    prediction_id: str,
+    repository: str,
+    db: DB,
+) -> MLImpactAssessmentSchema:
+    """Assess the impact of a predicted regulation on a repository."""
+    from uuid import UUID
+
+    from app.services.predictions.prediction_engine import PredictionEngine
+
+    engine = PredictionEngine(db=db)
+    assessment = await engine.assess_impact(
+        prediction_id=UUID(prediction_id),
+        repository=repository,
+    )
+    return MLImpactAssessmentSchema(
+        prediction_id=assessment.prediction_id,
+        repository=assessment.repository,
+        affected_components=assessment.affected_components,
+        estimated_effort_hours=assessment.estimated_effort_hours,
+        risk_score=assessment.risk_score,
+        preparation_timeline=assessment.preparation_timeline,
+    )
+
+
+@router.get("/v2/accuracy", response_model=AccuracyMetricsSchema, summary="Prediction accuracy")
+async def get_prediction_accuracy(db: DB) -> AccuracyMetricsSchema:
+    """Get prediction accuracy metrics."""
+    from app.services.predictions.prediction_engine import PredictionEngine
+
+    engine = PredictionEngine(db=db)
+    metrics = await engine.get_accuracy_metrics()
+    return AccuracyMetricsSchema(
+        total_predictions=metrics.total_predictions,
+        correct_predictions=metrics.correct_predictions,
+        partially_correct=metrics.partially_correct,
+        incorrect_predictions=metrics.incorrect_predictions,
+        accuracy_rate=metrics.accuracy_rate,
+        avg_lead_time_days=metrics.avg_lead_time_days,
+    )

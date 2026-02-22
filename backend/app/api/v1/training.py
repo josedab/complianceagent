@@ -1,6 +1,5 @@
 """Compliance training mode API endpoints."""
 
-from typing import Any
 from uuid import UUID
 
 import structlog
@@ -9,8 +8,8 @@ from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep, CurrentOrganization, OrgMember
 from app.services.training import (
-    TrainingService,
     CertificateStatus,
+    TrainingService,
 )
 
 
@@ -20,8 +19,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class ModuleSummarySchema(BaseModel):
     """Training module summary."""
+
     id: str
     title: str
     description: str
@@ -34,6 +35,7 @@ class ModuleSummarySchema(BaseModel):
 
 class ModuleDetailSchema(ModuleSummarySchema):
     """Detailed training module."""
+
     learning_objectives: list[str]
     requirements_covered: list[str]
     sections: list[dict]
@@ -42,6 +44,7 @@ class ModuleDetailSchema(ModuleSummarySchema):
 
 class ProgressSchema(BaseModel):
     """Training progress response."""
+
     module_id: str
     progress_percentage: float
     sections_completed: list[int]
@@ -52,6 +55,7 @@ class ProgressSchema(BaseModel):
 
 class QuizSchema(BaseModel):
     """Quiz for taking."""
+
     id: str
     title: str
     description: str
@@ -63,6 +67,7 @@ class QuizSchema(BaseModel):
 
 class QuestionSchema(BaseModel):
     """Quiz question."""
+
     id: str
     question_type: str
     text: str
@@ -73,11 +78,13 @@ class QuestionSchema(BaseModel):
 
 class SubmitAnswersRequest(BaseModel):
     """Request to submit quiz answers."""
+
     answers: dict[str, list[int]] = Field(..., description="Question ID to selected option indices")
 
 
 class QuizResultSchema(BaseModel):
     """Quiz result response."""
+
     attempt_id: str
     score: float
     passed: bool
@@ -86,6 +93,7 @@ class QuizResultSchema(BaseModel):
 
 class CertificateSchema(BaseModel):
     """Certificate response."""
+
     id: str
     title: str
     framework: str
@@ -98,6 +106,7 @@ class CertificateSchema(BaseModel):
 
 class UserProfileSchema(BaseModel):
     """User training profile."""
+
     total_modules_completed: int
     total_training_hours: float
     certificates: list[CertificateSchema]
@@ -106,6 +115,7 @@ class UserProfileSchema(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 def _module_to_summary(module, module_id: UUID) -> ModuleSummarySchema:
     return ModuleSummarySchema(
@@ -135,6 +145,7 @@ def _cert_to_schema(cert) -> CertificateSchema:
 
 # --- Module Endpoints ---
 
+
 @router.get(
     "/modules",
     response_model=list[ModuleSummarySchema],
@@ -149,15 +160,16 @@ async def list_modules(
 ) -> list[ModuleSummarySchema]:
     """List available training modules."""
     service = TrainingService(db=db, copilot=copilot)
-    modules = await service.list_modules(framework=framework, difficulty=difficulty)
-    
+    await service.list_modules(framework=framework, difficulty=difficulty)
+
     # Get IDs from internal storage
     result = []
     for module_id, module in service._modules.items():
-        if (not framework or module.framework == framework) and \
-           (not difficulty or module.difficulty == difficulty):
+        if (not framework or module.framework == framework) and (
+            not difficulty or module.difficulty == difficulty
+        ):
             result.append(_module_to_summary(module, module_id))
-    
+
     return result
 
 
@@ -175,13 +187,13 @@ async def get_module(
     """Get module details."""
     service = TrainingService(db=db, copilot=copilot)
     module = await service.get_module(UUID(module_id))
-    
+
     if not module:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Module not found",
         )
-    
+
     return ModuleDetailSchema(
         id=module_id,
         title=module.title,
@@ -200,6 +212,7 @@ async def get_module(
 
 # --- Progress Endpoints ---
 
+
 @router.post(
     "/modules/{module_id}/enroll",
     response_model=ProgressSchema,
@@ -214,15 +227,15 @@ async def enroll_in_module(
 ) -> ProgressSchema:
     """Enroll in a training module."""
     service = TrainingService(db=db, copilot=copilot)
-    
+
     try:
         progress = await service.enroll(member.user_id, UUID(module_id))
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
-    
+        ) from e
+
     return ProgressSchema(
         module_id=module_id,
         progress_percentage=progress.progress_percentage,
@@ -248,13 +261,13 @@ async def get_progress(
     """Get progress in a module."""
     service = TrainingService(db=db, copilot=copilot)
     progress = await service.get_progress(member.user_id, UUID(module_id))
-    
+
     if not progress:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Not enrolled in this module",
         )
-    
+
     return ProgressSchema(
         module_id=module_id,
         progress_percentage=progress.progress_percentage,
@@ -280,13 +293,13 @@ async def complete_section(
 ) -> ProgressSchema:
     """Mark a section as complete."""
     service = TrainingService(db=db, copilot=copilot)
-    
+
     progress = await service.update_progress(
         member.user_id,
         UUID(module_id),
         section_index,
     )
-    
+
     return ProgressSchema(
         module_id=module_id,
         progress_percentage=progress.progress_percentage,
@@ -298,6 +311,7 @@ async def complete_section(
 
 
 # --- Quiz Endpoints ---
+
 
 @router.get(
     "/modules/{module_id}/quizzes/{quiz_index}",
@@ -315,24 +329,21 @@ async def get_quiz(
     """Get quiz information."""
     service = TrainingService(db=db, copilot=copilot)
     module = await service.get_module(UUID(module_id))
-    
+
     if not module or quiz_index >= len(module.quizzes):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Quiz not found",
         )
-    
+
     quiz = module.quizzes[quiz_index]
-    
+
     # Calculate remaining attempts
     progress = await service.get_progress(member.user_id, UUID(module_id))
     attempts_used = 0
     if progress:
-        attempts_used = len([
-            a for a in progress.quiz_attempts
-            if a.quiz_id == quiz.id
-        ])
-    
+        attempts_used = len([a for a in progress.quiz_attempts if a.quiz_id == quiz.id])
+
     return QuizSchema(
         id=str(quiz.id),
         title=quiz.title,
@@ -358,7 +369,7 @@ async def start_quiz(
 ) -> dict:
     """Start a quiz and get questions."""
     service = TrainingService(db=db, copilot=copilot)
-    
+
     try:
         attempt = await service.start_quiz(
             member.user_id,
@@ -369,11 +380,11 @@ async def start_quiz(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
-    
+        ) from e
+
     module = await service.get_module(UUID(module_id))
     quiz = module.quizzes[quiz_index]
-    
+
     questions = [
         QuestionSchema(
             id=str(q.id),
@@ -385,7 +396,7 @@ async def start_quiz(
         )
         for q in quiz.questions
     ]
-    
+
     return {
         "attempt_id": str(attempt.id),
         "quiz_id": str(quiz.id),
@@ -410,21 +421,21 @@ async def submit_quiz(
 ) -> QuizResultSchema:
     """Submit quiz answers."""
     service = TrainingService(db=db, copilot=copilot)
-    
+
     attempt = await service.submit_quiz(
         member.user_id,
         UUID(module_id),
         quiz_index,
         request.answers,
     )
-    
+
     results = await service.get_quiz_results(
         member.user_id,
         UUID(module_id),
         quiz_index,
         attempt.id,
     )
-    
+
     return QuizResultSchema(
         attempt_id=str(attempt.id),
         score=attempt.score,
@@ -434,6 +445,7 @@ async def submit_quiz(
 
 
 # --- Certificate Endpoints ---
+
 
 @router.get(
     "/certificates",
@@ -466,16 +478,16 @@ async def verify_certificate(
     """Verify a certificate."""
     service = TrainingService(db=db, copilot=copilot)
     cert = await service.verify_certificate(code)
-    
+
     if not cert:
         return {"valid": False, "message": "Certificate not found"}
-    
+
     if cert.status == CertificateStatus.EXPIRED:
         return {"valid": False, "message": "Certificate has expired"}
-    
+
     if cert.status == CertificateStatus.REVOKED:
         return {"valid": False, "message": "Certificate has been revoked"}
-    
+
     return {
         "valid": True,
         "certificate": _cert_to_schema(cert).dict(),
@@ -483,6 +495,7 @@ async def verify_certificate(
 
 
 # --- Profile Endpoints ---
+
 
 @router.get(
     "/profile",
@@ -502,7 +515,7 @@ async def get_training_profile(
         member.user_id,
         organization.id,
     )
-    
+
     return UserProfileSchema(
         total_modules_completed=profile.total_modules_completed,
         total_training_hours=profile.total_training_hours,
@@ -513,6 +526,7 @@ async def get_training_profile(
 
 
 # --- Admin Endpoints ---
+
 
 @router.post(
     "/generate-quiz",
@@ -535,7 +549,7 @@ async def generate_quiz(
         num_questions=num_questions,
         difficulty=difficulty,
     )
-    
+
     return {
         "id": str(quiz.id),
         "title": quiz.title,

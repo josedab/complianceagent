@@ -1,15 +1,14 @@
 """Starter kits API endpoints."""
 
-from typing import Any
+from io import BytesIO
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from io import BytesIO
 
-from app.api.v1.deps import DB, CopilotDep, CurrentOrganization
+from app.api.v1.deps import DB, CopilotDep
 from app.services.starter_kits import (
     StarterKitsService,
     TemplateCategory,
@@ -23,8 +22,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class TemplateSchema(BaseModel):
     """Code template response."""
+
     id: str
     name: str
     description: str
@@ -37,6 +38,7 @@ class TemplateSchema(BaseModel):
 
 class StarterKitSummarySchema(BaseModel):
     """Starter kit summary response."""
+
     framework: str
     name: str
     description: str
@@ -49,6 +51,7 @@ class StarterKitSummarySchema(BaseModel):
 
 class StarterKitDetailSchema(StarterKitSummarySchema):
     """Detailed starter kit response."""
+
     code_templates: list[TemplateSchema] = Field(default_factory=list)
     config_files: list[str] = Field(default_factory=list)
     documents: list[str] = Field(default_factory=list)
@@ -58,12 +61,14 @@ class StarterKitDetailSchema(StarterKitSummarySchema):
 
 class DownloadRequest(BaseModel):
     """Request to download a starter kit."""
+
     language: str = "python"
     customizations: dict = Field(default_factory=dict)
 
 
 class TemplatePreviewSchema(BaseModel):
     """Template content preview."""
+
     name: str
     file_name: str
     language: str
@@ -71,6 +76,7 @@ class TemplatePreviewSchema(BaseModel):
 
 
 # --- Endpoints ---
+
 
 @router.get(
     "",
@@ -86,10 +92,10 @@ async def list_starter_kits(
 ) -> list[StarterKitSummarySchema]:
     """List available starter kits."""
     service = StarterKitsService(db=db, copilot=copilot)
-    
+
     lang = TemplateLanguage(language) if language else None
     kits = await service.list_kits(framework=framework, language=lang)
-    
+
     return [
         StarterKitSummarySchema(
             framework=kit.framework,
@@ -119,13 +125,13 @@ async def get_starter_kit(
     """Get starter kit details."""
     service = StarterKitsService(db=db, copilot=copilot)
     kit = await service.get_kit(framework)
-    
+
     if not kit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Starter kit not found: {framework}",
         )
-    
+
     return StarterKitDetailSchema(
         framework=kit.framework,
         name=kit.name,
@@ -169,20 +175,21 @@ async def preview_template(
 ) -> TemplatePreviewSchema:
     """Preview a template's content."""
     service = StarterKitsService(db=db, copilot=copilot)
-    
+
     template = await service.get_template(framework, UUID(template_id))
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     return TemplatePreviewSchema(
         name=template.name,
         file_name=getattr(template, "file_name", "document.md"),
-        language=getattr(template, "language", TemplateLanguage.MARKDOWN).value 
-            if hasattr(template, "language") else "markdown",
+        language=getattr(template, "language", TemplateLanguage.MARKDOWN).value
+        if hasattr(template, "language")
+        else "markdown",
         content=template.content,
     )
 
@@ -200,15 +207,15 @@ async def download_starter_kit(
 ) -> StreamingResponse:
     """Download starter kit as ZIP file."""
     service = StarterKitsService(db=db, copilot=copilot)
-    
+
     try:
         language = TemplateLanguage(request.language)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported language: {request.language}",
-        )
-    
+        ) from exc
+
     try:
         archive = await service.generate_kit_archive(
             framework=framework,
@@ -219,8 +226,8 @@ async def download_starter_kit(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
-    
+        ) from e
+
     return StreamingResponse(
         BytesIO(archive),
         media_type="application/zip",

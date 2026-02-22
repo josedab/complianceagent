@@ -30,11 +30,14 @@ async def github_webhook(
 
     # Verify signature
     if settings.github_webhook_secret:
-        expected_sig = "sha256=" + hmac.new(
-            settings.github_webhook_secret.encode(),
-            payload,
-            hashlib.sha256,
-        ).hexdigest()
+        expected_sig = (
+            "sha256="
+            + hmac.new(
+                settings.github_webhook_secret.encode(),
+                payload,
+                hashlib.sha256,
+            ).hexdigest()
+        )
 
         if not hmac.compare_digest(expected_sig, x_hub_signature_256 or ""):
             raise HTTPException(status_code=401, detail="Invalid signature")
@@ -70,9 +73,7 @@ async def handle_push_event(data: dict[str, Any], db: AsyncSession) -> None:
 
     from app.models.codebase import Repository
 
-    repo_result = await db.execute(
-        select(Repository).where(Repository.full_name == repo_name)
-    )
+    repo_result = await db.execute(select(Repository).where(Repository.full_name == repo_name))
     repository = repo_result.scalar_one_or_none()
 
     if not repository:
@@ -94,24 +95,25 @@ async def handle_push_event(data: dict[str, Any], db: AsyncSession) -> None:
 async def handle_pull_request_event(data: dict[str, Any], db: AsyncSession) -> None:
     """Handle PR events - run compliance check on PRs."""
     from app.workers.pr_bot_tasks import process_pr_webhook
-    
+
     action = data.get("action")
 
     if action not in ["opened", "synchronize", "reopened"]:
         return
 
-    pr = data.get("pull_request", {})
+    data.get("pull_request", {})
     repo = data.get("repository", {})
-    
+
     # Get organization for this repository
     from sqlalchemy import select
+
     from app.models.codebase import Repository
-    
+
     repo_result = await db.execute(
         select(Repository).where(Repository.full_name == repo.get("full_name"))
     )
     repository = repo_result.scalar_one_or_none()
-    
+
     if repository and repository.organization_id:
         # Queue PR analysis task
         # In production, access_token would come from GitHub App installation
@@ -146,7 +148,7 @@ async def handle_installation_event(data: dict[str, Any], db: AsyncSession) -> N
 
 async def handle_installation_repos_event(data: dict[str, Any], db: AsyncSession) -> None:
     """Handle repository added/removed from installation."""
-    action = data.get("action")
+    data.get("action")
     repos_added = data.get("repositories_added", [])
     repos_removed = data.get("repositories_removed", [])
 
@@ -358,9 +360,7 @@ async def handle_connect_account_updated(
 
     # Find publisher profile
     result = await db.execute(
-        select(PublisherProfile).where(
-            PublisherProfile.organization_id == UUID(organization_id)
-        )
+        select(PublisherProfile).where(PublisherProfile.organization_id == UUID(organization_id))
     )
     profile = result.scalar_one_or_none()
 

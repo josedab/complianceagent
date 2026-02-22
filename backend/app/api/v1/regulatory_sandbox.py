@@ -9,8 +9,6 @@ from pydantic import BaseModel, Field
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 from app.services.sandbox.regulatory import (
     SandboxProvider,
-    ApplicationStatus,
-    RegulatorySandboxIntegration,
     get_regulatory_sandbox_integration,
 )
 
@@ -73,6 +71,7 @@ class RequirementResponse(BaseModel):
 # SANDBOX DISCOVERY
 # =====================
 
+
 @router.get("/providers")
 async def list_sandbox_providers(
     region: str | None = None,
@@ -82,9 +81,9 @@ async def list_sandbox_providers(
 ) -> dict[str, Any]:
     """List available regulatory sandbox providers."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     providers = await sandbox.get_available_sandboxes(region=region)
-    
+
     return {
         "providers": providers,
         "total": len(providers),
@@ -95,6 +94,7 @@ async def list_sandbox_providers(
 # APPLICATION MANAGEMENT
 # =====================
 
+
 @router.post("/applications", response_model=ApplicationResponse)
 async def create_application(
     request: CreateApplicationRequest,
@@ -104,15 +104,15 @@ async def create_application(
 ) -> ApplicationResponse:
     """Create a new sandbox application."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     try:
         provider = SandboxProvider(request.provider)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid provider. Valid options: {[p.value for p in SandboxProvider]}",
-        )
-    
+        ) from exc
+
     app = await sandbox.create_application(
         organization_id=organization.id,
         provider=provider,
@@ -120,7 +120,7 @@ async def create_application(
         project_description=request.project_description,
         ai_system_type=request.ai_system_type,
     )
-    
+
     return ApplicationResponse(
         id=str(app.id),
         provider=app.provider.value,
@@ -140,9 +140,9 @@ async def list_applications(
 ) -> dict[str, Any]:
     """List sandbox applications for the organization."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     apps = await sandbox.list_applications(organization.id)
-    
+
     return {
         "applications": [
             ApplicationResponse(
@@ -169,11 +169,11 @@ async def get_application(
 ) -> dict[str, Any]:
     """Get details of a sandbox application."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     app = await sandbox.get_application(application_id)
     if not app or app.organization_id != organization.id:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     return {
         "id": str(app.id),
         "provider": app.provider.value,
@@ -204,13 +204,13 @@ async def update_application(
 ) -> dict[str, Any]:
     """Update a sandbox application."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     updates = {k: v for k, v in request.model_dump().items() if v is not None}
     app = await sandbox.update_application(application_id, updates)
-    
+
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     return {"status": "updated", "application_id": str(application_id)}
 
 
@@ -223,15 +223,15 @@ async def submit_application(
 ) -> dict[str, Any]:
     """Submit an application for regulatory review."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     try:
         app = await sandbox.submit_application(application_id)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     return {
         "status": "submitted",
         "application_id": str(application_id),
@@ -243,6 +243,7 @@ async def submit_application(
 # REQUIREMENTS & EVIDENCE
 # =====================
 
+
 @router.get("/applications/{application_id}/requirements")
 async def get_requirements(
     application_id: UUID,
@@ -252,11 +253,11 @@ async def get_requirements(
 ) -> dict[str, Any]:
     """Get requirements for an application."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     app = await sandbox.get_application(application_id)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
-    
+
     return {
         "application_id": str(application_id),
         "requirements": [
@@ -284,12 +285,12 @@ async def pre_submission_check(
 ) -> dict[str, Any]:
     """Check if application is ready for submission."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     try:
         results = await sandbox.check_pre_submission(application_id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
     return results
 
 
@@ -305,17 +306,17 @@ async def update_requirement_status(
 ) -> dict[str, Any]:
     """Update requirement status."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     req = await sandbox.update_requirement_status(
         application_id=application_id,
         requirement_id=requirement_id,
         status=status,
         notes=notes,
     )
-    
+
     if not req:
         raise HTTPException(status_code=404, detail="Requirement not found")
-    
+
     return {
         "requirement_id": req.id,
         "status": req.status,
@@ -333,7 +334,7 @@ async def add_evidence(
 ) -> dict[str, Any]:
     """Add evidence for a requirement."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     evidence = await sandbox.add_evidence(
         application_id=application_id,
         requirement_id=request.requirement_id,
@@ -342,7 +343,7 @@ async def add_evidence(
         description=request.description,
         file_reference=request.file_reference,
     )
-    
+
     return {
         "evidence_id": str(evidence.id),
         "requirement_id": evidence.requirement_id,
@@ -355,6 +356,7 @@ async def add_evidence(
 # SANDBOX TESTING
 # =====================
 
+
 @router.post("/applications/{application_id}/tests")
 async def create_test(
     application_id: UUID,
@@ -365,7 +367,7 @@ async def create_test(
 ) -> dict[str, Any]:
     """Create a sandbox test."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     try:
         test = await sandbox.create_test(
             application_id=application_id,
@@ -376,8 +378,8 @@ async def create_test(
             safeguards=request.safeguards,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
     return {
         "test_id": str(test.id),
         "name": test.name,
@@ -395,12 +397,12 @@ async def run_test(
 ) -> dict[str, Any]:
     """Run a sandbox test."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     try:
         test = await sandbox.run_test(test_id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
     return {
         "test_id": str(test.id),
         "status": test.status,
@@ -421,9 +423,9 @@ async def get_tests(
 ) -> dict[str, Any]:
     """Get tests for an application."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     tests = await sandbox.get_test_results(application_id)
-    
+
     return {
         "application_id": str(application_id),
         "tests": [
@@ -445,6 +447,7 @@ async def get_tests(
 # REPORTING
 # =====================
 
+
 @router.get("/applications/{application_id}/report")
 async def generate_report(
     application_id: UUID,
@@ -454,10 +457,10 @@ async def generate_report(
 ) -> dict[str, Any]:
     """Generate comprehensive sandbox participation report."""
     sandbox = get_regulatory_sandbox_integration()
-    
+
     try:
         report = await sandbox.generate_sandbox_report(application_id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
     return report

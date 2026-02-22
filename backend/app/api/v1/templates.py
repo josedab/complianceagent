@@ -1,5 +1,7 @@
 """Compliance Templates API endpoints."""
 
+import contextlib
+
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
@@ -49,10 +51,8 @@ async def list_templates(
 
     cat = None
     if category:
-        try:
+        with contextlib.suppress(ValueError):
             cat = TemplateCategory(category)
-        except ValueError:
-            pass
 
     templates = registry.list_templates(
         category=cat,

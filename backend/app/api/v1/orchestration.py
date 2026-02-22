@@ -7,7 +7,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services.orchestration import (
-    OrchestrationManager,
     PolicyAction,
     PolicyType,
     RepositoryStatus,
@@ -21,7 +20,7 @@ router = APIRouter(prefix="/orchestration", tags=["orchestration"])
 # Request/Response Models
 class AddRepositoryRequest(BaseModel):
     """Request to add a repository for management."""
-    
+
     organization_id: UUID
     name: str
     full_name: str
@@ -32,7 +31,7 @@ class AddRepositoryRequest(BaseModel):
 
 class UpdateRepositoryStatusRequest(BaseModel):
     """Request to update repository compliance status."""
-    
+
     compliance_score: float = Field(..., ge=0, le=1)
     open_issues: int = 0
     critical_issues: int = 0
@@ -40,10 +39,13 @@ class UpdateRepositoryStatusRequest(BaseModel):
 
 class CreatePolicyRequest(BaseModel):
     """Request to create a compliance policy."""
-    
+
     organization_id: UUID
     name: str
-    policy_type: str = Field(..., description="Type: minimum_score, required_regulation, blocked_dependencies, scan_frequency")
+    policy_type: str = Field(
+        ...,
+        description="Type: minimum_score, required_regulation, blocked_dependencies, scan_frequency",
+    )
     config: dict[str, Any]
     description: str = ""
     on_violation: str = "warn"
@@ -53,7 +55,7 @@ class CreatePolicyRequest(BaseModel):
 
 class CreatePolicyFromTemplateRequest(BaseModel):
     """Request to create policy from template."""
-    
+
     organization_id: UUID
     template_name: str
     overrides: dict[str, Any] | None = None
@@ -61,7 +63,7 @@ class CreatePolicyFromTemplateRequest(BaseModel):
 
 class BatchScanRequest(BaseModel):
     """Request to trigger batch scan."""
-    
+
     organization_id: UUID
     repository_ids: list[UUID] | None = None
 
@@ -70,34 +72,34 @@ def _parse_policy_type(value: str) -> PolicyType:
     """Parse policy type string."""
     try:
         return PolicyType(value.lower())
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid policy_type: {value}. Valid: {[t.value for t in PolicyType]}",
-        )
+        ) from exc
 
 
 def _parse_policy_action(value: str) -> PolicyAction:
     """Parse policy action string."""
     try:
         return PolicyAction(value.lower())
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid action: {value}. Valid: {[a.value for a in PolicyAction]}",
-        )
+        ) from exc
 
 
 # Repository Endpoints
 @router.post("/repositories")
 async def add_repository(request: AddRepositoryRequest):
     """Add a repository for compliance management.
-    
+
     Once added, the repository will be subject to organization policies
     and included in compliance dashboards.
     """
     manager = get_orchestration_manager()
-    
+
     repo = await manager.add_repository(
         organization_id=request.organization_id,
         name=request.name,
@@ -106,7 +108,7 @@ async def add_repository(request: AddRepositoryRequest):
         default_branch=request.default_branch,
         tracked_regulations=request.tracked_regulations,
     )
-    
+
     return {
         "id": str(repo.id),
         "name": repo.name,
@@ -124,19 +126,19 @@ async def list_repositories(
 ):
     """List repositories for an organization."""
     manager = get_orchestration_manager()
-    
+
     status_enum = None
     if status:
         try:
             status_enum = RepositoryStatus(status.lower())
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid status. Valid: {[s.value for s in RepositoryStatus]}",
-            )
-    
+            ) from exc
+
     repos = await manager.list_repositories(organization_id, status=status_enum)
-    
+
     return {
         "organization_id": str(organization_id),
         "count": len(repos),
@@ -162,10 +164,10 @@ async def get_repository(repo_id: UUID):
     """Get repository details."""
     manager = get_orchestration_manager()
     repo = await manager.get_repository(repo_id)
-    
+
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
-    
+
     return {
         "id": str(repo.id),
         "name": repo.name,
@@ -189,21 +191,21 @@ async def update_repository_status(
     request: UpdateRepositoryStatusRequest,
 ):
     """Update repository compliance status.
-    
+
     Called after a compliance scan to update the repository's state.
     """
     manager = get_orchestration_manager()
-    
+
     repo = await manager.update_repository_status(
         repo_id=repo_id,
         compliance_score=request.compliance_score,
         open_issues=request.open_issues,
         critical_issues=request.critical_issues,
     )
-    
+
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
-    
+
     return {
         "id": str(repo.id),
         "status": repo.status.value,
@@ -216,12 +218,12 @@ async def update_repository_status(
 @router.post("/policies")
 async def create_policy(request: CreatePolicyRequest):
     """Create a compliance policy for the organization.
-    
+
     Policies automatically apply to matching repositories and
     generate violations when conditions are not met.
     """
     manager = get_orchestration_manager()
-    
+
     policy = await manager.create_policy(
         organization_id=request.organization_id,
         name=request.name,
@@ -232,7 +234,7 @@ async def create_policy(request: CreatePolicyRequest):
         applies_to=request.applies_to,
         created_by=request.created_by,
     )
-    
+
     return {
         "id": str(policy.id),
         "name": policy.name,
@@ -247,7 +249,7 @@ async def create_policy(request: CreatePolicyRequest):
 async def create_policy_from_template(request: CreatePolicyFromTemplateRequest):
     """Create a policy from a predefined template."""
     manager = get_orchestration_manager()
-    
+
     try:
         policy = await manager.create_policy_from_template(
             organization_id=request.organization_id,
@@ -255,8 +257,8 @@ async def create_policy_from_template(request: CreatePolicyFromTemplateRequest):
             overrides=request.overrides,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
     return {
         "id": str(policy.id),
         "name": policy.name,
@@ -272,13 +274,13 @@ async def list_policies(
 ):
     """List policies for an organization."""
     manager = get_orchestration_manager()
-    
+
     type_enum = None
     if policy_type:
         type_enum = _parse_policy_type(policy_type)
-    
+
     policies = await manager.list_policies(organization_id, policy_type=type_enum)
-    
+
     return {
         "organization_id": str(organization_id),
         "count": len(policies),
@@ -309,13 +311,13 @@ async def list_policy_templates():
 @router.get("/organizations/{organization_id}/dashboard")
 async def get_dashboard(organization_id: UUID):
     """Get organization compliance dashboard.
-    
+
     Returns comprehensive overview of compliance status across all
     managed repositories.
     """
     manager = get_orchestration_manager()
     dashboard = await manager.get_dashboard(organization_id)
-    
+
     return {
         "organization_id": str(dashboard.organization_id),
         "generated_at": dashboard.generated_at.isoformat(),
@@ -325,7 +327,8 @@ async def get_dashboard(organization_id: UUID):
             "non_compliant": dashboard.non_compliant_repositories,
             "compliance_rate": round(
                 dashboard.compliant_repositories / dashboard.total_repositories * 100
-                if dashboard.total_repositories > 0 else 0,
+                if dashboard.total_repositories > 0
+                else 0,
                 1,
             ),
         },
@@ -351,16 +354,16 @@ async def get_dashboard(organization_id: UUID):
 @router.post("/batch-scan")
 async def trigger_batch_scan(request: BatchScanRequest):
     """Trigger compliance scans for multiple repositories.
-    
+
     Useful for scheduled organization-wide scans.
     """
     manager = get_orchestration_manager()
-    
+
     result = await manager.batch_scan(
         organization_id=request.organization_id,
         repository_ids=request.repository_ids,
     )
-    
+
     return {
         "scan_id": str(result.id),
         "repositories_scanned": result.repositories_scanned,
@@ -376,8 +379,7 @@ async def list_statuses():
     """List possible repository statuses."""
     return {
         "statuses": [
-            {"value": s.value, "name": s.value.replace("_", " ").title()}
-            for s in RepositoryStatus
+            {"value": s.value, "name": s.value.replace("_", " ").title()} for s in RepositoryStatus
         ]
     }
 
@@ -387,8 +389,7 @@ async def list_policy_types():
     """List available policy types."""
     return {
         "policy_types": [
-            {"value": t.value, "name": t.value.replace("_", " ").title()}
-            for t in PolicyType
+            {"value": t.value, "name": t.value.replace("_", " ").title()} for t in PolicyType
         ]
     }
 
@@ -396,9 +397,4 @@ async def list_policy_types():
 @router.get("/policy-actions")
 async def list_policy_actions():
     """List available policy violation actions."""
-    return {
-        "actions": [
-            {"value": a.value, "name": a.value.title()}
-            for a in PolicyAction
-        ]
-    }
+    return {"actions": [{"value": a.value, "name": a.value.title()} for a in PolicyAction]}

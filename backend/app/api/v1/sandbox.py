@@ -296,14 +296,11 @@ async def compare_scenarios(
             current_state=request.current_state,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return ScenarioCompareResponse(
         scenario_ids=comparison.scenario_ids,
-        results={
-            k: ScenarioComparisonResultSchema(**v)
-            for k, v in comparison.results.items()
-        },
+        results={k: ScenarioComparisonResultSchema(**v) for k, v in comparison.results.items()},
         best_scenario_id=comparison.best_scenario_id,
         baseline_compliance=comparison.baseline_compliance,
         compared_at=comparison.compared_at,

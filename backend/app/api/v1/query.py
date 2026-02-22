@@ -7,8 +7,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services.query_engine import (
-    AnswerGenerator,
-    QueryParser,
     get_answer_generator,
     get_query_parser,
 )
@@ -20,7 +18,7 @@ router = APIRouter(prefix="/query", tags=["query"])
 # Request/Response Models
 class QueryRequest(BaseModel):
     """Request to ask a compliance question."""
-    
+
     query: str = Field(..., min_length=2, max_length=1000)
     organization_id: UUID | None = None
     repository_id: UUID | None = None
@@ -30,13 +28,13 @@ class QueryRequest(BaseModel):
 
 class ParseRequest(BaseModel):
     """Request to parse a query without answering."""
-    
+
     query: str = Field(..., min_length=2, max_length=1000)
 
 
 class QueryResponse(BaseModel):
     """Response to a compliance query."""
-    
+
     answer_id: UUID
     query_id: UUID
     answer: str
@@ -50,7 +48,7 @@ class QueryResponse(BaseModel):
 
 class ParseResponse(BaseModel):
     """Parsed query response."""
-    
+
     query_id: UUID
     original_query: str
     intent: str
@@ -66,7 +64,7 @@ class ParseResponse(BaseModel):
 @router.post("/ask", response_model=QueryResponse)
 async def ask_question(request: QueryRequest):
     """Ask a compliance question in natural language.
-    
+
     Supports questions about:
     - Compliance status ("Are we GDPR compliant?")
     - Regulations ("What does HIPAA Article 164.312 require?")
@@ -74,11 +72,11 @@ async def ask_question(request: QueryRequest):
     - Remediation ("How do I fix encryption issues?")
     - Evidence ("Where is my SOC2 evidence?")
     - Audit prep ("How do I prepare for an audit?")
-    
+
     Use context_id for multi-turn conversations that remember previous context.
     """
     generator = get_answer_generator()
-    
+
     answer = await generator.answer(
         query=request.query,
         organization_id=request.organization_id,
@@ -86,7 +84,7 @@ async def ask_question(request: QueryRequest):
         context_id=request.context_id,
         codebase_context=request.codebase_context,
     )
-    
+
     # Get context ID for continuation
     context_id = None
     if request.context_id:
@@ -95,7 +93,7 @@ async def ask_question(request: QueryRequest):
         context = generator.get_context(answer.query_id)
         if context:
             context_id = context.id
-    
+
     return QueryResponse(
         answer_id=answer.id,
         query_id=answer.query_id,
@@ -121,7 +119,7 @@ async def ask_question(request: QueryRequest):
 @router.post("/parse", response_model=ParseResponse)
 async def parse_query(request: ParseRequest):
     """Parse a query to extract intent and entities without generating an answer.
-    
+
     Useful for:
     - Understanding what the system detected in a query
     - Building custom UI based on detected intent
@@ -129,9 +127,9 @@ async def parse_query(request: ParseRequest):
     """
     parser = get_query_parser()
     parsed = parser.parse(request.query)
-    
+
     clarifications = parser.suggest_clarifications(parsed)
-    
+
     return ParseResponse(
         query_id=parsed.id,
         original_query=parsed.original_query,
@@ -157,10 +155,10 @@ async def get_conversation_context(context_id: UUID):
     """Get conversation context for multi-turn interactions."""
     generator = get_answer_generator()
     context = generator.get_context(context_id)
-    
+
     if not context:
         raise HTTPException(status_code=404, detail="Context not found")
-    
+
     return {
         "context_id": str(context.id),
         "organization_id": str(context.organization_id) if context.organization_id else None,
@@ -177,7 +175,7 @@ async def get_conversation_context(context_id: UUID):
                 "intent": q.intent.value,
                 "answer_summary": a.summary if i < len(context.answers) else None,
             }
-            for i, (q, a) in enumerate(zip(context.queries, context.answers))
+            for i, (q, a) in enumerate(zip(context.queries, context.answers, strict=False))
         ],
     }
 
@@ -188,14 +186,14 @@ async def suggest_questions(
     context_id: UUID | None = None,
 ):
     """Suggest relevant compliance questions.
-    
+
     Provides contextual suggestions based on:
     - Organization's compliance profile
     - Previous conversation context
     - Common compliance questions
     """
     generator = get_answer_generator()
-    
+
     suggestions = [
         {
             "category": "Compliance Status",
@@ -230,21 +228,24 @@ async def suggest_questions(
             ],
         },
     ]
-    
+
     # Add context-specific suggestions
     if context_id:
         context = generator.get_context(context_id)
         if context and context.mentioned_regulations:
             regs = list(context.mentioned_regulations)[:3]
-            suggestions.insert(0, {
-                "category": "Continue Conversation",
-                "questions": [
-                    f"Tell me more about {regs[0]}" if regs else "Continue",
-                    "What are the compliance gaps?",
-                    "Show me evidence for this",
-                ],
-            })
-    
+            suggestions.insert(
+                0,
+                {
+                    "category": "Continue Conversation",
+                    "questions": [
+                        f"Tell me more about {regs[0]}" if regs else "Continue",
+                        "What are the compliance gaps?",
+                        "Show me evidence for this",
+                    ],
+                },
+            )
+
     return {"suggestions": suggestions}
 
 
@@ -252,7 +253,7 @@ async def suggest_questions(
 async def list_supported_intents():
     """List all supported query intents."""
     from app.services.query_engine.models import QueryIntent
-    
+
     intents = [
         {
             "intent": QueryIntent.COMPLIANCE_STATUS.value,
@@ -300,14 +301,14 @@ async def list_supported_intents():
             "examples": ["Compare GDPR and CCPA", "SOC2 vs ISO27001"],
         },
     ]
-    
+
     return {"intents": intents}
 
 
 # Natural Language Query Session Endpoints
 class NLQueryRequest(BaseModel):
     """Request for natural language compliance query."""
-    
+
     query: str = Field(..., min_length=2, max_length=2000)
     session_id: UUID | None = None
     codebase_context: dict[str, Any] | None = None
@@ -316,7 +317,7 @@ class NLQueryRequest(BaseModel):
 
 class CreateNLSessionRequest(BaseModel):
     """Request to create an NL query session."""
-    
+
     organization_id: UUID | None = None
     user_id: str = ""
     initial_context: dict[str, Any] | None = None
@@ -325,19 +326,19 @@ class CreateNLSessionRequest(BaseModel):
 @router.post("/nl/sessions")
 async def create_nl_session(request: CreateNLSessionRequest):
     """Create a new natural language query session.
-    
+
     Sessions maintain conversation context across multiple queries,
     allowing for follow-up questions and contextual answers.
     """
     from app.services.query_engine import get_nl_query_engine
-    
+
     engine = get_nl_query_engine()
     session = engine.create_session(
         organization_id=request.organization_id,
         user_id=request.user_id,
         initial_context=request.initial_context,
     )
-    
+
     return {
         "session_id": str(session.id),
         "organization_id": str(session.organization_id) if session.organization_id else None,
@@ -349,7 +350,7 @@ async def create_nl_session(request: CreateNLSessionRequest):
 @router.post("/nl/query")
 async def nl_query(request: NLQueryRequest):
     """Execute a natural language compliance query.
-    
+
     Supports queries like:
     - "Show me all GDPR violations in our user service"
     - "What files handle personal data?"
@@ -357,20 +358,20 @@ async def nl_query(request: NLQueryRequest):
     - "Are we compliant with PCI-DSS?"
     - "How do I fix consent management issues?"
     - "What is our compliance score for GDPR?"
-    
+
     Provide session_id for conversational context across queries.
     """
     from app.services.query_engine import get_nl_query_engine
-    
+
     engine = get_nl_query_engine()
-    
+
     result = await engine.query(
         query_text=request.query,
         session_id=request.session_id,
         codebase_context=request.codebase_context,
         compliance_data=request.compliance_data,
     )
-    
+
     return {
         "result_id": str(result.id),
         "query_id": str(result.query_id),
@@ -391,13 +392,13 @@ async def nl_query(request: NLQueryRequest):
 async def get_nl_session(session_id: UUID):
     """Get a natural language query session."""
     from app.services.query_engine import get_nl_query_engine
-    
+
     engine = get_nl_query_engine()
     session = engine.get_session(session_id)
-    
+
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     return {
         "session_id": str(session.id),
         "organization_id": str(session.organization_id) if session.organization_id else None,
@@ -424,15 +425,15 @@ async def get_query_suggestions(
     session_id: UUID | None = None,
 ):
     """Get query suggestions based on partial input.
-    
+
     Provides autocomplete suggestions for compliance queries.
     """
     from app.services.query_engine import get_nl_query_engine
-    
+
     engine = get_nl_query_engine()
     suggestions = await engine.get_query_suggestions(
         partial_query=partial_query,
         session_id=session_id,
     )
-    
+
     return {"suggestions": suggestions}

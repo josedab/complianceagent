@@ -64,21 +64,38 @@ class HealthSchema(BaseModel):
     memory_usage_percent: float
 
 
-@router.post("/licenses", response_model=LicenseSchema, status_code=status.HTTP_201_CREATED,
-             summary="Generate deployment license")
-async def generate_license(request: GenerateLicenseRequest, db: DB, copilot: CopilotDep) -> LicenseSchema:
+@router.post(
+    "/licenses",
+    response_model=LicenseSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate deployment license",
+)
+async def generate_license(
+    request: GenerateLicenseRequest, db: DB, copilot: CopilotDep
+) -> LicenseSchema:
     service = SelfHostedService(db=db, copilot_client=copilot)
-    lt = LicenseType(request.license_type) if request.license_type in [t.value for t in LicenseType] else LicenseType.TRIAL
+    lt = (
+        LicenseType(request.license_type)
+        if request.license_type in [t.value for t in LicenseType]
+        else LicenseType.TRIAL
+    )
     license = await service.generate_license(
-        organization=request.organization, license_type=lt,
-        max_users=request.max_users, max_repositories=request.max_repositories,
+        organization=request.organization,
+        license_type=lt,
+        max_users=request.max_users,
+        max_repositories=request.max_repositories,
         validity_days=request.validity_days,
     )
     return LicenseSchema(
-        id=str(license.id), license_key=license.license_key, license_type=license.license_type.value,
-        status=license.status.value, organization=license.organization,
-        max_users=license.max_users, max_repositories=license.max_repositories,
-        features=license.features, is_valid=license.is_valid,
+        id=str(license.id),
+        license_key=license.license_key,
+        license_type=license.license_type.value,
+        status=license.status.value,
+        organization=license.organization,
+        max_users=license.max_users,
+        max_repositories=license.max_repositories,
+        features=license.features,
+        is_valid=license.is_valid,
         expires_at=license.expires_at.isoformat() if license.expires_at else None,
     )
 
@@ -89,21 +106,37 @@ async def validate_license(license_key: str, db: DB, copilot: CopilotDep) -> dic
     license = await service.validate_license(license_key)
     if not license:
         raise HTTPException(status_code=404, detail="Invalid license key")
-    return {"valid": license.is_valid, "type": license.license_type.value, "organization": license.organization}
+    return {
+        "valid": license.is_valid,
+        "type": license.license_type.value,
+        "organization": license.organization,
+    }
 
 
 @router.post("/config", response_model=DeploymentSchema, summary="Configure deployment")
-async def configure_deployment(request: ConfigureDeploymentRequest, db: DB, copilot: CopilotDep) -> DeploymentSchema:
+async def configure_deployment(
+    request: ConfigureDeploymentRequest, db: DB, copilot: CopilotDep
+) -> DeploymentSchema:
     service = SelfHostedService(db=db, copilot_client=copilot)
-    mode = DeploymentMode(request.mode) if request.mode in [m.value for m in DeploymentMode] else DeploymentMode.SELF_HOSTED
+    mode = (
+        DeploymentMode(request.mode)
+        if request.mode in [m.value for m in DeploymentMode]
+        else DeploymentMode.SELF_HOSTED
+    )
     config = await service.configure_deployment(
-        mode=mode, version=request.version, local_llm_enabled=request.local_llm_enabled,
-        local_llm_model=request.local_llm_model, offline_regulations=request.offline_regulations,
+        mode=mode,
+        version=request.version,
+        local_llm_enabled=request.local_llm_enabled,
+        local_llm_model=request.local_llm_model,
+        offline_regulations=request.offline_regulations,
         telemetry_opt_in=request.telemetry_opt_in,
     )
     return DeploymentSchema(
-        mode=config.mode.value, version=config.version, local_llm_enabled=config.local_llm_enabled,
-        local_llm_model=config.local_llm_model, offline_regulations=config.offline_regulations,
+        mode=config.mode.value,
+        version=config.version,
+        local_llm_enabled=config.local_llm_enabled,
+        local_llm_model=config.local_llm_model,
+        offline_regulations=config.offline_regulations,
         telemetry_opt_in=config.telemetry_opt_in,
     )
 
@@ -114,15 +147,28 @@ async def get_config(db: DB, copilot: CopilotDep) -> dict:
     config = await service.get_config()
     if not config:
         return {"status": "not_configured"}
-    return {"mode": config.mode.value, "version": config.version, "local_llm_enabled": config.local_llm_enabled}
+    return {
+        "mode": config.mode.value,
+        "version": config.version,
+        "local_llm_enabled": config.local_llm_enabled,
+    }
 
 
 @router.get("/bundles", summary="List offline regulation bundles")
 async def list_bundles(db: DB, copilot: CopilotDep) -> list[dict]:
     service = SelfHostedService(db=db, copilot_client=copilot)
     bundles = await service.list_offline_bundles()
-    return [{"id": str(b.id), "name": b.name, "version": b.version, "frameworks": b.frameworks,
-             "regulation_count": b.regulation_count, "size_mb": b.size_mb} for b in bundles]
+    return [
+        {
+            "id": str(b.id),
+            "name": b.name,
+            "version": b.version,
+            "frameworks": b.frameworks,
+            "regulation_count": b.regulation_count,
+            "size_mb": b.size_mb,
+        }
+        for b in bundles
+    ]
 
 
 @router.get("/health", response_model=HealthSchema, summary="System health check")
@@ -130,9 +176,13 @@ async def get_health(db: DB, copilot: CopilotDep) -> HealthSchema:
     service = SelfHostedService(db=db, copilot_client=copilot)
     health = await service.get_system_health()
     return HealthSchema(
-        status=health.status, version=health.version, uptime_seconds=health.uptime_seconds,
-        database_connected=health.database_connected, llm_available=health.llm_available,
-        license_valid=health.license_valid, disk_usage_percent=health.disk_usage_percent,
+        status=health.status,
+        version=health.version,
+        uptime_seconds=health.uptime_seconds,
+        database_connected=health.database_connected,
+        llm_available=health.llm_available,
+        license_valid=health.license_valid,
+        disk_usage_percent=health.disk_usage_percent,
         memory_usage_percent=health.memory_usage_percent,
     )
 
@@ -151,14 +201,18 @@ async def get_helm_values(db: DB, copilot: CopilotDep) -> dict:
 
 @router.get("/k8s-resources", summary="Calculate Kubernetes resource requirements")
 async def calculate_k8s_resources(
-    db: DB, copilot: CopilotDep, size: str = "medium",
+    db: DB,
+    copilot: CopilotDep,
+    size: str = "medium",
 ) -> dict:
     """Calculate recommended K8s resources for a given cluster size."""
     service = SelfHostedService(db=db, copilot_client=copilot)
     try:
         cluster_size = ClusterSize(size)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid size: {size}. Use: small, medium, large")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid size: {size}. Use: small, medium, large"
+        ) from exc
     estimate = await service.calculate_k8s_resources(cluster_size)
     return {
         "cluster_size": estimate.cluster_size.value,
@@ -177,8 +231,13 @@ async def list_airgapped_images(db: DB, copilot: CopilotDep) -> list[dict]:
     service = SelfHostedService(db=db, copilot_client=copilot)
     images = await service.list_airgapped_images()
     return [
-        {"name": img.name, "tag": img.tag, "size_mb": img.size_mb,
-         "digest": img.digest, "required": img.required}
+        {
+            "name": img.name,
+            "tag": img.tag,
+            "size_mb": img.size_mb,
+            "digest": img.digest,
+            "required": img.required,
+        }
         for img in images
     ]
 
@@ -230,7 +289,9 @@ class AirGapStatusSchema(BaseModel):
 
 
 @router.post("/validate-license", response_model=CryptoLicenseSchema)
-async def validate_license_crypto(request: ValidateLicenseRequest, db: DB, copilot: CopilotDep) -> CryptoLicenseSchema:
+async def validate_license_crypto(
+    request: ValidateLicenseRequest, db: DB, copilot: CopilotDep
+) -> CryptoLicenseSchema:
     """Validate a license key using cryptographic verification."""
     service = SelfHostedService(db=db, copilot_client=copilot)
     result = await service.validate_license_crypto(request.license_key)
@@ -258,3 +319,165 @@ async def get_air_gap_status(db: DB, copilot: CopilotDep) -> AirGapStatusSchema:
     service = SelfHostedService(db=db, copilot_client=copilot)
     status = await service.get_air_gap_status()
     return AirGapStatusSchema(**status.to_dict())
+
+
+# ---------------------------------------------------------------------------
+# v2: Air-Gap Service with License Management & Helm Generation
+# ---------------------------------------------------------------------------
+
+
+class GenerateLicenseRequest(BaseModel):
+    """Request to generate a license key."""
+
+    organization: str = Field(..., description="Organization name")
+    tier: str = Field("trial", description="License tier: trial, standard, enterprise, government")
+
+
+class LicenseKeySchema(BaseModel):
+    """Generated license key details."""
+
+    key: str
+    tier: str
+    organization: str
+    max_users: int
+    max_repos: int
+    features: list[str]
+    valid: bool
+    expires_at: str | None
+
+
+class DeploymentConfigRequest(BaseModel):
+    """Request to create a deployment configuration."""
+
+    mode: str = Field("self_hosted", description="Deployment mode: saas, self_hosted, air_gapped")
+    license_key: str = Field("", description="License key for validation")
+    llm_backend: str = Field(
+        "cloud_copilot", description="LLM backend: cloud_copilot, local_ollama, local_vllm, hybrid"
+    )
+    bundles: list[str] = Field(
+        default_factory=lambda: ["core"], description="Regulation bundle IDs"
+    )
+
+
+class RegulationBundleSchema(BaseModel):
+    """Offline regulation bundle."""
+
+    id: str
+    name: str
+    description: str
+    frameworks: list[str]
+    version: str
+    size_mb: float
+
+
+@router.post(
+    "/v2/licenses/generate",
+    response_model=LicenseKeySchema,
+    summary="Generate license key",
+)
+async def generate_license_v2(request: GenerateLicenseRequest) -> LicenseKeySchema:
+    """Generate a new license key for self-hosted deployments."""
+    from app.services.self_hosted.air_gap import AirGapService, LicenseTier
+
+    service = AirGapService()
+    lic = service.generate_license(
+        organization=request.organization,
+        tier=LicenseTier(request.tier),
+    )
+    return LicenseKeySchema(
+        key=lic.key,
+        tier=lic.tier.value,
+        organization=lic.organization,
+        max_users=lic.max_users,
+        max_repos=lic.max_repos,
+        features=lic.features,
+        valid=lic.valid,
+        expires_at=lic.expires_at.isoformat() if lic.expires_at else None,
+    )
+
+
+@router.post(
+    "/v2/licenses/validate",
+    response_model=LicenseKeySchema,
+    summary="Validate license key",
+)
+async def validate_license_v2(key: str) -> LicenseKeySchema:
+    """Validate a license key and return its details."""
+    from app.services.self_hosted.air_gap import AirGapService
+
+    service = AirGapService()
+    lic = service.validate_license(key)
+    if not lic:
+        raise HTTPException(status_code=404, detail="License key not found or invalid")
+    return LicenseKeySchema(
+        key=lic.key,
+        tier=lic.tier.value,
+        organization=lic.organization,
+        max_users=lic.max_users,
+        max_repos=lic.max_repos,
+        features=lic.features,
+        valid=lic.valid,
+        expires_at=lic.expires_at.isoformat() if lic.expires_at else None,
+    )
+
+
+@router.get(
+    "/v2/bundles",
+    response_model=list[RegulationBundleSchema],
+    summary="List offline regulation bundles",
+)
+async def list_regulation_bundles() -> list[RegulationBundleSchema]:
+    """List available offline regulation bundles for air-gapped deployments."""
+    from app.services.self_hosted.air_gap import AirGapService
+
+    service = AirGapService()
+    bundles = service.get_available_bundles()
+    return [
+        RegulationBundleSchema(
+            id=b.id,
+            name=b.name,
+            description=b.description,
+            frameworks=b.frameworks,
+            version=b.version,
+            size_mb=b.size_mb,
+        )
+        for b in bundles
+    ]
+
+
+@router.post("/v2/deploy-config", summary="Create deployment configuration")
+async def create_deploy_config(request: DeploymentConfigRequest) -> dict:
+    """Create a deployment configuration for self-hosted or air-gapped mode."""
+    from app.services.self_hosted.air_gap import AirGapService, DeploymentMode, LLMBackend
+
+    service = AirGapService()
+    config = service.create_deployment_config(
+        organization="default",
+        mode=DeploymentMode(request.mode),
+        license_key=request.license_key,
+        llm_backend=LLMBackend(request.llm_backend),
+        bundles=request.bundles,
+    )
+    return {
+        "deployment_mode": config.deployment_mode.value,
+        "llm_backend": config.llm_config.backend.value,
+        "llm_model": config.llm_config.model_name,
+        "regulation_bundles": config.regulation_bundles,
+        "telemetry_enabled": config.telemetry_enabled,
+    }
+
+
+@router.post("/v2/helm-values", summary="Generate Helm chart values")
+async def generate_helm_values(request: DeploymentConfigRequest) -> dict:
+    """Generate Helm chart values.yaml for Kubernetes deployment."""
+    from app.services.self_hosted.air_gap import AirGapService, DeploymentMode, LLMBackend
+
+    service = AirGapService()
+    config = service.create_deployment_config(
+        organization="default",
+        mode=DeploymentMode(request.mode),
+        license_key=request.license_key,
+        llm_backend=LLMBackend(request.llm_backend),
+        bundles=request.bundles,
+    )
+    return service.generate_helm_values("default", config)

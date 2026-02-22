@@ -369,7 +369,7 @@ async def create_pattern(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid enum value: {e}",
-        )
+        ) from e
 
     pattern = service.create_pattern(
         name=request.name,
@@ -400,11 +400,11 @@ async def update_pattern(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     updates = {k: v for k, v in request.model_dump().items() if v is not None}
     pattern = service.update_pattern(uuid_id, updates)
@@ -430,11 +430,11 @@ async def publish_pattern(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     pattern = service.publish_pattern(uuid_id)
     if not pattern:
@@ -463,11 +463,11 @@ async def add_version(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     pattern = service.add_version(
         uuid_id,
@@ -498,11 +498,11 @@ async def fork_pattern(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     pattern = service.fork_pattern(uuid_id, name)
     if not pattern:
@@ -532,11 +532,11 @@ async def install_pattern(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     installation = service.install_pattern(uuid_id, custom_config=request.custom_config)
     if not installation:
@@ -568,11 +568,11 @@ async def uninstall_pattern(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     success = service.uninstall_pattern(uuid_id)
     return {"uninstalled": success}
@@ -615,11 +615,11 @@ async def rate_pattern(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     rating = service.rate_pattern(
         uuid_id,
@@ -654,11 +654,11 @@ async def get_pattern_ratings(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     ratings = service.get_pattern_ratings(uuid_id, limit=limit)
     return [
@@ -808,11 +808,11 @@ async def create_purchase_checkout(
 
     try:
         uuid_id = UUID(pattern_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid pattern ID",
-        )
+        ) from exc
 
     # Get pattern details
     pattern = service.get_pattern(uuid_id)
@@ -873,15 +873,17 @@ async def get_purchases(
     result = []
     for purchase in purchases:
         pattern = service.get_pattern(purchase.pattern_id)
-        result.append({
-            "id": str(purchase.id),
-            "pattern_id": str(purchase.pattern_id),
-            "pattern_name": pattern.name if pattern else "Unknown",
-            "price_paid": purchase.price_paid,
-            "license_type": purchase.license_type.value,
-            "purchased_at": purchase.purchased_at.isoformat(),
-            "refunded": purchase.refunded,
-        })
+        result.append(
+            {
+                "id": str(purchase.id),
+                "pattern_id": str(purchase.pattern_id),
+                "pattern_name": pattern.name if pattern else "Unknown",
+                "price_paid": purchase.price_paid,
+                "license_type": purchase.license_type.value,
+                "purchased_at": purchase.purchased_at.isoformat(),
+                "refunded": purchase.refunded,
+            }
+        )
 
     return result
 
@@ -938,9 +940,7 @@ async def get_publisher_dashboard_url(
 
     # Get publisher's Connect account ID
     result = await db.execute(
-        select(PublisherProfile).where(
-            PublisherProfile.organization_id == organization.id
-        )
+        select(PublisherProfile).where(PublisherProfile.organization_id == organization.id)
     )
     profile = result.scalar_one_or_none()
 
@@ -990,24 +990,17 @@ async def get_marketplace_stats(
 async def list_categories() -> list[dict[str, str]]:
     """List all available pattern categories."""
     return [
-        {"value": cat.value, "name": cat.name.replace("_", " ").title()}
-        for cat in PatternCategory
+        {"value": cat.value, "name": cat.name.replace("_", " ").title()} for cat in PatternCategory
     ]
 
 
 @router.get("/pattern-types")
 async def list_pattern_types() -> list[dict[str, str]]:
     """List all available pattern types."""
-    return [
-        {"value": pt.value, "name": pt.name.replace("_", " ").title()}
-        for pt in PatternType
-    ]
+    return [{"value": pt.value, "name": pt.name.replace("_", " ").title()} for pt in PatternType]
 
 
 @router.get("/license-types")
 async def list_license_types() -> list[dict[str, str]]:
     """List all available license types."""
-    return [
-        {"value": lt.value, "name": lt.name.replace("_", " ").title()}
-        for lt in LicenseType
-    ]
+    return [{"value": lt.value, "name": lt.name.replace("_", " ").title()} for lt in LicenseType]

@@ -64,11 +64,11 @@ class TestRunResultSchema(BaseModel):
 def _parse_framework(fw: str) -> TestFramework:
     try:
         return TestFramework(fw)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported framework: {fw}. Use: {[f.value for f in TestFramework]}",
-        )
+        ) from exc
 
 
 def _suite_to_schema(suite) -> TestSuiteSchema:
@@ -124,7 +124,7 @@ async def get_test_suite(suite_id: str, db: DB, copilot: CopilotDep) -> TestSuit
 
         suite = await service.get_test_suite(UUID(suite_id))
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return _suite_to_schema(suite)
 
 
@@ -152,7 +152,7 @@ async def run_tests(suite_id: str, db: DB, copilot: CopilotDep) -> TestRunResult
 
         result = await service.run_tests(UUID(suite_id))
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return TestRunResultSchema(
         id=str(result.id),
         suite_id=str(result.suite_id),

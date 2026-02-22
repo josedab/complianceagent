@@ -38,9 +38,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    result = await db.execute(
-        select(User).where(User.id == UUID(token_payload.sub))
-    )
+    result = await db.execute(select(User).where(User.id == UUID(token_payload.sub)))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -123,18 +121,21 @@ async def require_org_admin(
 def get_copilot_client():
     """Factory for CopilotClient - lazy import to avoid circular deps."""
     from app.agents.copilot import CopilotClient
+
     return CopilotClient()
 
 
 def get_audit_service(db: Annotated[AsyncSession, Depends(get_db)]):
     """Factory for AuditService."""
     from app.services.audit.service import AuditService
+
     return AuditService(db)
 
 
 def get_relevance_filter():
     """Factory for RelevanceFilter."""
     from app.agents.relevance_filter import RelevanceFilter
+
     return RelevanceFilter()
 
 
@@ -144,6 +145,7 @@ def get_compliance_orchestrator(
 ):
     """Factory for ComplianceOrchestrator with dependencies injected."""
     from app.agents.orchestrator import ComplianceOrchestrator
+
     return ComplianceOrchestrator(
         db=db,
         organization_id=organization.id,
@@ -155,6 +157,7 @@ def get_compliance_orchestrator(
 def get_code_generation_service():
     """Factory for CodeGenerationService."""
     from app.services.generation.generator import CodeGenerationService
+
     return CodeGenerationService(copilot=get_copilot_client())
 
 

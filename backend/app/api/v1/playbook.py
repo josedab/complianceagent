@@ -1,6 +1,5 @@
 """API endpoints for Compliance Playbook Generator."""
 
-from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
@@ -10,7 +9,6 @@ from app.services.playbook import (
     CloudProvider,
     Framework,
     PlaybookCategory,
-    PlaybookGenerator,
     StackProfile,
     StepDifficulty,
     TechStack,
@@ -24,13 +22,13 @@ router = APIRouter(prefix="/playbooks", tags=["playbooks"])
 # Request/Response Models
 class GeneratePlaybookRequest(BaseModel):
     """Request to generate a playbook."""
-    
+
     template: str = Field(..., description="Template slug (e.g., 'encryption_at_rest')")
     tech_stack: str = Field(..., description="Technology stack (python, javascript, java, etc.)")
     framework: str | None = Field(None, description="Framework (fastapi, django, express, etc.)")
     cloud_provider: str | None = Field(None, description="Cloud provider (aws, gcp, azure)")
     organization_id: UUID | None = None
-    
+
     # Additional context
     uses_containers: bool = False
     uses_kubernetes: bool = False
@@ -39,14 +37,14 @@ class GeneratePlaybookRequest(BaseModel):
 
 class StartExecutionRequest(BaseModel):
     """Request to start playbook execution."""
-    
+
     playbook_id: UUID
     organization_id: UUID
 
 
 class UpdateExecutionRequest(BaseModel):
     """Request to update execution progress."""
-    
+
     completed_step: int | None = None
     skipped_step: int | None = None
     note: str | None = None
@@ -56,11 +54,11 @@ def _parse_tech_stack(value: str) -> TechStack:
     """Parse tech stack string."""
     try:
         return TechStack(value.lower())
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid tech_stack: {value}. Valid: {[t.value for t in TechStack]}",
-        )
+        ) from exc
 
 
 def _parse_framework(value: str | None) -> Framework | None:
@@ -69,11 +67,11 @@ def _parse_framework(value: str | None) -> Framework | None:
         return None
     try:
         return Framework(value.lower())
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid framework: {value}. Valid: {[f.value for f in Framework]}",
-        )
+        ) from exc
 
 
 def _parse_cloud_provider(value: str | None) -> CloudProvider | None:
@@ -82,11 +80,11 @@ def _parse_cloud_provider(value: str | None) -> CloudProvider | None:
         return None
     try:
         return CloudProvider(value.lower())
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid cloud_provider: {value}. Valid: {[c.value for c in CloudProvider]}",
-        )
+        ) from exc
 
 
 # Templates Endpoint
@@ -96,23 +94,23 @@ async def list_templates(
     regulation: str | None = None,
 ):
     """List available playbook templates.
-    
+
     Filter by category or regulation to find relevant playbooks.
     """
     generator = get_playbook_generator()
-    
+
     cat_enum = None
     if category:
         try:
             cat_enum = PlaybookCategory(category.lower())
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid category. Valid: {[c.value for c in PlaybookCategory]}",
-            )
-    
+            ) from exc
+
     templates = await generator.list_templates(category=cat_enum, regulation=regulation)
-    
+
     return {
         "templates": templates,
         "total": len(templates),
@@ -123,11 +121,11 @@ async def list_templates(
 async def get_template(slug: str):
     """Get details about a specific template."""
     from app.services.playbook.models import PLAYBOOK_TEMPLATES
-    
+
     template = PLAYBOOK_TEMPLATES.get(slug)
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
-    
+
     return {
         "slug": slug,
         "name": template["name"],
@@ -145,12 +143,12 @@ async def get_template(slug: str):
 @router.post("/generate")
 async def generate_playbook(request: GeneratePlaybookRequest):
     """Generate a customized compliance playbook.
-    
+
     Creates a step-by-step implementation guide tailored to your
     technology stack and cloud provider.
     """
     generator = get_playbook_generator()
-    
+
     # Build stack profile
     profile = StackProfile(
         tech_stack=_parse_tech_stack(request.tech_stack),
@@ -160,7 +158,7 @@ async def generate_playbook(request: GeneratePlaybookRequest):
         uses_kubernetes=request.uses_kubernetes,
         database_type=request.database_type,
     )
-    
+
     try:
         playbook = await generator.generate_playbook(
             template_slug=request.template,
@@ -168,8 +166,8 @@ async def generate_playbook(request: GeneratePlaybookRequest):
             organization_id=request.organization_id,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
     return {
         "playbook_id": str(playbook.id),
         "name": playbook.name,
@@ -181,7 +179,9 @@ async def generate_playbook(request: GeneratePlaybookRequest):
         "difficulty": playbook.difficulty.value,
         "prerequisites": playbook.prerequisites,
         "tech_stack": [t.value for t in playbook.tech_stacks],
-        "cloud_provider": [c.value for c in playbook.cloud_providers] if playbook.cloud_providers else None,
+        "cloud_provider": [c.value for c in playbook.cloud_providers]
+        if playbook.cloud_providers
+        else None,
     }
 
 
@@ -190,10 +190,10 @@ async def get_playbook(playbook_id: UUID):
     """Get a generated playbook with all steps."""
     generator = get_playbook_generator()
     playbook = await generator.get_playbook(playbook_id)
-    
+
     if not playbook:
         raise HTTPException(status_code=404, detail="Playbook not found")
-    
+
     return {
         "id": str(playbook.id),
         "name": playbook.name,
@@ -230,18 +230,18 @@ async def get_playbook_step(playbook_id: UUID, step_number: int):
     """Get details for a specific step."""
     generator = get_playbook_generator()
     playbook = await generator.get_playbook(playbook_id)
-    
+
     if not playbook:
         raise HTTPException(status_code=404, detail="Playbook not found")
-    
+
     step = next((s for s in playbook.steps if s.step_number == step_number), None)
     if not step:
         raise HTTPException(status_code=404, detail="Step not found")
-    
+
     # Include context
     prev_step = next((s for s in playbook.steps if s.step_number == step_number - 1), None)
     next_step = next((s for s in playbook.steps if s.step_number == step_number + 1), None)
-    
+
     return {
         "playbook_id": str(playbook_id),
         "total_steps": playbook.total_steps,
@@ -271,20 +271,20 @@ async def get_playbook_step(playbook_id: UUID, step_number: int):
 @router.post("/executions")
 async def start_execution(request: StartExecutionRequest):
     """Start executing a playbook.
-    
+
     Tracks progress through playbook steps.
     """
     generator = get_playbook_generator()
-    
+
     playbook = await generator.get_playbook(request.playbook_id)
     if not playbook:
         raise HTTPException(status_code=404, detail="Playbook not found")
-    
+
     execution = await generator.start_execution(
         playbook_id=request.playbook_id,
         organization_id=request.organization_id,
     )
-    
+
     return {
         "execution_id": str(execution.id),
         "playbook_id": str(execution.playbook_id),
@@ -299,19 +299,19 @@ async def start_execution(request: StartExecutionRequest):
 async def update_execution(execution_id: UUID, request: UpdateExecutionRequest):
     """Update execution progress."""
     generator = get_playbook_generator()
-    
+
     execution = await generator.update_execution(
         execution_id=execution_id,
         completed_step=request.completed_step,
         skipped_step=request.skipped_step,
         note=request.note,
     )
-    
+
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
-    
+
     playbook = await generator.get_playbook(execution.playbook_id)
-    
+
     return {
         "execution_id": str(execution.id),
         "status": execution.status,
@@ -320,8 +320,10 @@ async def update_execution(execution_id: UUID, request: UpdateExecutionRequest):
         "skipped_steps": execution.skipped_steps,
         "progress_percent": round(
             (len(execution.completed_steps) + len(execution.skipped_steps))
-            / playbook.total_steps * 100
-            if playbook else 0,
+            / playbook.total_steps
+            * 100
+            if playbook
+            else 0,
             1,
         ),
     }
@@ -333,8 +335,7 @@ async def list_categories():
     """List all playbook categories."""
     return {
         "categories": [
-            {"value": c.value, "name": c.value.replace("_", " ").title()}
-            for c in PlaybookCategory
+            {"value": c.value, "name": c.value.replace("_", " ").title()} for c in PlaybookCategory
         ]
     }
 
@@ -342,22 +343,16 @@ async def list_categories():
 @router.get("/tech-stacks")
 async def list_tech_stacks():
     """List supported technology stacks."""
-    return {
-        "tech_stacks": [t.value for t in TechStack]
-    }
+    return {"tech_stacks": [t.value for t in TechStack]}
 
 
 @router.get("/frameworks")
 async def list_frameworks():
     """List supported frameworks."""
-    return {
-        "frameworks": [f.value for f in Framework]
-    }
+    return {"frameworks": [f.value for f in Framework]}
 
 
 @router.get("/cloud-providers")
 async def list_cloud_providers():
     """List supported cloud providers."""
-    return {
-        "cloud_providers": [c.value for c in CloudProvider]
-    }
+    return {"cloud_providers": [c.value for c in CloudProvider]}

@@ -15,7 +15,18 @@ router = APIRouter()
 
 # --- Request/Response Models ---
 
-SUPPORTED_LANGUAGES = {"python", "java", "javascript", "typescript", "go", "rust", "csharp", "ruby", "kotlin", "swift"}
+SUPPORTED_LANGUAGES = {
+    "python",
+    "java",
+    "javascript",
+    "typescript",
+    "go",
+    "rust",
+    "csharp",
+    "ruby",
+    "kotlin",
+    "swift",
+}
 
 
 class AnalyzeCodeRequest(BaseModel):
@@ -57,18 +68,31 @@ class RegulationContextSchema(BaseModel):
 
 # --- Endpoints ---
 
+
 @router.post("/analyze", response_model=list[SuggestionSchema])
 async def analyze_code(req: AnalyzeCodeRequest) -> list[dict]:
     if req.language not in SUPPORTED_LANGUAGES:
-        raise HTTPException(status_code=422, detail=f"Unsupported language: {req.language}. Supported: {', '.join(sorted(SUPPORTED_LANGUAGES))}")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported language: {req.language}. Supported: {', '.join(sorted(SUPPORTED_LANGUAGES))}",
+        )
     svc = PairProgrammingService()
     suggestions = await svc.analyze_code(req.code, req.file_path, req.language)
     return [
-        {"id": str(s.id), "file_path": s.file_path, "line_number": s.line_number,
-         "severity": s.severity.value, "rule_id": s.rule_id, "regulation": s.regulation,
-         "article": s.article, "message": s.message, "explanation": s.explanation,
-         "suggested_fix": s.suggested_fix, "original_code": s.original_code,
-         "confidence": s.confidence}
+        {
+            "id": str(s.id),
+            "file_path": s.file_path,
+            "line_number": s.line_number,
+            "severity": s.severity.value,
+            "rule_id": s.rule_id,
+            "regulation": s.regulation,
+            "article": s.article,
+            "message": s.message,
+            "explanation": s.explanation,
+            "suggested_fix": s.suggested_fix,
+            "original_code": s.original_code,
+            "confidence": s.confidence,
+        }
         for s in suggestions
     ]
 
@@ -80,9 +104,14 @@ async def start_session(
 ) -> dict:
     svc = PairProgrammingService()
     from uuid import uuid4
+
     session = await svc.start_session(uuid4(), repository, language)
-    return {"id": str(session.id), "repository": session.repository,
-            "language": session.language, "started_at": session.started_at.isoformat()}
+    return {
+        "id": str(session.id),
+        "repository": session.repository,
+        "language": session.language,
+        "started_at": session.started_at.isoformat(),
+    }
 
 
 @router.get("/context/{language}", response_model=list[RegulationContextSchema])
@@ -90,9 +119,14 @@ async def get_regulation_context(language: str) -> list[dict]:
     svc = PairProgrammingService()
     contexts = await svc.get_regulation_context(language)
     return [
-        {"regulation": c.regulation, "article": c.article, "title": c.title,
-         "summary": c.summary, "relevance_score": c.relevance_score,
-         "applicable_patterns": c.applicable_patterns}
+        {
+            "regulation": c.regulation,
+            "article": c.article,
+            "title": c.title,
+            "summary": c.summary,
+            "relevance_score": c.relevance_score,
+            "applicable_patterns": c.applicable_patterns,
+        }
         for c in contexts
     ]
 
@@ -104,6 +138,7 @@ async def get_compliance_rules() -> list[dict]:
 
 
 # --- Multi-File & Refactoring Models ---
+
 
 class FileInput(BaseModel):
     file_path: str = Field(..., min_length=1, max_length=1000, description="File path")
@@ -164,10 +199,14 @@ class RefactoringSuggestionSchema(BaseModel):
 
 # --- New Endpoints ---
 
+
 @router.post("/analyze/multi-file", response_model=MultiFileAnalysisSchema)
 async def analyze_multi_file(req: MultiFileAnalyzeRequest) -> dict:
     if req.language not in SUPPORTED_LANGUAGES:
-        raise HTTPException(status_code=422, detail=f"Unsupported language: {req.language}. Supported: {', '.join(sorted(SUPPORTED_LANGUAGES))}")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported language: {req.language}. Supported: {', '.join(sorted(SUPPORTED_LANGUAGES))}",
+        )
     svc = PairProgrammingService()
     result = await svc.analyze_multi_file(
         [{"file_path": f.file_path, "code": f.code} for f in req.files],
@@ -176,11 +215,20 @@ async def analyze_multi_file(req: MultiFileAnalyzeRequest) -> dict:
     suggestions_by_file = {}
     for fp, slist in result.suggestions_by_file.items():
         suggestions_by_file[fp] = [
-            {"id": str(s.id), "file_path": s.file_path, "line_number": s.line_number,
-             "severity": s.severity.value, "rule_id": s.rule_id, "regulation": s.regulation,
-             "article": s.article, "message": s.message, "explanation": s.explanation,
-             "suggested_fix": s.suggested_fix, "original_code": s.original_code,
-             "confidence": s.confidence}
+            {
+                "id": str(s.id),
+                "file_path": s.file_path,
+                "line_number": s.line_number,
+                "severity": s.severity.value,
+                "rule_id": s.rule_id,
+                "regulation": s.regulation,
+                "article": s.article,
+                "message": s.message,
+                "explanation": s.explanation,
+                "suggested_fix": s.suggested_fix,
+                "original_code": s.original_code,
+                "confidence": s.confidence,
+            }
             for s in slist
         ]
     return {
@@ -207,9 +255,13 @@ async def accept_suggestion(suggestion_id: UUID) -> dict:
     suggestion = await svc.accept_suggestion(suggestion_id)
     if not suggestion:
         raise HTTPException(status_code=404, detail="Suggestion not found")
-    return {"id": str(suggestion.id), "status": suggestion.status.value,
-            "file_path": suggestion.file_path, "rule_id": suggestion.rule_id,
-            "message": suggestion.message}
+    return {
+        "id": str(suggestion.id),
+        "status": suggestion.status.value,
+        "file_path": suggestion.file_path,
+        "rule_id": suggestion.rule_id,
+        "message": suggestion.message,
+    }
 
 
 @router.post("/suggestion/{suggestion_id}/dismiss", response_model=SuggestionActionSchema)
@@ -218,24 +270,38 @@ async def dismiss_suggestion(suggestion_id: UUID) -> dict:
     suggestion = await svc.dismiss_suggestion(suggestion_id)
     if not suggestion:
         raise HTTPException(status_code=404, detail="Suggestion not found")
-    return {"id": str(suggestion.id), "status": suggestion.status.value,
-            "file_path": suggestion.file_path, "rule_id": suggestion.rule_id,
-            "message": suggestion.message}
+    return {
+        "id": str(suggestion.id),
+        "status": suggestion.status.value,
+        "file_path": suggestion.file_path,
+        "rule_id": suggestion.rule_id,
+        "message": suggestion.message,
+    }
 
 
 @router.post("/refactoring", response_model=list[RefactoringSuggestionSchema])
 async def get_refactoring_suggestions(req: RefactoringRequest) -> list[dict]:
     if req.language not in SUPPORTED_LANGUAGES:
-        raise HTTPException(status_code=422, detail=f"Unsupported language: {req.language}. Supported: {', '.join(sorted(SUPPORTED_LANGUAGES))}")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported language: {req.language}. Supported: {', '.join(sorted(SUPPORTED_LANGUAGES))}",
+        )
     svc = PairProgrammingService()
     suggestions = await svc.get_refactoring_suggestions(
         [{"file_path": f.file_path, "code": f.code} for f in req.files],
         req.language,
     )
     return [
-        {"id": str(s.id), "title": s.title, "description": s.description,
-         "affected_files": s.affected_files, "regulation": s.regulation,
-         "article": s.article, "effort_estimate": s.effort_estimate,
-         "priority": s.priority, "suggested_approach": s.suggested_approach}
+        {
+            "id": str(s.id),
+            "title": s.title,
+            "description": s.description,
+            "affected_files": s.affected_files,
+            "regulation": s.regulation,
+            "article": s.article,
+            "effort_estimate": s.effort_estimate,
+            "priority": s.priority,
+            "suggested_approach": s.suggested_approach,
+        }
         for s in suggestions
     ]

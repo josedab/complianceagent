@@ -1,16 +1,16 @@
 """Real-time compliance scoring API endpoints."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
-from app.services.scoring import ComplianceScoringService, ComplianceGrade
+from app.services.scoring import ComplianceScoringService
 
 
 logger = structlog.get_logger()
@@ -19,8 +19,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class GapDetailSchema(BaseModel):
     """Details of a compliance gap."""
+
     framework: str
     requirement_id: str
     title: str
@@ -32,6 +34,7 @@ class GapDetailSchema(BaseModel):
 
 class FrameworkScoreSchema(BaseModel):
     """Score for a single regulatory framework."""
+
     framework: str
     score: float
     grade: str
@@ -45,6 +48,7 @@ class FrameworkScoreSchema(BaseModel):
 
 class ScoringResponseSchema(BaseModel):
     """Complete scoring result response."""
+
     overall_score: float = Field(..., ge=0, le=100, description="Overall compliance score (0-100)")
     overall_grade: str = Field(..., description="Letter grade (A-F)")
     framework_scores: list[FrameworkScoreSchema]
@@ -65,21 +69,23 @@ class ScoringResponseSchema(BaseModel):
 
 class QuickScoreRequest(BaseModel):
     """Request for quick scoring of external repository."""
+
     repository_url: str = Field(..., description="URL of repository to score")
     frameworks: list[str] | None = Field(
-        None, 
-        description="List of frameworks to score against (e.g., ['GDPR', 'HIPAA'])"
+        None, description="List of frameworks to score against (e.g., ['GDPR', 'HIPAA'])"
     )
 
 
 class BadgeFormat(str, Enum):
     """Supported badge formats."""
+
     SVG = "svg"
     PNG = "png"
     JSON = "json"
 
 
 # --- Helper Functions ---
+
 
 def _result_to_schema(result) -> ScoringResponseSchema:
     """Convert ScoringResult dataclass to Pydantic schema."""
@@ -105,9 +111,11 @@ def _result_to_schema(result) -> ScoringResponseSchema:
                         description=g.description,
                         affected_files=g.affected_files,
                         remediation_hint=g.remediation_hint,
-                    ) for g in fs.gaps
+                    )
+                    for g in fs.gaps
                 ],
-            ) for fs in result.framework_scores
+            )
+            for fs in result.framework_scores
         ],
         total_requirements=result.total_requirements,
         compliant_requirements=result.compliant_requirements,
@@ -124,7 +132,8 @@ def _result_to_schema(result) -> ScoringResponseSchema:
                 description=g.description,
                 affected_files=g.affected_files,
                 remediation_hint=g.remediation_hint,
-            ) for g in result.top_gaps
+            )
+            for g in result.top_gaps
         ],
         badge_url=result.badge_url,
         badge_markdown=result.badge_markdown,
@@ -136,6 +145,7 @@ def _result_to_schema(result) -> ScoringResponseSchema:
 
 
 # --- Endpoints ---
+
 
 @router.get(
     "/repository/{repository_id}",
@@ -154,7 +164,7 @@ async def score_repository(
 ) -> ScoringResponseSchema:
     """
     Score a repository's compliance status across regulatory frameworks.
-    
+
     Returns a letter grade (A-F) with detailed breakdown by framework
     and top compliance gaps that need attention.
     """
@@ -171,13 +181,13 @@ async def score_repository(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
     except Exception as e:
         logger.exception("Scoring failed", repository_id=str(repository_id), error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Scoring failed. Please try again.",
-        )
+        ) from e
 
 
 @router.post(
@@ -192,11 +202,11 @@ async def quick_score(
 ) -> ScoringResponseSchema:
     """
     Quick compliance score for any repository URL.
-    
+
     This endpoint performs a lightweight analysis without requiring
     the repository to be registered. Useful for due diligence,
     procurement, and discovery.
-    
+
     Note: Quick scores have lower confidence than full repository scans.
     """
     try:
@@ -211,7 +221,7 @@ async def quick_score(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Quick scoring failed. Please try again.",
-        )
+        ) from e
 
 
 @router.get(
@@ -227,7 +237,7 @@ async def get_badge(
 ) -> dict:
     """
     Get an embeddable compliance badge for a repository.
-    
+
     Badges can be embedded in README files, websites, and documentation
     to show compliance status at a glance.
     """
@@ -238,17 +248,17 @@ async def get_badge(
             frameworks=[framework] if framework else None,
             include_gaps=False,
         )
-        
+
         grade = result.overall_grade.value
         colors = {
-            "A": "#4c1",      # bright green
-            "B": "#97ca00",   # green
-            "C": "#dfb317",   # yellow
-            "D": "#fe7d37",   # orange
-            "F": "#e05d44",   # red
+            "A": "#4c1",  # bright green
+            "B": "#97ca00",  # green
+            "C": "#dfb317",  # yellow
+            "D": "#fe7d37",  # orange
+            "F": "#e05d44",  # red
         }
         color = colors.get(grade, "#9f9f9f")
-        
+
         if format == BadgeFormat.JSON:
             return {
                 "schemaVersion": 1,
@@ -257,11 +267,11 @@ async def get_badge(
                 "color": color,
                 "logoSvg": None,
             }
-        
+
         # Return badge URLs for SVG/PNG
         label = f"compliance-{framework}" if framework else "compliance"
         shields_url = f"https://img.shields.io/badge/{label}-{grade}-{color.replace('#', '')}"
-        
+
         return {
             "badge_url": shields_url,
             "markdown": f"[![Compliance {grade}]({shields_url})](https://complianceagent.ai/score/{repository_id})",
@@ -269,12 +279,12 @@ async def get_badge(
             "grade": grade,
             "score": result.overall_score,
         }
-        
+
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get(
@@ -291,7 +301,7 @@ async def compare_scores(
 ) -> dict:
     """
     Compare compliance scores across multiple repositories.
-    
+
     Useful for portfolio analysis and identifying which repositories
     need the most attention.
     """
@@ -300,10 +310,10 @@ async def compare_scores(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Maximum 10 repositories can be compared at once",
         )
-    
+
     service = ComplianceScoringService(db=db)
     comparisons = []
-    
+
     for repo_id in repository_ids:
         try:
             result = await service.score_repository(
@@ -311,29 +321,33 @@ async def compare_scores(
                 frameworks=[framework] if framework else None,
                 include_gaps=False,
             )
-            comparisons.append({
-                "repository_id": str(repo_id),
-                "overall_score": result.overall_score,
-                "overall_grade": result.overall_grade.value,
-                "total_requirements": result.total_requirements,
-                "compliant_requirements": result.compliant_requirements,
-                "critical_gaps": result.critical_gaps,
-            })
+            comparisons.append(
+                {
+                    "repository_id": str(repo_id),
+                    "overall_score": result.overall_score,
+                    "overall_grade": result.overall_grade.value,
+                    "total_requirements": result.total_requirements,
+                    "compliant_requirements": result.compliant_requirements,
+                    "critical_gaps": result.critical_gaps,
+                }
+            )
         except ValueError:
-            comparisons.append({
-                "repository_id": str(repo_id),
-                "error": "Repository not found",
-            })
-    
+            comparisons.append(
+                {
+                    "repository_id": str(repo_id),
+                    "error": "Repository not found",
+                }
+            )
+
     # Sort by score descending
     comparisons.sort(
         key=lambda x: x.get("overall_score", -1),
         reverse=True,
     )
-    
+
     return {
         "comparisons": comparisons,
         "framework_filter": framework,
         "total_repositories": len(repository_ids),
-        "compared_at": datetime.utcnow().isoformat(),
+        "compared_at": datetime.now(UTC).isoformat(),
     }

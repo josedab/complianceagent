@@ -4,11 +4,12 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep
 from app.services.nl_query import NLQueryService
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -77,14 +78,27 @@ async def execute_query(request: QueryRequest, db: DB, copilot: CopilotDep) -> Q
         intent=result.intent.value,
         answer=result.answer,
         confidence=result.confidence,
-        sources=[SourceSchema(
-            source_type=s.source_type.value, title=s.title, reference=s.reference,
-            relevance_score=s.relevance_score, snippet=s.snippet,
-        ) for s in result.sources],
-        code_references=[CodeRefSchema(
-            file_path=c.file_path, line_start=c.line_start, line_end=c.line_end,
-            snippet=c.snippet, language=c.language, relevance=c.relevance,
-        ) for c in result.code_references],
+        sources=[
+            SourceSchema(
+                source_type=s.source_type.value,
+                title=s.title,
+                reference=s.reference,
+                relevance_score=s.relevance_score,
+                snippet=s.snippet,
+            )
+            for s in result.sources
+        ],
+        code_references=[
+            CodeRefSchema(
+                file_path=c.file_path,
+                line_start=c.line_start,
+                line_end=c.line_end,
+                snippet=c.snippet,
+                language=c.language,
+                relevance=c.relevance,
+            )
+            for c in result.code_references
+        ],
         follow_up_suggestions=result.follow_up_suggestions,
         processing_time_ms=result.processing_time_ms,
     )
@@ -98,11 +112,17 @@ async def execute_query(request: QueryRequest, db: DB, copilot: CopilotDep) -> Q
 async def get_history(db: DB, copilot: CopilotDep, limit: int = 20) -> list[QueryHistorySchema]:
     service = NLQueryService(db=db, copilot_client=copilot)
     history = await service.get_history(limit=limit)
-    return [QueryHistorySchema(
-        id=str(h.id), query=h.query, intent=h.intent.value,
-        answer_preview=h.answer_preview, was_helpful=h.was_helpful,
-        timestamp=h.timestamp.isoformat() if h.timestamp else None,
-    ) for h in history]
+    return [
+        QueryHistorySchema(
+            id=str(h.id),
+            query=h.query,
+            intent=h.intent.value,
+            answer_preview=h.answer_preview,
+            was_helpful=h.was_helpful,
+            timestamp=h.timestamp.isoformat() if h.timestamp else None,
+        )
+        for h in history
+    ]
 
 
 @router.post(
@@ -123,4 +143,7 @@ async def submit_feedback(request: FeedbackRequest, db: DB, copilot: CopilotDep)
 )
 async def list_intents() -> list[dict]:
     from app.services.nl_query.models import QueryIntent
-    return [{"intent": i.value, "description": i.value.replace("_", " ").title()} for i in QueryIntent]
+
+    return [
+        {"intent": i.value, "description": i.value.replace("_", " ").title()} for i in QueryIntent
+    ]

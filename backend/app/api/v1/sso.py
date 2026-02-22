@@ -68,9 +68,7 @@ async def saml_login(org_slug: str, db: AsyncSession = Depends(get_db)) -> Redir
     """Initiate SAML login flow."""
     from sqlalchemy import select
 
-    result = await db.execute(
-        select(Organization).where(Organization.slug == org_slug)
-    )
+    result = await db.execute(select(Organization).where(Organization.slug == org_slug))
     org = result.scalar_one_or_none()
 
     if not org or not org.settings.get("saml", {}).get("enabled"):
@@ -107,9 +105,7 @@ async def saml_acs(request: Request, db: AsyncSession = Depends(get_db)) -> dict
 
     from sqlalchemy import select
 
-    result = await db.execute(
-        select(Organization).where(Organization.slug == relay_state)
-    )
+    result = await db.execute(select(Organization).where(Organization.slug == relay_state))
     org = result.scalar_one_or_none()
 
     if not org:
@@ -155,12 +151,8 @@ async def saml_acs(request: Request, db: AsyncSession = Depends(get_db)) -> dict
     # Generate tokens
     from app.core.security import create_access_token, create_refresh_token
 
-    access_token = create_access_token(
-        data={"sub": str(user.id), "org": str(org.id)}
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": str(user.id)}
-    )
+    access_token = create_access_token(data={"sub": str(user.id), "org": str(org.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
     return {
         "access_token": access_token,

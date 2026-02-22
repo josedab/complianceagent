@@ -62,9 +62,7 @@ async def get_requirement(
     db: DB,
 ) -> Requirement:
     """Get requirement details."""
-    result = await db.execute(
-        select(Requirement).where(Requirement.id == requirement_id)
-    )
+    result = await db.execute(select(Requirement).where(Requirement.id == requirement_id))
     requirement = result.scalar_one_or_none()
 
     if not requirement:
@@ -87,9 +85,7 @@ async def review_requirement(
     """Mark requirement as human reviewed."""
     from datetime import datetime
 
-    result = await db.execute(
-        select(Requirement).where(Requirement.id == requirement_id)
-    )
+    result = await db.execute(select(Requirement).where(Requirement.id == requirement_id))
     requirement = result.scalar_one_or_none()
 
     if not requirement:

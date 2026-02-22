@@ -68,9 +68,7 @@ async def get_regulatory_source(
     db: DB,
 ) -> RegulatorySource:
     """Get regulatory source details."""
-    result = await db.execute(
-        select(RegulatorySource).where(RegulatorySource.id == source_id)
-    )
+    result = await db.execute(select(RegulatorySource).where(RegulatorySource.id == source_id))
     source = result.scalar_one_or_none()
 
     if not source:
@@ -111,10 +109,12 @@ async def list_regulations(
             select(func.count()).where(Requirement.regulation_id == reg.id)
         )
         req_count = count_result.scalar() or 0
-        summaries.append({
-            **RegulationSummary.model_validate(reg).model_dump(),
-            "requirements_count": req_count,
-        })
+        summaries.append(
+            {
+                **RegulationSummary.model_validate(reg).model_dump(),
+                "requirements_count": req_count,
+            }
+        )
 
     return summaries
 

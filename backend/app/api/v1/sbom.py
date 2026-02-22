@@ -10,10 +10,8 @@ from pydantic import BaseModel, Field
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 from app.services.sbom import (
     SBOMFormat,
-    SBOMGenerator,
-    SBOMComplianceAnalyzer,
-    get_sbom_generator,
     get_sbom_analyzer,
+    get_sbom_generator,
 )
 
 
@@ -27,7 +25,7 @@ router = APIRouter()
 
 class GenerateSBOMRequest(BaseModel):
     """Request to generate an SBOM."""
-    
+
     name: str = Field(description="Project/application name")
     version: str = Field(description="Project version")
     dependency_files: dict[str, str] = Field(
@@ -35,25 +33,20 @@ class GenerateSBOMRequest(BaseModel):
     )
     format: str = Field(
         default="cyclonedx-json",
-        description="Output format: spdx-json, spdx-xml, cyclonedx-json, cyclonedx-xml"
+        description="Output format: spdx-json, spdx-xml, cyclonedx-json, cyclonedx-xml",
     )
     include_vulnerabilities: bool = Field(
-        default=True,
-        description="Check for known vulnerabilities"
+        default=True, description="Check for known vulnerabilities"
     )
-    include_licenses: bool = Field(
-        default=True,
-        description="Include license information"
-    )
+    include_licenses: bool = Field(default=True, description="Include license information")
     repository_id: str | None = Field(
-        default=None,
-        description="Optional repository ID to associate"
+        default=None, description="Optional repository ID to associate"
     )
 
 
 class ComponentResponse(BaseModel):
     """SBOM component response."""
-    
+
     id: str
     name: str
     version: str
@@ -69,7 +62,7 @@ class ComponentResponse(BaseModel):
 
 class VulnerabilityResponse(BaseModel):
     """Vulnerability response."""
-    
+
     id: str
     severity: str
     cvss_score: float | None
@@ -81,7 +74,7 @@ class VulnerabilityResponse(BaseModel):
 
 class SBOMResponse(BaseModel):
     """Complete SBOM response."""
-    
+
     id: str
     name: str
     version: str
@@ -103,14 +96,14 @@ class SBOMResponse(BaseModel):
 
 class SBOMDetailResponse(SBOMResponse):
     """Detailed SBOM response with components."""
-    
+
     components: list[ComponentResponse]
     vulnerabilities: list[VulnerabilityResponse]
 
 
 class ComplianceIssueResponse(BaseModel):
     """Compliance issue response."""
-    
+
     id: str
     issue_type: str
     regulation: str
@@ -124,7 +117,7 @@ class ComplianceIssueResponse(BaseModel):
 
 class VulnerabilityMappingResponse(BaseModel):
     """Vulnerability to compliance mapping response."""
-    
+
     vulnerability_id: str
     regulation: str
     requirement: str
@@ -137,7 +130,7 @@ class VulnerabilityMappingResponse(BaseModel):
 
 class ComplianceReportResponse(BaseModel):
     """SBOM compliance report response."""
-    
+
     id: str
     sbom_id: str
     generated_at: datetime
@@ -156,11 +149,11 @@ class ComplianceReportResponse(BaseModel):
 
 class AnalyzeComplianceRequest(BaseModel):
     """Request to analyze SBOM for compliance."""
-    
+
     sbom_id: str
     regulations: list[str] | None = Field(
         default=None,
-        description="Regulations to check against (default: PCI-DSS, HIPAA, SOC 2, GDPR, NIST CSF)"
+        description="Regulations to check against (default: PCI-DSS, HIPAA, SOC 2, GDPR, NIST CSF)",
     )
 
 
@@ -177,25 +170,25 @@ async def generate_sbom(
     db: DB,
 ) -> SBOMResponse:
     """Generate a Software Bill of Materials (SBOM) from dependency files.
-    
+
     Parses dependency files (package.json, requirements.txt, go.mod, etc.)
     and generates a comprehensive SBOM with:
     - Component inventory
     - License information
     - Known vulnerability detection
     - Compliance metadata
-    
+
     Supports SPDX and CycloneDX output formats.
     """
     generator = get_sbom_generator()
-    
+
     try:
         format_enum = SBOMFormat(request.format)
     except ValueError:
         format_enum = SBOMFormat.CYCLONEDX_JSON
-    
+
     repo_id = UUID(request.repository_id) if request.repository_id else None
-    
+
     sbom = await generator.generate_sbom(
         organization_id=organization.id,
         repository_id=repo_id,
@@ -206,7 +199,7 @@ async def generate_sbom(
         include_vulnerabilities=request.include_vulnerabilities,
         include_licenses=request.include_licenses,
     )
-    
+
     return SBOMResponse(
         id=str(sbom.id),
         name=sbom.name,
@@ -237,22 +230,22 @@ async def get_sbom(
 ) -> SBOMDetailResponse:
     """Get detailed SBOM by ID, including all components and vulnerabilities."""
     generator = get_sbom_generator()
-    
+
     try:
         sbom_uuid = UUID(sbom_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid SBOM ID format",
-        )
-    
+        ) from exc
+
     sbom = await generator.get_sbom(sbom_uuid)
     if not sbom or sbom.organization_id != organization.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="SBOM not found",
         )
-    
+
     components = [
         ComponentResponse(
             id=str(c.id),
@@ -269,7 +262,7 @@ async def get_sbom(
         )
         for c in sbom.components
     ]
-    
+
     vulnerabilities = [
         VulnerabilityResponse(
             id=v.id,
@@ -283,7 +276,7 @@ async def get_sbom(
         for c in sbom.components
         for v in c.vulnerabilities
     ]
-    
+
     return SBOMDetailResponse(
         id=str(sbom.id),
         name=sbom.name,
@@ -316,28 +309,28 @@ async def export_sbom(
     db: DB = None,
 ) -> dict[str, Any]:
     """Export SBOM in standard format (SPDX or CycloneDX).
-    
+
     Returns the SBOM in the requested industry-standard format,
     suitable for submission to auditors or integration with other tools.
     """
     generator = get_sbom_generator()
-    
+
     try:
         sbom_uuid = UUID(sbom_id)
         format_enum = SBOMFormat(format)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid SBOM ID or format",
-        )
-    
+        ) from exc
+
     try:
         return await generator.export_sbom(sbom_uuid, format_enum)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.post("/analyze-compliance", response_model=ComplianceReportResponse)
@@ -348,7 +341,7 @@ async def analyze_sbom_compliance(
     db: DB,
 ) -> ComplianceReportResponse:
     """Analyze SBOM for regulatory compliance.
-    
+
     Maps vulnerabilities and license issues to specific regulatory
     requirements, providing:
     - Compliance scores by regulation
@@ -358,27 +351,27 @@ async def analyze_sbom_compliance(
     """
     generator = get_sbom_generator()
     analyzer = get_sbom_analyzer()
-    
+
     try:
         sbom_uuid = UUID(request.sbom_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid SBOM ID format",
-        )
-    
+        ) from exc
+
     sbom = await generator.get_sbom(sbom_uuid)
     if not sbom:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="SBOM not found",
         )
-    
+
     report = await analyzer.analyze_compliance(
         sbom=sbom,
         regulations=request.regulations,
     )
-    
+
     return ComplianceReportResponse(
         id=str(report.id),
         sbom_id=str(report.sbom_id),
@@ -406,22 +399,22 @@ async def get_compliance_report(
 ) -> ComplianceReportResponse:
     """Get a compliance report by ID."""
     analyzer = get_sbom_analyzer()
-    
+
     try:
         report_uuid = UUID(report_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid report ID format",
-        )
-    
+        ) from exc
+
     report = await analyzer.get_report(report_uuid)
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found",
         )
-    
+
     return ComplianceReportResponse(
         id=str(report.id),
         sbom_id=str(report.sbom_id),
@@ -449,22 +442,22 @@ async def get_compliance_issues(
 ) -> dict[str, list[ComplianceIssueResponse]]:
     """Get detailed compliance issues from a report, grouped by regulation."""
     analyzer = get_sbom_analyzer()
-    
+
     try:
         report_uuid = UUID(report_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid report ID format",
-        )
-    
+        ) from exc
+
     report = await analyzer.get_report(report_uuid)
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found",
         )
-    
+
     result = {}
     for regulation, issues in report.issues_by_regulation.items():
         result[regulation] = [
@@ -481,11 +474,13 @@ async def get_compliance_issues(
             )
             for issue in issues
         ]
-    
+
     return result
 
 
-@router.get("/reports/{report_id}/vulnerability-mappings", response_model=list[VulnerabilityMappingResponse])
+@router.get(
+    "/reports/{report_id}/vulnerability-mappings", response_model=list[VulnerabilityMappingResponse]
+)
 async def get_vulnerability_mappings(
     report_id: str,
     organization: CurrentOrganization,
@@ -493,27 +488,27 @@ async def get_vulnerability_mappings(
     db: DB,
 ) -> list[VulnerabilityMappingResponse]:
     """Get vulnerability to compliance requirement mappings.
-    
+
     Shows how each vulnerability maps to specific regulatory requirements,
     useful for audit documentation and remediation prioritization.
     """
     analyzer = get_sbom_analyzer()
-    
+
     try:
         report_uuid = UUID(report_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid report ID format",
-        )
-    
+        ) from exc
+
     report = await analyzer.get_report(report_uuid)
     if not report:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Report not found",
         )
-    
+
     return [
         VulnerabilityMappingResponse(
             vulnerability_id=m.vulnerability_id,
@@ -538,13 +533,13 @@ async def quick_scan(
     db: DB = None,
 ) -> dict[str, Any]:
     """Perform a quick SBOM scan and compliance analysis in one call.
-    
+
     Combines SBOM generation and compliance analysis for rapid assessment.
     Returns a summary suitable for CI/CD integration.
     """
     generator = get_sbom_generator()
     analyzer = get_sbom_analyzer()
-    
+
     # Generate SBOM
     sbom = await generator.generate_sbom(
         organization_id=organization.id if organization else None,
@@ -554,16 +549,13 @@ async def quick_scan(
         dependency_files=dependency_files,
         format=SBOMFormat.CYCLONEDX_JSON,
     )
-    
+
     # Analyze compliance
     report = await analyzer.analyze_compliance(sbom)
-    
+
     # Determine pass/fail
-    passed = (
-        sbom.critical_vulnerabilities == 0 and
-        report.overall_compliance_score >= 70
-    )
-    
+    passed = sbom.critical_vulnerabilities == 0 and report.overall_compliance_score >= 70
+
     return {
         "passed": passed,
         "sbom_id": str(sbom.id),

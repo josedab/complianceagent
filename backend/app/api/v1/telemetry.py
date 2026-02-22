@@ -1,5 +1,6 @@
 """API endpoints for Real-Time Compliance Telemetry."""
 
+import contextlib
 from typing import Any
 
 import structlog
@@ -13,6 +14,7 @@ from app.services.telemetry import (
     TelemetryEventType,
     TelemetryService,
 )
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -114,8 +116,10 @@ async def record_metric(request: RecordMetricRequest, db: DB, copilot: CopilotDe
     service = TelemetryService(db=db, copilot_client=copilot)
     try:
         mt = MetricType(request.metric_type)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid metric type: {request.metric_type}")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid metric type: {request.metric_type}"
+        ) from exc
 
     metric = await service.record_metric(
         metric_type=mt,
@@ -145,10 +149,16 @@ async def emit_event(request: EmitEventRequest, db: DB, copilot: CopilotDep) -> 
     service = TelemetryService(db=db, copilot_client=copilot)
     try:
         et = TelemetryEventType(request.event_type)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid event type: {request.event_type}")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid event type: {request.event_type}"
+        ) from exc
 
-    sev = AlertSeverity(request.severity) if request.severity in AlertSeverity.__members__.values() else AlertSeverity.INFO
+    sev = (
+        AlertSeverity(request.severity)
+        if request.severity in AlertSeverity.__members__.values()
+        else AlertSeverity.INFO
+    )
 
     event = await service.emit_event(
         event_type=et,
@@ -219,8 +229,8 @@ async def get_time_series(
 ) -> TimeSeriesSchema:
     try:
         mt = MetricType(metric_type)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid metric type: {metric_type}")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid metric type: {metric_type}") from exc
 
     service = TelemetryService(db=db, copilot_client=copilot)
     series = await service.get_time_series(metric_type=mt, period=period, framework=framework)
@@ -230,7 +240,10 @@ async def get_time_series(
         period=series.period,
         framework=series.framework,
         data_points=[
-            {"value": round(p.value, 2), "timestamp": p.timestamp.isoformat() if p.timestamp else None}
+            {
+                "value": round(p.value, 2),
+                "timestamp": p.timestamp.isoformat() if p.timestamp else None,
+            }
             for p in series.data_points
         ],
         latest_value=round(series.latest_value, 2) if series.latest_value is not None else None,
@@ -267,25 +280,31 @@ async def list_thresholds(db: DB, copilot: CopilotDep) -> list[ThresholdSchema]:
     status_code=status.HTTP_201_CREATED,
     summary="Create alert threshold",
 )
-async def create_threshold(request: SetThresholdRequest, db: DB, copilot: CopilotDep) -> ThresholdSchema:
+async def create_threshold(
+    request: SetThresholdRequest, db: DB, copilot: CopilotDep
+) -> ThresholdSchema:
     from app.services.telemetry.models import AlertChannel
 
     service = TelemetryService(db=db, copilot_client=copilot)
     try:
         mt = MetricType(request.metric_type)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid metric type: {request.metric_type}")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid metric type: {request.metric_type}"
+        ) from exc
 
     channels = []
     for ch in request.channels:
-        try:
+        with contextlib.suppress(ValueError):
             channels.append(AlertChannel(ch))
-        except ValueError:
-            pass
     if not channels:
         channels = [AlertChannel.WEBSOCKET]
 
-    sev = AlertSeverity(request.severity) if request.severity in [s.value for s in AlertSeverity] else AlertSeverity.WARNING
+    sev = (
+        AlertSeverity(request.severity)
+        if request.severity in [s.value for s in AlertSeverity]
+        else AlertSeverity.WARNING
+    )
 
     threshold = await service.set_threshold(
         metric_type=mt,

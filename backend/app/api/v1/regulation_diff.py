@@ -2,15 +2,17 @@
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.services.regulation_diff import RegulationDiffService
+
 
 logger = structlog.get_logger()
 router = APIRouter()
 
 
 # --- Response Models ---
+
 
 class RegulationVersionSchema(BaseModel):
     id: str
@@ -62,15 +64,22 @@ class RegulationDiffSummarySchema(BaseModel):
 
 # --- Endpoints ---
 
+
 @router.get("/versions", response_model=list[RegulationVersionSchema])
 async def list_versions(regulation: str | None = Query(None)) -> list[dict]:
     svc = RegulationDiffService()
     versions = await svc.list_versions(regulation=regulation)
     return [
-        {"id": v.id, "regulation": v.regulation, "version": v.version,
-         "title": v.title, "effective_date": v.effective_date.isoformat(),
-         "total_articles": v.total_articles, "total_words": v.total_words,
-         "source_url": v.source_url}
+        {
+            "id": v.id,
+            "regulation": v.regulation,
+            "version": v.version,
+            "title": v.title,
+            "effective_date": v.effective_date.isoformat(),
+            "total_articles": v.total_articles,
+            "total_words": v.total_words,
+            "source_url": v.source_url,
+        }
         for v in versions
     ]
 
@@ -80,9 +89,15 @@ async def list_diffs(regulation: str | None = Query(None)) -> list[dict]:
     svc = RegulationDiffService()
     diffs = await svc.list_diffs(regulation=regulation)
     return [
-        {"id": d.id, "regulation": d.regulation, "from_version": d.from_version,
-         "to_version": d.to_version, "total_changes": d.total_changes,
-         "critical_changes": d.critical_changes, "ai_summary": d.ai_summary}
+        {
+            "id": d.id,
+            "regulation": d.regulation,
+            "from_version": d.from_version,
+            "to_version": d.to_version,
+            "total_changes": d.total_changes,
+            "critical_changes": d.critical_changes,
+            "ai_summary": d.ai_summary,
+        }
         for d in diffs
     ]
 
@@ -94,16 +109,29 @@ async def get_diff(diff_id: str) -> dict:
     if not d:
         raise HTTPException(status_code=404, detail="Diff not found")
     return {
-        "id": d.id, "regulation": d.regulation, "from_version": d.from_version,
-        "to_version": d.to_version, "total_changes": d.total_changes,
-        "critical_changes": d.critical_changes, "articles_added": d.articles_added,
-        "articles_removed": d.articles_removed, "articles_modified": d.articles_modified,
-        "ai_summary": d.ai_summary, "impact_assessment": d.impact_assessment,
+        "id": d.id,
+        "regulation": d.regulation,
+        "from_version": d.from_version,
+        "to_version": d.to_version,
+        "total_changes": d.total_changes,
+        "critical_changes": d.critical_changes,
+        "articles_added": d.articles_added,
+        "articles_removed": d.articles_removed,
+        "articles_modified": d.articles_modified,
+        "ai_summary": d.ai_summary,
+        "impact_assessment": d.impact_assessment,
         "changes": [
-            {"article": c.article, "section": c.section,
-             "change_type": c.change_type.value, "severity": c.severity.value,
-             "old_text": c.old_text, "new_text": c.new_text, "summary": c.summary,
-             "impact_on_code": c.impact_on_code, "affected_controls": c.affected_controls}
+            {
+                "article": c.article,
+                "section": c.section,
+                "change_type": c.change_type.value,
+                "severity": c.severity.value,
+                "old_text": c.old_text,
+                "new_text": c.new_text,
+                "summary": c.summary,
+                "impact_on_code": c.impact_on_code,
+                "affected_controls": c.affected_controls,
+            }
             for c in d.changes
         ],
     }
@@ -119,16 +147,29 @@ async def compare_versions(
     if not d:
         raise HTTPException(status_code=404, detail="Version comparison not found")
     return {
-        "id": d.id, "regulation": d.regulation, "from_version": d.from_version,
-        "to_version": d.to_version, "total_changes": d.total_changes,
-        "critical_changes": d.critical_changes, "articles_added": d.articles_added,
-        "articles_removed": d.articles_removed, "articles_modified": d.articles_modified,
-        "ai_summary": d.ai_summary, "impact_assessment": d.impact_assessment,
+        "id": d.id,
+        "regulation": d.regulation,
+        "from_version": d.from_version,
+        "to_version": d.to_version,
+        "total_changes": d.total_changes,
+        "critical_changes": d.critical_changes,
+        "articles_added": d.articles_added,
+        "articles_removed": d.articles_removed,
+        "articles_modified": d.articles_modified,
+        "ai_summary": d.ai_summary,
+        "impact_assessment": d.impact_assessment,
         "changes": [
-            {"article": c.article, "section": c.section,
-             "change_type": c.change_type.value, "severity": c.severity.value,
-             "old_text": c.old_text, "new_text": c.new_text, "summary": c.summary,
-             "impact_on_code": c.impact_on_code, "affected_controls": c.affected_controls}
+            {
+                "article": c.article,
+                "section": c.section,
+                "change_type": c.change_type.value,
+                "severity": c.severity.value,
+                "old_text": c.old_text,
+                "new_text": c.new_text,
+                "summary": c.summary,
+                "impact_on_code": c.impact_on_code,
+                "affected_controls": c.affected_controls,
+            }
             for c in d.changes
         ],
     }

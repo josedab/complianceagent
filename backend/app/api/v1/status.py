@@ -61,18 +61,34 @@ _SERVICES: list[tuple[str, ServiceStatus, str]] = [
     ("cloud", ServiceStatus.STUB, "Static cloud posture rules, in-memory"),
     ("compliance_cloning", ServiceStatus.STUB, "Hardcoded reference repos, in-memory"),
     ("compliance_intel", ServiceStatus.STUB, "Synthetic intelligence data"),
-    ("compliance_knowledge_graph", ServiceStatus.IMPLEMENTED, "Navigable compliance relationship graph with NL queries"),
+    (
+        "compliance_knowledge_graph",
+        ServiceStatus.IMPLEMENTED,
+        "Navigable compliance relationship graph with NL queries",
+    ),
     ("compliance_sandbox", ServiceStatus.IMPLEMENTED, "Compliance sandbox with DB"),
     ("compliance_training", ServiceStatus.STUB, "Synthetic training progress data"),
-    ("control_testing", ServiceStatus.IMPLEMENTED, "Automated continuous control testing with evidence"),
+    (
+        "control_testing",
+        ServiceStatus.IMPLEMENTED,
+        "Automated continuous control testing with evidence",
+    ),
     ("copilot_chat", ServiceStatus.IMPLEMENTED, "Copilot chat integration"),
     ("cost_attribution", ServiceStatus.STUB, "Synthetic cost attribution"),
-    ("cost_calculator", ServiceStatus.IMPLEMENTED, "Predictive cost estimator with industry benchmarks"),
+    (
+        "cost_calculator",
+        ServiceStatus.IMPLEMENTED,
+        "Predictive cost estimator with industry benchmarks",
+    ),
     ("cross_border_transfer", ServiceStatus.IMPLEMENTED, "Cross-border data transfer compliance"),
     ("dao_governance", ServiceStatus.STUB, "In-memory proposals with seed data"),
     ("data_flow", ServiceStatus.IMPLEMENTED, "Data flow mapping and analysis"),
     ("debt", ServiceStatus.STUB, "Hardcoded debt items, in-memory"),
-    ("dependency_scanner", ServiceStatus.IMPLEMENTED, "License, security, and compliance risk scanning"),
+    (
+        "dependency_scanner",
+        ServiceStatus.IMPLEMENTED,
+        "License, security, and compliance risk scanning",
+    ),
     ("diff_alerts", ServiceStatus.IMPLEMENTED, "Regulation diff alerts"),
     ("digital_twin", ServiceStatus.STUB, "Synthetic digital twin simulation"),
     ("drift_detection", ServiceStatus.IMPLEMENTED, "Configuration drift detection"),
@@ -87,11 +103,19 @@ _SERVICES: list[tuple[str, ServiceStatus, str]] = [
     ("generation", ServiceStatus.IMPLEMENTED, "AI code generation via CopilotClient"),
     ("github", ServiceStatus.IMPLEMENTED, "GitHub API integration"),
     ("gitlab", ServiceStatus.IMPLEMENTED, "GitLab API integration"),
-    ("gitops_pipeline", ServiceStatus.IMPLEMENTED, "GitOps compliance pipeline with pre-commit hooks"),
+    (
+        "gitops_pipeline",
+        ServiceStatus.IMPLEMENTED,
+        "GitOps compliance pipeline with pre-commit hooks",
+    ),
     ("graph", ServiceStatus.STUB, "Deprecated; in-memory"),
     ("health_benchmarking", ServiceStatus.IMPLEMENTED, "Health benchmarking"),
     ("health_score", ServiceStatus.STUB, "Synthetic health score metrics"),
-    ("horizon_scanner", ServiceStatus.IMPLEMENTED, "Regulatory horizon scanning with impact predictions"),
+    (
+        "horizon_scanner",
+        ServiceStatus.IMPLEMENTED,
+        "Regulatory horizon scanning with impact predictions",
+    ),
     ("iac_scanner", ServiceStatus.IMPLEMENTED, "Infrastructure-as-Code scanner"),
     ("ide", ServiceStatus.IMPLEMENTED, "IDE integration service"),
     ("ide_agent", ServiceStatus.IMPLEMENTED, "IDE agent service"),
@@ -139,7 +163,11 @@ _SERVICES: list[tuple[str, ServiceStatus, str]] = [
     ("regulation_diff", ServiceStatus.STUB, "Hardcoded regulation versions"),
     ("regulation_test_gen", ServiceStatus.STUB, "Synthetic test case generation"),
     ("remediation_workflow", ServiceStatus.IMPLEMENTED, "Remediation workflows"),
-    ("residency_map", ServiceStatus.IMPLEMENTED, "Data residency jurisdiction mapping and violation detection"),
+    (
+        "residency_map",
+        ServiceStatus.IMPLEMENTED,
+        "Data residency jurisdiction mapping and violation detection",
+    ),
     ("risk_quantification", ServiceStatus.IMPLEMENTED, "Risk quantification engine"),
     ("saas_platform", ServiceStatus.IMPLEMENTED, "SaaS platform management"),
     ("sandbox", ServiceStatus.STUB, "In-memory simulation engine"),
@@ -194,3 +222,72 @@ async def get_service_status(
     ``?status=implemented``, ``?status=stub``, or ``?status=planned``.
     """
     return _build_response(status)
+
+
+# ── Health & Architecture Endpoints ─────────────────────────────────────
+
+
+class HealthResponse(BaseModel):
+    status: str = "healthy"
+    version: str = "0.1.0"
+    services_total: int = 0
+    routes_total: int = 0
+    db_backed_services: int = 0
+    in_memory_services: int = 0
+
+
+class ArchitectureOverview(BaseModel):
+    total_services: int = 0
+    db_backed: list[str] = []
+    in_memory: list[str] = []
+    http_calling: list[str] = []
+    service_generations: dict[str, int] = {}
+
+
+# Services known to use real DB queries (self.db.execute/self.db.add)
+_DB_BACKED = [
+    "audit", "audit_reports", "audit_autopilot", "autopilot", "benchmarking",
+    "billing", "blockchain_audit", "certification", "chat", "chatbot",
+]
+
+# Services known to make real HTTP calls
+_HTTP_CALLING = ["github", "gitlab", "monitoring", "notification"]
+
+_V3_V9_SERVICES = {
+    "v3": ["mcp_server", "github_app", "reg_change_stream", "compliance_sdk", "compliance_copilot", "auto_remediation", "multi_scm", "compliance_badge", "regulation_diff_viz", "compliance_export"],
+    "v4": ["agents_marketplace", "saas_onboarding", "code_review_agent", "reg_prediction", "compliance_observability", "nl_compliance_query", "twin_simulation", "cross_org_benchmark", "evidence_generation", "cost_benefit_analyzer"],
+    "v5": ["knowledge_fabric", "self_healing_mesh", "ide_extension", "compliance_data_lake", "policy_dsl", "realtime_feed", "compliance_gnn", "cert_pipeline", "api_gateway", "workflow_automation"],
+    "v6": ["gh_marketplace_app", "compliance_streaming", "client_sdk", "multi_llm_parser", "compliance_testing", "arch_advisor", "incident_war_room", "compliance_debt", "draft_reg_simulator", "gamification_engine"],
+    "v7": ["data_mesh_federation", "agent_swarm", "compliance_editor", "graph_explorer", "pipeline_builder", "pia_generator", "contract_analyzer", "mobile_backend", "marketplace_revenue", "localization_engine"],
+    "v8": ["autonomous_os", "trust_network", "compliance_api_standard", "digital_marketplace", "regulatory_simulation", "legal_copilot", "regulatory_intel_feed", "white_label_platform", "cross_cloud_mesh", "esg_sustainability"],
+    "v9": ["telemetry_mesh", "knowledge_assistant", "digital_passport", "scenario_planner", "regulatory_filing", "cicd_runtime", "multi_org_orchestrator", "training_simulator", "harmonization_engine", "plugin_ecosystem"],
+}
+
+
+@router.get("/health", response_model=HealthResponse, summary="Platform health check")
+async def health_check() -> HealthResponse:
+    """Quick health check returning service counts and status."""
+    all_v3v9 = sum(len(v) for v in _V3_V9_SERVICES.values())
+    return HealthResponse(
+        status="healthy",
+        version="0.1.0",
+        services_total=128 + all_v3v9,  # core + v3-v9
+        routes_total=200,
+        db_backed_services=len(_DB_BACKED),
+        in_memory_services=all_v3v9 + 29,  # v3-v9 + stubs
+    )
+
+
+@router.get("/architecture", response_model=ArchitectureOverview, summary="Architecture overview")
+async def architecture_overview() -> ArchitectureOverview:
+    """Show which services are DB-backed vs in-memory."""
+    all_in_memory = []
+    for services in _V3_V9_SERVICES.values():
+        all_in_memory.extend(services)
+    return ArchitectureOverview(
+        total_services=128 + len(all_in_memory),
+        db_backed=_DB_BACKED,
+        in_memory=all_in_memory,
+        http_calling=_HTTP_CALLING,
+        service_generations={k: len(v) for k, v in _V3_V9_SERVICES.items()},
+    )

@@ -3,11 +3,12 @@
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from app.api.v1.deps import DB, CopilotDep
 from app.services.posture_scoring import PostureScoringService
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -62,29 +63,46 @@ async def compute_score(db: DB, copilot: CopilotDep, industry: str = "saas") -> 
     service = PostureScoringService(db=db, copilot_client=copilot)
     score = await service.compute_score(industry=industry)
     return PostureScoreSchema(
-        id=str(score.id), overall_score=score.overall_score, grade=score.grade,
-        dimensions=[DimensionSchema(
-            dimension=d.dimension.value, score=d.score, weight=d.weight,
-            findings=d.findings, recommendations=d.recommendations,
-        ) for d in score.dimensions],
-        framework_scores=score.framework_scores, trend_7d=score.trend_7d,
-        trend_30d=score.trend_30d, percentile=score.percentile,
-        tier=score.tier.value, industry=score.industry,
+        id=str(score.id),
+        overall_score=score.overall_score,
+        grade=score.grade,
+        dimensions=[
+            DimensionSchema(
+                dimension=d.dimension.value,
+                score=d.score,
+                weight=d.weight,
+                findings=d.findings,
+                recommendations=d.recommendations,
+            )
+            for d in score.dimensions
+        ],
+        framework_scores=score.framework_scores,
+        trend_7d=score.trend_7d,
+        trend_30d=score.trend_30d,
+        percentile=score.percentile,
+        tier=score.tier.value,
+        industry=score.industry,
         computed_at=score.computed_at.isoformat() if score.computed_at else None,
     )
 
 
-@router.get("/benchmark/{industry}", response_model=BenchmarkSchema, summary="Get industry benchmark")
+@router.get(
+    "/benchmark/{industry}", response_model=BenchmarkSchema, summary="Get industry benchmark"
+)
 async def get_benchmark(industry: str, db: DB, copilot: CopilotDep) -> BenchmarkSchema:
     service = PostureScoringService(db=db, copilot_client=copilot)
     benchmark = await service.get_benchmark(industry)
     if not benchmark:
         raise HTTPException(status_code=404, detail=f"No benchmark data for industry: {industry}")
     return BenchmarkSchema(
-        industry=benchmark.industry, sample_size=benchmark.sample_size,
-        average_score=benchmark.average_score, median_score=benchmark.median_score,
-        p25_score=benchmark.p25_score, p75_score=benchmark.p75_score,
-        p90_score=benchmark.p90_score, top_dimensions=benchmark.top_dimensions,
+        industry=benchmark.industry,
+        sample_size=benchmark.sample_size,
+        average_score=benchmark.average_score,
+        median_score=benchmark.median_score,
+        p25_score=benchmark.p25_score,
+        p75_score=benchmark.p75_score,
+        p90_score=benchmark.p90_score,
+        top_dimensions=benchmark.top_dimensions,
     )
 
 
@@ -95,13 +113,20 @@ async def list_industries(db: DB, copilot: CopilotDep) -> list[str]:
 
 
 @router.post("/report", response_model=ReportSchema, summary="Generate executive posture report")
-async def generate_report(db: DB, copilot: CopilotDep, industry: str = "saas", format: str = "html") -> ReportSchema:
+async def generate_report(
+    db: DB, copilot: CopilotDep, industry: str = "saas", format: str = "html"
+) -> ReportSchema:
     service = PostureScoringService(db=db, copilot_client=copilot)
     report = await service.generate_report(industry=industry, report_format=format)
     return ReportSchema(
-        id=str(report.id), title=report.title, overall_score=report.posture.overall_score,
-        grade=report.posture.grade, percentile=report.posture.percentile,
-        highlights=report.highlights, action_items=report.action_items, format=report.format,
+        id=str(report.id),
+        title=report.title,
+        overall_score=report.posture.overall_score,
+        grade=report.posture.grade,
+        percentile=report.posture.percentile,
+        highlights=report.highlights,
+        action_items=report.action_items,
+        format=report.format,
     )
 
 
@@ -109,8 +134,14 @@ async def generate_report(db: DB, copilot: CopilotDep, industry: str = "saas", f
 async def get_history(db: DB, copilot: CopilotDep, limit: int = 30) -> list[dict]:
     service = PostureScoringService(db=db, copilot_client=copilot)
     history = await service.get_history(limit=limit)
-    return [{"score": s.overall_score, "grade": s.grade, "computed_at": s.computed_at.isoformat() if s.computed_at else None}
-            for s in history]
+    return [
+        {
+            "score": s.overall_score,
+            "grade": s.grade,
+            "computed_at": s.computed_at.isoformat() if s.computed_at else None,
+        }
+        for s in history
+    ]
 
 
 # ── Dynamic Posture Scoring Dashboard ────────────────────────────────
@@ -155,24 +186,40 @@ class ScoreHistorySchema(BaseModel):
     improvement_rate: float
 
 
-@router.get("/dynamic-score", response_model=DynamicPostureScoreSchema, summary="Compute dynamic compliance posture score")
-async def compute_dynamic_score(db: DB, copilot: CopilotDep, repo: str = "default") -> DynamicPostureScoreSchema:
+@router.get(
+    "/dynamic-score",
+    response_model=DynamicPostureScoreSchema,
+    summary="Compute dynamic compliance posture score",
+)
+async def compute_dynamic_score(
+    db: DB, copilot: CopilotDep, repo: str = "default"
+) -> DynamicPostureScoreSchema:
     """Compute dynamic compliance posture score with detailed dimension breakdowns."""
     service = PostureScoringService(db=db, copilot_client=copilot)
     score = service.compute_dynamic_score(repo)
     return DynamicPostureScoreSchema(**score.to_dict())
 
 
-@router.get("/dynamic-benchmark/{industry}", response_model=DynamicIndustryBenchmarkSchema, summary="Get dynamic industry benchmark")
-async def get_dynamic_benchmark(industry: str, db: DB, copilot: CopilotDep, repo: str = "default") -> DynamicIndustryBenchmarkSchema:
+@router.get(
+    "/dynamic-benchmark/{industry}",
+    response_model=DynamicIndustryBenchmarkSchema,
+    summary="Get dynamic industry benchmark",
+)
+async def get_dynamic_benchmark(
+    industry: str, db: DB, copilot: CopilotDep, repo: str = "default"
+) -> DynamicIndustryBenchmarkSchema:
     """Get benchmark comparison against industry peers."""
     service = PostureScoringService(db=db, copilot_client=copilot)
     benchmark = service.get_dynamic_benchmark(industry, repo)
     return DynamicIndustryBenchmarkSchema(**benchmark.to_dict())
 
 
-@router.get("/dynamic-history", response_model=ScoreHistorySchema, summary="Get dynamic score history")
-async def get_dynamic_history(db: DB, copilot: CopilotDep, repo: str = "default") -> ScoreHistorySchema:
+@router.get(
+    "/dynamic-history", response_model=ScoreHistorySchema, summary="Get dynamic score history"
+)
+async def get_dynamic_history(
+    db: DB, copilot: CopilotDep, repo: str = "default"
+) -> ScoreHistorySchema:
     """Get historical posture scores for trend tracking."""
     service = PostureScoringService(db=db, copilot_client=copilot)
     history = service.get_score_history(repo)

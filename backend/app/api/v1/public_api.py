@@ -8,12 +8,12 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
-
 from app.services.public_api import (
     APIKeyScope,
     PublicAPIService,
     RateLimitTier,
 )
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -101,17 +101,23 @@ async def create_api_key(request: CreateAPIKeyRequest, db: DB) -> APIKeyCreatedR
     tier = RateLimitTier(request.tier)
 
     key, raw_key = await service.create_api_key(
-        name=request.name, scopes=scopes, tier=tier,
+        name=request.name,
+        scopes=scopes,
+        tier=tier,
         expires_days=request.expires_days,
     )
 
     return APIKeyCreatedResponse(
-        id=str(key.id), name=key.name, key_prefix=key.key_prefix,
-        scopes=[s.value for s in key.scopes], status=key.status.value,
+        id=str(key.id),
+        name=key.name,
+        key_prefix=key.key_prefix,
+        scopes=[s.value for s in key.scopes],
+        status=key.status.value,
         rate_limit_tier=key.rate_limit_tier.value,
         created_at=key.created_at.isoformat() if key.created_at else None,
         last_used_at=key.last_used_at.isoformat() if key.last_used_at else None,
-        total_requests=key.total_requests, raw_key=raw_key,
+        total_requests=key.total_requests,
+        raw_key=raw_key,
     )
 
 
@@ -126,8 +132,11 @@ async def list_api_keys(db: DB) -> list[APIKeyResponse]:
     keys = await service.list_keys()
     return [
         APIKeyResponse(
-            id=str(k.id), name=k.name, key_prefix=k.key_prefix,
-            scopes=[s.value for s in k.scopes], status=k.status.value,
+            id=str(k.id),
+            name=k.name,
+            key_prefix=k.key_prefix,
+            scopes=[s.value for s in k.scopes],
+            status=k.status.value,
             rate_limit_tier=k.rate_limit_tier.value,
             created_at=k.created_at.isoformat() if k.created_at else None,
             last_used_at=k.last_used_at.isoformat() if k.last_used_at else None,
@@ -156,13 +165,16 @@ async def revoke_api_key(key_id: UUID, db: DB) -> dict:
     summary="Get API key usage",
 )
 async def get_key_usage(
-    key_id: UUID, db: DB, period: str = "day",
+    key_id: UUID,
+    db: DB,
+    period: str = "day",
 ) -> UsageSummarySchema:
     """Get usage summary for an API key."""
     service = PublicAPIService(db=db)
     summary = await service.get_usage_summary(key_id, period=period)
     return UsageSummarySchema(
-        key_id=str(summary.key_id), period=summary.period,
+        key_id=str(summary.key_id),
+        period=summary.period,
         total_requests=summary.total_requests,
         successful_requests=summary.successful_requests,
         error_requests=summary.error_requests,
@@ -203,9 +215,12 @@ async def list_sdks(db: DB) -> list[SDKInfoSchema]:
     sdks = await service.list_sdks()
     return [
         SDKInfoSchema(
-            language=s.language, package_name=s.package_name,
-            version=s.version, install_command=s.install_command,
-            documentation_url=s.documentation_url, source_url=s.source_url,
+            language=s.language,
+            package_name=s.package_name,
+            version=s.version,
+            install_command=s.install_command,
+            documentation_url=s.documentation_url,
+            source_url=s.source_url,
         )
         for s in sdks
     ]

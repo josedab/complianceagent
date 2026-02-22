@@ -20,6 +20,7 @@ router = APIRouter()
 
 # ── Request / Response Schemas ──────────────────────────────────────
 
+
 class NewsItemSchema(BaseModel):
     id: str = Field(..., description="Unique news item identifier")
     title: str = Field(..., description="Headline of the regulatory news")
@@ -29,7 +30,9 @@ class NewsItemSchema(BaseModel):
     source_url: str = Field(..., description="Link to source")
     source_name: str = Field(..., description="Source name")
     jurisdictions: list[str] = Field(default_factory=list, description="Affected jurisdictions")
-    affected_regulations: list[str] = Field(default_factory=list, description="Affected regulations")
+    affected_regulations: list[str] = Field(
+        default_factory=list, description="Affected regulations"
+    )
     affected_industries: list[str] = Field(default_factory=list, description="Affected industries")
     published_at: str | None = Field(None, description="ISO 8601 publication timestamp")
     relevance_score: float = Field(..., description="Relevance score 0-1")
@@ -100,6 +103,7 @@ class FeedbackRequest(BaseModel):
 
 # ── Helpers ─────────────────────────────────────────────────────────
 
+
 def _item_to_schema(item) -> NewsItemSchema:
     return NewsItemSchema(
         id=str(item.id),
@@ -126,6 +130,7 @@ _DEMO_USER_ID = UUID("00000000-0000-0000-0000-000000000002")
 
 
 # ── Endpoints ───────────────────────────────────────────────────────
+
 
 @router.get("/feed", response_model=NewsFeedSchema, summary="Get regulatory news feed")
 async def get_feed(
@@ -155,9 +160,7 @@ async def get_feed(
     if search:
         filters["search"] = search
 
-    feed = await service.get_feed(
-        org_id=_DEMO_ORG_ID, filters=filters, limit=limit, offset=offset
-    )
+    feed = await service.get_feed(org_id=_DEMO_ORG_ID, filters=filters, limit=limit, offset=offset)
     return NewsFeedSchema(
         items=[_item_to_schema(i) for i in feed.items],
         total=feed.total,
@@ -193,9 +196,7 @@ async def get_news_item(item_id: UUID, db: DB, copilot: CopilotDep) -> NewsItemS
 )
 async def get_preferences(db: DB, copilot: CopilotDep) -> NotificationPreferenceSchema | None:
     service = NewsTickerService(db=db, copilot_client=copilot)
-    pref = await service.get_notification_preferences(
-        org_id=_DEMO_ORG_ID, user_id=_DEMO_USER_ID
-    )
+    pref = await service.get_notification_preferences(org_id=_DEMO_ORG_ID, user_id=_DEMO_USER_ID)
     if not pref:
         return None
     return NotificationPreferenceSchema(
@@ -241,9 +242,7 @@ async def update_preferences(
 
 
 @router.post("/slack/test", summary="Test Slack webhook")
-async def test_slack_webhook(
-    request: SlackTestRequest, db: DB, copilot: CopilotDep
-) -> dict:
+async def test_slack_webhook(request: SlackTestRequest, db: DB, copilot: CopilotDep) -> dict:
     service = NewsTickerService(db=db, copilot_client=copilot)
     config = SlackWebhookConfig(
         webhook_url=request.webhook_url,
@@ -256,13 +255,15 @@ async def test_slack_webhook(
     if not items:
         raise HTTPException(status_code=400, detail="No news items available for test")
     success = await service.send_slack_notification(config, items[0])
-    return {"success": success, "message": "Test notification sent to Slack", "test_item": items[0].title}
+    return {
+        "success": success,
+        "message": "Test notification sent to Slack",
+        "test_item": items[0].title,
+    }
 
 
 @router.post("/teams/test", summary="Test Teams webhook")
-async def test_teams_webhook(
-    request: TeamsTestRequest, db: DB, copilot: CopilotDep
-) -> dict:
+async def test_teams_webhook(request: TeamsTestRequest, db: DB, copilot: CopilotDep) -> dict:
     service = NewsTickerService(db=db, copilot_client=copilot)
     config = TeamsWebhookConfig(
         webhook_url=request.webhook_url,
@@ -272,7 +273,11 @@ async def test_teams_webhook(
     if not items:
         raise HTTPException(status_code=400, detail="No news items available for test")
     success = await service.send_teams_notification(config, items[0])
-    return {"success": success, "message": "Test notification sent to Teams", "test_item": items[0].title}
+    return {
+        "success": success,
+        "message": "Test notification sent to Teams",
+        "test_item": items[0].title,
+    }
 
 
 @router.get("/digest", response_model=DigestSchema, summary="Get or generate news digest")
@@ -305,9 +310,7 @@ async def dismiss_item(
 ) -> dict:
     service = NewsTickerService(db=db, copilot_client=copilot)
     feedback = request.feedback if request else None
-    success = await service.dismiss_news(
-        item_id=item_id, user_id=_DEMO_USER_ID, feedback=feedback
-    )
+    success = await service.dismiss_news(item_id=item_id, user_id=_DEMO_USER_ID, feedback=feedback)
     return {"success": success, "item_id": str(item_id)}
 
 

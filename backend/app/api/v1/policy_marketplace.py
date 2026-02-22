@@ -90,8 +90,8 @@ def _parse_pricing_model(value: str) -> PricingModel:
     """Parse pricing model string to enum."""
     try:
         return PricingModel(value.lower())
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid pricing model: {value}")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid pricing model: {value}") from exc
 
 
 def _parse_languages(values: list[str]) -> list[PolicyLanguage]:
@@ -100,8 +100,8 @@ def _parse_languages(values: list[str]) -> list[PolicyLanguage]:
     for v in values:
         try:
             result.append(PolicyLanguage(v.lower()))
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid language: {v}")
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid language: {v}") from exc
     return result
 
 
@@ -201,7 +201,7 @@ async def publish_pack(pack_id: UUID):
     try:
         pack = await _service.publish_pack(pack_id)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return _pack_to_dict(pack)
 
 
@@ -211,7 +211,7 @@ async def purchase_pack(pack_id: UUID, request: PurchaseRequest):
     try:
         purchase = await _service.purchase_pack(request.user_id, pack_id)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {
         "id": str(purchase.id),
         "user_id": str(purchase.user_id),
@@ -229,7 +229,7 @@ async def download_pack(pack_id: UUID, user_id: UUID = Query(...)):
     try:
         version = await _service.download_pack(user_id, pack_id)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {
         "id": str(version.id),
         "pack_id": str(version.pack_id),
@@ -256,7 +256,7 @@ async def submit_review(pack_id: UUID, request: ReviewRequest):
             request.user_id, pack_id, request.rating, request.comment
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {
         "id": str(review.id),
         "pack_id": str(review.pack_id),
@@ -320,7 +320,7 @@ async def register_creator(request: RegisterCreatorRequest):
             request.user_id, request.display_name, request.bio, request.expertise
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {
         "id": str(profile.id),
         "user_id": str(profile.user_id),
@@ -341,7 +341,7 @@ async def get_creator_earnings(creator_id: UUID):
     try:
         earnings = await _service.get_creator_earnings(creator_id)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return earnings
 
 

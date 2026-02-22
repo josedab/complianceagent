@@ -1,7 +1,6 @@
 """Vendor and dependency compliance assessment API endpoints."""
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 import structlog
@@ -22,8 +21,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class CreateVendorRequest(BaseModel):
     """Request to create a vendor."""
+
     name: str = Field(..., min_length=1, max_length=200)
     description: str = ""
     website: str = ""
@@ -37,6 +38,7 @@ class CreateVendorRequest(BaseModel):
 
 class VendorSchema(BaseModel):
     """Vendor response."""
+
     id: UUID
     name: str
     description: str
@@ -55,12 +57,14 @@ class VendorSchema(BaseModel):
 
 class AssessmentRequest(BaseModel):
     """Request for vendor assessment."""
+
     assessment_type: str = "initial"
     target_frameworks: list[str] = Field(default=["SOC2", "GDPR"])
 
 
 class AssessmentSchema(BaseModel):
     """Assessment response."""
+
     id: UUID
     vendor_id: UUID | None
     assessment_type: str
@@ -80,13 +84,17 @@ class AssessmentSchema(BaseModel):
 
 class DependencyScanRequest(BaseModel):
     """Request for dependency scan."""
-    manifest_content: str = Field(..., description="Content of package.json, requirements.txt, etc.")
+
+    manifest_content: str = Field(
+        ..., description="Content of package.json, requirements.txt, etc."
+    )
     package_manager: str = Field("npm", description="npm, pip, maven, etc.")
     target_frameworks: list[str] = Field(default=["SOC2", "GDPR"])
 
 
 class DependencyRiskSchema(BaseModel):
     """Dependency risk response."""
+
     name: str
     version: str
     license: str
@@ -101,6 +109,7 @@ class DependencyRiskSchema(BaseModel):
 
 class DependencyScanResultSchema(BaseModel):
     """Dependency scan result response."""
+
     id: UUID
     scan_date: datetime
     total_dependencies: int
@@ -118,6 +127,7 @@ class DependencyScanResultSchema(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 def _vendor_to_schema(vendor) -> VendorSchema:
     """Convert Vendor to response schema."""
@@ -162,6 +172,7 @@ def _assessment_to_schema(assessment) -> AssessmentSchema:
 
 # --- Vendor Endpoints ---
 
+
 @router.post(
     "/vendors",
     response_model=VendorSchema,
@@ -178,7 +189,7 @@ async def create_vendor(
 ) -> VendorSchema:
     """Create a new vendor."""
     service = VendorAssessmentService(db=db, copilot=copilot)
-    
+
     vendor = await service.create_vendor(
         organization_id=organization.id,
         name=request.name,
@@ -191,7 +202,7 @@ async def create_vendor(
         data_processing_locations=request.data_processing_locations,
         created_by=member.user_id,
     )
-    
+
     return _vendor_to_schema(vendor)
 
 
@@ -210,16 +221,16 @@ async def list_vendors(
 ) -> list[VendorSchema]:
     """List all vendors."""
     service = VendorAssessmentService(db=db, copilot=copilot)
-    
+
     status_enum = VendorStatus(status_filter) if status_filter else None
     risk_enum = VendorRiskLevel(risk_level) if risk_level else None
-    
+
     vendors = await service.list_vendors(
         organization_id=organization.id,
         status=status_enum,
         risk_level=risk_enum,
     )
-    
+
     return [_vendor_to_schema(v) for v in vendors]
 
 
@@ -238,19 +249,19 @@ async def get_vendor(
     """Get vendor details."""
     service = VendorAssessmentService(db=db, copilot=copilot)
     vendor = await service.get_vendor(vendor_id)
-    
+
     if not vendor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vendor not found",
         )
-    
+
     if vendor.organization_id != organization.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     return _vendor_to_schema(vendor)
 
 
@@ -270,7 +281,7 @@ async def assess_vendor(
 ) -> AssessmentSchema:
     """Assess vendor compliance."""
     service = VendorAssessmentService(db=db, copilot=copilot)
-    
+
     try:
         assessment = await service.assess_vendor(
             vendor_id=vendor_id,
@@ -283,8 +294,8 @@ async def assess_vendor(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
-    
+        ) from e
+
     return _assessment_to_schema(assessment)
 
 
@@ -302,16 +313,17 @@ async def list_vendor_assessments(
 ) -> list[AssessmentSchema]:
     """List assessments for a vendor."""
     service = VendorAssessmentService(db=db, copilot=copilot)
-    
+
     assessments = await service.list_assessments(
         organization_id=organization.id,
         vendor_id=vendor_id,
     )
-    
+
     return [_assessment_to_schema(a) for a in assessments]
 
 
 # --- Dependency Scanning Endpoints ---
+
 
 @router.post(
     "/dependencies/scan",
@@ -328,7 +340,7 @@ async def scan_dependencies(
 ) -> DependencyScanResultSchema:
     """Scan dependencies for compliance and security risks."""
     service = VendorAssessmentService(db=db, copilot=copilot)
-    
+
     result = await service.scan_dependencies(
         repository_id=repository_id or UUID(int=0),
         organization_id=organization.id,
@@ -336,7 +348,7 @@ async def scan_dependencies(
         package_manager=request.package_manager,
         target_frameworks=request.target_frameworks,
     )
-    
+
     dependencies = [
         DependencyRiskSchema(
             name=r.dependency.name,
@@ -347,16 +359,12 @@ async def scan_dependencies(
             risk_score=r.risk_score,
             has_vulnerabilities=r.dependency.has_known_vulnerabilities,
             vulnerability_count=r.dependency.vulnerability_count,
-            issues=(
-                r.license_issues +
-                r.maintenance_issues +
-                r.compliance_issues
-            ),
+            issues=(r.license_issues + r.maintenance_issues + r.compliance_issues),
             recommendations=r.recommendations,
         )
         for r in result.dependency_risks
     ]
-    
+
     return DependencyScanResultSchema(
         id=result.id,
         scan_date=result.scan_date,
@@ -383,7 +391,7 @@ async def scan_dependencies(
 async def get_certifications() -> dict:
     """Get recognized certifications and their compliance mappings."""
     from app.services.vendor_assessment.models import CERTIFICATION_COMPLIANCE_MAP
-    
+
     return {
         "certifications": [
             {

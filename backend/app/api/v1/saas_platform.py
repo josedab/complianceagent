@@ -14,6 +14,7 @@ from app.services.saas_platform import (
     get_saas_platform_service,
 )
 
+
 logger = structlog.get_logger()
 
 router = APIRouter()
@@ -135,7 +136,7 @@ async def provision_tenant(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to provision tenant: {e}",
-        )
+        ) from e
 
     return ProvisionResponse(
         tenant_id=str(result.tenant_id),
@@ -172,7 +173,9 @@ async def get_tenant(
         settings=tenant.settings,
         resource_limits=tenant.resource_limits,
         trial_ends_at=tenant.trial_ends_at.isoformat() if tenant.trial_ends_at else None,
-        onboarding_completed_at=tenant.onboarding_completed_at.isoformat() if tenant.onboarding_completed_at else None,
+        onboarding_completed_at=tenant.onboarding_completed_at.isoformat()
+        if tenant.onboarding_completed_at
+        else None,
         github_installation_id=tenant.github_installation_id,
         created_at=tenant.created_at.isoformat(),
     )
@@ -190,11 +193,11 @@ async def update_tenant_plan(
 
     try:
         plan = TenantPlan(request.plan)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid plan: {request.plan}. Valid plans: {[p.value for p in TenantPlan]}",
-        )
+        ) from exc
 
     try:
         tenant = await service.update_tenant_plan(tenant_id, plan)
@@ -202,7 +205,7 @@ async def update_tenant_plan(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
     return TenantResponse(
         id=str(tenant.id),
@@ -214,7 +217,9 @@ async def update_tenant_plan(
         settings=tenant.settings,
         resource_limits=tenant.resource_limits,
         trial_ends_at=tenant.trial_ends_at.isoformat() if tenant.trial_ends_at else None,
-        onboarding_completed_at=tenant.onboarding_completed_at.isoformat() if tenant.onboarding_completed_at else None,
+        onboarding_completed_at=tenant.onboarding_completed_at.isoformat()
+        if tenant.onboarding_completed_at
+        else None,
         github_installation_id=tenant.github_installation_id,
         created_at=tenant.created_at.isoformat(),
     )
@@ -236,7 +241,7 @@ async def suspend_tenant(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get("/{tenant_id}/onboarding", response_model=list[OnboardingStepResponse])
@@ -254,7 +259,7 @@ async def get_onboarding_status(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
     return [
         OnboardingStepResponse(
@@ -287,7 +292,7 @@ async def complete_onboarding_step(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
     return OnboardingStepResponse(
         id=step.id,
@@ -323,7 +328,9 @@ async def get_usage_summary(
 @router.get("/{tenant_id}/limits/check", response_model=LimitCheckResponse)
 async def check_resource_limit(
     tenant_id: UUID,
-    resource: str = Query(..., description="Resource to check: repos, scans, api_calls, seats, storage"),
+    resource: str = Query(
+        ..., description="Resource to check: repos, scans, api_calls, seats, storage"
+    ),
     current_user: CurrentUser = None,
     db: DB = None,
 ) -> LimitCheckResponse:
@@ -336,7 +343,7 @@ async def check_resource_limit(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
     return LimitCheckResponse(
         resource=resource,
@@ -351,12 +358,14 @@ async def check_resource_limit(
 
 class StartTrialRequest(BaseModel):
     """Request to start a free trial."""
+
     plan: str = Field(default="professional", description="Trial plan tier")
     trial_days: int = Field(default=14, ge=7, le=30, description="Trial duration in days")
 
 
 class TrialStatusResponse(BaseModel):
     """Trial status response."""
+
     tenant_id: str
     status: str
     plan: str | None = None
@@ -379,7 +388,9 @@ async def start_trial(
         plan=request.plan,
         trial_days=request.trial_days,
     )
-    return TrialStatusResponse(**{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()})
+    return TrialStatusResponse(
+        **{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()}
+    )
 
 
 @router.get("/{tenant_id}/trial", response_model=TrialStatusResponse)
@@ -390,7 +401,9 @@ async def get_trial_status(
     """Check the current trial status for a tenant."""
     service = get_saas_platform_service(db)
     result = await service.check_trial_status(tenant_id=str(tenant_id))
-    return TrialStatusResponse(**{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()})
+    return TrialStatusResponse(
+        **{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()}
+    )
 
 
 @router.post("/{tenant_id}/trial/convert", response_model=TrialStatusResponse)
@@ -401,4 +414,6 @@ async def convert_trial(
     """Convert a trial tenant to a paid subscription."""
     service = get_saas_platform_service(db)
     result = await service.convert_trial(tenant_id=str(tenant_id))
-    return TrialStatusResponse(**{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()})
+    return TrialStatusResponse(
+        **{k: str(v) if isinstance(v, UUID) else v for k, v in result.items()}
+    )

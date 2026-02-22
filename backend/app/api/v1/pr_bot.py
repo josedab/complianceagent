@@ -20,6 +20,7 @@ router = APIRouter(prefix="/pr-bot", tags=["PR Bot"])
 
 class AnalyzePRRequest(BaseModel):
     """Request to analyze a PR."""
+
     owner: str = Field(..., description="Repository owner")
     repo: str = Field(..., description="Repository name")
     pr_number: int = Field(..., description="PR number")
@@ -32,11 +33,13 @@ class AnalyzePRRequest(BaseModel):
 
 class BatchAnalyzeRequest(BaseModel):
     """Request to analyze multiple PRs."""
+
     prs: list[dict[str, Any]] = Field(..., description="List of PRs to analyze")
 
 
 class CreateFixPRRequest(BaseModel):
     """Request to create a fix PR."""
+
     owner: str = Field(..., description="Repository owner")
     repo: str = Field(..., description="Repository name")
     pr_number: int = Field(..., description="Source PR number")
@@ -45,6 +48,7 @@ class CreateFixPRRequest(BaseModel):
 
 class PRBotConfigUpdate(BaseModel):
     """Configuration update for PR Bot."""
+
     enabled_regulations: list[str] | None = None
     deep_analysis: bool | None = None
     post_review_comments: bool | None = None
@@ -59,6 +63,7 @@ class PRBotConfigUpdate(BaseModel):
 
 class PRAnalysisResponse(BaseModel):
     """Response for PR analysis."""
+
     task_id: str
     status: str
     pr_number: int
@@ -69,6 +74,7 @@ class PRAnalysisResponse(BaseModel):
 
 class PRBotStatsResponse(BaseModel):
     """Statistics for PR Bot."""
+
     total_prs_analyzed: int
     prs_passed: int
     prs_failed: int
@@ -99,7 +105,9 @@ async def analyze_pr(
     from app.workers.pr_bot_tasks import analyze_pr as analyze_pr_task
 
     # Get GitHub token from organization settings
-    github_token = organization.settings.get("github_access_token") if organization.settings else None
+    github_token = (
+        organization.settings.get("github_access_token") if organization.settings else None
+    )
     if not github_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -146,7 +154,9 @@ async def batch_analyze_prs(
     """Queue multiple PRs for analysis."""
     from app.workers.pr_bot_tasks import batch_analyze_prs as batch_task
 
-    github_token = organization.settings.get("github_access_token") if organization.settings else None
+    github_token = (
+        organization.settings.get("github_access_token") if organization.settings else None
+    )
     if not github_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -178,7 +188,9 @@ async def reanalyze_pr(
     """Re-analyze a PR (e.g., after config change or fix applied)."""
     from app.workers.pr_bot_tasks import reanalyze_pr as reanalyze_task
 
-    github_token = organization.settings.get("github_access_token") if organization.settings else None
+    github_token = (
+        organization.settings.get("github_access_token") if organization.settings else None
+    )
     if not github_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -210,7 +222,9 @@ async def create_fix_pr(
     """Create a PR with compliance fixes."""
     from app.workers.pr_bot_tasks import create_fix_pr as create_fix_task
 
-    github_token = organization.settings.get("github_access_token") if organization.settings else None
+    github_token = (
+        organization.settings.get("github_access_token") if organization.settings else None
+    )
     if not github_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -289,27 +303,19 @@ async def get_pr_bot_config(
         "enabled_regulations": pr_bot_settings.get(
             "enabled_regulations", default_config.enabled_regulations
         ),
-        "deep_analysis": pr_bot_settings.get(
-            "deep_analysis", default_config.deep_analysis
-        ),
+        "deep_analysis": pr_bot_settings.get("deep_analysis", default_config.deep_analysis),
         "post_review_comments": pr_bot_settings.get(
             "post_review_comments", default_config.post_review_comments
         ),
         "create_check_run": pr_bot_settings.get(
             "create_check_run", default_config.create_check_run
         ),
-        "auto_label": pr_bot_settings.get(
-            "auto_label", default_config.auto_label
-        ),
+        "auto_label": pr_bot_settings.get("auto_label", default_config.auto_label),
         "block_on_critical": pr_bot_settings.get(
             "block_on_critical", default_config.block_on_critical
         ),
-        "block_on_high": pr_bot_settings.get(
-            "block_on_high", default_config.block_on_high
-        ),
-        "block_on_medium": pr_bot_settings.get(
-            "block_on_medium", default_config.block_on_medium
-        ),
+        "block_on_high": pr_bot_settings.get("block_on_high", default_config.block_on_high),
+        "block_on_medium": pr_bot_settings.get("block_on_medium", default_config.block_on_medium),
         "min_comment_severity": pr_bot_settings.get(
             "min_comment_severity", default_config.min_comment_severity.value
         ),
@@ -332,9 +338,7 @@ async def update_pr_bot_config(
     from app.models.organization import Organization
 
     # Get organization and update settings
-    result = await db.execute(
-        select(Organization).where(Organization.id == organization.id)
-    )
+    result = await db.execute(select(Organization).where(Organization.id == organization.id))
     org = result.scalar_one()
 
     settings = org.settings or {}
@@ -365,12 +369,11 @@ async def get_pr_bot_stats(
 
     from app.models.audit import AuditEventType, AuditTrail
 
-    cutoff = datetime.now() - timedelta(days=days)
+    cutoff = datetime.now(UTC) - timedelta(days=days)
 
     # Query audit events for PR analysis
     result = await db.execute(
-        select(AuditTrail.event_data)
-        .where(
+        select(AuditTrail.event_data).where(
             AuditTrail.organization_id == organization.id,
             AuditTrail.event_type == AuditEventType.PR_ANALYZED,
             AuditTrail.created_at >= cutoff,
@@ -429,16 +432,20 @@ async def get_pr_analysis_history(
     history = []
     for event in events:
         data = event.event_data or {}
-        history.append({
-            "id": str(event.id),
-            "timestamp": event.created_at.isoformat(),
-            "pr_number": data.get("pr_number"),
-            "repo": f"{data.get('owner', 'unknown')}/{data.get('repo', 'unknown')}" if "owner" in data else None,
-            "passed": data.get("passed"),
-            "violations": data.get("violations", 0),
-            "critical": data.get("critical", 0),
-            "high": data.get("high", 0),
-        })
+        history.append(
+            {
+                "id": str(event.id),
+                "timestamp": event.created_at.isoformat(),
+                "pr_number": data.get("pr_number"),
+                "repo": f"{data.get('owner', 'unknown')}/{data.get('repo', 'unknown')}"
+                if "owner" in data
+                else None,
+                "passed": data.get("passed"),
+                "violations": data.get("violations", 0),
+                "critical": data.get("critical", 0),
+                "high": data.get("high", 0),
+            }
+        )
 
     return {
         "history": history,
@@ -455,6 +462,7 @@ async def get_pr_analysis_history(
 
 class PolicyGateCreateRequest(BaseModel):
     """Request to create a policy gate."""
+
     name: str = Field(..., description="Gate name")
     description: str = Field(..., description="Gate description")
     regulation: str = Field(..., description="Regulation (e.g., GDPR, SOC 2)")
@@ -465,6 +473,7 @@ class PolicyGateCreateRequest(BaseModel):
 
 class PolicyGateUpdateRequest(BaseModel):
     """Request to update a policy gate."""
+
     name: str | None = None
     description: str | None = None
     regulation: str | None = None
@@ -476,6 +485,7 @@ class PolicyGateUpdateRequest(BaseModel):
 
 class PolicyGateResponse(BaseModel):
     """Response for a policy gate."""
+
     id: str
     name: str
     description: str
@@ -489,6 +499,7 @@ class PolicyGateResponse(BaseModel):
 
 class GateEvaluationResultResponse(BaseModel):
     """Response for a single gate evaluation result."""
+
     gate_id: str
     gate_name: str
     status: str
@@ -501,6 +512,7 @@ class GateEvaluationResultResponse(BaseModel):
 
 class PolicyEvaluationSummaryResponse(BaseModel):
     """Response for a full policy evaluation summary."""
+
     pr_number: int
     repository: str
     overall_status: str
@@ -515,10 +527,12 @@ class PolicyEvaluationSummaryResponse(BaseModel):
 
 class EvaluatePRRequest(BaseModel):
     """Request to evaluate a PR against policy gates."""
+
     pr_number: int = Field(..., description="PR number")
     repository: str = Field(..., description="Repository (owner/repo)")
     changed_files: list[dict[str, Any]] = Field(
-        ..., description="List of changed files with filename and patch/content",
+        ...,
+        description="List of changed files with filename and patch/content",
     )
 
 
@@ -569,11 +583,11 @@ async def create_policy_gate(
 
     try:
         action = GateAction(request.action)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid action: {request.action}. Must be one of: block, warn, require_approval, log_only",
-        )
+        ) from exc
 
     service = get_policy_gate_service()
     try:
@@ -589,7 +603,7 @@ async def create_policy_gate(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     return _gate_to_response(gate)
 
@@ -688,11 +702,11 @@ async def update_policy_gate(
     if "action" in update_data:
         try:
             update_data["action"] = GateAction(update_data["action"])
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid action: {update_data['action']}. Must be one of: block, warn, require_approval, log_only",
-            )
+            ) from exc
 
     service = get_policy_gate_service()
     gate = await service.update_gate(gate_id, **update_data)

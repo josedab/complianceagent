@@ -130,10 +130,15 @@ async def generate_test_suite(
         framework=result.framework.value,
         tests=[
             GeneratedTestSchema(
-                id=str(t.id), pattern_id=t.pattern_id, test_name=t.test_name,
-                test_code=t.test_code, framework=t.framework.value,
-                regulation=t.regulation, requirement_ref=t.requirement_ref,
-                description=t.description, confidence=t.confidence,
+                id=str(t.id),
+                pattern_id=t.pattern_id,
+                test_name=t.test_name,
+                test_code=t.test_code,
+                framework=t.framework.value,
+                regulation=t.regulation,
+                requirement_ref=t.requirement_ref,
+                description=t.description,
+                confidence=t.confidence,
                 target_file=t.target_file,
             )
             for t in result.tests
@@ -162,9 +167,13 @@ async def list_patterns(
     patterns = await service.list_patterns(regulation=regulation, category=cat)
     return [
         PatternSchema(
-            id=p.id, name=p.name, category=p.category.value,
-            regulation=p.regulation, description=p.description,
-            assertions=p.assertions, tags=p.tags,
+            id=p.id,
+            name=p.name,
+            category=p.category.value,
+            regulation=p.regulation,
+            description=p.description,
+            assertions=p.assertions,
+            tags=p.tags,
         )
         for p in patterns
     ]
@@ -183,7 +192,8 @@ async def detect_frameworks(
     """Detect test frameworks used in a repository."""
     service = ComplianceTestingService(db=db, copilot_client=copilot)
     result = await service.detect_frameworks(
-        repo=request.repo, files=request.files,
+        repo=request.repo,
+        files=request.files,
     )
     return FrameworkDetectionSchema(
         detected_frameworks=[f.value for f in result.detected_frameworks],

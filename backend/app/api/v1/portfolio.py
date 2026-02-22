@@ -1,16 +1,14 @@
 """Multi-repo compliance portfolio API endpoints."""
 
-from datetime import datetime
-from typing import Any
+from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB, CurrentOrganization, OrgMember, OrgAdmin
+from app.api.v1.deps import DB, CurrentOrganization, OrgAdmin, OrgMember
 from app.services.portfolio import PortfolioService
-from app.services.portfolio.models import RiskLevel, TrendDirection
 
 
 logger = structlog.get_logger()
@@ -19,8 +17,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class FrameworkAggregationSchema(BaseModel):
     """Framework aggregation across portfolio."""
+
     framework: str
     average_score: float
     min_score: float
@@ -32,6 +32,7 @@ class FrameworkAggregationSchema(BaseModel):
 
 class PortfolioSummarySchema(BaseModel):
     """Portfolio summary statistics."""
+
     portfolio_id: UUID
     portfolio_name: str
     total_repositories: int
@@ -55,6 +56,7 @@ class PortfolioSummarySchema(BaseModel):
 
 class RepositoryProfileSchema(BaseModel):
     """Repository compliance profile."""
+
     repository_id: UUID
     repository_name: str
     repository_url: str | None = None
@@ -73,6 +75,7 @@ class RepositoryProfileSchema(BaseModel):
 
 class PortfolioResponseSchema(BaseModel):
     """Full portfolio response."""
+
     id: UUID
     organization_id: UUID
     name: str
@@ -87,6 +90,7 @@ class PortfolioResponseSchema(BaseModel):
 
 class PortfolioListItemSchema(BaseModel):
     """Portfolio list item (without full details)."""
+
     id: UUID
     name: str
     description: str | None = None
@@ -99,6 +103,7 @@ class PortfolioListItemSchema(BaseModel):
 
 class CreatePortfolioRequest(BaseModel):
     """Request to create a portfolio."""
+
     name: str = Field(..., min_length=1, max_length=100)
     description: str | None = Field(None, max_length=500)
     repository_ids: list[UUID] = Field(..., min_length=1, max_length=100)
@@ -107,6 +112,7 @@ class CreatePortfolioRequest(BaseModel):
 
 class UpdatePortfolioRequest(BaseModel):
     """Request to update a portfolio."""
+
     name: str | None = Field(None, min_length=1, max_length=100)
     description: str | None = Field(None, max_length=500)
     tags: list[str] | None = None
@@ -114,11 +120,13 @@ class UpdatePortfolioRequest(BaseModel):
 
 class ModifyRepositoriesRequest(BaseModel):
     """Request to add/remove repositories."""
+
     repository_ids: list[UUID] = Field(..., min_length=1)
 
 
 class CrossRepoAnalysisSchema(BaseModel):
     """Cross-repository analysis results."""
+
     portfolio_id: UUID
     common_gaps: list[dict] = Field(default_factory=list)
     shared_risky_dependencies: list[dict] = Field(default_factory=list)
@@ -128,6 +136,7 @@ class CrossRepoAnalysisSchema(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 def _portfolio_to_schema(portfolio) -> PortfolioResponseSchema:
     """Convert Portfolio to response schema."""
@@ -160,11 +169,12 @@ def _portfolio_to_schema(portfolio) -> PortfolioResponseSchema:
                     repositories_count=fa.repositories_count,
                     compliant_repos=fa.compliant_repos,
                     at_risk_repos=fa.at_risk_repos,
-                ) for fa in portfolio.summary.framework_aggregations
+                )
+                for fa in portfolio.summary.framework_aggregations
             ],
             repositories_needing_attention=portfolio.summary.repositories_needing_attention,
         )
-    
+
     profile_schemas = [
         RepositoryProfileSchema(
             repository_id=p.repository_id,
@@ -181,9 +191,10 @@ def _portfolio_to_schema(portfolio) -> PortfolioResponseSchema:
             framework_scores=p.framework_scores,
             trend=p.trend.value,
             last_scanned=p.last_scanned,
-        ) for p in portfolio.repository_profiles
+        )
+        for p in portfolio.repository_profiles
     ]
-    
+
     return PortfolioResponseSchema(
         id=portfolio.id,
         organization_id=portfolio.organization_id,
@@ -200,6 +211,7 @@ def _portfolio_to_schema(portfolio) -> PortfolioResponseSchema:
 
 # --- Endpoints ---
 
+
 @router.post(
     "/",
     response_model=PortfolioResponseSchema,
@@ -215,12 +227,12 @@ async def create_portfolio(
 ) -> PortfolioResponseSchema:
     """
     Create a new compliance portfolio.
-    
+
     A portfolio groups multiple repositories for unified compliance
     tracking and reporting.
     """
     service = PortfolioService(db=db)
-    
+
     portfolio = await service.create_portfolio(
         organization_id=organization.id,
         name=request.name,
@@ -229,7 +241,7 @@ async def create_portfolio(
         created_by=member.user_id,
         tags=request.tags,
     )
-    
+
     return _portfolio_to_schema(portfolio)
 
 
@@ -246,12 +258,12 @@ async def list_portfolios(
 ) -> list[PortfolioListItemSchema]:
     """List all compliance portfolios for the organization."""
     service = PortfolioService(db=db)
-    
+
     portfolios = await service.list_portfolios(
         organization_id=organization.id,
         include_summaries=True,
     )
-    
+
     return [
         PortfolioListItemSchema(
             id=p.id,
@@ -262,7 +274,8 @@ async def list_portfolios(
             overall_risk_level=p.summary.overall_risk_level.value if p.summary else "unknown",
             tags=p.tags,
             created_at=p.created_at,
-        ) for p in portfolios
+        )
+        for p in portfolios
     ]
 
 
@@ -281,25 +294,25 @@ async def get_portfolio(
 ) -> PortfolioResponseSchema:
     """Get a specific portfolio with full details."""
     service = PortfolioService(db=db)
-    
+
     portfolio = await service.get_portfolio(
         portfolio_id=portfolio_id,
         include_profiles=True,
         include_trends=include_trends,
     )
-    
+
     if not portfolio:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Portfolio not found",
         )
-    
+
     if portfolio.organization_id != organization.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Portfolio not accessible",
         )
-    
+
     return _portfolio_to_schema(portfolio)
 
 
@@ -318,7 +331,7 @@ async def update_portfolio(
 ) -> PortfolioResponseSchema:
     """Update portfolio name, description, or tags."""
     service = PortfolioService(db=db)
-    
+
     # Get existing to check ownership
     existing = await service.get_portfolio(portfolio_id, include_profiles=False)
     if not existing:
@@ -326,20 +339,20 @@ async def update_portfolio(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Portfolio not found",
         )
-    
+
     if existing.organization_id != organization.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Portfolio not accessible",
         )
-    
+
     portfolio = await service.update_portfolio(
         portfolio_id=portfolio_id,
         name=request.name,
         description=request.description,
         tags=request.tags,
     )
-    
+
     return _portfolio_to_schema(portfolio)
 
 
@@ -357,7 +370,7 @@ async def delete_portfolio(
 ) -> None:
     """Delete a portfolio. Requires admin access."""
     service = PortfolioService(db=db)
-    
+
     # Check ownership
     existing = await service.get_portfolio(portfolio_id, include_profiles=False)
     if not existing:
@@ -365,13 +378,13 @@ async def delete_portfolio(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Portfolio not found",
         )
-    
+
     if existing.organization_id != organization.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Portfolio not accessible",
         )
-    
+
     await service.delete_portfolio(portfolio_id)
 
 
@@ -390,18 +403,18 @@ async def add_repositories(
 ) -> PortfolioResponseSchema:
     """Add repositories to an existing portfolio."""
     service = PortfolioService(db=db)
-    
+
     portfolio = await service.add_repositories(
         portfolio_id=portfolio_id,
         repository_ids=request.repository_ids,
     )
-    
+
     if not portfolio:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Portfolio not found",
         )
-    
+
     return _portfolio_to_schema(portfolio)
 
 
@@ -420,18 +433,18 @@ async def remove_repositories(
 ) -> PortfolioResponseSchema:
     """Remove repositories from a portfolio."""
     service = PortfolioService(db=db)
-    
+
     portfolio = await service.remove_repositories(
         portfolio_id=portfolio_id,
         repository_ids=request.repository_ids,
     )
-    
+
     if not portfolio:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Portfolio not found",
         )
-    
+
     return _portfolio_to_schema(portfolio)
 
 
@@ -449,20 +462,20 @@ async def get_cross_repo_analysis(
 ) -> CrossRepoAnalysisSchema:
     """
     Analyze patterns across all repositories in the portfolio.
-    
+
     Identifies common compliance gaps, shared risky dependencies,
     and provides portfolio-level recommendations.
     """
     service = PortfolioService(db=db)
-    
+
     analysis = await service.get_cross_repo_analysis(portfolio_id)
-    
+
     if not analysis:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Portfolio not found",
         )
-    
+
     return CrossRepoAnalysisSchema(
         portfolio_id=analysis.portfolio_id,
         common_gaps=analysis.common_gaps,
@@ -489,24 +502,24 @@ async def get_heat_map(
     repositories and frameworks.
     """
     service = PortfolioService(db=db)
-    
+
     portfolio = await service.get_portfolio(
         portfolio_id=portfolio_id,
         include_profiles=True,
     )
-    
+
     if not portfolio:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Portfolio not found",
         )
-    
+
     # Build heat map data
     heat_map = {
         "repositories": [],
         "frameworks": set(),
     }
-    
+
     for profile in portfolio.repository_profiles:
         repo_data = {
             "id": str(profile.repository_id),
@@ -515,9 +528,9 @@ async def get_heat_map(
         }
         heat_map["repositories"].append(repo_data)
         heat_map["frameworks"].update(profile.framework_scores.keys())
-    
-    heat_map["frameworks"] = sorted(list(heat_map["frameworks"]))
-    
+
+    heat_map["frameworks"] = sorted(heat_map["frameworks"])
+
     return heat_map
 
 
@@ -535,44 +548,44 @@ async def export_report(
 ) -> dict:
     """Export portfolio compliance data for reporting."""
     service = PortfolioService(db=db)
-    
+
     portfolio = await service.get_portfolio(
         portfolio_id=portfolio_id,
         include_profiles=True,
     )
-    
+
     if not portfolio:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Portfolio not found",
         )
-    
+
     if format == "csv":
         # Build CSV data
-        rows = [
-            ["Repository", "Score", "Grade", "Risk Level", "Critical Gaps", "Major Gaps"]
-        ]
+        rows = [["Repository", "Score", "Grade", "Risk Level", "Critical Gaps", "Major Gaps"]]
         for p in portfolio.repository_profiles:
-            rows.append([
-                p.repository_name,
-                str(p.compliance_score),
-                p.compliance_grade,
-                p.risk_level.value,
-                str(p.critical_gaps),
-                str(p.major_gaps),
-            ])
-        
+            rows.append(
+                [
+                    p.repository_name,
+                    str(p.compliance_score),
+                    p.compliance_grade,
+                    p.risk_level.value,
+                    str(p.critical_gaps),
+                    str(p.major_gaps),
+                ]
+            )
+
         csv_content = "\n".join([",".join(row) for row in rows])
-        
+
         return {
             "format": "csv",
             "content": csv_content,
             "filename": f"portfolio_{portfolio_id}_report.csv",
         }
-    
+
     # JSON format
     return {
         "format": "json",
         "portfolio": _portfolio_to_schema(portfolio).model_dump(),
-        "exported_at": datetime.utcnow().isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
     }

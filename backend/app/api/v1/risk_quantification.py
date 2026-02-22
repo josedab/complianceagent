@@ -1,6 +1,6 @@
 """API endpoints for Compliance Risk Quantification (CRQ)."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -27,7 +27,9 @@ class OrganizationContextRequest(BaseModel):
     annual_revenue: float | None = Field(None, ge=0, description="Annual revenue in USD")
     employee_count: int | None = Field(None, ge=1, description="Number of employees")
     data_subject_count: int | None = Field(None, ge=0, description="Number of data subjects/users")
-    jurisdictions: list[str] | None = Field(None, description="Operating jurisdictions (e.g., US, EU)")
+    jurisdictions: list[str] | None = Field(
+        None, description="Operating jurisdictions (e.g., US, EU)"
+    )
 
 
 class AssessViolationRequest(BaseModel):
@@ -156,7 +158,9 @@ class WhatIfResponse(BaseModel):
 class GenerateReportRequest(BaseModel):
     """Request to generate executive report."""
 
-    report_type: str = Field(default="monthly", description="Type: monthly, quarterly, annual, adhoc")
+    report_type: str = Field(
+        default="monthly", description="Type: monthly, quarterly, annual, adhoc"
+    )
     period_start: str | None = Field(None, description="Period start date (ISO format)")
     period_end: str | None = Field(None, description="Period end date (ISO format)")
 
@@ -291,21 +295,23 @@ async def assess_violations_batch(
             aggravating_factors=v.aggravating_factors,
             mitigating_factors=v.mitigating_factors,
         )
-        results.append(ViolationRiskResponse(
-            id=str(risk.id),
-            rule_id=risk.rule_id,
-            regulation=risk.regulation,
-            severity=risk.severity.value,
-            category=risk.category.value,
-            min_exposure=risk.min_exposure,
-            max_exposure=risk.max_exposure,
-            expected_exposure=risk.expected_exposure,
-            confidence=risk.confidence,
-            likelihood=risk.likelihood,
-            aggravating_factors=risk.aggravating_factors,
-            mitigating_factors=risk.mitigating_factors,
-            assessed_at=risk.assessed_at.isoformat(),
-        ))
+        results.append(
+            ViolationRiskResponse(
+                id=str(risk.id),
+                rule_id=risk.rule_id,
+                regulation=risk.regulation,
+                severity=risk.severity.value,
+                category=risk.category.value,
+                min_exposure=risk.min_exposure,
+                max_exposure=risk.max_exposure,
+                expected_exposure=risk.expected_exposure,
+                confidence=risk.confidence,
+                likelihood=risk.likelihood,
+                aggravating_factors=risk.aggravating_factors,
+                mitigating_factors=risk.mitigating_factors,
+                assessed_at=risk.assessed_at.isoformat(),
+            )
+        )
 
     return results
 
@@ -325,11 +331,11 @@ async def generate_repository_profile(
 
     try:
         repo_id = UUID(request.repository_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid repository ID",
-        )
+        ) from exc
 
     violations = [
         {
@@ -467,21 +473,21 @@ async def generate_executive_report(
 
     if request.period_start:
         try:
-            period_start = datetime.fromisoformat(request.period_start.replace("Z", "+00:00"))
-        except ValueError:
+            period_start = datetime.fromisoformat(request.period_start)
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid period_start format. Use ISO format.",
-            )
+            ) from exc
 
     if request.period_end:
         try:
-            period_end = datetime.fromisoformat(request.period_end.replace("Z", "+00:00"))
-        except ValueError:
+            period_end = datetime.fromisoformat(request.period_end)
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid period_end format. Use ISO format.",
-            )
+            ) from exc
 
     report = service.generate_executive_report(
         report_type=request.report_type,
@@ -599,7 +605,9 @@ async def quick_estimate(
     multiplier = severity_multipliers.get(severity.lower(), 0.4)
 
     # Calculate likelihood-adjusted exposure
-    likelihood = {"critical": 0.8, "high": 0.6, "medium": 0.4, "low": 0.2}.get(severity.lower(), 0.4)
+    likelihood = {"critical": 0.8, "high": 0.6, "medium": 0.4, "low": 0.2}.get(
+        severity.lower(), 0.4
+    )
     expected = base_fine * multiplier * likelihood
 
     return {

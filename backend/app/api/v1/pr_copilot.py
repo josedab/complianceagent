@@ -1,14 +1,12 @@
 """API endpoints for Compliance Co-Pilot for PRs."""
 
-from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep
-
 from app.services.pr_copilot import PRCopilotService, SuggestionAction, SuggestionFeedback
 
 

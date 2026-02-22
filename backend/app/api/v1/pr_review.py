@@ -20,6 +20,7 @@ router = APIRouter(prefix="/pr-review", tags=["PR Review"])
 
 class PRReviewRequest(BaseModel):
     """Request to review a PR."""
+
     owner: str = Field(..., description="Repository owner")
     repo: str = Field(..., description="Repository name")
     pr_number: int = Field(..., description="PR number")
@@ -29,6 +30,7 @@ class PRReviewRequest(BaseModel):
 
 class FileDiffRequest(BaseModel):
     """Request to review file diffs directly."""
+
     files: list[dict[str, Any]] = Field(..., description="List of file diffs")
     deep_analysis: bool = Field(True, description="Enable AI-powered deep analysis")
     regulations: list[str] | None = Field(None, description="Regulations to check")
@@ -36,6 +38,7 @@ class FileDiffRequest(BaseModel):
 
 class ViolationResponse(BaseModel):
     """A compliance violation."""
+
     id: str
     file_path: str
     line_start: int
@@ -52,6 +55,7 @@ class ViolationResponse(BaseModel):
 
 class ReviewCommentResponse(BaseModel):
     """A review comment."""
+
     id: str
     file_path: str
     line: int
@@ -60,6 +64,7 @@ class ReviewCommentResponse(BaseModel):
 
 class AutoFixResponse(BaseModel):
     """An auto-fix response."""
+
     id: str
     violation_id: str | None
     file_path: str
@@ -73,6 +78,7 @@ class AutoFixResponse(BaseModel):
 
 class PRAnalysisResponse(BaseModel):
     """Analysis result response."""
+
     id: str
     pr_number: int | None
     repository: str | None
@@ -92,6 +98,7 @@ class PRAnalysisResponse(BaseModel):
 
 class PRReviewResponse(BaseModel):
     """Complete review response."""
+
     id: str
     analysis: PRAnalysisResponse
     comments: list[ReviewCommentResponse]
@@ -105,12 +112,14 @@ class PRReviewResponse(BaseModel):
 
 class GenerateFixRequest(BaseModel):
     """Request to generate fix for a violation."""
+
     violation_id: str
     file_content: str | None = None
 
 
 class ApplyFixRequest(BaseModel):
     """Request to apply a fix."""
+
     fix_id: str
     owner: str
     repo: str
@@ -119,6 +128,7 @@ class ApplyFixRequest(BaseModel):
 
 class CreateFixPRRequest(BaseModel):
     """Request to create a PR with fixes."""
+
     fix_ids: list[str]
     owner: str
     repo: str
@@ -139,21 +149,23 @@ async def review_pull_request(
     db: DB,
 ) -> PRReviewResponse:
     """Review a GitHub pull request for compliance issues.
-    
+
     Analyzes PR diffs for compliance violations across GDPR, HIPAA, PCI-DSS,
     EU AI Act, and other regulations. Returns detailed findings with inline
     suggestions and auto-fix options.
     """
     from app.agents.copilot import CopilotClient
     from app.services.pr_review import PRAnalyzer, PRReviewer
-    
+
     # Get GitHub token from organization settings (simplified for demo)
-    github_token = organization.settings.get("github_access_token") if organization.settings else None
-    
+    github_token = (
+        organization.settings.get("github_access_token") if organization.settings else None
+    )
+
     analyzer = PRAnalyzer(enabled_regulations=request.regulations)
     copilot = CopilotClient() if request.deep_analysis else None
     reviewer = PRReviewer(copilot_client=copilot, analyzer=analyzer)
-    
+
     try:
         result = await reviewer.review_pr(
             owner=request.owner,
@@ -165,9 +177,9 @@ async def review_pull_request(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to review PR: {str(e)}",
-        )
-    
+            detail=f"Failed to review PR: {e!s}",
+        ) from e
+
     return _convert_review_to_response(result)
 
 
@@ -179,22 +191,22 @@ async def review_diff_content(
     db: DB,
 ) -> PRReviewResponse:
     """Review file diffs directly without GitHub API access.
-    
+
     Useful for webhook-based analysis or testing. Accepts raw diff content
     and returns compliance findings.
     """
     from app.agents.copilot import CopilotClient
     from app.services.pr_review import PRAnalyzer, PRReviewer
-    
+
     analyzer = PRAnalyzer(enabled_regulations=request.regulations)
     copilot = CopilotClient() if request.deep_analysis else None
     reviewer = PRReviewer(copilot_client=copilot, analyzer=analyzer)
-    
+
     result = await reviewer.review_files(
         files=request.files,
         deep_analysis=request.deep_analysis,
     )
-    
+
     return _convert_review_to_response(result)
 
 
@@ -207,13 +219,11 @@ async def generate_fixes_for_review(
     file_contents: dict[str, str] | None = None,
 ) -> list[AutoFixResponse]:
     """Generate auto-fixes for violations in a review.
-    
+
     Uses AI and template-based approaches to generate compliance fixes.
     Optionally provide file contents for better context.
     """
-    from app.agents.copilot import CopilotClient
-    from app.services.pr_review import AutoFixGenerator
-    
+
     # In production, would retrieve review from database
     # For now, return empty list with informative error
     raise HTTPException(
@@ -232,10 +242,10 @@ async def generate_single_fix(
     """Generate an auto-fix for a specific violation."""
     from app.agents.copilot import CopilotClient
     from app.services.pr_review import AutoFixGenerator, ComplianceViolation, ViolationSeverity
-    
+
     copilot = CopilotClient()
     generator = AutoFixGenerator(copilot_client=copilot)
-    
+
     # Create a mock violation for the fix
     # In production, would retrieve from database
     violation = ComplianceViolation(
@@ -246,18 +256,18 @@ async def generate_single_fix(
         message="Violation to fix",
         severity=ViolationSeverity.MEDIUM,
     )
-    
+
     fix = await generator.generate_fix(
         violation=violation,
         file_content=request.file_content,
     )
-    
+
     if not fix:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Could not generate fix for this violation",
         )
-    
+
     return AutoFixResponse(
         id=str(fix.id),
         violation_id=str(fix.violation_id) if fix.violation_id else None,
@@ -279,18 +289,19 @@ async def apply_fix(
     db: DB,
 ) -> dict[str, Any]:
     """Apply a generated fix to a repository.
-    
+
     Commits the fix to the specified branch. Requires write access to the repository.
     """
-    from app.services.pr_review import AutoFixGenerator
-    
-    github_token = organization.settings.get("github_access_token") if organization.settings else None
+
+    github_token = (
+        organization.settings.get("github_access_token") if organization.settings else None
+    )
     if not github_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="GitHub access token not configured for organization",
         )
-    
+
     # In production, would retrieve fix from database
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -306,18 +317,19 @@ async def create_fix_pr(
     db: DB,
 ) -> dict[str, Any]:
     """Create a PR with multiple compliance fixes.
-    
+
     Creates a new branch, applies all fixes, and opens a draft PR for review.
     """
-    from app.services.pr_review import AutoFixGenerator
-    
-    github_token = organization.settings.get("github_access_token") if organization.settings else None
+
+    github_token = (
+        organization.settings.get("github_access_token") if organization.settings else None
+    )
     if not github_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="GitHub access token not configured for organization",
         )
-    
+
     # In production, would retrieve fixes from database
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
@@ -332,18 +344,18 @@ async def handle_github_webhook(
     db: DB,
 ) -> dict[str, Any]:
     """Handle GitHub webhook for automatic PR review.
-    
+
     Triggered on PR open/update events. Automatically reviews the PR
     and posts comments with findings.
     """
     event = payload.get("action")
-    
+
     if event not in ("opened", "synchronize", "reopened"):
         return {"status": "ignored", "reason": f"Event {event} not handled"}
-    
+
     pr = payload.get("pull_request", {})
     repo = payload.get("repository", {})
-    
+
     # Queue async review task
     # In production, would use Celery
     return {
@@ -361,25 +373,29 @@ async def list_compliance_patterns(
     regulation: str | None = Query(None),
 ) -> dict[str, Any]:
     """List available compliance patterns for PR review.
-    
+
     Shows all patterns used to detect compliance issues, with their
     severity and regulation mappings.
     """
     from app.services.pr_review.analyzer import COMPLIANCE_PATTERNS
-    
+
     patterns = []
     for name, config in COMPLIANCE_PATTERNS.items():
         if regulation and config.get("regulation") != regulation:
             continue
-        patterns.append({
-            "name": name,
-            "message": config.get("message"),
-            "severity": config.get("severity", "medium").value if hasattr(config.get("severity"), "value") else config.get("severity"),
-            "regulation": config.get("regulation"),
-            "article": config.get("article"),
-            "category": config.get("category"),
-        })
-    
+        patterns.append(
+            {
+                "name": name,
+                "message": config.get("message"),
+                "severity": config.get("severity", "medium").value
+                if hasattr(config.get("severity"), "value")
+                else config.get("severity"),
+                "regulation": config.get("regulation"),
+                "article": config.get("article"),
+                "category": config.get("category"),
+            }
+        )
+
     return {
         "patterns": patterns,
         "total": len(patterns),
@@ -400,7 +416,7 @@ async def add_custom_pattern(
     category: str | None = None,
 ) -> dict[str, Any]:
     """Add a custom compliance pattern for the organization.
-    
+
     Custom patterns are used alongside built-in patterns for PR review.
     """
     # In production, would store in database per organization
@@ -426,7 +442,7 @@ async def add_custom_pattern(
 def _convert_review_to_response(result) -> PRReviewResponse:
     """Convert PRReviewResult to API response."""
     analysis = result.analysis
-    
+
     violations = [
         ViolationResponse(
             id=str(v.id),
@@ -444,7 +460,7 @@ def _convert_review_to_response(result) -> PRReviewResponse:
         )
         for v in (analysis.violations if analysis else [])
     ]
-    
+
     comments = [
         ReviewCommentResponse(
             id=str(c.id),
@@ -454,7 +470,7 @@ def _convert_review_to_response(result) -> PRReviewResponse:
         )
         for c in result.comments
     ]
-    
+
     auto_fixes = [
         AutoFixResponse(
             id=str(f.id),
@@ -469,7 +485,7 @@ def _convert_review_to_response(result) -> PRReviewResponse:
         )
         for f in result.auto_fixes
     ]
-    
+
     return PRReviewResponse(
         id=str(result.id),
         analysis=PRAnalysisResponse(

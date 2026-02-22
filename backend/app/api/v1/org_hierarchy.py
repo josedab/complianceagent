@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.api.v1.deps import DB, CopilotDep
 from app.services.org_hierarchy import OrgHierarchyService, OrgNodeType, OrgRole
 
+
 logger = structlog.get_logger()
 router = APIRouter()
 
@@ -44,7 +45,12 @@ class MemberSchema(BaseModel):
     inherited_roles: list[str]
 
 
-@router.post("/nodes", response_model=NodeSchema, status_code=status.HTTP_201_CREATED, summary="Create org node")
+@router.post(
+    "/nodes",
+    response_model=NodeSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create org node",
+)
 async def create_node(request: CreateNodeRequest, db: DB, copilot: CopilotDep) -> NodeSchema:
     service = OrgHierarchyService(db=db, copilot_client=copilot)
     try:
@@ -53,13 +59,24 @@ async def create_node(request: CreateNodeRequest, db: DB, copilot: CopilotDep) -
         nt = OrgNodeType.TEAM
     parent = UUID(request.parent_id) if request.parent_id else None
     try:
-        node = await service.create_node(name=request.name, node_type=nt, parent_id=parent,
-                                          slug=request.slug, policies=request.policies)
+        node = await service.create_node(
+            name=request.name,
+            node_type=nt,
+            parent_id=parent,
+            slug=request.slug,
+            policies=request.policies,
+        )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return NodeSchema(id=str(node.id), name=node.name, slug=node.slug, node_type=node.node_type.value,
-                      parent_id=str(node.parent_id) if node.parent_id else None,
-                      depth=node.depth, policy_inheritance=node.policy_inheritance.value)
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return NodeSchema(
+        id=str(node.id),
+        name=node.name,
+        slug=node.slug,
+        node_type=node.node_type.value,
+        parent_id=str(node.parent_id) if node.parent_id else None,
+        depth=node.depth,
+        policy_inheritance=node.policy_inheritance.value,
+    )
 
 
 @router.get("/tree", summary="Get organization tree")
@@ -69,35 +86,70 @@ async def get_tree(db: DB, copilot: CopilotDep, root_id: str | None = None) -> d
     tree = await service.get_tree(root_id=rid)
     return {
         "root": {"id": str(tree.root.id), "name": tree.root.name} if tree.root else None,
-        "total_nodes": len(tree.nodes), "total_members": tree.total_members, "max_depth": tree.max_depth,
-        "nodes": [{"id": str(n.id), "name": n.name, "type": n.node_type.value, "depth": n.depth,
-                    "parent_id": str(n.parent_id) if n.parent_id else None} for n in tree.nodes],
+        "total_nodes": len(tree.nodes),
+        "total_members": tree.total_members,
+        "max_depth": tree.max_depth,
+        "nodes": [
+            {
+                "id": str(n.id),
+                "name": n.name,
+                "type": n.node_type.value,
+                "depth": n.depth,
+                "parent_id": str(n.parent_id) if n.parent_id else None,
+            }
+            for n in tree.nodes
+        ],
     }
 
 
-@router.post("/nodes/{node_id}/members", response_model=MemberSchema, status_code=status.HTTP_201_CREATED,
-             summary="Add member to node")
-async def add_member(node_id: str, request: AddMemberRequest, db: DB, copilot: CopilotDep) -> MemberSchema:
+@router.post(
+    "/nodes/{node_id}/members",
+    response_model=MemberSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add member to node",
+)
+async def add_member(
+    node_id: str, request: AddMemberRequest, db: DB, copilot: CopilotDep
+) -> MemberSchema:
     service = OrgHierarchyService(db=db, copilot_client=copilot)
     try:
         role = OrgRole(request.role)
     except ValueError:
         role = OrgRole.VIEWER
     try:
-        member = await service.add_member(user_id=UUID(request.user_id), user_email=request.user_email,
-                                           org_node_id=UUID(node_id), role=role)
+        member = await service.add_member(
+            user_id=UUID(request.user_id),
+            user_email=request.user_email,
+            org_node_id=UUID(node_id),
+            role=role,
+        )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return MemberSchema(id=str(member.id), user_email=member.user_email, role=member.role.value,
-                        inherited_roles=[r.value for r in member.inherited_roles])
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return MemberSchema(
+        id=str(member.id),
+        user_email=member.user_email,
+        role=member.role.value,
+        inherited_roles=[r.value for r in member.inherited_roles],
+    )
 
 
-@router.get("/nodes/{node_id}/members", response_model=list[MemberSchema], summary="Get node members")
-async def get_members(node_id: str, db: DB, copilot: CopilotDep, include_inherited: bool = True) -> list[MemberSchema]:
+@router.get(
+    "/nodes/{node_id}/members", response_model=list[MemberSchema], summary="Get node members"
+)
+async def get_members(
+    node_id: str, db: DB, copilot: CopilotDep, include_inherited: bool = True
+) -> list[MemberSchema]:
     service = OrgHierarchyService(db=db, copilot_client=copilot)
     members = await service.get_members(UUID(node_id), include_inherited=include_inherited)
-    return [MemberSchema(id=str(m.id), user_email=m.user_email, role=m.role.value,
-                          inherited_roles=[r.value for r in m.inherited_roles]) for m in members]
+    return [
+        MemberSchema(
+            id=str(m.id),
+            user_email=m.user_email,
+            role=m.role.value,
+            inherited_roles=[r.value for r in m.inherited_roles],
+        )
+        for m in members
+    ]
 
 
 @router.get("/nodes/{node_id}/policies", summary="Get effective policies for node")
@@ -112,9 +164,11 @@ async def get_compliance(node_id: str, db: DB, copilot: CopilotDep) -> dict:
     try:
         agg = await service.get_aggregated_compliance(UUID(node_id))
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return {
-        "org_node_name": agg.org_node_name, "overall_score": agg.overall_score,
-        "children_scores": agg.children_scores, "violation_count": agg.violation_count,
+        "org_node_name": agg.org_node_name,
+        "overall_score": agg.overall_score,
+        "children_scores": agg.children_scores,
+        "violation_count": agg.violation_count,
         "repository_count": agg.repository_count,
     }

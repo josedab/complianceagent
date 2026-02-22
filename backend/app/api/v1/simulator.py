@@ -1,7 +1,6 @@
 """Regulatory scenario simulator API endpoints."""
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 import structlog
@@ -14,7 +13,6 @@ from app.services.simulator.models import (
     ArchitectureChangeScenario,
     CodeChangeScenario,
     ExpansionScenario,
-    RiskCategory,
     Scenario,
     ScenarioType,
     VendorChangeScenario,
@@ -27,8 +25,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class CodeChangeScenarioSchema(BaseModel):
     """Code change scenario details."""
+
     file_path: str
     proposed_changes: str
     language: str = "python"
@@ -37,6 +37,7 @@ class CodeChangeScenarioSchema(BaseModel):
 
 class ArchitectureChangeScenarioSchema(BaseModel):
     """Architecture change scenario details."""
+
     component_name: str
     change_description: str
     affected_services: list[str] = Field(default_factory=list)
@@ -45,6 +46,7 @@ class ArchitectureChangeScenarioSchema(BaseModel):
 
 class VendorChangeScenarioSchema(BaseModel):
     """Vendor change scenario details."""
+
     vendor_name: str
     vendor_type: str
     data_shared: list[str] = Field(default_factory=list)
@@ -54,6 +56,7 @@ class VendorChangeScenarioSchema(BaseModel):
 
 class ExpansionScenarioSchema(BaseModel):
     """Geographic expansion scenario details."""
+
     target_regions: list[str]
     data_types_affected: list[str] = Field(default_factory=list)
     user_types: list[str] = Field(default_factory=list)
@@ -61,12 +64,13 @@ class ExpansionScenarioSchema(BaseModel):
 
 class SimulateRequest(BaseModel):
     """Request to simulate a scenario."""
+
     name: str = Field(..., min_length=1, max_length=200)
     description: str | None = None
     scenario_type: str = Field(..., description="code_change, architecture, vendor, expansion")
     repository_id: UUID | None = None
     target_frameworks: list[str] = Field(default_factory=list)
-    
+
     # Scenario-specific details (provide one based on type)
     code_change: CodeChangeScenarioSchema | None = None
     architecture_change: ArchitectureChangeScenarioSchema | None = None
@@ -76,6 +80,7 @@ class SimulateRequest(BaseModel):
 
 class ImpactPredictionSchema(BaseModel):
     """Predicted compliance impact."""
+
     category: str
     severity: str
     description: str
@@ -86,6 +91,7 @@ class ImpactPredictionSchema(BaseModel):
 
 class ComplianceDeltaSchema(BaseModel):
     """Change in compliance status."""
+
     framework: str
     current_score: float
     projected_score: float
@@ -99,6 +105,7 @@ class ComplianceDeltaSchema(BaseModel):
 
 class SimulationResultSchema(BaseModel):
     """Simulation result response."""
+
     scenario_id: UUID
     scenario_name: str
     scenario_type: str
@@ -118,6 +125,7 @@ class SimulationResultSchema(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 def _result_to_schema(result) -> SimulationResultSchema:
     """Convert SimulationResult to response schema."""
@@ -139,7 +147,8 @@ def _result_to_schema(result) -> SimulationResultSchema:
                 grade_changed=d.grade_changed,
                 new_gaps=d.new_gaps,
                 risk_categories_affected=[c.value for c in d.risk_categories_affected],
-            ) for d in result.compliance_deltas
+            )
+            for d in result.compliance_deltas
         ],
         impact_predictions=[
             ImpactPredictionSchema(
@@ -149,7 +158,8 @@ def _result_to_schema(result) -> SimulationResultSchema:
                 affected_requirements=p.affected_requirements,
                 mitigation_suggestions=p.mitigation_suggestions,
                 confidence=p.confidence,
-            ) for p in result.impact_predictions
+            )
+            for p in result.impact_predictions
         ],
         blocking_issues=result.blocking_issues,
         warnings=result.warnings,
@@ -174,7 +184,7 @@ def _request_to_scenario(
         "vendor": ScenarioType.VENDOR_CHANGE,
         "expansion": ScenarioType.EXPANSION,
     }
-    
+
     scenario = Scenario(
         organization_id=organization_id,
         repository_id=request.repository_id,
@@ -184,7 +194,7 @@ def _request_to_scenario(
         target_frameworks=request.target_frameworks,
         created_by=user_id,
     )
-    
+
     if request.code_change:
         scenario.code_change = CodeChangeScenario(
             file_path=request.code_change.file_path,
@@ -192,7 +202,7 @@ def _request_to_scenario(
             language=request.code_change.language,
             affected_functions=request.code_change.affected_functions,
         )
-    
+
     if request.architecture_change:
         scenario.architecture_change = ArchitectureChangeScenario(
             component_name=request.architecture_change.component_name,
@@ -200,7 +210,7 @@ def _request_to_scenario(
             affected_services=request.architecture_change.affected_services,
             new_data_flows=request.architecture_change.new_data_flows,
         )
-    
+
     if request.vendor_change:
         scenario.vendor_change = VendorChangeScenario(
             vendor_name=request.vendor_change.vendor_name,
@@ -209,18 +219,19 @@ def _request_to_scenario(
             jurisdictions=request.vendor_change.jurisdictions,
             certifications=request.vendor_change.certifications,
         )
-    
+
     if request.expansion:
         scenario.expansion = ExpansionScenario(
             target_regions=request.expansion.target_regions,
             data_types_affected=request.expansion.data_types_affected,
             user_types=request.expansion.user_types,
         )
-    
+
     return scenario
 
 
 # --- Endpoints ---
+
 
 @router.post(
     "/simulate",
@@ -237,13 +248,13 @@ async def simulate_scenario(
 ) -> SimulationResultSchema:
     """
     Run a what-if simulation for proposed changes.
-    
+
     Supports several scenario types:
     - **code_change**: Analyze proposed code modifications
     - **architecture**: Evaluate architecture/system changes
     - **vendor**: Assess adding or changing vendors
     - **expansion**: Plan geographic or market expansion
-    
+
     Returns predicted compliance impact, risks, and recommendations.
     """
     # Validate scenario type has matching details
@@ -253,26 +264,26 @@ async def simulate_scenario(
         "vendor": request.vendor_change,
         "expansion": request.expansion,
     }
-    
+
     if request.scenario_type not in type_to_field:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid scenario type: {request.scenario_type}",
         )
-    
+
     if type_to_field.get(request.scenario_type) is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Missing {request.scenario_type} details for scenario type",
         )
-    
+
     # Convert to scenario model
     scenario = _request_to_scenario(request, organization.id, member.user_id)
-    
+
     # Run simulation
     service = ScenarioSimulatorService(db=db, copilot=copilot)
     result = await service.simulate(scenario)
-    
+
     return _result_to_schema(result)
 
 
@@ -303,11 +314,11 @@ async def simulate_code_change(
             language=language,
         ),
     )
-    
+
     scenario = _request_to_scenario(request, organization.id, member.user_id)
     service = ScenarioSimulatorService(db=db, copilot=copilot)
     result = await service.simulate(scenario)
-    
+
     return _result_to_schema(result)
 
 
@@ -340,11 +351,11 @@ async def simulate_vendor(
             certifications=certifications,
         ),
     )
-    
+
     scenario = _request_to_scenario(request, organization.id, member.user_id)
     service = ScenarioSimulatorService(db=db, copilot=copilot)
     result = await service.simulate(scenario)
-    
+
     return _result_to_schema(result)
 
 
@@ -371,11 +382,11 @@ async def simulate_expansion(
             data_types_affected=data_types,
         ),
     )
-    
+
     scenario = _request_to_scenario(request, organization.id, member.user_id)
     service = ScenarioSimulatorService(db=db, copilot=copilot)
     result = await service.simulate(scenario)
-    
+
     return _result_to_schema(result)
 
 
