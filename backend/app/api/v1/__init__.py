@@ -191,6 +191,31 @@ from app.api.v1 import (
     federated_intel,
 )
 
+# ---------------------------------------------------------------------------
+# 📊 Platform Status
+# ---------------------------------------------------------------------------
+from app.api.v1 import status
+
+# ---------------------------------------------------------------------------
+# 🎮 Public Playground (no auth)
+# ---------------------------------------------------------------------------
+from app.api.v1 import playground
+
+# ---------------------------------------------------------------------------
+# 🚀 Next-Gen Strategic Features (Round 3)
+# ---------------------------------------------------------------------------
+from app.api.v1 import (
+    horizon_scanner,
+    control_testing,
+    compliance_knowledge_graph,
+    entity_rollup,
+    board_reports,
+    gitops_pipeline,
+    residency_map,
+    dependency_scanner,
+    audit_workspace,
+)
+
 # ===========================================================================
 # Router assembly
 # ===========================================================================
@@ -220,8 +245,8 @@ router.include_router(industry_packs.router, prefix="/industry-packs", tags=["In
 
 # -- 🤖 AI & Intelligence --------------------------------------------------
 router.include_router(chat.router, prefix="/chat", tags=["Compliance Copilot Chat"])
-router.include_router(chatbot.router, prefix="/chatbot", tags=["Compliance Chatbot (Legacy — use /chat)"])
-router.include_router(copilot_chat.router, prefix="/copilot-chat", tags=["Compliance Copilot Chat (Non-Technical)"])
+router.include_router(chatbot.router, prefix="/chatbot", tags=["Compliance Chatbot (Deprecated — use /chat)"])
+router.include_router(copilot_chat.router, prefix="/copilot-chat", tags=["Compliance Copilot Chat (Deprecated — use /chat)"])
 router.include_router(nl_query.router, prefix="/nl-query", tags=["Natural Language Query Engine"])
 router.include_router(intelligence.router, prefix="/intelligence", tags=["Regulatory Intelligence"])
 router.include_router(predictions.router, prefix="/predictions", tags=["Regulatory Predictions"])
@@ -310,6 +335,23 @@ router.include_router(vendor_risk.router, prefix="/vendor-risk", tags=["Vendor R
 router.include_router(vendor_assessment.router, prefix="/vendor-assessment", tags=["Vendor Assessment"])
 router.include_router(portfolio.router, prefix="/portfolios", tags=["Compliance Portfolios"])
 router.include_router(federated_intel.router, prefix="/federated-intel", tags=["Federated Intelligence Network"])
+
+# -- 📊 Platform Status (always available) -----------------------------------
+router.include_router(status.router, prefix="/status", tags=["Platform Status"])
+
+# -- 🎮 Public Playground (no auth required) ---------------------------------
+router.include_router(playground.router, prefix="/playground", tags=["Compliance Playground"])
+
+# -- 🚀 Next-Gen Strategic Features ------------------------------------------
+router.include_router(horizon_scanner.router, prefix="/horizon-scanner", tags=["Regulatory Horizon Scanner"])
+router.include_router(control_testing.router, prefix="/control-testing", tags=["Continuous Control Testing"])
+router.include_router(compliance_knowledge_graph.router, prefix="/compliance-graph", tags=["Compliance Knowledge Graph"])
+router.include_router(entity_rollup.router, prefix="/entity-rollup", tags=["Multi-Entity Compliance Rollup"])
+router.include_router(board_reports.router, prefix="/board-reports", tags=["AI Board Reports"])
+router.include_router(gitops_pipeline.router, prefix="/gitops", tags=["GitOps Compliance Pipeline"])
+router.include_router(residency_map.router, prefix="/residency-map", tags=["Data Residency Map"])
+router.include_router(dependency_scanner.router, prefix="/dependency-scanner", tags=["Dependency Risk Scanner"])
+router.include_router(audit_workspace.router, prefix="/audit-workspace", tags=["Self-Service Audit Workspace"])
 
 # -- 🌐 Next-Gen & Experimental Features ------------------------------------
 # These routes are gated behind ENABLE_EXPERIMENTAL (default: True in dev).
