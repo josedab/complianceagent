@@ -161,7 +161,10 @@ class RegulatoryCrawler:
             # Convert relative to absolute
             absolute_url = urljoin(base_url, href)
             # Filter for relevant links (PDFs, legal documents)
-            if any(ext in absolute_url.lower() for ext in [".pdf", "/legal/", "/regulation/", "/directive/"]):
+            if any(
+                ext in absolute_url.lower()
+                for ext in [".pdf", "/legal/", "/regulation/", "/directive/"]
+            ):
                 links.append(absolute_url)
         return list(set(links))
 

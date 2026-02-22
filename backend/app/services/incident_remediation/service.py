@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import structlog
@@ -16,6 +16,7 @@ from app.services.incident_remediation.models import (
     RemediationStatus,
 )
 
+
 logger = structlog.get_logger()
 
 _incidents: list[ComplianceIncident] = []
@@ -24,43 +25,54 @@ _incidents: list[ComplianceIncident] = []
 def _seed_data() -> None:
     if _incidents:
         return
-    _incidents.extend([
-        ComplianceIncident(
-            id=uuid4(), title="Unencrypted PII in API Response",
-            description="Datadog alert: /api/users endpoint returning SSN in plaintext response body.",
-            source=IncidentSource.DATADOG, severity=IncidentSeverity.CRITICAL,
-            status=RemediationStatus.PR_CREATED,
-            affected_frameworks=["GDPR", "HIPAA", "PCI-DSS"],
-            affected_controls=["GDPR-Art32", "HIPAA-164.312(a)"],
-            affected_files=["src/api/users.py", "src/models/user.py"],
-            cvss_score=8.5, compliance_impact_score=9.2,
-            remediation_pr_url="https://github.com/example/pr/142",
-            breach_notification_required=True,
-            detected_at=datetime.utcnow() - timedelta(hours=4),
-        ),
-        ComplianceIncident(
-            id=uuid4(), title="Disabled Audit Logging on Payment Service",
-            description="Splunk detected gap in audit logs for payment processing service lasting 45 minutes.",
-            source=IncidentSource.SPLUNK, severity=IncidentSeverity.HIGH,
-            status=RemediationStatus.REMEDIATING,
-            affected_frameworks=["PCI-DSS", "SOC 2"],
-            affected_controls=["PCI-10.2", "SOC2-CC7.2"],
-            affected_files=["src/services/payment.py", "config/logging.yaml"],
-            cvss_score=6.8, compliance_impact_score=7.5,
-            detected_at=datetime.utcnow() - timedelta(hours=2),
-        ),
-        ComplianceIncident(
-            id=uuid4(), title="Excessive Data Retention in Analytics DB",
-            description="Elastic Security found user behavior data older than 90-day retention policy.",
-            source=IncidentSource.ELASTIC, severity=IncidentSeverity.MEDIUM,
-            status=RemediationStatus.DETECTED,
-            affected_frameworks=["GDPR"],
-            affected_controls=["GDPR-Art5(1)(e)"],
-            affected_files=["src/jobs/analytics_cleanup.py"],
-            cvss_score=4.2, compliance_impact_score=5.8,
-            detected_at=datetime.utcnow() - timedelta(minutes=30),
-        ),
-    ])
+    _incidents.extend(
+        [
+            ComplianceIncident(
+                id=uuid4(),
+                title="Unencrypted PII in API Response",
+                description="Datadog alert: /api/users endpoint returning SSN in plaintext response body.",
+                source=IncidentSource.DATADOG,
+                severity=IncidentSeverity.CRITICAL,
+                status=RemediationStatus.PR_CREATED,
+                affected_frameworks=["GDPR", "HIPAA", "PCI-DSS"],
+                affected_controls=["GDPR-Art32", "HIPAA-164.312(a)"],
+                affected_files=["src/api/users.py", "src/models/user.py"],
+                cvss_score=8.5,
+                compliance_impact_score=9.2,
+                remediation_pr_url="https://github.com/example/pr/142",
+                breach_notification_required=True,
+                detected_at=datetime.now(UTC) - timedelta(hours=4),
+            ),
+            ComplianceIncident(
+                id=uuid4(),
+                title="Disabled Audit Logging on Payment Service",
+                description="Splunk detected gap in audit logs for payment processing service lasting 45 minutes.",
+                source=IncidentSource.SPLUNK,
+                severity=IncidentSeverity.HIGH,
+                status=RemediationStatus.REMEDIATING,
+                affected_frameworks=["PCI-DSS", "SOC 2"],
+                affected_controls=["PCI-10.2", "SOC2-CC7.2"],
+                affected_files=["src/services/payment.py", "config/logging.yaml"],
+                cvss_score=6.8,
+                compliance_impact_score=7.5,
+                detected_at=datetime.now(UTC) - timedelta(hours=2),
+            ),
+            ComplianceIncident(
+                id=uuid4(),
+                title="Excessive Data Retention in Analytics DB",
+                description="Elastic Security found user behavior data older than 90-day retention policy.",
+                source=IncidentSource.ELASTIC,
+                severity=IncidentSeverity.MEDIUM,
+                status=RemediationStatus.DETECTED,
+                affected_frameworks=["GDPR"],
+                affected_controls=["GDPR-Art5(1)(e)"],
+                affected_files=["src/jobs/analytics_cleanup.py"],
+                cvss_score=4.2,
+                compliance_impact_score=5.8,
+                detected_at=datetime.now(UTC) - timedelta(minutes=30),
+            ),
+        ]
+    )
 
 
 class IncidentRemediationService:
@@ -70,7 +82,8 @@ class IncidentRemediationService:
         _seed_data()
 
     async def list_incidents(
-        self, severity: IncidentSeverity | None = None,
+        self,
+        severity: IncidentSeverity | None = None,
         status: RemediationStatus | None = None,
     ) -> list[ComplianceIncident]:
         result = list(_incidents)
@@ -84,8 +97,11 @@ class IncidentRemediationService:
         return next((i for i in _incidents if i.id == incident_id), None)
 
     async def ingest_incident(
-        self, title: str, description: str,
-        source: IncidentSource, severity: IncidentSeverity,
+        self,
+        title: str,
+        description: str,
+        source: IncidentSource,
+        severity: IncidentSeverity,
     ) -> ComplianceIncident:
         if not title or not title.strip():
             raise ValueError("Incident title must not be empty")
@@ -93,8 +109,11 @@ class IncidentRemediationService:
             raise ValueError("Incident description must not be empty")
         frameworks = self._classify_frameworks(title, description)
         incident = ComplianceIncident(
-            id=uuid4(), title=title, description=description,
-            source=source, severity=severity,
+            id=uuid4(),
+            title=title,
+            description=description,
+            source=source,
+            severity=severity,
             status=RemediationStatus.ANALYZING,
             affected_frameworks=frameworks,
             breach_notification_required=severity == IncidentSeverity.CRITICAL,
@@ -109,18 +128,26 @@ class IncidentRemediationService:
             return []
         actions = [
             RemediationAction(
-                id=uuid4(), incident_id=incident_id,
-                action_type="code_fix", description="Add data masking to API response",
+                id=uuid4(),
+                incident_id=incident_id,
+                action_type="code_fix",
+                description="Add data masking to API response",
                 file_path=incident.affected_files[0] if incident.affected_files else "",
                 code_patch="# Apply PII masking filter\nresponse = mask_pii(response)",
-                priority=1, estimated_effort_minutes=15, automated=True,
+                priority=1,
+                estimated_effort_minutes=15,
+                automated=True,
             ),
             RemediationAction(
-                id=uuid4(), incident_id=incident_id,
-                action_type="config_update", description="Enable encryption at rest",
+                id=uuid4(),
+                incident_id=incident_id,
+                action_type="config_update",
+                description="Enable encryption at rest",
                 file_path="config/security.yaml",
                 code_patch="encryption:\n  at_rest: true\n  algorithm: AES-256-GCM",
-                priority=2, estimated_effort_minutes=10, automated=True,
+                priority=2,
+                estimated_effort_minutes=10,
+                automated=True,
             ),
         ]
         return actions
@@ -132,11 +159,13 @@ class IncidentRemediationService:
         if not incident.breach_notification_required:
             return None
         return BreachNotification(
-            id=uuid4(), incident_id=incident_id,
-            regulation="GDPR", authority="Data Protection Authority",
+            id=uuid4(),
+            incident_id=incident_id,
+            regulation="GDPR",
+            authority="Data Protection Authority",
             deadline=incident.detected_at + timedelta(hours=72),
             draft_text=f"Pursuant to GDPR Article 33, we are notifying your authority of a personal data breach: {incident.title}. "
-                       f"The breach was detected on {incident.detected_at.isoformat()} and affects the following data categories.",
+            f"The breach was detected on {incident.detected_at.isoformat()} and affects the following data categories.",
             affected_individuals_count=12000,
             data_categories=["name", "email", "IP address"],
         )

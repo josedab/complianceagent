@@ -1,4 +1,5 @@
 """Compliance Health Score Benchmarking."""
+
 from app.services.health_benchmarking.models import (
     BenchmarkComparison,
     BoardReport,

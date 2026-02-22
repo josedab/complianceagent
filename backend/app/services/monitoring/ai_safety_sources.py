@@ -1,7 +1,7 @@
 """AI Safety Standards regulatory sources and risk classification service."""
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -17,6 +17,7 @@ logger = structlog.get_logger()
 
 class AIRiskLevel(str, Enum):
     """AI system risk classification levels per EU AI Act."""
+
     UNACCEPTABLE = "unacceptable"
     HIGH = "high"
     LIMITED = "limited"
@@ -307,6 +308,7 @@ AI_SYSTEM_DETECTION_PATTERNS = {
 @dataclass
 class AISystemClassification:
     """Result of AI system risk classification."""
+
     risk_level: AIRiskLevel
     confidence: float
     reasons: list[str]
@@ -345,7 +347,7 @@ class AIRiskClassifier:
         detected_patterns = []
         high_risk_areas = []
         reasons = []
-        
+
         # Check for ML libraries
         for lib in self.patterns["ml_libraries"]:
             if lib.lower() in code_content.lower():
@@ -387,7 +389,9 @@ class AIRiskClassifier:
                     reasons=[f"Potentially prohibited AI use detected: {match.group()}"],
                     detected_patterns=detected_patterns,
                     high_risk_areas=["prohibited_practice"],
-                    applicable_requirements=["Immediate review required - potentially prohibited under EU AI Act Article 5"],
+                    applicable_requirements=[
+                        "Immediate review required - potentially prohibited under EU AI Act Article 5"
+                    ],
                     recommendations=[
                         "Immediately review the AI system for compliance",
                         "Consult legal counsel on AI Act Article 5 (Prohibited Practices)",
@@ -443,7 +447,9 @@ class AIRiskClassifier:
         return AISystemClassification(
             risk_level=risk_level,
             confidence=confidence,
-            reasons=reasons if reasons else ["AI/ML system detected, classified based on use case indicators"],
+            reasons=reasons
+            if reasons
+            else ["AI/ML system detected, classified based on use case indicators"],
             detected_patterns=detected_patterns,
             high_risk_areas=list(set(high_risk_areas)),
             applicable_requirements=applicable_requirements,
@@ -486,16 +492,18 @@ class AISafetyParser:
         for section in soup.find_all(["section", "div", "article"]):
             heading = section.find(["h1", "h2", "h3"])
             if heading:
-                result["guidance"].append({
-                    "title": heading.get_text(strip=True),
-                    "content": section.get_text(separator="\n", strip=True)[:500],
-                })
+                result["guidance"].append(
+                    {
+                        "title": heading.get_text(strip=True),
+                        "content": section.get_text(separator="\n", strip=True)[:500],
+                    }
+                )
 
         return result
 
     def parse_iso42001(self, content: str) -> dict[str, Any]:
         """Parse ISO 42001 standard overview."""
-        soup = BeautifulSoup(content, "lxml")
+        BeautifulSoup(content, "lxml")
 
         result = {
             "title": "ISO/IEC 42001 - AI Management System",
@@ -524,13 +532,15 @@ class AISafetyParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "framework": framework,
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "category": "ai_risk_management",
-                })
+                requirements.append(
+                    {
+                        "framework": framework,
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "category": "ai_risk_management",
+                    }
+                )
 
         return requirements
 

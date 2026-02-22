@@ -926,10 +926,12 @@ class ISO27001Parser:
                 text = link.get_text(strip=True)
                 href = link.get("href", "")
                 if text:
-                    result["standards"].append({
-                        "title": text,
-                        "url": href,
-                    })
+                    result["standards"].append(
+                        {
+                            "title": text,
+                            "url": href,
+                        }
+                    )
 
         return result
 
@@ -939,10 +941,7 @@ class ISO27001Parser:
 
     def get_requirements_by_category(self, category: str) -> list[dict[str, Any]]:
         """Get ISO 27001 requirements filtered by category."""
-        return [
-            req for req in ISO27001_REQUIREMENTS
-            if req["category"] == category
-        ]
+        return [req for req in ISO27001_REQUIREMENTS if req["category"] == category]
 
 
 class ISO27001SourceMonitor:

@@ -1,6 +1,5 @@
 """White-Label Support - Customization for resellers."""
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -8,7 +7,6 @@ import structlog
 
 from app.services.marketplace.models import (
     APIKey,
-    PlanTier,
     WhiteLabelConfig,
 )
 
@@ -57,28 +55,32 @@ class WhiteLabelService:
     ) -> WhiteLabelConfig:
         """Create a white-label configuration."""
         theme_colors = DEFAULT_THEMES.get(theme, DEFAULT_THEMES["default"])
-        
+
         config = WhiteLabelConfig(
             organization_id=organization_id,
             brand_name=brand_name,
             logo_url=logo_url or "",
-            primary_color=custom_colors.get("primary", theme_colors["primary_color"]) if custom_colors else theme_colors["primary_color"],
-            secondary_color=custom_colors.get("secondary", theme_colors["secondary_color"]) if custom_colors else theme_colors["secondary_color"],
+            primary_color=custom_colors.get("primary", theme_colors["primary_color"])
+            if custom_colors
+            else theme_colors["primary_color"],
+            secondary_color=custom_colors.get("secondary", theme_colors["secondary_color"])
+            if custom_colors
+            else theme_colors["secondary_color"],
             custom_domain=custom_domain or "",
         )
-        
+
         self._configs[organization_id] = config
-        
+
         if custom_domain:
             self._by_domain[custom_domain] = organization_id
-        
+
         logger.info(
             "Created white-label config",
             organization_id=str(organization_id),
             brand_name=brand_name,
             custom_domain=custom_domain,
         )
-        
+
         return config
 
     def get_config(self, organization_id: UUID) -> WhiteLabelConfig | None:
@@ -101,25 +103,25 @@ class WhiteLabelService:
         config = self._configs.get(organization_id)
         if not config:
             return None
-        
+
         # Handle domain change
         if "custom_domain" in updates:
             old_domain = config.custom_domain
             new_domain = updates["custom_domain"]
-            
+
             if old_domain and old_domain in self._by_domain:
                 del self._by_domain[old_domain]
-            
+
             if new_domain:
                 self._by_domain[new_domain] = organization_id
-            
+
             config.custom_domain = new_domain
-        
+
         # Update other fields
         for key, value in updates.items():
             if hasattr(config, key) and key not in ["id", "organization_id", "created_at"]:
                 setattr(config, key, value)
-        
+
         return config
 
     def generate_embed_config(
@@ -128,11 +130,11 @@ class WhiteLabelService:
         component: str = "full",
     ) -> dict[str, Any]:
         """Generate embeddable configuration for white-label partners.
-        
+
         Args:
             organization_id: Partner organization ID
             component: Which component to embed (full, dashboard, scanner, reports)
-            
+
         Returns:
             Configuration object for embedding
         """
@@ -144,7 +146,7 @@ class WhiteLabelService:
                 "component": component,
                 "embed_url": f"/embed/{component}",
             }
-        
+
         return {
             "branding": {
                 "name": config.brand_name,
@@ -153,7 +155,9 @@ class WhiteLabelService:
                 "secondary_color": config.secondary_color,
             },
             "component": component,
-            "embed_url": f"https://{config.custom_domain}/embed/{component}" if config.custom_domain else f"/embed/{component}",
+            "embed_url": f"https://{config.custom_domain}/embed/{component}"
+            if config.custom_domain
+            else f"/embed/{component}",
             "custom_domain": config.custom_domain,
             "features": {
                 "show_powered_by": True,  # Could be toggled for premium
@@ -168,15 +172,15 @@ class WhiteLabelService:
         api_key: APIKey,
     ) -> dict[str, Any]:
         """Generate SDK configuration for white-label integration.
-        
+
         Returns configuration for the JavaScript/Python SDK.
         """
         config = self._configs.get(organization_id)
-        
+
         base_url = "https://api.complianceagent.io"
         if config and config.custom_domain:
             base_url = f"https://{config.custom_domain}/api"
-        
+
         return {
             "sdk_version": "1.0.0",
             "base_url": base_url,
@@ -203,11 +207,11 @@ class WhiteLabelService:
         domain: str,
     ) -> dict[str, Any]:
         """Generate DNS verification records for custom domain.
-        
+
         Returns records that need to be added for domain verification.
         """
         verification_token = f"ca-verify-{organization_id.hex[:16]}"
-        
+
         return {
             "domain": domain,
             "status": "pending_verification",
@@ -235,10 +239,10 @@ class WhiteLabelService:
     ) -> str:
         """Get partner dashboard URL."""
         config = self._configs.get(organization_id)
-        
+
         if config and config.custom_domain:
             return f"https://{config.custom_domain}/partner/dashboard"
-        
+
         return f"https://app.complianceagent.io/partner/{organization_id}/dashboard"
 
 

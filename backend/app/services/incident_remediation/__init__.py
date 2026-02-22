@@ -10,6 +10,7 @@ from app.services.incident_remediation.models import (
 )
 from app.services.incident_remediation.service import IncidentRemediationService
 
+
 __all__ = [
     "BreachNotification",
     "ComplianceIncident",

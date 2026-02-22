@@ -237,11 +237,13 @@ class ESGParser:
                 if content_elem:
                     article_content = content_elem.get_text(separator="\n", strip=True)
 
-                result["articles"].append({
-                    "number": article_num,
-                    "title": article_title,
-                    "content": article_content,
-                })
+                result["articles"].append(
+                    {
+                        "number": article_num,
+                        "title": article_title,
+                        "content": article_content,
+                    }
+                )
 
         return result
 
@@ -286,7 +288,7 @@ class ESGParser:
 
     def parse_tcfd_recommendations(self, content: str) -> dict[str, Any]:
         """Parse TCFD recommendations."""
-        soup = BeautifulSoup(content, "lxml")
+        BeautifulSoup(content, "lxml")
 
         result = {
             "title": "TCFD Recommendations",
@@ -325,19 +327,21 @@ class ESGParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "article": article.get("number"),
-                    "title": article.get("title"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "category": "sustainability_reporting",
-                    "citation": {
-                        "article": f"Article {article.get('number')}",
-                        "directive": "Directive (EU) 2022/2464 (CSRD)",
-                        "jurisdiction": "EU",
-                    },
-                })
+                requirements.append(
+                    {
+                        "article": article.get("number"),
+                        "title": article.get("title"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "category": "sustainability_reporting",
+                        "citation": {
+                            "article": f"Article {article.get('number')}",
+                            "directive": "Directive (EU) 2022/2464 (CSRD)",
+                            "jurisdiction": "EU",
+                        },
+                    }
+                )
 
         return requirements
 
@@ -359,13 +363,15 @@ class ESGParser:
                 "3": "all other indirect GHG emissions in value chain",
             }
 
-            requirements.append({
-                "scope": f"Scope {scope_num}",
-                "description": scope_descriptions.get(scope_num, ""),
-                "source_text": context,
-                "category": "ghg_emissions",
-                "obligation_type": "must" if scope_num in ["1", "2"] else "conditional",
-            })
+            requirements.append(
+                {
+                    "scope": f"Scope {scope_num}",
+                    "description": scope_descriptions.get(scope_num, ""),
+                    "source_text": context,
+                    "category": "ghg_emissions",
+                    "obligation_type": "must" if scope_num in ["1", "2"] else "conditional",
+                }
+            )
 
         return requirements
 

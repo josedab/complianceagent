@@ -78,9 +78,7 @@ class EvidenceVaultService:
 
         previous_hash = chain.items[-1].content_hash if chain.items else ""
 
-        content_hash = hashlib.sha256(
-            (content + previous_hash).encode()
-        ).hexdigest()
+        content_hash = hashlib.sha256((content + previous_hash).encode()).hexdigest()
 
         item = EvidenceItem(
             evidence_type=evidence_type,
@@ -140,7 +138,11 @@ class EvidenceVaultService:
     ) -> list[EvidenceItem]:
         """Query evidence items with filters."""
         items: list[EvidenceItem] = []
-        chains = [self._chains[framework]] if framework and framework in self._chains else list(self._chains.values())
+        chains = (
+            [self._chains[framework]]
+            if framework and framework in self._chains
+            else list(self._chains.values())
+        )
 
         for chain in chains:
             for item in chain.items:
@@ -150,7 +152,9 @@ class EvidenceVaultService:
                     continue
                 items.append(item)
 
-        return sorted(items, key=lambda i: i.collected_at or datetime.min, reverse=True)[:limit]
+        return sorted(
+            items, key=lambda i: i.collected_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     async def get_control_mappings(self, framework: ControlFramework) -> list[ControlMapping]:
         """Get control-to-evidence mappings for a framework."""
@@ -160,18 +164,20 @@ class EvidenceVaultService:
         mappings = []
 
         for control_id, control_name in controls:
-            evidence_ids = [
-                item.id for item in chain.items if item.control_id == control_id
-            ]
+            evidence_ids = [item.id for item in chain.items if item.control_id == control_id]
             coverage = min(100.0, len(evidence_ids) * 25.0)
-            mappings.append(ControlMapping(
-                control_id=control_id,
-                control_name=control_name,
-                framework=framework,
-                evidence_ids=evidence_ids,
-                coverage_pct=coverage,
-                status="complete" if coverage >= 75 else ("partial" if coverage > 0 else "incomplete"),
-            ))
+            mappings.append(
+                ControlMapping(
+                    control_id=control_id,
+                    control_name=control_name,
+                    framework=framework,
+                    evidence_ids=evidence_ids,
+                    coverage_pct=coverage,
+                    status="complete"
+                    if coverage >= 75
+                    else ("partial" if coverage > 0 else "incomplete"),
+                )
+            )
 
         return mappings
 
@@ -207,7 +213,9 @@ class EvidenceVaultService:
 
         self._auditor_sessions[session.id] = session
         self._token_to_session[token_hash] = session.id
-        logger.info("Auditor session created", email=auditor_email, firm=firm, expires_hours=expires_hours)
+        logger.info(
+            "Auditor session created", email=auditor_email, firm=firm, expires_hours=expires_hours
+        )
         return session
 
     async def get_session_by_token(self, access_token: str) -> AuditorSession | None:
@@ -249,7 +257,11 @@ class EvidenceVaultService:
         if not session.is_active:
             return {"valid": False, "reason": "session_revoked"}
 
-        return {"valid": True, "session_id": str(session.id), "auditor_email": session.auditor_email}
+        return {
+            "valid": True,
+            "session_id": str(session.id),
+            "auditor_email": session.auditor_email,
+        }
 
     async def revoke_auditor_session(self, session_id: str) -> bool:
         """Revoke an auditor session before expiry."""
@@ -330,17 +342,29 @@ class EvidenceVaultService:
             "coverage_percentage": round(coverage_pct, 1),
             "evidence_count": len(chain.items),
             "gaps": gaps,
-            "readiness_score": "ready" if coverage_pct >= 80 else "needs_work" if coverage_pct >= 50 else "not_ready",
+            "readiness_score": "ready"
+            if coverage_pct >= 80
+            else "needs_work"
+            if coverage_pct >= 50
+            else "not_ready",
             "recommendations": [],
         }
 
         if gaps:
-            report["recommendations"].append(f"Address {len(gaps)} control(s) with missing evidence")
+            report["recommendations"].append(
+                f"Address {len(gaps)} control(s) with missing evidence"
+            )
         if coverage_pct < 80:
-            report["recommendations"].append("Increase evidence coverage to at least 80% before audit")
+            report["recommendations"].append(
+                "Increase evidence coverage to at least 80% before audit"
+            )
 
-        logger.info("readiness_report_generated", framework=framework.value,
-                    coverage=coverage_pct, gaps=len(gaps))
+        logger.info(
+            "readiness_report_generated",
+            framework=framework.value,
+            coverage=coverage_pct,
+            gaps=len(gaps),
+        )
         return report
 
     # ── Coverage Metrics ─────────────────────────────────────────────────
@@ -349,40 +373,68 @@ class EvidenceVaultService:
         """Get detailed coverage metrics for a compliance framework."""
         control_defs: dict[str, list[tuple[str, str]]] = {
             "soc2": [
-                ("CC1.1", "Control Environment"), ("CC1.2", "Board Oversight"),
-                ("CC2.1", "Information & Communication"), ("CC3.1", "Risk Assessment"),
-                ("CC3.2", "Risk Mitigation"), ("CC4.1", "Monitoring Activities"),
-                ("CC5.1", "Control Activities"), ("CC6.1", "Logical Access"),
-                ("CC6.2", "Physical Access"), ("CC6.3", "Access Provisioning"),
-                ("CC6.6", "System Operations"), ("CC6.7", "Change Management"),
-                ("CC6.8", "Vulnerability Management"), ("CC7.1", "System Monitoring"),
-                ("CC7.2", "Incident Detection"), ("CC7.3", "Incident Response"),
-                ("CC8.1", "Change Management"), ("CC9.1", "Risk Mitigation"),
+                ("CC1.1", "Control Environment"),
+                ("CC1.2", "Board Oversight"),
+                ("CC2.1", "Information & Communication"),
+                ("CC3.1", "Risk Assessment"),
+                ("CC3.2", "Risk Mitigation"),
+                ("CC4.1", "Monitoring Activities"),
+                ("CC5.1", "Control Activities"),
+                ("CC6.1", "Logical Access"),
+                ("CC6.2", "Physical Access"),
+                ("CC6.3", "Access Provisioning"),
+                ("CC6.6", "System Operations"),
+                ("CC6.7", "Change Management"),
+                ("CC6.8", "Vulnerability Management"),
+                ("CC7.1", "System Monitoring"),
+                ("CC7.2", "Incident Detection"),
+                ("CC7.3", "Incident Response"),
+                ("CC8.1", "Change Management"),
+                ("CC9.1", "Risk Mitigation"),
             ],
             "hipaa": [
-                ("164.308(a)(1)", "Security Management"), ("164.308(a)(3)", "Workforce Security"),
-                ("164.308(a)(4)", "Information Access"), ("164.308(a)(5)", "Security Awareness"),
-                ("164.308(a)(6)", "Security Incident"), ("164.308(a)(7)", "Contingency Plan"),
-                ("164.310(a)", "Facility Access"), ("164.310(b)", "Workstation Use"),
-                ("164.310(d)", "Device and Media"), ("164.312(a)", "Access Control"),
-                ("164.312(b)", "Audit Controls"), ("164.312(c)", "Integrity"),
-                ("164.312(d)", "Authentication"), ("164.312(e)", "Transmission Security"),
+                ("164.308(a)(1)", "Security Management"),
+                ("164.308(a)(3)", "Workforce Security"),
+                ("164.308(a)(4)", "Information Access"),
+                ("164.308(a)(5)", "Security Awareness"),
+                ("164.308(a)(6)", "Security Incident"),
+                ("164.308(a)(7)", "Contingency Plan"),
+                ("164.310(a)", "Facility Access"),
+                ("164.310(b)", "Workstation Use"),
+                ("164.310(d)", "Device and Media"),
+                ("164.312(a)", "Access Control"),
+                ("164.312(b)", "Audit Controls"),
+                ("164.312(c)", "Integrity"),
+                ("164.312(d)", "Authentication"),
+                ("164.312(e)", "Transmission Security"),
             ],
             "gdpr": [
-                ("Art.5", "Processing Principles"), ("Art.6", "Lawful Basis"),
-                ("Art.7", "Consent Conditions"), ("Art.12", "Transparency"),
-                ("Art.15", "Right of Access"), ("Art.17", "Right to Erasure"),
-                ("Art.20", "Data Portability"), ("Art.25", "Data Protection by Design"),
-                ("Art.30", "Records of Processing"), ("Art.32", "Security of Processing"),
-                ("Art.33", "Breach Notification"), ("Art.35", "Impact Assessment"),
+                ("Art.5", "Processing Principles"),
+                ("Art.6", "Lawful Basis"),
+                ("Art.7", "Consent Conditions"),
+                ("Art.12", "Transparency"),
+                ("Art.15", "Right of Access"),
+                ("Art.17", "Right to Erasure"),
+                ("Art.20", "Data Portability"),
+                ("Art.25", "Data Protection by Design"),
+                ("Art.30", "Records of Processing"),
+                ("Art.32", "Security of Processing"),
+                ("Art.33", "Breach Notification"),
+                ("Art.35", "Impact Assessment"),
             ],
             "pci_dss": [
-                ("1.1", "Network Security"), ("2.1", "Secure Configuration"),
-                ("3.1", "Protect Stored Data"), ("3.4", "Render PAN Unreadable"),
-                ("4.1", "Encrypt Transmission"), ("6.1", "Identify Vulnerabilities"),
-                ("6.5", "Secure Coding"), ("7.1", "Restrict Access"),
-                ("8.1", "Identify Users"), ("8.2", "Authentication"),
-                ("10.1", "Audit Trails"), ("11.1", "Security Testing"),
+                ("1.1", "Network Security"),
+                ("2.1", "Secure Configuration"),
+                ("3.1", "Protect Stored Data"),
+                ("3.4", "Render PAN Unreadable"),
+                ("4.1", "Encrypt Transmission"),
+                ("6.1", "Identify Vulnerabilities"),
+                ("6.5", "Secure Coding"),
+                ("7.1", "Restrict Access"),
+                ("8.1", "Identify Users"),
+                ("8.2", "Authentication"),
+                ("10.1", "Audit Trails"),
+                ("11.1", "Security Testing"),
                 ("12.1", "Security Policy"),
             ],
         }
@@ -409,18 +461,21 @@ class EvidenceVaultService:
                 ctrl_status = "missing"
                 missing += 1
 
-            breakdown.append({
-                "control_id": control_id,
-                "control_name": control_name,
-                "status": ctrl_status,
-                "evidence_count": sum(1 for e in evidence_items if e.control_id == control_id),
-            })
+            breakdown.append(
+                {
+                    "control_id": control_id,
+                    "control_name": control_name,
+                    "status": ctrl_status,
+                    "evidence_count": sum(1 for e in evidence_items if e.control_id == control_id),
+                }
+            )
 
         total = len(controls)
         coverage = round((with_evidence + partial * 0.5) / max(total, 1) * 100, 1)
 
         # Calculate evidence freshness
         import time
+
         now = time.time()
         freshness_days: list[float] = []
         stale = 0
@@ -475,12 +530,14 @@ class EvidenceVaultService:
             ).hexdigest()
 
             if evidence.previous_hash and evidence.previous_hash != prev_hash:
-                invalid_links.append({
-                    "position": str(i),
-                    "evidence_id": str(evidence.id),
-                    "expected_prev": prev_hash[:16] + "...",
-                    "actual_prev": evidence.previous_hash[:16] + "...",
-                })
+                invalid_links.append(
+                    {
+                        "position": str(i),
+                        "evidence_id": str(evidence.id),
+                        "expected_prev": prev_hash[:16] + "...",
+                        "actual_prev": evidence.previous_hash[:16] + "...",
+                    }
+                )
                 is_valid = False
 
             prev_hash = evidence.content_hash if evidence.content_hash else expected_hash
@@ -508,25 +565,29 @@ class EvidenceVaultService:
 
         for control in coverage.control_breakdown:
             if control["status"] == "missing":
-                gaps.append(EvidenceGap(
-                    control_id=control["control_id"],
-                    control_name=control["control_name"],
-                    framework=fw_key,
-                    gap_type="missing",
-                    required_evidence_types=["scan_result", "policy_document"],
-                    remediation_suggestion=f"Upload evidence for {control['control_name']} ({control['control_id']})",
-                    priority="high",
-                ))
+                gaps.append(
+                    EvidenceGap(
+                        control_id=control["control_id"],
+                        control_name=control["control_name"],
+                        framework=fw_key,
+                        gap_type="missing",
+                        required_evidence_types=["scan_result", "policy_document"],
+                        remediation_suggestion=f"Upload evidence for {control['control_name']} ({control['control_id']})",
+                        priority="high",
+                    )
+                )
             elif control["status"] == "partial":
-                gaps.append(EvidenceGap(
-                    control_id=control["control_id"],
-                    control_name=control["control_name"],
-                    framework=fw_key,
-                    gap_type="insufficient",
-                    required_evidence_types=["test_result"],
-                    remediation_suggestion=f"Additional evidence needed for {control['control_name']}",
-                    priority="medium",
-                ))
+                gaps.append(
+                    EvidenceGap(
+                        control_id=control["control_id"],
+                        control_name=control["control_name"],
+                        framework=fw_key,
+                        gap_type="insufficient",
+                        required_evidence_types=["test_result"],
+                        remediation_suggestion=f"Additional evidence needed for {control['control_name']}",
+                        priority="medium",
+                    )
+                )
 
         gaps.sort(key=lambda g: {"high": 0, "medium": 1, "low": 2}.get(g.priority, 3))
         return gaps
@@ -549,9 +610,7 @@ class EvidenceVaultService:
         transaction_id = "0x" + hashlib.sha256(tx_data.encode()).hexdigest()
         block_number = int(hashlib.sha256(chain_hash.encode()).hexdigest()[:8], 16) % 10_000_000
 
-        anchor_hash = hashlib.sha256(
-            f"{chain_hash}:{transaction_id}".encode()
-        ).hexdigest()
+        anchor_hash = hashlib.sha256(f"{chain_hash}:{transaction_id}".encode()).hexdigest()
 
         anchor = BlockchainAnchor(
             framework=framework.value,
@@ -591,7 +650,9 @@ class EvidenceVaultService:
     # ── Batch Verification ───────────────────────────────────────────────
 
     async def verify_batch(
-        self, framework: ControlFramework, evidence_ids: list[UUID] | None = None,
+        self,
+        framework: ControlFramework,
+        evidence_ids: list[UUID] | None = None,
     ) -> BatchVerificationResult:
         """Verify multiple evidence items at once with chain and blockchain checks."""
         import time
@@ -620,11 +681,13 @@ class EvidenceVaultService:
                 expected_prev = items[chain_idx - 1].content_hash
                 if item.previous_hash and item.previous_hash != expected_prev:
                     invalid += 1
-                    invalid_items.append({
-                        "evidence_id": str(item.id),
-                        "title": item.title,
-                        "reason": "hash chain mismatch",
-                    })
+                    invalid_items.append(
+                        {
+                            "evidence_id": str(item.id),
+                            "title": item.title,
+                            "reason": "hash chain mismatch",
+                        }
+                    )
                     continue
             valid += 1
 
@@ -679,7 +742,9 @@ class EvidenceVaultService:
     # ── Audit Timeline ───────────────────────────────────────────────────
 
     async def get_audit_timeline(
-        self, framework: str | None = None, limit: int = 50,
+        self,
+        framework: str | None = None,
+        limit: int = 50,
     ) -> list[AuditTimelineEvent]:
         """Return chronological audit timeline events."""
         events = self._timeline_events

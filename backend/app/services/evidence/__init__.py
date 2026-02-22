@@ -1,30 +1,39 @@
 """Automated compliance evidence collection and multi-framework support."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
 
+from app.services.evidence.collector import (
+    EvidenceCollector as ExtendedEvidenceCollector,
+)
+from app.services.evidence.collector import (
+    get_evidence_collector as get_extended_collector,
+)
+from app.services.evidence.mapping import ControlMapper, get_control_mapper
+
 # Import new extended functionality
 from app.services.evidence.models import (
     CollectionConfig,
     Control,
-    ControlMapping as ExtendedControlMapping,
     EvidenceCollection,
     EvidenceItem,
     EvidenceReport,
-    EvidenceStatus as ExtendedEvidenceStatus,
-    EvidenceType as ExtendedEvidenceType,
     Framework,
 )
-from app.services.evidence.collector import (
-    EvidenceCollector as ExtendedEvidenceCollector,
-    get_evidence_collector as get_extended_collector,
+from app.services.evidence.models import (
+    ControlMapping as ExtendedControlMapping,
 )
-from app.services.evidence.mapping import ControlMapper, get_control_mapper
+from app.services.evidence.models import (
+    EvidenceStatus as ExtendedEvidenceStatus,
+)
+from app.services.evidence.models import (
+    EvidenceType as ExtendedEvidenceType,
+)
 from app.services.evidence.report import ReportGenerator, get_report_generator
 
 
@@ -33,30 +42,30 @@ logger = structlog.get_logger()
 
 # Re-export extended functionality
 __all__ = [
+    "CONTROL_MAPPINGS",
+    "CollectionConfig",
+    "Control",
     # Legacy exports
     "ControlFramework",
-    "EvidenceType",
-    "EvidenceStatus",
+    "ControlMapper",
     "ControlMapping",
     "Evidence",
+    "EvidenceCollection",
     "EvidenceCollector",
-    "get_evidence_collector",
-    "CONTROL_MAPPINGS",
+    "EvidenceItem",
+    "EvidenceReport",
+    "EvidenceStatus",
+    "EvidenceType",
+    "ExtendedControlMapping",
+    "ExtendedEvidenceCollector",
+    "ExtendedEvidenceStatus",
+    "ExtendedEvidenceType",
     # Extended exports
     "Framework",
-    "ExtendedEvidenceType",
-    "ExtendedEvidenceStatus",
-    "ExtendedControlMapping",
-    "Control",
-    "CollectionConfig",
-    "EvidenceItem",
-    "EvidenceCollection",
-    "EvidenceReport",
-    "ExtendedEvidenceCollector",
-    "get_extended_collector",
-    "ControlMapper",
-    "get_control_mapper",
     "ReportGenerator",
+    "get_control_mapper",
+    "get_evidence_collector",
+    "get_extended_collector",
     "get_report_generator",
 ]
 
@@ -293,10 +302,7 @@ class EvidenceCollector:
         framework: ControlFramework,
     ) -> list[ControlMapping]:
         """Get all controls mapped to a framework."""
-        return [
-            m for m in CONTROL_MAPPINGS
-            if framework in m.frameworks
-        ]
+        return [m for m in CONTROL_MAPPINGS if framework in m.frameworks]
 
     def get_control_mapping(self, control_id: str) -> ControlMapping | None:
         """Get control mapping by ID."""
@@ -404,7 +410,7 @@ class EvidenceCollector:
             raise ValueError(f"Evidence {evidence_id} not found")
 
         evidence.reviewed_by = reviewer
-        evidence.reviewed_at = datetime.utcnow()
+        evidence.reviewed_at = datetime.now(UTC)
         evidence.status = EvidenceStatus.APPROVED if approved else EvidenceStatus.DRAFT
 
         if notes:
@@ -418,10 +424,7 @@ class EvidenceCollector:
         status: EvidenceStatus | None = None,
     ) -> list[Evidence]:
         """Get all evidence for a control."""
-        evidence = [
-            e for e in self._evidence_store.values()
-            if e.control_id == control_id
-        ]
+        evidence = [e for e in self._evidence_store.values() if e.control_id == control_id]
         if status:
             evidence = [e for e in evidence if e.status == status]
         return sorted(evidence, key=lambda e: e.collected_at, reverse=True)
@@ -436,7 +439,7 @@ class EvidenceCollector:
 
         export = {
             "framework": framework.value,
-            "exported_at": datetime.utcnow().isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             "controls": [],
         }
 
@@ -446,24 +449,26 @@ class EvidenceCollector:
                 status=EvidenceStatus.APPROVED,
             )
 
-            export["controls"].append({
-                "control_id": mapping.control_id,
-                "control_name": mapping.control_name,
-                "framework_control": mapping.frameworks.get(framework),
-                "description": mapping.description,
-                "evidence_count": len(control_evidence),
-                "evidence": [
-                    {
-                        "id": str(e.id),
-                        "type": e.evidence_type.value,
-                        "title": e.title,
-                        "collected_at": e.collected_at.isoformat(),
-                        "status": e.status.value,
-                        "source": e.source,
-                    }
-                    for e in control_evidence
-                ],
-            })
+            export["controls"].append(
+                {
+                    "control_id": mapping.control_id,
+                    "control_name": mapping.control_name,
+                    "framework_control": mapping.frameworks.get(framework),
+                    "description": mapping.description,
+                    "evidence_count": len(control_evidence),
+                    "evidence": [
+                        {
+                            "id": str(e.id),
+                            "type": e.evidence_type.value,
+                            "title": e.title,
+                            "collected_at": e.collected_at.isoformat(),
+                            "status": e.status.value,
+                            "source": e.source,
+                        }
+                        for e in control_evidence
+                    ],
+                }
+            )
 
         return export
 

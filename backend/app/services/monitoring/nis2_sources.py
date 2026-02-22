@@ -256,11 +256,13 @@ class NIS2Parser:
                 if content_elem:
                     article_content = content_elem.get_text(separator="\n", strip=True)
 
-                result["articles"].append({
-                    "number": article_num,
-                    "title": article_title,
-                    "content": article_content,
-                })
+                result["articles"].append(
+                    {
+                        "number": article_num,
+                        "title": article_title,
+                        "content": article_content,
+                    }
+                )
 
         return result
 
@@ -275,12 +277,14 @@ class NIS2Parser:
             link_elem = item.select_one("a")
 
             if title_elem:
-                guidance.append({
-                    "title": title_elem.get_text(strip=True),
-                    "url": link_elem.get("href") if link_elem else None,
-                    "date": date_elem.get_text(strip=True) if date_elem else None,
-                    "type": "guidance",
-                })
+                guidance.append(
+                    {
+                        "title": title_elem.get_text(strip=True),
+                        "url": link_elem.get("href") if link_elem else None,
+                        "date": date_elem.get_text(strip=True) if date_elem else None,
+                        "type": "guidance",
+                    }
+                )
 
         return guidance
 

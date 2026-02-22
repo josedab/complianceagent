@@ -13,12 +13,12 @@ from app.services.knowledge_graph.service import KnowledgeGraphService
 
 
 __all__ = [
-    "KnowledgeGraphService",
-    "KnowledgeGraph",
-    "GraphNode",
     "GraphEdge",
+    "GraphNode",
     "GraphQuery",
     "GraphQueryResult",
+    "KnowledgeGraph",
+    "KnowledgeGraphService",
     "NodeType",
     "RelationType",
 ]

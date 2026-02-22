@@ -1,6 +1,7 @@
 """Regulatory source monitoring service."""
 
 import asyncio
+import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -52,6 +53,7 @@ class SourceBackpressure:
         # Exponential backoff: 5m, 15m, 1h, 4h, 12h, max 24h
         backoff_minutes = min(5 * (3 ** (self.consecutive_failures - 1)), 1440)
         from datetime import timedelta
+
         self.next_eligible_at = datetime.now(UTC) + timedelta(minutes=backoff_minutes)
         self.skip_count += 1
         logger.warning(
@@ -143,13 +145,11 @@ class MonitoringService:
             ).total_seconds()
 
             # Wait for next check interval or shutdown signal
-            try:
+            with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(
                     self._shutdown_event.wait(),
                     timeout=settings.monitoring_interval_hours * 3600,
                 )
-            except asyncio.TimeoutError:
-                pass
 
         self._health.is_running = False
         logger.info("Monitoring service stopped")

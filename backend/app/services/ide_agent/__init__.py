@@ -23,9 +23,8 @@ from app.services.ide_agent.models import (
     SuggestionFeedback,
 )
 
+
 __all__ = [
-    "IDEAgentService",
-    "get_ide_agent_service",
     "AgentAction",
     "AgentActionType",
     "AgentConfig",
@@ -37,9 +36,11 @@ __all__ = [
     "FeedbackRating",
     "FeedbackStats",
     "FixConfidence",
+    "IDEAgentService",
     "ProposedFix",
     "RAGSearchResult",
     "RefactorPlan",
     "RegulationEmbedding",
     "SuggestionFeedback",
+    "get_ide_agent_service",
 ]

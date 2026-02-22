@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 class NodeType(str, Enum):
     """Types of nodes in the knowledge graph."""
+
     REGULATION = "regulation"
     REQUIREMENT = "requirement"
     CONTROL = "control"
@@ -25,6 +26,7 @@ class NodeType(str, Enum):
 
 class RelationType(str, Enum):
     """Types of relationships between nodes."""
+
     CONTAINS = "contains"
     IMPLEMENTS = "implements"
     REQUIRES = "requires"
@@ -44,18 +46,19 @@ class RelationType(str, Enum):
 @dataclass
 class GraphNode:
     """Node in the knowledge graph."""
+
     id: UUID = field(default_factory=uuid4)
     node_type: NodeType = NodeType.REQUIREMENT
     name: str = ""
     description: str = ""
-    
+
     # External references
     external_id: str = ""
     source: str = ""
-    
+
     # Properties
     properties: dict = field(default_factory=dict)
-    
+
     # Metadata
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -69,15 +72,16 @@ class GraphNode:
 @dataclass
 class GraphEdge:
     """Edge (relationship) in the knowledge graph."""
+
     id: UUID = field(default_factory=uuid4)
     source_id: UUID = field(default_factory=uuid4)
     target_id: UUID = field(default_factory=uuid4)
     relation_type: RelationType = RelationType.RELATED_TO
-    
+
     # Edge properties
     weight: float = 1.0
     properties: dict = field(default_factory=dict)
-    
+
     # Metadata
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
@@ -85,25 +89,26 @@ class GraphEdge:
 @dataclass
 class KnowledgeGraph:
     """Complete knowledge graph structure."""
+
     id: UUID = field(default_factory=uuid4)
     organization_id: UUID | None = None
     name: str = ""
     description: str = ""
-    
+
     nodes: list[GraphNode] = field(default_factory=list)
     edges: list[GraphEdge] = field(default_factory=list)
-    
+
     # Index for fast lookup
     nodes_by_id: dict[UUID, GraphNode] = field(default_factory=dict)
     nodes_by_type: dict[NodeType, list[GraphNode]] = field(default_factory=dict)
-    
+
     # Statistics
     node_count: int = 0
     edge_count: int = 0
-    
+
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
-    
+
     def add_node(self, node: GraphNode) -> None:
         """Add a node to the graph."""
         self.nodes.append(node)
@@ -113,13 +118,13 @@ class KnowledgeGraph:
         self.nodes_by_type[node.node_type].append(node)
         self.node_count += 1
         self.updated_at = datetime.now(UTC)
-    
+
     def add_edge(self, edge: GraphEdge) -> None:
         """Add an edge to the graph."""
         self.edges.append(edge)
         self.edge_count += 1
         self.updated_at = datetime.now(UTC)
-    
+
     def get_neighbors(self, node_id: UUID) -> list[GraphNode]:
         """Get all nodes connected to a given node."""
         neighbor_ids = set()
@@ -134,21 +139,22 @@ class KnowledgeGraph:
 @dataclass
 class GraphQuery:
     """Query for the knowledge graph."""
+
     id: UUID = field(default_factory=uuid4)
-    
+
     # Natural language query
     natural_query: str = ""
-    
+
     # Structured query components
     node_types: list[NodeType] = field(default_factory=list)
     relation_types: list[RelationType] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     filters: dict = field(default_factory=dict)
-    
+
     # Traversal options
     max_depth: int = 3
     max_results: int = 100
-    
+
     # Starting points
     start_nodes: list[UUID] = field(default_factory=list)
 
@@ -156,18 +162,19 @@ class GraphQuery:
 @dataclass
 class GraphQueryResult:
     """Result of a graph query."""
+
     query_id: UUID = field(default_factory=uuid4)
-    
+
     # Matched subgraph
     nodes: list[GraphNode] = field(default_factory=list)
     edges: list[GraphEdge] = field(default_factory=list)
-    
+
     # Answer from AI
     natural_answer: str = ""
-    
+
     # Paths found (for path queries)
     paths: list[list[UUID]] = field(default_factory=list)
-    
+
     # Statistics
     total_nodes: int = 0
     total_edges: int = 0

@@ -1,15 +1,14 @@
 """Usage Tracking - Analytics and billing for API usage."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 import structlog
 
 from app.services.marketplace.models import (
-    APIKey,
-    PlanTier,
     PLAN_CONFIGS,
+    PlanTier,
     Subscription,
     UsageRecord,
     UsageSummary,
@@ -35,10 +34,10 @@ class UsageTracker:
     ) -> Subscription:
         """Create a new subscription."""
         plan_config = PLAN_CONFIGS.get(plan_tier, PLAN_CONFIGS[PlanTier.FREE])
-        
-        now = datetime.utcnow()
+
+        now = datetime.now(UTC)
         period_end = (now.replace(day=1) + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
-        
+
         subscription = Subscription(
             organization_id=organization_id,
             plan_tier=plan_tier,
@@ -47,15 +46,15 @@ class UsageTracker:
             current_period_end=period_end,
             monthly_price=plan_config.get("price", 0),
         )
-        
+
         self._subscriptions[organization_id] = subscription
-        
+
         logger.info(
             "Created subscription",
             organization_id=str(organization_id),
             plan=plan_tier.value,
         )
-        
+
         return subscription
 
     def get_subscription(self, organization_id: UUID) -> Subscription | None:
@@ -65,7 +64,7 @@ class UsageTracker:
     def add_usage_record(self, record: UsageRecord) -> None:
         """Add a usage record."""
         self._usage_records.append(record)
-        
+
         # Update subscription usage count
         if record.organization_id:
             sub = self._subscriptions.get(record.organization_id)
@@ -79,53 +78,52 @@ class UsageTracker:
         period_end: datetime | None = None,
     ) -> UsageSummary:
         """Get usage summary for billing period."""
-        now = datetime.utcnow()
-        
+        now = datetime.now(UTC)
+
         if not period_start:
             period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if not period_end:
             period_end = now
-        
+
         # Filter records
         records = [
-            r for r in self._usage_records
-            if r.organization_id == organization_id
-            and period_start <= r.timestamp <= period_end
+            r
+            for r in self._usage_records
+            if r.organization_id == organization_id and period_start <= r.timestamp <= period_end
         ]
-        
+
         # Aggregate
         summary = UsageSummary(
             organization_id=organization_id,
             period_start=period_start,
             period_end=period_end,
         )
-        
+
         for record in records:
             summary.total_requests += 1
-            
+
             if record.usage_type == UsageType.ANALYSIS:
                 summary.total_analyses += 1
             elif record.usage_type == UsageType.REPORT:
                 summary.total_reports += 1
-            
+
             # Track by product
             if record.product_id:
                 pid = str(record.product_id)
                 summary.by_product[pid] = summary.by_product.get(pid, 0) + 1
-        
+
         # Calculate costs
         subscription = self._subscriptions.get(organization_id)
         if subscription:
             plan_config = PLAN_CONFIGS.get(subscription.plan_tier, PLAN_CONFIGS[PlanTier.FREE])
             included = plan_config.get("monthly_requests", 0)
-            
+
             summary.included_requests = included if included > 0 else summary.total_requests
             summary.overage_requests = max(0, summary.total_requests - summary.included_requests)
             summary.estimated_cost = (
-                subscription.monthly_price +
-                summary.overage_requests * subscription.overage_rate
+                subscription.monthly_price + summary.overage_requests * subscription.overage_rate
             )
-        
+
         return summary
 
     def get_usage_analytics(
@@ -134,15 +132,15 @@ class UsageTracker:
         days: int = 30,
     ) -> dict[str, Any]:
         """Get usage analytics and trends."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         start_date = now - timedelta(days=days)
-        
+
         records = [
-            r for r in self._usage_records
-            if r.organization_id == organization_id
-            and r.timestamp >= start_date
+            r
+            for r in self._usage_records
+            if r.organization_id == organization_id and r.timestamp >= start_date
         ]
-        
+
         # Daily breakdown
         daily_usage = {}
         for record in records:
@@ -151,12 +149,12 @@ class UsageTracker:
                 daily_usage[day] = {"requests": 0, "avg_response_ms": []}
             daily_usage[day]["requests"] += 1
             daily_usage[day]["avg_response_ms"].append(record.response_time_ms)
-        
+
         # Calculate averages
         for day, data in daily_usage.items():
             times = data["avg_response_ms"]
             data["avg_response_ms"] = sum(times) / len(times) if times else 0
-        
+
         # By endpoint
         by_endpoint = {}
         for record in records:
@@ -165,18 +163,18 @@ class UsageTracker:
             by_endpoint[record.endpoint]["count"] += 1
             if record.status_code >= 400:
                 by_endpoint[record.endpoint]["errors"] += 1
-        
+
         # Top endpoints
         top_endpoints = sorted(
             by_endpoint.items(),
             key=lambda x: x[1]["count"],
             reverse=True,
         )[:10]
-        
+
         # Error rate
         total_errors = sum(1 for r in records if r.status_code >= 400)
         error_rate = (total_errors / len(records) * 100) if records else 0
-        
+
         return {
             "organization_id": str(organization_id),
             "period_days": days,
@@ -200,48 +198,52 @@ class UsageTracker:
         year: int | None = None,
     ) -> dict[str, Any]:
         """Generate billing invoice for a month."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         month = month or now.month
         year = year or now.year
-        
-        period_start = datetime(year, month, 1)
+
+        period_start = datetime(year, month, 1, tzinfo=UTC)
         if month == 12:
-            period_end = datetime(year + 1, 1, 1) - timedelta(seconds=1)
+            period_end = datetime(year + 1, 1, 1, tzinfo=UTC) - timedelta(seconds=1)
         else:
-            period_end = datetime(year, month + 1, 1) - timedelta(seconds=1)
-        
+            period_end = datetime(year, month + 1, 1, tzinfo=UTC) - timedelta(seconds=1)
+
         summary = self.get_usage_summary(
             organization_id=organization_id,
             period_start=period_start,
             period_end=period_end,
         )
-        
+
         subscription = self._subscriptions.get(organization_id)
-        
+
         line_items = []
-        
+
         # Base subscription
         if subscription:
-            line_items.append({
-                "description": f"{subscription.plan_tier.value.title()} Plan",
-                "quantity": 1,
-                "unit_price": subscription.monthly_price,
-                "total": subscription.monthly_price,
-            })
-        
+            line_items.append(
+                {
+                    "description": f"{subscription.plan_tier.value.title()} Plan",
+                    "quantity": 1,
+                    "unit_price": subscription.monthly_price,
+                    "total": subscription.monthly_price,
+                }
+            )
+
         # Overage
         if summary.overage_requests > 0:
             overage_rate = subscription.overage_rate if subscription else 0.01
             overage_total = summary.overage_requests * overage_rate
-            line_items.append({
-                "description": f"API Overage ({summary.overage_requests:,} requests)",
-                "quantity": summary.overage_requests,
-                "unit_price": overage_rate,
-                "total": overage_total,
-            })
-        
+            line_items.append(
+                {
+                    "description": f"API Overage ({summary.overage_requests:,} requests)",
+                    "quantity": summary.overage_requests,
+                    "unit_price": overage_rate,
+                    "total": overage_total,
+                }
+            )
+
         total = sum(item["total"] for item in line_items)
-        
+
         return {
             "organization_id": str(organization_id),
             "invoice_period": f"{year}-{month:02d}",

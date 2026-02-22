@@ -1,14 +1,26 @@
 """Compliance Health Score API service."""
 
+from app.services.health_score.badge import (
+    BadgeGenerator,
+    get_badge_generator,
+)
+from app.services.health_score.calculator import (
+    ScoreCalculator,
+    get_score_calculator,
+)
+from app.services.health_score.cicd import (
+    CICDIntegrationService,
+    get_cicd_service,
+)
 from app.services.health_score.models import (
+    DEFAULT_WEIGHTS,
+    GRADE_THRESHOLDS,
     Badge,
     BadgeConfig,
     BadgeStyle,
     CategoryScore,
     CICDIntegration,
     CICDResult,
-    DEFAULT_WEIGHTS,
-    GRADE_THRESHOLDS,
     HealthScore,
     ScoreCategory,
     ScoreGrade,
@@ -17,43 +29,32 @@ from app.services.health_score.models import (
     score_to_color,
     score_to_grade,
 )
-from app.services.health_score.calculator import (
-    ScoreCalculator,
-    get_score_calculator,
-)
-from app.services.health_score.badge import (
-    BadgeGenerator,
-    get_badge_generator,
-)
-from app.services.health_score.cicd import (
-    CICDIntegrationService,
-    get_cicd_service,
-)
+
 
 __all__ = [
+    "DEFAULT_WEIGHTS",
+    "GRADE_THRESHOLDS",
     # Models
     "Badge",
     "BadgeConfig",
+    # Badge
+    "BadgeGenerator",
     "BadgeStyle",
-    "CategoryScore",
     "CICDIntegration",
+    # CI/CD
+    "CICDIntegrationService",
     "CICDResult",
-    "DEFAULT_WEIGHTS",
-    "GRADE_THRESHOLDS",
+    "CategoryScore",
     "HealthScore",
+    # Calculator
+    "ScoreCalculator",
     "ScoreCategory",
     "ScoreGrade",
     "ScoreHistory",
     "TrendDirection",
+    "get_badge_generator",
+    "get_cicd_service",
+    "get_score_calculator",
     "score_to_color",
     "score_to_grade",
-    # Calculator
-    "ScoreCalculator",
-    "get_score_calculator",
-    # Badge
-    "BadgeGenerator",
-    "get_badge_generator",
-    # CI/CD
-    "CICDIntegrationService",
-    "get_cicd_service",
 ]

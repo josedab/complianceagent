@@ -234,23 +234,41 @@ class PrivacyConfig(BaseModel):
     """Differential privacy and anonymization settings for the network."""
 
     # Differential privacy
-    epsilon: float = Field(default=1.0, ge=0.01, le=10.0, description="Privacy budget (lower = more private)")
+    epsilon: float = Field(
+        default=1.0, ge=0.01, le=10.0, description="Privacy budget (lower = more private)"
+    )
     delta: float = Field(default=1e-5, ge=0.0, le=0.1, description="Probability of privacy breach")
-    noise_mechanism: str = Field(default="laplace", description="Noise mechanism: laplace or gaussian")
+    noise_mechanism: str = Field(
+        default="laplace", description="Noise mechanism: laplace or gaussian"
+    )
 
     # Anonymization
-    k_anonymity: int = Field(default=5, ge=2, le=100, description="Minimum group size for k-anonymity")
-    suppress_small_groups: bool = Field(default=True, description="Suppress groups below k-anonymity threshold")
-    generalize_locations: bool = Field(default=True, description="Generalize locations to region level")
+    k_anonymity: int = Field(
+        default=5, ge=2, le=100, description="Minimum group size for k-anonymity"
+    )
+    suppress_small_groups: bool = Field(
+        default=True, description="Suppress groups below k-anonymity threshold"
+    )
+    generalize_locations: bool = Field(
+        default=True, description="Generalize locations to region level"
+    )
     hash_contributor_ids: bool = Field(default=True, description="Hash contributor identifiers")
 
     # Data retention
-    retention_days: int = Field(default=365, ge=30, le=3650, description="Days to retain shared intelligence")
-    auto_expire_threats: bool = Field(default=True, description="Auto-expire threats after retention period")
+    retention_days: int = Field(
+        default=365, ge=30, le=3650, description="Days to retain shared intelligence"
+    )
+    auto_expire_threats: bool = Field(
+        default=True, description="Auto-expire threats after retention period"
+    )
 
     # Consent
-    require_explicit_consent: bool = Field(default=True, description="Require explicit consent before sharing")
-    allow_opt_out: bool = Field(default=True, description="Allow members to opt out of data sharing")
+    require_explicit_consent: bool = Field(
+        default=True, description="Require explicit consent before sharing"
+    )
+    allow_opt_out: bool = Field(
+        default=True, description="Allow members to opt out of data sharing"
+    )
     data_minimization: bool = Field(default=True, description="Only share minimum necessary data")
 
 
@@ -358,6 +376,7 @@ INITIAL_PATTERNS: list[dict[str, Any]] = [
 @dataclass
 class ContributorScore:
     """Reputation score for a network contributor."""
+
     member_id: UUID = field(default_factory=uuid4)
     organization_name: str = ""
     total_contributions: int = 0
@@ -371,6 +390,7 @@ class ContributorScore:
 @dataclass
 class ComparativeInsight:
     """'Companies like yours' comparative insight."""
+
     insight_id: UUID = field(default_factory=uuid4)
     metric_name: str = ""
     your_value: float = 0.0
@@ -385,6 +405,7 @@ class ComparativeInsight:
 @dataclass
 class NetworkHealthMetrics:
     """Health metrics for the federated network."""
+
     total_members: int = 0
     active_members_30d: int = 0
     total_threats_shared: int = 0

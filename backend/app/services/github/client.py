@@ -14,6 +14,7 @@ logger = structlog.get_logger()
 @dataclass
 class GitHubFile:
     """A file from GitHub."""
+
     path: str
     content: str
     sha: str
@@ -24,6 +25,7 @@ class GitHubFile:
 @dataclass
 class GitHubPR:
     """A GitHub pull request."""
+
     number: int
     url: str
     html_url: str
@@ -154,9 +156,7 @@ class GitHubClient:
         repo_info = await self.get_repository(owner, repo)
         default_branch = repo_info["default_branch"]
 
-        response = await self._client.get(
-            f"/repos/{owner}/{repo}/git/ref/heads/{default_branch}"
-        )
+        response = await self._client.get(f"/repos/{owner}/{repo}/git/ref/heads/{default_branch}")
         response.raise_for_status()
         return response.json()["object"]["sha"]
 
@@ -244,9 +244,7 @@ class GitHubClient:
         pr_number: int,
     ) -> GitHubPR:
         """Get pull request details."""
-        response = await self._client.get(
-            f"/repos/{owner}/{repo}/pulls/{pr_number}"
-        )
+        response = await self._client.get(f"/repos/{owner}/{repo}/pulls/{pr_number}")
         response.raise_for_status()
         data = response.json()
 

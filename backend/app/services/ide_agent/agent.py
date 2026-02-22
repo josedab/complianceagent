@@ -146,7 +146,7 @@ class IDEAgentService:
                 # Use Copilot to analyze code
                 analysis_prompt = f"""Analyze the following {language} code for compliance violations.
 
-Regulations to check: {', '.join(active_regulations)}
+Regulations to check: {", ".join(active_regulations)}
 
 Code:
 ```{language}
@@ -210,7 +210,7 @@ Format as JSON array."""
         import re
 
         # Find JSON array in response
-        json_match = re.search(r'\[[\s\S]*\]', response)
+        json_match = re.search(r"\[[\s\S]*\]", response)
         if json_match:
             try:
                 parsed = json.loads(json_match.group())
@@ -223,17 +223,19 @@ Format as JSON array."""
                             end_line=v.get("end_line", v.get("start_line", 1)),
                         )
 
-                    violations.append(ComplianceViolation(
-                        rule_id=v.get("rule_id", "UNKNOWN"),
-                        rule_name=v.get("rule_name", "Unknown Rule"),
-                        regulation=v.get("regulation", "Unknown"),
-                        article_reference=v.get("article_reference"),
-                        severity=v.get("severity", "warning"),
-                        message=v.get("message", "Compliance violation detected"),
-                        location=location,
-                        original_code=self._extract_code_segment(code, location),
-                        confidence=v.get("confidence", 0.5),
-                    ))
+                    violations.append(
+                        ComplianceViolation(
+                            rule_id=v.get("rule_id", "UNKNOWN"),
+                            rule_name=v.get("rule_name", "Unknown Rule"),
+                            regulation=v.get("regulation", "Unknown"),
+                            article_reference=v.get("article_reference"),
+                            severity=v.get("severity", "warning"),
+                            message=v.get("message", "Compliance violation detected"),
+                            location=location,
+                            original_code=self._extract_code_segment(code, location),
+                            confidence=v.get("confidence", 0.5),
+                        )
+                    )
             except json.JSONDecodeError:
                 logger.warning("Failed to parse violations JSON")
 
@@ -323,7 +325,7 @@ Format as JSON."""
         import re
 
         # Find JSON in response
-        json_match = re.search(r'\{[\s\S]*\}', response)
+        json_match = re.search(r"\{[\s\S]*\}", response)
         if json_match:
             try:
                 parsed = json.loads(json_match.group())
@@ -373,7 +375,9 @@ Format as JSON."""
                 file_violations[path].append(v)
 
         # Map fixes to files
-        fix_by_violation: dict[UUID, ProposedFix] = {f.violation_id: f for f in fixes if f.violation_id}
+        fix_by_violation: dict[UUID, ProposedFix] = {
+            f.violation_id: f for f in fixes if f.violation_id
+        }
 
         for path, path_violations in file_violations.items():
             plan.changes_by_file[path] = []
@@ -462,20 +466,24 @@ Format as JSON."""
 
             if dry_run:
                 # In dry run, just report what would happen
-                results["applied_fixes"].append({
-                    "fix_id": str(fix.id),
-                    "violation_id": str(fix.violation_id),
-                    "confidence": fix.confidence.value,
-                    "would_apply": True,
-                })
+                results["applied_fixes"].append(
+                    {
+                        "fix_id": str(fix.id),
+                        "violation_id": str(fix.violation_id),
+                        "confidence": fix.confidence.value,
+                        "would_apply": True,
+                    }
+                )
             else:
                 # Actually apply the fix
                 # In a real implementation, this would write to files
-                results["applied_fixes"].append({
-                    "fix_id": str(fix.id),
-                    "violation_id": str(fix.violation_id),
-                    "applied": True,
-                })
+                results["applied_fixes"].append(
+                    {
+                        "fix_id": str(fix.id),
+                        "violation_id": str(fix.violation_id),
+                        "applied": True,
+                    }
+                )
 
             results["fixes_applied"] += 1
 
@@ -552,7 +560,7 @@ Format as JSON."""
             )
 
             # Create refactor plan
-            plan = await self.create_refactor_plan(
+            await self.create_refactor_plan(
                 session=session,
                 violations=violations,
                 fixes=fixes,
@@ -647,40 +655,122 @@ Format as JSON."""
 
     async def _build_regulation_corpus(self) -> None:
         """Build in-memory regulation corpus for RAG search."""
-        if hasattr(self, '_regulation_corpus') and self._regulation_corpus:
+        if hasattr(self, "_regulation_corpus") and self._regulation_corpus:
             return
 
         self._regulation_corpus: list[RegulationEmbedding] = []
         regulations_data = [
-            {"regulation": "GDPR", "article": "Art. 5", "text": "Personal data shall be processed lawfully, fairly and in a transparent manner in relation to the data subject."},
-            {"regulation": "GDPR", "article": "Art. 6", "text": "Processing shall be lawful only if and to the extent that at least one legal basis applies including consent of the data subject."},
-            {"regulation": "GDPR", "article": "Art. 17", "text": "The data subject shall have the right to obtain from the controller the erasure of personal data without undue delay (right to be forgotten)."},
-            {"regulation": "GDPR", "article": "Art. 25", "text": "The controller shall implement appropriate technical and organisational measures for ensuring data protection by design and by default."},
-            {"regulation": "GDPR", "article": "Art. 32", "text": "The controller and processor shall implement appropriate technical measures to ensure a level of security appropriate to the risk, including encryption and pseudonymisation."},
-            {"regulation": "GDPR", "article": "Art. 33", "text": "In the case of a personal data breach, the controller shall notify the supervisory authority within 72 hours."},
-            {"regulation": "CCPA", "article": "§1798.100", "text": "A consumer shall have the right to request that a business disclose what personal information it collects, uses, and sells."},
-            {"regulation": "CCPA", "article": "§1798.105", "text": "A consumer shall have the right to request the deletion of personal information collected by the business."},
-            {"regulation": "CCPA", "article": "§1798.120", "text": "A consumer shall have the right to opt-out of the sale of personal information by the business."},
-            {"regulation": "HIPAA", "article": "§164.312(a)", "text": "Implement technical policies and procedures for electronic information systems that maintain ePHI to allow access only to authorized persons."},
-            {"regulation": "HIPAA", "article": "§164.312(e)", "text": "Implement technical security measures to guard against unauthorized access to ePHI transmitted over electronic communications networks."},
-            {"regulation": "HIPAA", "article": "§164.308(a)(5)", "text": "Implement a security awareness and training program for all members of the workforce including management."},
-            {"regulation": "EU AI Act", "article": "Art. 9", "text": "High-risk AI systems shall be developed on the basis of a risk management system that is continuously iterated throughout the lifecycle."},
-            {"regulation": "EU AI Act", "article": "Art. 10", "text": "High-risk AI systems shall be developed using training, validation and testing data sets that meet quality criteria."},
-            {"regulation": "EU AI Act", "article": "Art. 13", "text": "High-risk AI systems shall be designed and developed to ensure their operation is sufficiently transparent to enable users to interpret outputs."},
-            {"regulation": "SOC2", "article": "CC6.1", "text": "The entity implements logical access security software, infrastructure, and architectures over protected information assets."},
-            {"regulation": "SOC2", "article": "CC6.7", "text": "The entity restricts the transmission, movement, and removal of information to authorized users and processes."},
-            {"regulation": "PCI-DSS", "article": "Req. 3.4", "text": "Render PAN unreadable anywhere it is stored using cryptography, truncation, masking, or hashing."},
-            {"regulation": "PCI-DSS", "article": "Req. 6.5", "text": "Address common coding vulnerabilities in software development processes including injection flaws, buffer overflows, and cross-site scripting."},
-            {"regulation": "PCI-DSS", "article": "Req. 8.2", "text": "Employ at least one method of authentication to authenticate all users: password, token device, or biometric."},
+            {
+                "regulation": "GDPR",
+                "article": "Art. 5",
+                "text": "Personal data shall be processed lawfully, fairly and in a transparent manner in relation to the data subject.",
+            },
+            {
+                "regulation": "GDPR",
+                "article": "Art. 6",
+                "text": "Processing shall be lawful only if and to the extent that at least one legal basis applies including consent of the data subject.",
+            },
+            {
+                "regulation": "GDPR",
+                "article": "Art. 17",
+                "text": "The data subject shall have the right to obtain from the controller the erasure of personal data without undue delay (right to be forgotten).",
+            },
+            {
+                "regulation": "GDPR",
+                "article": "Art. 25",
+                "text": "The controller shall implement appropriate technical and organisational measures for ensuring data protection by design and by default.",
+            },
+            {
+                "regulation": "GDPR",
+                "article": "Art. 32",
+                "text": "The controller and processor shall implement appropriate technical measures to ensure a level of security appropriate to the risk, including encryption and pseudonymisation.",
+            },
+            {
+                "regulation": "GDPR",
+                "article": "Art. 33",
+                "text": "In the case of a personal data breach, the controller shall notify the supervisory authority within 72 hours.",
+            },
+            {
+                "regulation": "CCPA",
+                "article": "§1798.100",
+                "text": "A consumer shall have the right to request that a business disclose what personal information it collects, uses, and sells.",
+            },
+            {
+                "regulation": "CCPA",
+                "article": "§1798.105",
+                "text": "A consumer shall have the right to request the deletion of personal information collected by the business.",
+            },
+            {
+                "regulation": "CCPA",
+                "article": "§1798.120",
+                "text": "A consumer shall have the right to opt-out of the sale of personal information by the business.",
+            },
+            {
+                "regulation": "HIPAA",
+                "article": "§164.312(a)",
+                "text": "Implement technical policies and procedures for electronic information systems that maintain ePHI to allow access only to authorized persons.",
+            },
+            {
+                "regulation": "HIPAA",
+                "article": "§164.312(e)",
+                "text": "Implement technical security measures to guard against unauthorized access to ePHI transmitted over electronic communications networks.",
+            },
+            {
+                "regulation": "HIPAA",
+                "article": "§164.308(a)(5)",
+                "text": "Implement a security awareness and training program for all members of the workforce including management.",
+            },
+            {
+                "regulation": "EU AI Act",
+                "article": "Art. 9",
+                "text": "High-risk AI systems shall be developed on the basis of a risk management system that is continuously iterated throughout the lifecycle.",
+            },
+            {
+                "regulation": "EU AI Act",
+                "article": "Art. 10",
+                "text": "High-risk AI systems shall be developed using training, validation and testing data sets that meet quality criteria.",
+            },
+            {
+                "regulation": "EU AI Act",
+                "article": "Art. 13",
+                "text": "High-risk AI systems shall be designed and developed to ensure their operation is sufficiently transparent to enable users to interpret outputs.",
+            },
+            {
+                "regulation": "SOC2",
+                "article": "CC6.1",
+                "text": "The entity implements logical access security software, infrastructure, and architectures over protected information assets.",
+            },
+            {
+                "regulation": "SOC2",
+                "article": "CC6.7",
+                "text": "The entity restricts the transmission, movement, and removal of information to authorized users and processes.",
+            },
+            {
+                "regulation": "PCI-DSS",
+                "article": "Req. 3.4",
+                "text": "Render PAN unreadable anywhere it is stored using cryptography, truncation, masking, or hashing.",
+            },
+            {
+                "regulation": "PCI-DSS",
+                "article": "Req. 6.5",
+                "text": "Address common coding vulnerabilities in software development processes including injection flaws, buffer overflows, and cross-site scripting.",
+            },
+            {
+                "regulation": "PCI-DSS",
+                "article": "Req. 8.2",
+                "text": "Employ at least one method of authentication to authenticate all users: password, token device, or biometric.",
+            },
         ]
 
         for reg in regulations_data:
-            self._regulation_corpus.append(RegulationEmbedding(
-                regulation=reg["regulation"],
-                article=reg["article"],
-                text=reg["text"],
-                metadata={"source": "built_in_corpus"},
-            ))
+            self._regulation_corpus.append(
+                RegulationEmbedding(
+                    regulation=reg["regulation"],
+                    article=reg["article"],
+                    text=reg["text"],
+                    metadata={"source": "built_in_corpus"},
+                )
+            )
 
     async def search_regulations(
         self,
@@ -742,7 +832,7 @@ Format as JSON."""
         user_id: UUID | None = None,
     ) -> SuggestionFeedback:
         """Record feedback on a suggestion."""
-        if not hasattr(self, '_feedback_store'):
+        if not hasattr(self, "_feedback_store"):
             self._feedback_store: list[SuggestionFeedback] = []
 
         feedback = SuggestionFeedback(
@@ -766,7 +856,7 @@ Format as JSON."""
 
     def get_feedback_stats(self) -> FeedbackStats:
         """Get aggregated feedback statistics."""
-        if not hasattr(self, '_feedback_store'):
+        if not hasattr(self, "_feedback_store"):
             self._feedback_store: list[SuggestionFeedback] = []
 
         store = self._feedback_store

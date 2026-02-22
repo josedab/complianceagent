@@ -156,7 +156,9 @@ class CodeGenerationService:
                     "reference_id": requirement.reference_id,
                     "title": requirement.title,
                     "description": requirement.description,
-                    "regulation_name": requirement.regulation.name if requirement.regulation else "Unknown",
+                    "regulation_name": requirement.regulation.name
+                    if requirement.regulation
+                    else "Unknown",
                 },
                 gaps=gaps,
                 existing_code=existing_code,
@@ -176,7 +178,9 @@ class CodeGenerationService:
         """Format gaps for prompt."""
         lines = []
         for i, gap in enumerate(gaps, 1):
-            lines.append(f"{i}. [{gap.get('severity', 'unknown').upper()}] {gap.get('description', 'No description')}")
+            lines.append(
+                f"{i}. [{gap.get('severity', 'unknown').upper()}] {gap.get('description', 'No description')}"
+            )
             if gap.get("file_path"):
                 lines.append(f"   Location: {gap['file_path']}")
             if gap.get("suggestion"):
@@ -189,7 +193,9 @@ class CodeGenerationService:
             return "No specific citations"
         parts = []
         for c in citations:
-            parts.append(f"{c.get('article', '')} {c.get('section', '')} {c.get('paragraph', '')}".strip())
+            parts.append(
+                f"{c.get('article', '')} {c.get('section', '')} {c.get('paragraph', '')}".strip()
+            )
         return ", ".join(parts)
 
     def _format_existing_code(self, code: dict[str, str]) -> str:

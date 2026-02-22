@@ -24,15 +24,15 @@ __all__ = [
     "CompliancePattern",
     "ComplianceThreat",
     "ContributorScore",
-    # Network
     "FederatedIntelligenceNetwork",
     "FederatedNetwork",
     "IntelligenceReport",
     "IntelligenceType",
     "NetworkHealthMetrics",
     "NetworkMember",
+    "PrivacyConfig",
+    "Severity",
     "SharingLevel",
-    # Models
     "ThreatCategory",
     "get_federated_network",
 ]

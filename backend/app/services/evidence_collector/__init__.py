@@ -13,12 +13,13 @@ from app.services.evidence_collector.service import EvidenceCollectorService
 
 
 __all__ = [
-    "EvidenceCollectorService",
-    "EvidenceItem",
-    "EvidenceType",
-    "EvidenceSource",
-    "ControlMapping",
-    "ControlEvidence",
     "AuditPackage",
     "AuditPackageStatus",
+    "CollectionTask",
+    "ControlEvidence",
+    "ControlMapping",
+    "EvidenceCollectorService",
+    "EvidenceItem",
+    "EvidenceSource",
+    "EvidenceType",
 ]

@@ -1,25 +1,31 @@
 """Real-Time Regulatory Intelligence Feed service."""
 
 from app.services.intelligence.feed import IntelligenceFeed
-from app.services.intelligence.relevance import RelevanceScorer
-from app.services.intelligence.notifications import NotificationService
 from app.services.intelligence.models import (
-    RegulatoryUpdate,
-    RelevanceScore,
+    IntelligenceAlert,
     NotificationChannel,
     NotificationPreference,
-    IntelligenceAlert,
+    RegulatoryUpdate,
+    RelevanceScore,
     UpdateSeverity,
 )
+from app.services.intelligence.notifications import NotificationService
+from app.services.intelligence.relevance import RelevanceScorer
+
 
 __all__ = [
+    "CustomerProfile",
+    "IntelligenceAlert",
+    "IntelligenceDigest",
     "IntelligenceFeed",
-    "RelevanceScorer",
+    "NotificationChannel",
+    "NotificationFrequency",
+    "NotificationPreference",
     "NotificationService",
+    "RegulatorySource",
     "RegulatoryUpdate",
     "RelevanceScore",
-    "NotificationChannel",
-    "NotificationPreference",
-    "IntelligenceAlert",
+    "RelevanceScorer",
     "UpdateSeverity",
+    "UpdateType",
 ]

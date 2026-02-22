@@ -23,45 +23,153 @@ logger = structlog.get_logger()
 # Realistic benchmark data for industries
 _INDUSTRY_BENCHMARKS: dict[str, PeerBenchmark] = {
     "saas": PeerBenchmark(
-        peer_group="saas_all", company_size=CompanySize.MEDIUM, industry="saas",
-        sample_size=520, avg_score=74.8, median_score=76.0,
-        p25=62.0, p50=76.0, p75=86.0, p90=93.0,
-        grade_distribution={"A+": 8, "A": 35, "A-": 52, "B+": 78, "B": 105, "B-": 82, "C+": 65, "C": 48, "D": 30, "F": 17},
+        peer_group="saas_all",
+        company_size=CompanySize.MEDIUM,
+        industry="saas",
+        sample_size=520,
+        avg_score=74.8,
+        median_score=76.0,
+        p25=62.0,
+        p50=76.0,
+        p75=86.0,
+        p90=93.0,
+        grade_distribution={
+            "A+": 8,
+            "A": 35,
+            "A-": 52,
+            "B+": 78,
+            "B": 105,
+            "B-": 82,
+            "C+": 65,
+            "C": 48,
+            "D": 30,
+            "F": 17,
+        },
         top_gaps=["vendor_management", "incident_response", "documentation"],
     ),
     "fintech": PeerBenchmark(
-        peer_group="fintech_all", company_size=CompanySize.MEDIUM, industry="fintech",
-        sample_size=280, avg_score=79.2, median_score=81.0,
-        p25=68.0, p50=81.0, p75=89.0, p90=95.0,
-        grade_distribution={"A+": 12, "A": 28, "A-": 40, "B+": 55, "B": 62, "B-": 35, "C+": 22, "C": 14, "D": 8, "F": 4},
+        peer_group="fintech_all",
+        company_size=CompanySize.MEDIUM,
+        industry="fintech",
+        sample_size=280,
+        avg_score=79.2,
+        median_score=81.0,
+        p25=68.0,
+        p50=81.0,
+        p75=89.0,
+        p90=95.0,
+        grade_distribution={
+            "A+": 12,
+            "A": 28,
+            "A-": 40,
+            "B+": 55,
+            "B": 62,
+            "B-": 35,
+            "C+": 22,
+            "C": 14,
+            "D": 8,
+            "F": 4,
+        },
         top_gaps=["regulatory_coverage", "documentation", "data_privacy"],
     ),
     "healthtech": PeerBenchmark(
-        peer_group="healthtech_all", company_size=CompanySize.MEDIUM, industry="healthtech",
-        sample_size=195, avg_score=72.4, median_score=74.0,
-        p25=58.0, p50=74.0, p75=84.0, p90=91.0,
-        grade_distribution={"A+": 5, "A": 18, "A-": 28, "B+": 38, "B": 42, "B-": 28, "C+": 18, "C": 10, "D": 5, "F": 3},
+        peer_group="healthtech_all",
+        company_size=CompanySize.MEDIUM,
+        industry="healthtech",
+        sample_size=195,
+        avg_score=72.4,
+        median_score=74.0,
+        p25=58.0,
+        p50=74.0,
+        p75=84.0,
+        p90=91.0,
+        grade_distribution={
+            "A+": 5,
+            "A": 18,
+            "A-": 28,
+            "B+": 38,
+            "B": 42,
+            "B-": 28,
+            "C+": 18,
+            "C": 10,
+            "D": 5,
+            "F": 3,
+        },
         top_gaps=["access_control", "vendor_management", "incident_response"],
     ),
     "ecommerce": PeerBenchmark(
-        peer_group="ecommerce_all", company_size=CompanySize.MEDIUM, industry="ecommerce",
-        sample_size=340, avg_score=69.5, median_score=71.0,
-        p25=55.0, p50=71.0, p75=82.0, p90=89.0,
-        grade_distribution={"A+": 6, "A": 22, "A-": 34, "B+": 48, "B": 72, "B-": 58, "C+": 45, "C": 30, "D": 16, "F": 9},
+        peer_group="ecommerce_all",
+        company_size=CompanySize.MEDIUM,
+        industry="ecommerce",
+        sample_size=340,
+        avg_score=69.5,
+        median_score=71.0,
+        p25=55.0,
+        p50=71.0,
+        p75=82.0,
+        p90=89.0,
+        grade_distribution={
+            "A+": 6,
+            "A": 22,
+            "A-": 34,
+            "B+": 48,
+            "B": 72,
+            "B-": 58,
+            "C+": 45,
+            "C": 30,
+            "D": 16,
+            "F": 9,
+        },
         top_gaps=["data_privacy", "security_controls", "regulatory_coverage"],
     ),
     "govtech": PeerBenchmark(
-        peer_group="govtech_all", company_size=CompanySize.LARGE, industry="govtech",
-        sample_size=110, avg_score=76.8, median_score=78.0,
-        p25=64.0, p50=78.0, p75=87.0, p90=93.0,
-        grade_distribution={"A+": 4, "A": 12, "A-": 18, "B+": 22, "B": 24, "B-": 14, "C+": 8, "C": 5, "D": 2, "F": 1},
+        peer_group="govtech_all",
+        company_size=CompanySize.LARGE,
+        industry="govtech",
+        sample_size=110,
+        avg_score=76.8,
+        median_score=78.0,
+        p25=64.0,
+        p50=78.0,
+        p75=87.0,
+        p90=93.0,
+        grade_distribution={
+            "A+": 4,
+            "A": 12,
+            "A-": 18,
+            "B+": 22,
+            "B": 24,
+            "B-": 14,
+            "C+": 8,
+            "C": 5,
+            "D": 2,
+            "F": 1,
+        },
         top_gaps=["vendor_management", "documentation", "incident_response"],
     ),
     "edtech": PeerBenchmark(
-        peer_group="edtech_all", company_size=CompanySize.SMALL, industry="edtech",
-        sample_size=150, avg_score=66.2, median_score=68.0,
-        p25=52.0, p50=68.0, p75=79.0, p90=87.0,
-        grade_distribution={"A+": 3, "A": 10, "A-": 16, "B+": 24, "B": 32, "B-": 25, "C+": 18, "C": 12, "D": 7, "F": 3},
+        peer_group="edtech_all",
+        company_size=CompanySize.SMALL,
+        industry="edtech",
+        sample_size=150,
+        avg_score=66.2,
+        median_score=68.0,
+        p25=52.0,
+        p50=68.0,
+        p75=79.0,
+        p90=87.0,
+        grade_distribution={
+            "A+": 3,
+            "A": 10,
+            "A-": 16,
+            "B+": 24,
+            "B": 32,
+            "B-": 25,
+            "C+": 18,
+            "C": 12,
+            "D": 7,
+            "F": 3,
+        },
         top_gaps=["security_controls", "access_control", "regulatory_coverage"],
     ),
 }
@@ -114,10 +222,7 @@ class HealthBenchmarkingService:
     ) -> HealthScore:
         """Compute the current compliance health score for an organization."""
         dimensions = dict(_DEFAULT_DIMENSIONS)
-        overall = sum(
-            dimensions[dim] * _DIMENSION_WEIGHTS.get(dim, 0.1)
-            for dim in dimensions
-        )
+        overall = sum(dimensions[dim] * _DIMENSION_WEIGHTS.get(dim, 0.1) for dim in dimensions)
         overall = round(overall, 1)
         grade = self._grade_from_score(overall)
 
@@ -249,7 +354,7 @@ class HealthBenchmarkingService:
         if not benchmark:
             raise ValueError(f"No benchmark data for industry: {industry}")
 
-        _LEADERBOARD_SEEDS = [
+        leaderboard_seeds = [
             (96.2, ComplianceGrade.A_PLUS, "up"),
             (94.1, ComplianceGrade.A, "stable"),
             (92.8, ComplianceGrade.A, "up"),
@@ -273,15 +378,17 @@ class HealthBenchmarkingService:
         ]
 
         entries = []
-        for i, (score, grade, trend) in enumerate(_LEADERBOARD_SEEDS[:limit], start=1):
-            entries.append(LeaderboardEntry(
-                rank=i,
-                org_name_anonymized=f"Company-{industry[:3].upper()}-{i:03d}",
-                industry=industry,
-                score=score,
-                grade=grade,
-                trend=trend,
-            ))
+        for i, (score, grade, trend) in enumerate(leaderboard_seeds[:limit], start=1):
+            entries.append(
+                LeaderboardEntry(
+                    rank=i,
+                    org_name_anonymized=f"Company-{industry[:3].upper()}-{i:03d}",
+                    industry=industry,
+                    score=score,
+                    grade=grade,
+                    trend=trend,
+                )
+            )
 
         logger.info("Leaderboard generated", industry=industry, entries=len(entries))
         return entries
@@ -352,7 +459,11 @@ class HealthBenchmarkingService:
     ) -> list[ImprovementSuggestion]:
         """Generate a personalized improvement plan to reach a target grade."""
         target_min = {
-            "A+": 95, "A": 90, "A-": 85, "B+": 80, "B": 75,
+            "A+": 95,
+            "A": 90,
+            "A-": 85,
+            "B+": 80,
+            "B": 75,
         }.get(target_grade, 90)
 
         suggestions: list[ImprovementSuggestion] = []
@@ -368,20 +479,28 @@ class HealthBenchmarkingService:
 
             impact = f"+{gap * _DIMENSION_WEIGHTS.get(dim, 0.1):.1f} pts overall"
 
-            suggestions.append(ImprovementSuggestion(
-                dimension=dim,
-                current_score=current,
-                target_score=target,
-                impact_on_grade=impact,
-                effort=effort,
-                actions=actions,
-            ))
+            suggestions.append(
+                ImprovementSuggestion(
+                    dimension=dim,
+                    current_score=current,
+                    target_score=target,
+                    impact_on_grade=impact,
+                    effort=effort,
+                    actions=actions,
+                )
+            )
 
         suggestions.sort(
-            key=lambda s: (s.target_score - s.current_score) * _DIMENSION_WEIGHTS.get(s.dimension, 0.1),
+            key=lambda s: (s.target_score - s.current_score)
+            * _DIMENSION_WEIGHTS.get(s.dimension, 0.1),
             reverse=True,
         )
-        logger.info("Improvement plan generated", org_id=org_id, target_grade=target_grade, items=len(suggestions))
+        logger.info(
+            "Improvement plan generated",
+            org_id=org_id,
+            target_grade=target_grade,
+            items=len(suggestions),
+        )
         return suggestions
 
     @staticmethod

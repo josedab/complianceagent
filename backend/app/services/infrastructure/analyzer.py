@@ -3,7 +3,6 @@
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,8 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .cloudformation import CloudFormationAnalyzer
 from .kubernetes import KubernetesAnalyzer
 from .models import (
-    CloudProvider,
-    ComplianceCategory,
     ComplianceViolation,
     InfrastructureAnalysisResult,
     InfrastructureResource,
@@ -22,31 +19,32 @@ from .models import (
 )
 from .terraform import TerraformAnalyzer
 
+
 logger = structlog.get_logger(__name__)
 
 
 class InfrastructureAnalyzer:
     """Unified infrastructure compliance analyzer.
-    
+
     Analyzes Terraform, Kubernetes, and CloudFormation configurations
     for compliance violations across multiple regulations.
-    
+
     Example:
         analyzer = InfrastructureAnalyzer()
-        
+
         # Analyze a single file
         result = analyzer.analyze_file("infrastructure/main.tf")
-        
+
         # Analyze a directory
         result = analyzer.analyze_directory("infrastructure/", regulations=["GDPR", "SOC2"])
-        
+
         # Analyze content directly
         result = analyzer.analyze_content(
             content=terraform_code,
             infrastructure_type=InfrastructureType.TERRAFORM,
         )
     """
-    
+
     def __init__(
         self,
         db: AsyncSession | None = None,
@@ -54,7 +52,7 @@ class InfrastructureAnalyzer:
         enabled_regulations: list[str] | None = None,
     ):
         """Initialize the analyzer.
-        
+
         Args:
             db: Optional async database session for persistence
             policy_rules: Custom policy rules (uses defaults if not provided)
@@ -64,12 +62,12 @@ class InfrastructureAnalyzer:
         self.policy_rules = policy_rules
         self.enabled_regulations = enabled_regulations
         self._scan_history: list[dict] = []
-        
+
         # Initialize sub-analyzers
         self._terraform = TerraformAnalyzer(policy_rules)
         self._kubernetes = KubernetesAnalyzer(policy_rules)
         self._cloudformation = CloudFormationAnalyzer(policy_rules)
-    
+
     def analyze_content(
         self,
         content: str,
@@ -78,47 +76,41 @@ class InfrastructureAnalyzer:
         regulations: list[str] | None = None,
     ) -> InfrastructureAnalysisResult:
         """Analyze infrastructure configuration content.
-        
+
         Args:
             content: Configuration content
             infrastructure_type: Type of infrastructure configuration
             file_path: Virtual file path for reporting
             regulations: Specific regulations to check
-        
+
         Returns:
             InfrastructureAnalysisResult with resources and violations
         """
         start_time = time.time()
-        
+
         active_regulations = regulations or self.enabled_regulations
-        
+
         resources: list[InfrastructureResource] = []
         violations: list[ComplianceViolation] = []
-        
+
         # Route to appropriate analyzer
         if infrastructure_type == InfrastructureType.TERRAFORM:
-            resources, violations = self._terraform.analyze(
-                content, file_path, active_regulations
-            )
+            resources, violations = self._terraform.analyze(content, file_path, active_regulations)
         elif infrastructure_type == InfrastructureType.KUBERNETES:
-            resources, violations = self._kubernetes.analyze(
-                content, file_path, active_regulations
-            )
+            resources, violations = self._kubernetes.analyze(content, file_path, active_regulations)
         elif infrastructure_type == InfrastructureType.CLOUDFORMATION:
             resources, violations = self._cloudformation.analyze(
                 content, file_path, active_regulations
             )
         elif infrastructure_type == InfrastructureType.HELM:
             # Helm charts are Kubernetes manifests with templating
-            resources, violations = self._kubernetes.analyze(
-                content, file_path, active_regulations
-            )
+            resources, violations = self._kubernetes.analyze(content, file_path, active_regulations)
         else:
             logger.warning(
                 "unsupported_infrastructure_type",
                 type=infrastructure_type.value,
             )
-        
+
         # Build result
         result = self._build_result(
             resources=resources,
@@ -126,7 +118,7 @@ class InfrastructureAnalyzer:
             analyzed_files=[file_path],
             start_time=start_time,
         )
-        
+
         logger.info(
             "infrastructure_analysis_complete",
             file=file_path,
@@ -135,32 +127,32 @@ class InfrastructureAnalyzer:
             violations=len(result.violations),
             score=result.compliance_score,
         )
-        
+
         return result
-    
+
     def analyze_file(
         self,
         file_path: str | Path,
         regulations: list[str] | None = None,
     ) -> InfrastructureAnalysisResult:
         """Analyze a single infrastructure configuration file.
-        
+
         Args:
             file_path: Path to the configuration file
             regulations: Specific regulations to check
-        
+
         Returns:
             InfrastructureAnalysisResult with resources and violations
         """
         path = Path(file_path)
-        
+
         if not path.exists():
             logger.error("file_not_found", path=str(path))
             return InfrastructureAnalysisResult(analyzed_files=[str(path)])
-        
+
         # Detect infrastructure type from file extension/content
         infrastructure_type = self._detect_type(path)
-        
+
         content = path.read_text()
         return self.analyze_content(
             content=content,
@@ -168,7 +160,7 @@ class InfrastructureAnalyzer:
             file_path=str(path),
             regulations=regulations,
         )
-    
+
     def analyze_directory(
         self,
         directory: str | Path,
@@ -176,28 +168,28 @@ class InfrastructureAnalyzer:
         recursive: bool = True,
     ) -> InfrastructureAnalysisResult:
         """Analyze all infrastructure files in a directory.
-        
+
         Args:
             directory: Directory to scan
             regulations: Specific regulations to check
             recursive: Whether to scan subdirectories
-        
+
         Returns:
             Combined InfrastructureAnalysisResult
         """
         start_time = time.time()
         dir_path = Path(directory)
-        
+
         if not dir_path.is_dir():
             logger.error("directory_not_found", path=str(dir_path))
             return InfrastructureAnalysisResult()
-        
+
         active_regulations = regulations or self.enabled_regulations
-        
+
         all_resources: list[InfrastructureResource] = []
         all_violations: list[ComplianceViolation] = []
         analyzed_files: list[str] = []
-        
+
         # Find and analyze files
         patterns = {
             "*.tf": InfrastructureType.TERRAFORM,
@@ -207,41 +199,41 @@ class InfrastructureAnalyzer:
             "*.json": None,
             "*.template": InfrastructureType.CLOUDFORMATION,
         }
-        
+
         glob_method = dir_path.rglob if recursive else dir_path.glob
-        
+
         for pattern, default_type in patterns.items():
             for file_path in glob_method(pattern):
                 try:
                     content = file_path.read_text()
                     infra_type = default_type or self._detect_type_from_content(content, file_path)
-                    
+
                     if infra_type is None:
                         continue
-                    
+
                     # Get appropriate analyzer
                     resources, violations = self._analyze_with_type(
                         content, str(file_path), infra_type, active_regulations
                     )
-                    
+
                     all_resources.extend(resources)
                     all_violations.extend(violations)
                     analyzed_files.append(str(file_path))
-                    
+
                 except Exception as e:
                     logger.warning(
                         "file_analysis_failed",
                         path=str(file_path),
                         error=str(e),
                     )
-        
+
         result = self._build_result(
             resources=all_resources,
             violations=all_violations,
             analyzed_files=analyzed_files,
             start_time=start_time,
         )
-        
+
         logger.info(
             "directory_analysis_complete",
             directory=str(dir_path),
@@ -250,23 +242,23 @@ class InfrastructureAnalyzer:
             violations=len(result.violations),
             score=result.compliance_score,
         )
-        
+
         return result
-    
+
     def _detect_type(self, file_path: Path) -> InfrastructureType:
         """Detect infrastructure type from file path."""
         suffix = file_path.suffix.lower()
         name = file_path.name.lower()
-        
-        if suffix == ".tf" or suffix == ".tfvars":
+
+        if suffix in {".tf", ".tfvars"}:
             return InfrastructureType.TERRAFORM
-        
+
         if "chart.yaml" in name or "values.yaml" in name:
             return InfrastructureType.HELM
-        
+
         if suffix == ".template":
             return InfrastructureType.CLOUDFORMATION
-        
+
         # Need to check content for YAML/JSON files
         try:
             content = file_path.read_text()
@@ -275,15 +267,15 @@ class InfrastructureAnalyzer:
                 return detected
         except Exception:
             pass
-        
+
         # Default based on common patterns
         if any(x in str(file_path).lower() for x in ["terraform", "infra"]):
             return InfrastructureType.TERRAFORM
         if any(x in str(file_path).lower() for x in ["k8s", "kubernetes", "deploy"]):
             return InfrastructureType.KUBERNETES
-        
+
         return InfrastructureType.KUBERNETES  # Default for YAML
-    
+
     def _detect_type_from_content(
         self,
         content: str,
@@ -295,23 +287,23 @@ class InfrastructureAnalyzer:
             return InfrastructureType.CLOUDFORMATION
         if '"Resources"' in content and '"Type"' in content and "AWS::" in content:
             return InfrastructureType.CLOUDFORMATION
-        
+
         # Kubernetes markers
         if "apiVersion:" in content and "kind:" in content:
             return InfrastructureType.KUBERNETES
-        
+
         # Terraform markers
         if "resource " in content and "{" in content:
             return InfrastructureType.TERRAFORM
         if 'provider "' in content:
             return InfrastructureType.TERRAFORM
-        
+
         # Helm markers
         if "{{" in content and "}}" in content:
             return InfrastructureType.HELM
-        
+
         return None
-    
+
     def _analyze_with_type(
         self,
         content: str,
@@ -322,12 +314,12 @@ class InfrastructureAnalyzer:
         """Route to appropriate analyzer."""
         if infra_type == InfrastructureType.TERRAFORM:
             return self._terraform.analyze(content, file_path, regulations)
-        elif infra_type in (InfrastructureType.KUBERNETES, InfrastructureType.HELM):
+        if infra_type in (InfrastructureType.KUBERNETES, InfrastructureType.HELM):
             return self._kubernetes.analyze(content, file_path, regulations)
-        elif infra_type == InfrastructureType.CLOUDFORMATION:
+        if infra_type == InfrastructureType.CLOUDFORMATION:
             return self._cloudformation.analyze(content, file_path, regulations)
         return [], []
-    
+
     def _build_result(
         self,
         resources: list[InfrastructureResource],
@@ -337,14 +329,14 @@ class InfrastructureAnalyzer:
     ) -> InfrastructureAnalysisResult:
         """Build analysis result from collected data."""
         # Count violations by severity
-        severity_counts = {s: 0 for s in ViolationSeverity}
+        severity_counts = dict.fromkeys(ViolationSeverity, 0)
         for v in violations:
             severity_counts[v.severity] += 1
-        
+
         # Find non-compliant resources
         violating_resource_ids = {v.resource_id for v in violations}
         non_compliant_count = len(violating_resource_ids)
-        
+
         # Build provider breakdown
         provider_breakdown: dict[str, dict[str, int]] = {}
         for resource in resources:
@@ -352,12 +344,12 @@ class InfrastructureAnalyzer:
             if provider not in provider_breakdown:
                 provider_breakdown[provider] = {"resources": 0, "violations": 0}
             provider_breakdown[provider]["resources"] += 1
-        
+
         for violation in violations:
             provider = violation.provider.value
             if provider in provider_breakdown:
                 provider_breakdown[provider]["violations"] += 1
-        
+
         # Build category breakdown
         category_breakdown: dict[str, dict[str, int]] = {}
         for violation in violations:
@@ -369,7 +361,7 @@ class InfrastructureAnalyzer:
                 category_breakdown[category]["critical"] += 1
             elif violation.severity == ViolationSeverity.HIGH:
                 category_breakdown[category]["high"] += 1
-        
+
         # Build regulation breakdown
         regulation_breakdown: dict[str, dict[str, int]] = {}
         for violation in violations:
@@ -377,7 +369,7 @@ class InfrastructureAnalyzer:
                 if reg not in regulation_breakdown:
                     regulation_breakdown[reg] = {"count": 0}
                 regulation_breakdown[reg]["count"] += 1
-        
+
         result = InfrastructureAnalysisResult(
             total_resources=len(resources),
             compliant_resources=len(resources) - non_compliant_count,
@@ -395,19 +387,20 @@ class InfrastructureAnalyzer:
             analyzed_files=analyzed_files,
             analysis_duration_ms=int((time.time() - start_time) * 1000),
         )
-        
+
         result.calculate_score()
         return result
-    
+
     def get_policy_rules(self) -> list[PolicyRule]:
         """Get all policy rules."""
         from .models import DEFAULT_POLICY_RULES
+
         return self.policy_rules or DEFAULT_POLICY_RULES
-    
+
     async def persist_scan_results(self, results: dict) -> None:
         """Persist infrastructure scan results for historical tracking."""
         scan_record = {
-            "scanned_at": datetime.now(UTC).isoformat() if hasattr(datetime, 'now') else datetime.utcnow().isoformat(),
+            "scanned_at": datetime.now(UTC).isoformat(),
             "provider_count": len(results.get("providers", {})),
             "total_violations": results.get("total_violations", 0),
             "critical_count": results.get("critical_count", 0),
@@ -427,9 +420,9 @@ class InfrastructureAnalyzer:
         """Get compliance posture summary across all cloud providers."""
         return {
             "providers": ["aws", "azure", "gcp"],
-            "terraform_rules": len(getattr(self, '_terraform_rules', [])),
-            "k8s_rules": len(getattr(self, '_k8s_rules', [])),
-            "cfn_rules": len(getattr(self, '_cfn_rules', [])),
+            "terraform_rules": len(getattr(self, "_terraform_rules", [])),
+            "k8s_rules": len(getattr(self, "_k8s_rules", [])),
+            "cfn_rules": len(getattr(self, "_cfn_rules", [])),
             "total_scans": len(self._scan_history),
             "last_scan": self._scan_history[-1] if self._scan_history else None,
         }
@@ -437,12 +430,12 @@ class InfrastructureAnalyzer:
     def add_policy_rule(self, rule: PolicyRule) -> None:
         """Add a custom policy rule."""
         from .models import DEFAULT_POLICY_RULES
-        
+
         if self.policy_rules is None:
             self.policy_rules = list(DEFAULT_POLICY_RULES)
-        
+
         self.policy_rules.append(rule)
-        
+
         # Update sub-analyzers
         self._terraform = TerraformAnalyzer(self.policy_rules)
         self._kubernetes = KubernetesAnalyzer(self.policy_rules)

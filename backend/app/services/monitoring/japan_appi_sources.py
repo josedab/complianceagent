@@ -124,17 +124,21 @@ class JapanAPPIParser:
 
         for line in text_content.split("\n"):
             # Check for article match (English or Japanese)
-            article_match = self.article_pattern_en.search(line) or self.article_pattern_jp.search(line)
+            article_match = self.article_pattern_en.search(line) or self.article_pattern_jp.search(
+                line
+            )
             if article_match:
                 # Save previous article
                 if current_article:
                     article_info = APPI_ARTICLES.get(current_article, {})
-                    result["articles"].append({
-                        "number": current_article,
-                        "title": article_info.get("title", ""),
-                        "type": article_info.get("type", "general"),
-                        "content": "\n".join(current_content),
-                    })
+                    result["articles"].append(
+                        {
+                            "number": current_article,
+                            "title": article_info.get("title", ""),
+                            "type": article_info.get("type", "general"),
+                            "content": "\n".join(current_content),
+                        }
+                    )
 
                 current_article = article_match.group(1)
                 current_content = [line]
@@ -144,12 +148,14 @@ class JapanAPPIParser:
         # Save last article
         if current_article:
             article_info = APPI_ARTICLES.get(current_article, {})
-            result["articles"].append({
-                "number": current_article,
-                "title": article_info.get("title", ""),
-                "type": article_info.get("type", "general"),
-                "content": "\n".join(current_content),
-            })
+            result["articles"].append(
+                {
+                    "number": current_article,
+                    "title": article_info.get("title", ""),
+                    "type": article_info.get("type", "general"),
+                    "content": "\n".join(current_content),
+                }
+            )
 
         return result
 
@@ -176,12 +182,14 @@ class JapanAPPIParser:
 
                     title_text = title_elem.get_text(strip=True) if title_elem else ""
                     if title_text and len(title_text) > 5:  # Filter out empty/short items
-                        guidelines.append({
-                            "title": title_text,
-                            "url": link_elem.get("href") if link_elem else None,
-                            "date": date_elem.get_text(strip=True) if date_elem else None,
-                            "type": "guideline",
-                        })
+                        guidelines.append(
+                            {
+                                "title": title_text,
+                                "url": link_elem.get("href") if link_elem else None,
+                                "date": date_elem.get_text(strip=True) if date_elem else None,
+                                "type": "guideline",
+                            }
+                        )
                 break
 
         return guidelines
@@ -213,18 +221,20 @@ class JapanAPPIParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "article": article.get("number"),
-                    "title": article.get("title"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "citation": {
-                        "article": f"Article {article.get('number')}",
-                        "act": "Act on the Protection of Personal Information",
-                        "jurisdiction": "Japan",
-                    },
-                })
+                requirements.append(
+                    {
+                        "article": article.get("number"),
+                        "title": article.get("title"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "citation": {
+                            "article": f"Article {article.get('number')}",
+                            "act": "Act on the Protection of Personal Information",
+                            "jurisdiction": "Japan",
+                        },
+                    }
+                )
 
         return requirements
 

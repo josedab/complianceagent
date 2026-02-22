@@ -100,11 +100,13 @@ class GDPRParser:
                 if content_elem:
                     article_content = content_elem.get_text(separator="\n", strip=True)
 
-                result["articles"].append({
-                    "number": article_num,
-                    "title": article_title,
-                    "content": article_content,
-                })
+                result["articles"].append(
+                    {
+                        "number": article_num,
+                        "title": article_title,
+                        "content": article_content,
+                    }
+                )
 
         return result
 
@@ -119,11 +121,13 @@ class GDPRParser:
             link_elem = item.select_one("a")
 
             if title_elem:
-                guidelines.append({
-                    "title": title_elem.get_text(strip=True),
-                    "url": link_elem.get("href") if link_elem else None,
-                    "date": date_elem.get_text(strip=True) if date_elem else None,
-                })
+                guidelines.append(
+                    {
+                        "title": title_elem.get_text(strip=True),
+                        "url": link_elem.get("href") if link_elem else None,
+                        "date": date_elem.get_text(strip=True) if date_elem else None,
+                    }
+                )
 
         return guidelines
 
@@ -152,16 +156,18 @@ class GDPRParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "article": article.get("number"),
-                    "title": article.get("title"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "citation": {
-                        "article": f"Article {article.get('number')}",
-                    },
-                })
+                requirements.append(
+                    {
+                        "article": article.get("number"),
+                        "title": article.get("title"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "citation": {
+                            "article": f"Article {article.get('number')}",
+                        },
+                    }
+                )
 
         return requirements
 

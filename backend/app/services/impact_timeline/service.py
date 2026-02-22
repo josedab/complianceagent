@@ -15,35 +15,92 @@ from app.services.impact_timeline.models import (
     TimelineView,
 )
 
+
 logger = structlog.get_logger()
 
 # Built-in upcoming regulatory events
 _UPCOMING_EVENTS: list[dict] = [
-    {"title": "EU AI Act — Full Enforcement", "framework": "eu_ai_act", "jurisdiction": "EU",
-     "type": TimelineEventType.ENFORCEMENT_START, "days_offset": 120,
-     "impact": 8.5, "effort": 160, "repos": ["backend", "ml-pipeline"]},
-    {"title": "DORA — ICT Risk Management", "framework": "dora", "jurisdiction": "EU",
-     "type": TimelineEventType.COMPLIANCE_DEADLINE, "days_offset": 90,
-     "impact": 7.0, "effort": 80, "repos": ["infrastructure", "backend"]},
-    {"title": "NIS2 Directive — Deadline", "framework": "nis2", "jurisdiction": "EU",
-     "type": TimelineEventType.COMPLIANCE_DEADLINE, "days_offset": 180,
-     "impact": 6.5, "effort": 60, "repos": ["infrastructure"]},
-    {"title": "US Federal Privacy Act (Predicted)", "framework": "us_privacy", "jurisdiction": "US",
-     "type": TimelineEventType.PREDICTED, "days_offset": 365,
-     "impact": 9.0, "effort": 200, "repos": ["backend", "frontend", "data-pipeline"],
-     "confidence": 0.45},
-    {"title": "GDPR — Cross-border Transfer Update", "framework": "gdpr", "jurisdiction": "EU",
-     "type": TimelineEventType.AMENDMENT, "days_offset": 60,
-     "impact": 5.0, "effort": 40, "repos": ["backend"]},
-    {"title": "PCI DSS v4.0.1 — Migration Deadline", "framework": "pci_dss", "jurisdiction": "GLOBAL",
-     "type": TimelineEventType.COMPLIANCE_DEADLINE, "days_offset": 45,
-     "impact": 7.5, "effort": 120, "repos": ["payments-service", "backend"]},
-    {"title": "HIPAA — Updated Breach Notification", "framework": "hipaa", "jurisdiction": "US",
-     "type": TimelineEventType.AMENDMENT, "days_offset": 150,
-     "impact": 6.0, "effort": 30, "repos": ["health-service"]},
-    {"title": "Singapore PDPA Amendment", "framework": "pdpa", "jurisdiction": "SG",
-     "type": TimelineEventType.REGULATION_EFFECTIVE, "days_offset": 210,
-     "impact": 4.0, "effort": 20, "repos": ["backend"]},
+    {
+        "title": "EU AI Act — Full Enforcement",
+        "framework": "eu_ai_act",
+        "jurisdiction": "EU",
+        "type": TimelineEventType.ENFORCEMENT_START,
+        "days_offset": 120,
+        "impact": 8.5,
+        "effort": 160,
+        "repos": ["backend", "ml-pipeline"],
+    },
+    {
+        "title": "DORA — ICT Risk Management",
+        "framework": "dora",
+        "jurisdiction": "EU",
+        "type": TimelineEventType.COMPLIANCE_DEADLINE,
+        "days_offset": 90,
+        "impact": 7.0,
+        "effort": 80,
+        "repos": ["infrastructure", "backend"],
+    },
+    {
+        "title": "NIS2 Directive — Deadline",
+        "framework": "nis2",
+        "jurisdiction": "EU",
+        "type": TimelineEventType.COMPLIANCE_DEADLINE,
+        "days_offset": 180,
+        "impact": 6.5,
+        "effort": 60,
+        "repos": ["infrastructure"],
+    },
+    {
+        "title": "US Federal Privacy Act (Predicted)",
+        "framework": "us_privacy",
+        "jurisdiction": "US",
+        "type": TimelineEventType.PREDICTED,
+        "days_offset": 365,
+        "impact": 9.0,
+        "effort": 200,
+        "repos": ["backend", "frontend", "data-pipeline"],
+        "confidence": 0.45,
+    },
+    {
+        "title": "GDPR — Cross-border Transfer Update",
+        "framework": "gdpr",
+        "jurisdiction": "EU",
+        "type": TimelineEventType.AMENDMENT,
+        "days_offset": 60,
+        "impact": 5.0,
+        "effort": 40,
+        "repos": ["backend"],
+    },
+    {
+        "title": "PCI DSS v4.0.1 — Migration Deadline",
+        "framework": "pci_dss",
+        "jurisdiction": "GLOBAL",
+        "type": TimelineEventType.COMPLIANCE_DEADLINE,
+        "days_offset": 45,
+        "impact": 7.5,
+        "effort": 120,
+        "repos": ["payments-service", "backend"],
+    },
+    {
+        "title": "HIPAA — Updated Breach Notification",
+        "framework": "hipaa",
+        "jurisdiction": "US",
+        "type": TimelineEventType.AMENDMENT,
+        "days_offset": 150,
+        "impact": 6.0,
+        "effort": 30,
+        "repos": ["health-service"],
+    },
+    {
+        "title": "Singapore PDPA Amendment",
+        "framework": "pdpa",
+        "jurisdiction": "SG",
+        "type": TimelineEventType.REGULATION_EFFECTIVE,
+        "days_offset": 210,
+        "impact": 4.0,
+        "effort": 20,
+        "repos": ["backend"],
+    },
 ]
 
 
@@ -153,18 +210,22 @@ class ImpactTimelineService:
             raise ValueError(f"Event {event_id} not found")
 
         tasks = []
-        base_priority = TaskPriority.CRITICAL if event.days_remaining <= 30 else (
-            TaskPriority.HIGH if event.days_remaining <= 90 else TaskPriority.MEDIUM
+        base_priority = (
+            TaskPriority.CRITICAL
+            if event.days_remaining <= 30
+            else (TaskPriority.HIGH if event.days_remaining <= 90 else TaskPriority.MEDIUM)
         )
 
         task_templates = [
             f"Review {event.framework.upper()} requirements for {event.title}",
             f"Map affected code in {', '.join(event.affected_repos[:3])}",
             f"Implement compliance changes for {event.framework.upper()}",
-            f"Run compliance scan and verify",
+            "Run compliance scan and verify",
         ]
 
-        effort_per_task = event.estimated_effort_hours / len(task_templates) if task_templates else 0
+        effort_per_task = (
+            event.estimated_effort_hours / len(task_templates) if task_templates else 0
+        )
         for desc in task_templates:
             task = RemediationTask(
                 timeline_event_id=event.id,
@@ -172,7 +233,9 @@ class ImpactTimelineService:
                 description=f"Auto-generated task for: {event.title}",
                 priority=base_priority,
                 estimated_hours=round(effort_per_task, 1),
-                due_date=event.effective_date - timedelta(days=14) if event.effective_date else None,
+                due_date=event.effective_date - timedelta(days=14)
+                if event.effective_date
+                else None,
                 created_at=datetime.now(UTC),
             )
             self._tasks[task.id] = task
@@ -181,7 +244,9 @@ class ImpactTimelineService:
         logger.info("Tasks generated", event_title=event.title, count=len(tasks))
         return tasks
 
-    async def update_task_status(self, task_id: UUID, new_status: TaskStatus) -> RemediationTask | None:
+    async def update_task_status(
+        self, task_id: UUID, new_status: TaskStatus
+    ) -> RemediationTask | None:
         task = self._tasks.get(task_id)
         if task:
             task.status = new_status
@@ -197,4 +262,6 @@ class ImpactTimelineService:
             tasks = [t for t in tasks if t.status == status]
         if priority:
             tasks = [t for t in tasks if t.priority == priority]
-        return sorted(tasks, key=lambda t: t.created_at or datetime.min, reverse=True)
+        return sorted(
+            tasks, key=lambda t: t.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )

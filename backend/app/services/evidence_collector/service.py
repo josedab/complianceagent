@@ -1,23 +1,19 @@
 """Automated evidence collection service."""
 
 import hashlib
-import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.models.codebase import CodebaseMapping, ComplianceStatus, Repository
-from app.models.regulation import Regulation
+from app.models.codebase import CodebaseMapping, ComplianceStatus
 from app.services.evidence_collector.models import (
     CONTROL_FRAMEWORKS,
     AuditPackage,
     AuditPackageStatus,
-    CollectionTask,
     ControlEvidence,
     ControlMapping,
     EvidenceItem,
@@ -31,13 +27,13 @@ logger = structlog.get_logger()
 
 class EvidenceCollectorService:
     """Service for automated compliance evidence collection."""
-    
+
     def __init__(self, db: AsyncSession, copilot: Any = None):
         self.db = db
         self.copilot = copilot
         self._packages: dict[UUID, AuditPackage] = {}
         self._evidence_cache: dict[str, list[EvidenceItem]] = {}
-    
+
     async def create_audit_package(
         self,
         organization_id: UUID,
@@ -59,7 +55,7 @@ class EvidenceCollectorService:
             status=AuditPackageStatus.PENDING,
             created_by=created_by,
         )
-        
+
         # Initialize control evidence for each framework
         total_controls = 0
         for framework in frameworks:
@@ -73,19 +69,19 @@ class EvidenceCollectorService:
                     )
                     package.control_evidence.append(control_evidence)
                     total_controls += 1
-        
+
         package.total_controls = total_controls
         self._packages[package.id] = package
-        
+
         logger.info(
             "audit_package_created",
             package_id=str(package.id),
             frameworks=frameworks,
             total_controls=total_controls,
         )
-        
+
         return package
-    
+
     async def collect_evidence(
         self,
         package_id: UUID,
@@ -95,44 +91,45 @@ class EvidenceCollectorService:
         package = self._packages.get(package_id)
         if not package:
             raise ValueError(f"Audit package not found: {package_id}")
-        
+
         package.status = AuditPackageStatus.COLLECTING
-        
+
         for control_evidence in package.control_evidence:
             await self._collect_control_evidence(
                 package=package,
                 control_evidence=control_evidence,
                 repository_id=repository_id,
             )
-        
+
         # Calculate coverage
         package.controls_with_evidence = sum(
             1 for ce in package.control_evidence if ce.status == "complete"
         )
         package.coverage_percentage = (
             (package.controls_with_evidence / package.total_controls * 100)
-            if package.total_controls > 0 else 0.0
+            if package.total_controls > 0
+            else 0.0
         )
-        
+
         package.status = AuditPackageStatus.VALIDATING
         await self._validate_evidence(package)
-        
+
         if package.coverage_percentage >= 80:
             package.status = AuditPackageStatus.READY
         else:
             package.status = AuditPackageStatus.COLLECTING
-        
-        package.completed_at = datetime.utcnow()
-        
+
+        package.completed_at = datetime.now(UTC)
+
         logger.info(
             "evidence_collection_complete",
             package_id=str(package_id),
             coverage=package.coverage_percentage,
             status=package.status.value,
         )
-        
+
         return package
-    
+
     async def _collect_control_evidence(
         self,
         package: AuditPackage,
@@ -147,9 +144,9 @@ class EvidenceCollectorService:
         )
         if not mapping:
             return
-        
+
         evidence_items = []
-        
+
         for evidence_type in mapping.required_evidence_types:
             items = await self._collect_evidence_type(
                 evidence_type=evidence_type,
@@ -158,17 +155,17 @@ class EvidenceCollectorService:
                 repository_id=repository_id,
             )
             evidence_items.extend(items)
-        
+
         control_evidence.evidence_items = evidence_items
-        control_evidence.last_collected = datetime.utcnow()
+        control_evidence.last_collected = datetime.now(UTC)
         control_evidence.next_collection_due = self._calculate_next_collection(
             mapping.collection_frequency
         )
-        
+
         # Determine status
         collected_types = {item.evidence_type for item in evidence_items}
         required_types = set(mapping.required_evidence_types)
-        
+
         if required_types.issubset(collected_types):
             control_evidence.status = "complete"
             control_evidence.coverage_percentage = 100.0
@@ -180,11 +177,11 @@ class EvidenceCollectorService:
         else:
             control_evidence.status = "incomplete"
             control_evidence.coverage_percentage = 0.0
-        
+
         # Record gaps
         missing = required_types - collected_types
         control_evidence.gaps = [f"Missing {t.value} evidence" for t in missing]
-    
+
     async def _collect_evidence_type(
         self,
         evidence_type: EvidenceType,
@@ -194,7 +191,7 @@ class EvidenceCollectorService:
     ) -> list[EvidenceItem]:
         """Collect specific type of evidence."""
         items = []
-        
+
         if evidence_type == EvidenceType.CODE_ARTIFACT:
             items.extend(await self._collect_code_artifacts(control, repository_id, package))
         elif evidence_type == EvidenceType.CONFIGURATION:
@@ -215,9 +212,9 @@ class EvidenceCollectorService:
             items.extend(await self._collect_policy_documents(control, package))
         elif evidence_type == EvidenceType.TRAINING_RECORD:
             items.extend(await self._collect_training_records(control, package))
-        
+
         return items
-    
+
     async def _collect_code_artifacts(
         self,
         control: ControlMapping,
@@ -226,26 +223,28 @@ class EvidenceCollectorService:
     ) -> list[EvidenceItem]:
         """Collect code artifacts as evidence."""
         items = []
-        
+
         # Query codebase mappings for relevant code
         stmt = select(CodebaseMapping).where(
-            CodebaseMapping.compliance_status.in_([
-                ComplianceStatus.COMPLIANT,
-                ComplianceStatus.PARTIAL,
-            ])
+            CodebaseMapping.compliance_status.in_(
+                [
+                    ComplianceStatus.COMPLIANT,
+                    ComplianceStatus.PARTIAL,
+                ]
+            )
         )
-        
+
         if repository_id:
             stmt = stmt.where(CodebaseMapping.repository_id == repository_id)
-        
+
         result = await self.db.execute(stmt.limit(20))
         mappings = result.scalars().all()
-        
+
         for mapping in mappings:
             content = f"File: {mapping.file_path}\nLines: {mapping.start_line}-{mapping.end_line}"
             if mapping.code_snippet:
                 content += f"\n\nCode:\n{mapping.code_snippet}"
-            
+
             item = EvidenceItem(
                 organization_id=package.organization_id,
                 evidence_type=EvidenceType.CODE_ARTIFACT,
@@ -255,7 +254,7 @@ class EvidenceCollectorService:
                 content=content,
                 content_hash=hashlib.sha256(content.encode()).hexdigest(),
                 file_path=mapping.file_path,
-                collected_at=datetime.utcnow(),
+                collected_at=datetime.now(UTC),
                 metadata={
                     "control_id": control.control_id,
                     "framework": control.framework,
@@ -264,9 +263,9 @@ class EvidenceCollectorService:
                 tags=[control.framework, control.control_id],
             )
             items.append(item)
-        
+
         return items[:5]
-    
+
     async def _collect_configurations(
         self,
         control: ControlMapping,
@@ -283,12 +282,14 @@ class EvidenceCollectorService:
             "164.312(a)": ["Access control lists", "Role definitions"],
             "164.312(e)": ["TLS configuration", "Encryption at transit"],
         }
-        
+
         patterns = config_patterns.get(control.control_id, ["General configuration"])
         items = []
-        
+
         for pattern in patterns:
-            content = f"Configuration Evidence: {pattern}\nCollected: {datetime.utcnow().isoformat()}"
+            content = (
+                f"Configuration Evidence: {pattern}\nCollected: {datetime.now(UTC).isoformat()}"
+            )
             item = EvidenceItem(
                 organization_id=package.organization_id,
                 evidence_type=EvidenceType.CONFIGURATION,
@@ -297,7 +298,7 @@ class EvidenceCollectorService:
                 description=f"Configuration evidence for {control.control_id}",
                 content=content,
                 content_hash=hashlib.sha256(content.encode()).hexdigest(),
-                collected_at=datetime.utcnow(),
+                collected_at=datetime.now(UTC),
                 metadata={
                     "control_id": control.control_id,
                     "framework": control.framework,
@@ -306,9 +307,9 @@ class EvidenceCollectorService:
                 tags=[control.framework, "configuration"],
             )
             items.append(item)
-        
+
         return items
-    
+
     async def _collect_commit_history(
         self,
         control: ControlMapping,
@@ -334,7 +335,7 @@ Collection period: {package.audit_period_start} to {package.audit_period_end}
             description="Git commit history showing change management",
             content=content,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(UTC),
             metadata={
                 "control_id": control.control_id,
                 "framework": control.framework,
@@ -342,7 +343,7 @@ Collection period: {package.audit_period_start} to {package.audit_period_end}
             tags=[control.framework, "version-control"],
         )
         return [item]
-    
+
     async def _collect_test_results(
         self,
         control: ControlMapping,
@@ -353,12 +354,12 @@ Collection period: {package.audit_period_start} to {package.audit_period_end}
         content = f"""Test Results Evidence for {control.control_name}
 
 Test Suite: Security & Compliance Tests
-Run Date: {datetime.utcnow().isoformat()}
+Run Date: {datetime.now(UTC).isoformat()}
 Status: PASSED
 
 Test Categories:
 - Unit Tests: 156 passed, 0 failed
-- Integration Tests: 48 passed, 0 failed  
+- Integration Tests: 48 passed, 0 failed
 - Security Tests: 32 passed, 0 failed
 - Compliance Checks: 24 passed, 0 failed
 
@@ -372,7 +373,7 @@ Code Coverage: 87%
             description="Automated test results from CI/CD pipeline",
             content=content,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(UTC),
             metadata={
                 "control_id": control.control_id,
                 "framework": control.framework,
@@ -381,7 +382,7 @@ Code Coverage: 87%
             tags=[control.framework, "testing"],
         )
         return [item]
-    
+
     async def _collect_audit_logs(
         self,
         control: ControlMapping,
@@ -394,9 +395,9 @@ Log Period: {package.audit_period_start} to {package.audit_period_end}
 Log Source: Application Security Logs
 
 Sample Entries:
-[{datetime.utcnow().isoformat()}] AUTH: User login successful - user_id=abc123, ip=192.168.1.1
-[{datetime.utcnow().isoformat()}] ACCESS: Data access - user_id=abc123, resource=customer_data
-[{datetime.utcnow().isoformat()}] AUDIT: Configuration change - admin_id=admin1, setting=mfa_required
+[{datetime.now(UTC).isoformat()}] AUTH: User login successful - user_id=abc123, ip=192.168.1.1
+[{datetime.now(UTC).isoformat()}] ACCESS: Data access - user_id=abc123, resource=customer_data
+[{datetime.now(UTC).isoformat()}] AUDIT: Configuration change - admin_id=admin1, setting=mfa_required
 
 Total Events: 15,432
 Anomalies Detected: 0
@@ -409,7 +410,7 @@ Anomalies Detected: 0
             description="Security audit log samples",
             content=content,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(UTC),
             metadata={
                 "control_id": control.control_id,
                 "framework": control.framework,
@@ -418,7 +419,7 @@ Anomalies Detected: 0
             tags=[control.framework, "logging", "audit"],
         )
         return [item]
-    
+
     async def _collect_access_reviews(
         self,
         control: ControlMapping,
@@ -450,9 +451,9 @@ Review Methodology:
             description="Quarterly access review documentation",
             content=content,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(UTC),
             verification_status="verified",
-            verified_at=datetime.utcnow(),
+            verified_at=datetime.now(UTC),
             verified_by="compliance_team",
             metadata={
                 "control_id": control.control_id,
@@ -462,7 +463,7 @@ Review Methodology:
             tags=[control.framework, "access-review"],
         )
         return [item]
-    
+
     async def _collect_encryption_proof(
         self,
         control: ControlMapping,
@@ -496,7 +497,7 @@ Key Management:
             description="Encryption configuration and certificate evidence",
             content=content,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(UTC),
             metadata={
                 "control_id": control.control_id,
                 "framework": control.framework,
@@ -506,7 +507,7 @@ Key Management:
             tags=[control.framework, "encryption", "security"],
         )
         return [item]
-    
+
     async def _collect_vulnerability_scans(
         self,
         control: ControlMapping,
@@ -516,7 +517,7 @@ Key Management:
         """Collect vulnerability scan results."""
         content = f"""Vulnerability Scan Report for {control.control_name}
 
-Scan Date: {datetime.utcnow().isoformat()}
+Scan Date: {datetime.now(UTC).isoformat()}
 Scanner: Application Security Scanner
 Target: Production Environment
 
@@ -528,7 +529,7 @@ Findings Summary:
 - Informational: 12
 
 OWASP Top 10 Coverage: 100%
-Last Full Scan: {datetime.utcnow().isoformat()}
+Last Full Scan: {datetime.now(UTC).isoformat()}
 Scan Frequency: Weekly
 """
         item = EvidenceItem(
@@ -539,7 +540,7 @@ Scan Frequency: Weekly
             description="Security vulnerability assessment results",
             content=content,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(UTC),
             metadata={
                 "control_id": control.control_id,
                 "framework": control.framework,
@@ -549,7 +550,7 @@ Scan Frequency: Weekly
             tags=[control.framework, "vulnerability", "security"],
         )
         return [item]
-    
+
     async def _collect_policy_documents(
         self,
         control: ControlMapping,
@@ -562,13 +563,13 @@ Scan Frequency: Weekly
             "Art33": "Incident Response Plan",
             "164.308(a)(5)": "Security Awareness Training Policy",
         }
-        
+
         policy_name = policy_map.get(control.control_id, f"{control.control_name} Policy")
-        
+
         content = f"""Policy Document: {policy_name}
 
 Version: 2.1
-Last Updated: {(datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d')}
+Last Updated: {(datetime.now(UTC) - timedelta(days=30)).strftime("%Y-%m-%d")}
 Approved By: Chief Compliance Officer
 Review Cycle: Annual
 
@@ -585,9 +586,9 @@ Document Hash: {hashlib.sha256(policy_name.encode()).hexdigest()[:16]}
             description=f"Policy document for {control.control_name}",
             content=content,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(UTC),
             verification_status="verified",
-            verified_at=datetime.utcnow(),
+            verified_at=datetime.now(UTC),
             metadata={
                 "control_id": control.control_id,
                 "framework": control.framework,
@@ -596,7 +597,7 @@ Document Hash: {hashlib.sha256(policy_name.encode()).hexdigest()[:16]}
             tags=[control.framework, "policy"],
         )
         return [item]
-    
+
     async def _collect_training_records(
         self,
         control: ControlMapping,
@@ -606,7 +607,7 @@ Document Hash: {hashlib.sha256(policy_name.encode()).hexdigest()[:16]}
         content = f"""Training Records for {control.control_name}
 
 Training Program: Security Awareness Training
-Period: {package.audit_period_start.strftime('%Y')}
+Period: {package.audit_period_start.strftime("%Y")}
 
 Completion Summary:
 - Total Employees: 45
@@ -621,7 +622,7 @@ Training Topics:
 - Incident Reporting
 - Compliance Requirements
 
-Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('%Y-%m-%d')}
+Certification Valid Until: {(datetime.now(UTC) + timedelta(days=365)).strftime("%Y-%m-%d")}
 """
         item = EvidenceItem(
             organization_id=package.organization_id,
@@ -631,9 +632,9 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
             description="Security awareness training completion records",
             content=content,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            collected_at=datetime.utcnow(),
+            collected_at=datetime.now(UTC),
             verification_status="verified",
-            verified_at=datetime.utcnow(),
+            verified_at=datetime.now(UTC),
             metadata={
                 "control_id": control.control_id,
                 "framework": control.framework,
@@ -642,7 +643,7 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
             tags=[control.framework, "training"],
         )
         return [item]
-    
+
     async def _validate_evidence(self, package: AuditPackage) -> None:
         """Validate collected evidence meets requirements."""
         for control_evidence in package.control_evidence:
@@ -652,10 +653,10 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
                 if item.content_hash == computed_hash:
                     item.verification_status = "verified"
                     item.verification_method = "hash_verification"
-                    item.verified_at = datetime.utcnow()
+                    item.verified_at = datetime.now(UTC)
                 else:
                     item.verification_status = "invalid"
-    
+
     def _get_control_mapping(
         self,
         framework: str,
@@ -664,13 +665,13 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
         """Get control mapping by framework and ID."""
         if framework not in CONTROL_FRAMEWORKS:
             return None
-        
+
         for mapping in CONTROL_FRAMEWORKS[framework]:
             if mapping.control_id == control_id:
                 return mapping
-        
+
         return None
-    
+
     def _calculate_next_collection(self, frequency: str) -> datetime:
         """Calculate next evidence collection date."""
         frequency_days = {
@@ -681,8 +682,8 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
             "annually": 365,
         }
         days = frequency_days.get(frequency, 90)
-        return datetime.utcnow() + timedelta(days=days)
-    
+        return datetime.now(UTC) + timedelta(days=days)
+
     async def export_package(
         self,
         package_id: UUID,
@@ -692,10 +693,10 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
         package = self._packages.get(package_id)
         if not package:
             raise ValueError(f"Audit package not found: {package_id}")
-        
+
         if package.status != AuditPackageStatus.READY:
             raise ValueError(f"Package not ready for export: {package.status.value}")
-        
+
         export_data = {
             "package_id": str(package.id),
             "organization_id": str(package.organization_id),
@@ -703,7 +704,9 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
             "description": package.description,
             "frameworks": package.frameworks,
             "audit_period": {
-                "start": package.audit_period_start.isoformat() if package.audit_period_start else None,
+                "start": package.audit_period_start.isoformat()
+                if package.audit_period_start
+                else None,
                 "end": package.audit_period_end.isoformat() if package.audit_period_end else None,
             },
             "coverage": {
@@ -713,7 +716,7 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
             },
             "controls": [],
         }
-        
+
         for ce in package.control_evidence:
             control_data = {
                 "control_id": ce.control_id,
@@ -736,37 +739,34 @@ Certification Valid Until: {(datetime.utcnow() + timedelta(days=365)).strftime('
                 ],
             }
             export_data["controls"].append(control_data)
-        
+
         package.status = AuditPackageStatus.EXPORTED
-        package.exported_at = datetime.utcnow()
+        package.exported_at = datetime.now(UTC)
         package.export_format = export_format
-        
+
         logger.info(
             "audit_package_exported",
             package_id=str(package_id),
             format=export_format,
         )
-        
+
         return export_data
-    
+
     async def get_package(self, package_id: UUID) -> AuditPackage | None:
         """Get audit package by ID."""
         return self._packages.get(package_id)
-    
+
     async def list_packages(
         self,
         organization_id: UUID,
     ) -> list[AuditPackage]:
         """List all audit packages for an organization."""
-        return [
-            p for p in self._packages.values()
-            if p.organization_id == organization_id
-        ]
-    
+        return [p for p in self._packages.values() if p.organization_id == organization_id]
+
     async def get_control_mappings(self, framework: str) -> list[ControlMapping]:
         """Get control mappings for a framework."""
         return CONTROL_FRAMEWORKS.get(framework, [])
-    
+
     async def get_supported_frameworks(self) -> list[str]:
         """Get list of supported compliance frameworks."""
         return list(CONTROL_FRAMEWORKS.keys())

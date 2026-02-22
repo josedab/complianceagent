@@ -145,7 +145,7 @@ class ComplianceKnowledgeGraph:
 
             for edge_id in self._adjacency.get(node, set()):
                 edge = self._edges[edge_id]
-                new_path = path + [edge.target_id]
+                new_path = [*path, edge.target_id]
 
                 if edge.target_id == target_id:
                     paths.append(new_path)
@@ -173,7 +173,9 @@ class ComplianceKnowledgeGraph:
 
             nodes.add(node_id)
 
-            for edge_id in self._adjacency.get(node_id, set()) | self._reverse_adjacency.get(node_id, set()):
+            for edge_id in self._adjacency.get(node_id, set()) | self._reverse_adjacency.get(
+                node_id, set()
+            ):
                 edge = self._edges.get(edge_id)
                 if edge and (edge_types is None or edge.type in edge_types):
                     edges.add(edge_id)
@@ -254,7 +256,8 @@ class ComplianceKnowledgeGraph:
         """Calculate compliance coverage for a regulation."""
         # Find regulation node
         reg_nodes = [
-            n for n in self.get_nodes_by_type(NodeType.REGULATION)
+            n
+            for n in self.get_nodes_by_type(NodeType.REGULATION)
             if regulation.lower() in n.name.lower()
         ]
 

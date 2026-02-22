@@ -3,12 +3,12 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from uuid import UUID, uuid4
+from uuid import UUID
 
 
 class ScoreCategory(str, Enum):
     """Categories that contribute to health score."""
-    
+
     REGULATORY_COVERAGE = "regulatory_coverage"
     CONTROL_IMPLEMENTATION = "control_implementation"
     EVIDENCE_FRESHNESS = "evidence_freshness"
@@ -19,7 +19,7 @@ class ScoreCategory(str, Enum):
 
 class ScoreGrade(str, Enum):
     """Grade interpretation of numeric scores."""
-    
+
     A_PLUS = "A+"
     A = "A"
     A_MINUS = "A-"
@@ -35,7 +35,7 @@ class ScoreGrade(str, Enum):
 
 class BadgeStyle(str, Enum):
     """Available badge visual styles."""
-    
+
     FLAT = "flat"
     FLAT_SQUARE = "flat-square"
     PLASTIC = "plastic"
@@ -45,7 +45,7 @@ class BadgeStyle(str, Enum):
 
 class TrendDirection(str, Enum):
     """Trend direction for score changes."""
-    
+
     IMPROVING = "improving"
     STABLE = "stable"
     DECLINING = "declining"
@@ -54,13 +54,13 @@ class TrendDirection(str, Enum):
 @dataclass
 class CategoryScore:
     """Score for a specific compliance category."""
-    
+
     category: ScoreCategory
     score: float  # 0-100
     weight: float  # Contribution weight (0-1)
     details: dict = field(default_factory=dict)
     recommendations: list[str] = field(default_factory=list)
-    
+
     @property
     def weighted_score(self) -> float:
         return self.score * self.weight
@@ -69,24 +69,24 @@ class CategoryScore:
 @dataclass
 class HealthScore:
     """Comprehensive compliance health score."""
-    
+
     id: UUID
     repository_id: UUID
     overall_score: float  # 0-100
     grade: ScoreGrade
     category_scores: dict[str, CategoryScore]
     calculated_at: datetime
-    
+
     trend: TrendDirection = TrendDirection.STABLE
     trend_delta: float = 0.0
     previous_score: float | None = None
-    
+
     regulations_checked: list[str] = field(default_factory=list)
     total_controls: int = 0
     passing_controls: int = 0
     failing_controls: int = 0
     not_applicable_controls: int = 0
-    
+
     critical_findings: list[dict] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
 
@@ -94,7 +94,7 @@ class HealthScore:
 @dataclass
 class ScoreHistory:
     """Historical score record."""
-    
+
     id: UUID
     repository_id: UUID
     score: float
@@ -106,7 +106,7 @@ class ScoreHistory:
 @dataclass
 class BadgeConfig:
     """Configuration for generating compliance badges."""
-    
+
     repository_id: UUID
     style: BadgeStyle = BadgeStyle.FLAT
     show_grade: bool = True
@@ -114,7 +114,7 @@ class BadgeConfig:
     label: str = "compliance"
     label_color: str = "555"
     cache_seconds: int = 3600
-    
+
     include_regulations: list[str] | None = None
     custom_colors: dict[str, str] | None = None
 
@@ -122,7 +122,7 @@ class BadgeConfig:
 @dataclass
 class Badge:
     """Generated badge output."""
-    
+
     repository_id: UUID
     score: float
     grade: ScoreGrade
@@ -136,23 +136,23 @@ class Badge:
 @dataclass
 class CICDIntegration:
     """CI/CD integration configuration."""
-    
+
     id: UUID
     repository_id: UUID
     platform: str  # github_actions, gitlab_ci, jenkins, circleci, azure_devops
-    
+
     fail_threshold: float = 70.0
     warn_threshold: float = 85.0
-    
+
     block_on_failure: bool = False
     comment_on_pr: bool = True
     update_status_check: bool = True
-    
+
     regulations_required: list[str] = field(default_factory=list)
-    
+
     webhook_url: str | None = None
     api_token_hash: str | None = None
-    
+
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -160,22 +160,22 @@ class CICDIntegration:
 @dataclass
 class CICDResult:
     """Result of CI/CD compliance check."""
-    
+
     id: UUID
     integration_id: UUID
     repository_id: UUID
-    
+
     score: float
     grade: ScoreGrade
     passed: bool
-    
+
     commit_sha: str
     branch: str
     pr_number: int | None = None
-    
+
     summary: str = ""
     details: dict = field(default_factory=dict)
-    
+
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
@@ -228,10 +228,10 @@ def score_to_color(score: float) -> str:
     """Get badge color for score."""
     if score >= 90:
         return BADGE_COLORS["excellent"]
-    elif score >= 80:
+    if score >= 80:
         return BADGE_COLORS["good"]
-    elif score >= 70:
+    if score >= 70:
         return BADGE_COLORS["fair"]
-    elif score >= 60:
+    if score >= 60:
         return BADGE_COLORS["poor"]
     return BADGE_COLORS["critical"]

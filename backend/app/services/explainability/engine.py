@@ -2,7 +2,6 @@
 
 import hashlib
 import time
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -193,12 +192,12 @@ class ExplainabilityEngine:
     ) -> ExplanationResponse:
         """Generate a comprehensive explanation for a compliance decision."""
         start_time = time.perf_counter()
-        
+
         context = request.decision_context
         violation_type = context.get("violation_type", "GENERAL")
         code = request.code_snippet or ""
         regulation = request.regulation or context.get("regulation")
-        
+
         # Build reasoning chain
         reasoning_chain = await self._build_reasoning_chain(
             violation_type=violation_type,
@@ -206,21 +205,21 @@ class ExplainabilityEngine:
             context=context,
             max_steps=request.max_reasoning_steps,
         )
-        
+
         # Gather citations
         primary_citations, supporting_citations = await self._gather_citations(
             violation_type=violation_type,
             regulation=regulation,
             context=context,
         )
-        
+
         # Calculate confidence
         confidence, confidence_score = self._calculate_confidence(
             reasoning_chain=reasoning_chain,
             citations=primary_citations,
             context=context,
         )
-        
+
         # Generate summary and decision
         decision_type = context.get("decision_type", "violation")
         decision = self._generate_decision_text(
@@ -228,15 +227,15 @@ class ExplainabilityEngine:
             decision_type=decision_type,
             regulation=regulation,
         )
-        
+
         summary = self._generate_summary(
             violation_type=violation_type,
             code=code,
             context=context,
         )
-        
+
         processing_time = (time.perf_counter() - start_time) * 1000
-        
+
         # Create explanation
         explanation = ComplianceExplanation(
             decision=decision,
@@ -257,12 +256,12 @@ class ExplainabilityEngine:
                 "format": request.format.value,
             },
         )
-        
+
         self._explanations[explanation.id] = explanation
-        
+
         # Format output
         formatted_output = self._format_explanation(explanation, request.format)
-        
+
         # Create audit log if organization provided
         audit_log_id = None
         if organization_id:
@@ -273,7 +272,7 @@ class ExplainabilityEngine:
                 explanation=explanation,
             )
             audit_log_id = audit_log.id
-        
+
         logger.info(
             "Generated compliance explanation",
             explanation_id=str(explanation.id),
@@ -281,7 +280,7 @@ class ExplainabilityEngine:
             confidence=confidence.value,
             processing_time_ms=processing_time,
         )
-        
+
         return ExplanationResponse(
             explanation=explanation,
             formatted_output=formatted_output,
@@ -297,47 +296,55 @@ class ExplainabilityEngine:
     ) -> list[ReasoningStep]:
         """Build the reasoning chain for a decision."""
         steps = []
-        
+
         # Get template reasoning if available
         template = VIOLATION_REASONING.get(violation_type, {})
         template_steps = template.get("reasoning", [])
-        
+
         # Step 1: Code Analysis
-        steps.append(ReasoningStep(
-            step_number=1,
-            description="Analyzed the code snippet for compliance-relevant patterns",
-            evidence=f"Code contains {len(code)} characters, analyzed for {violation_type} patterns",
-            confidence=0.95,
-            logic_type="deductive",
-        ))
-        
+        steps.append(
+            ReasoningStep(
+                step_number=1,
+                description="Analyzed the code snippet for compliance-relevant patterns",
+                evidence=f"Code contains {len(code)} characters, analyzed for {violation_type} patterns",
+                confidence=0.95,
+                logic_type="deductive",
+            )
+        )
+
         # Step 2: Pattern Detection
         if template_steps:
-            steps.append(ReasoningStep(
-                step_number=2,
-                description=template_steps[0] if template_steps else "Pattern detected in code",
-                evidence=context.get("matched_pattern", "Compliance pattern matched"),
-                confidence=0.85,
-                logic_type="deductive",
-            ))
-        
+            steps.append(
+                ReasoningStep(
+                    step_number=2,
+                    description=template_steps[0] if template_steps else "Pattern detected in code",
+                    evidence=context.get("matched_pattern", "Compliance pattern matched"),
+                    confidence=0.85,
+                    logic_type="deductive",
+                )
+            )
+
         # Step 3-N: Additional reasoning from template
-        for i, reason in enumerate(template_steps[1:max_steps-2], start=3):
-            steps.append(ReasoningStep(
-                step_number=i,
-                description=reason,
-                confidence=0.80,
-                logic_type="deductive",
-            ))
-        
+        for i, reason in enumerate(template_steps[1 : max_steps - 2], start=3):
+            steps.append(
+                ReasoningStep(
+                    step_number=i,
+                    description=reason,
+                    confidence=0.80,
+                    logic_type="deductive",
+                )
+            )
+
         # Final step: Conclusion
-        steps.append(ReasoningStep(
-            step_number=len(steps) + 1,
-            description="Based on the analysis, this code requires attention for regulatory compliance",
-            confidence=0.90,
-            logic_type="deductive",
-        ))
-        
+        steps.append(
+            ReasoningStep(
+                step_number=len(steps) + 1,
+                description="Based on the analysis, this code requires attention for regulatory compliance",
+                confidence=0.90,
+                logic_type="deductive",
+            )
+        )
+
         return steps
 
     async def _gather_citations(
@@ -349,48 +356,56 @@ class ExplainabilityEngine:
         """Gather regulatory citations for the decision."""
         primary = []
         supporting = []
-        
+
         # Get template citations
         template = VIOLATION_REASONING.get(violation_type, {})
         template_articles = template.get("articles", [])
         template_regulations = template.get("regulations", [])
-        
+
         # If specific regulation provided, prioritize it
         if regulation:
-            template_regulations = [regulation] + [r for r in template_regulations if r != regulation]
-        
+            template_regulations = [regulation] + [
+                r for r in template_regulations if r != regulation
+            ]
+
         for reg in template_regulations[:2]:  # Primary from first 2 regulations
             if reg in REGULATION_KNOWLEDGE:
                 reg_info = REGULATION_KNOWLEDGE[reg]
-                
+
                 for article_ref in template_articles:
                     if reg in article_ref:
                         # Parse article reference
                         parts = article_ref.replace(f"{reg} ", "").split()
                         article_num = parts[1] if len(parts) > 1 else "general"
-                        
+
                         article_info = reg_info.get("articles", {}).get(
                             article_num.replace("Article", "").strip(),
-                            {"title": "Compliance requirement"}
+                            {"title": "Compliance requirement"},
                         )
-                        
-                        primary.append(CitationChain(
-                            regulation=reg,
-                            article=f"Article {article_num}" if not article_num.startswith("Article") else article_num,
-                            text_excerpt=article_info.get("title", "Regulatory requirement"),
-                            relevance_score=0.9,
-                        ))
-        
+
+                        primary.append(
+                            CitationChain(
+                                regulation=reg,
+                                article=f"Article {article_num}"
+                                if not article_num.startswith("Article")
+                                else article_num,
+                                text_excerpt=article_info.get("title", "Regulatory requirement"),
+                                relevance_score=0.9,
+                            )
+                        )
+
         # Add supporting citations
         for reg in template_regulations[2:]:  # Supporting from remaining
             if reg in REGULATION_KNOWLEDGE:
-                supporting.append(CitationChain(
-                    regulation=reg,
-                    article="General",
-                    text_excerpt=f"{reg} compliance requirements",
-                    relevance_score=0.7,
-                ))
-        
+                supporting.append(
+                    CitationChain(
+                        regulation=reg,
+                        article="General",
+                        text_excerpt=f"{reg} compliance requirements",
+                        relevance_score=0.7,
+                    )
+                )
+
         return primary, supporting
 
     def _calculate_confidence(
@@ -405,19 +420,19 @@ class ExplainabilityEngine:
             avg_step_confidence = sum(s.confidence for s in reasoning_chain) / len(reasoning_chain)
         else:
             avg_step_confidence = 0.5
-        
+
         # Boost from citations
         citation_boost = min(0.2, len(citations) * 0.05)
-        
+
         # Context factors
         context_boost = 0
         if context.get("verified_pattern"):
             context_boost += 0.1
         if context.get("multiple_matches"):
             context_boost += 0.05
-        
+
         final_score = min(1.0, avg_step_confidence + citation_boost + context_boost)
-        
+
         # Map to confidence level
         if final_score >= 0.85:
             level = ExplanationConfidence.HIGH
@@ -427,7 +442,7 @@ class ExplainabilityEngine:
             level = ExplanationConfidence.LOW
         else:
             level = ExplanationConfidence.UNCERTAIN
-        
+
         return level, final_score
 
     def _generate_decision_text(
@@ -438,15 +453,14 @@ class ExplainabilityEngine:
     ) -> str:
         """Generate human-readable decision text."""
         reg_str = f"{regulation} " if regulation else ""
-        
+
         if decision_type == "violation":
             return f"Potential {reg_str}compliance violation detected"
-        elif decision_type == "compliant":
+        if decision_type == "compliant":
             return f"Code appears compliant with {reg_str}requirements"
-        elif decision_type == "needs_review":
+        if decision_type == "needs_review":
             return f"Manual review recommended for {reg_str}compliance"
-        else:
-            return f"Unable to determine {reg_str}compliance status"
+        return f"Unable to determine {reg_str}compliance status"
 
     def _generate_summary(
         self,
@@ -458,11 +472,8 @@ class ExplainabilityEngine:
         template = VIOLATION_REASONING.get(violation_type, {})
         if template.get("summary"):
             return template["summary"]
-        
-        return context.get(
-            "message",
-            "Compliance issue detected that requires attention"
-        )
+
+        return context.get("message", "Compliance issue detected that requires attention")
 
     def _get_alternative_interpretations(
         self,
@@ -470,14 +481,20 @@ class ExplainabilityEngine:
     ) -> list[str]:
         """Get alternative interpretations of the findings."""
         alternatives = []
-        
+
         if context.get("may_be_test_code"):
-            alternatives.append("This may be test code with intentional violations for testing purposes")
+            alternatives.append(
+                "This may be test code with intentional violations for testing purposes"
+            )
         if context.get("may_be_example"):
-            alternatives.append("This could be example/documentation code not intended for production")
+            alternatives.append(
+                "This could be example/documentation code not intended for production"
+            )
         if context.get("context_dependent"):
-            alternatives.append("The compliance status may depend on runtime context not visible in static analysis")
-        
+            alternatives.append(
+                "The compliance status may depend on runtime context not visible in static analysis"
+            )
+
         return alternatives
 
     def _get_assumptions(
@@ -489,10 +506,10 @@ class ExplainabilityEngine:
             "Code is intended for production use",
             "Standard interpretation of regulatory requirements applies",
         ]
-        
+
         if context.get("language"):
             assumptions.append(f"Code is written in {context['language']}")
-        
+
         return assumptions
 
     def _get_limitations(
@@ -515,17 +532,17 @@ class ExplainabilityEngine:
         """Format explanation for output."""
         if format == ExplanationFormat.NATURAL_LANGUAGE:
             return explanation.to_natural_language()
-        elif format == ExplanationFormat.STRUCTURED:
+        if format == ExplanationFormat.STRUCTURED:
             import json
+
             return json.dumps(explanation.to_audit_format(), indent=2, default=str)
-        elif format == ExplanationFormat.LEGAL:
+        if format == ExplanationFormat.LEGAL:
             return self._format_legal(explanation)
-        elif format == ExplanationFormat.TECHNICAL:
+        if format == ExplanationFormat.TECHNICAL:
             return self._format_technical(explanation)
-        elif format == ExplanationFormat.EXECUTIVE:
+        if format == ExplanationFormat.EXECUTIVE:
             return self._format_executive(explanation)
-        else:
-            return explanation.to_natural_language()
+        return explanation.to_natural_language()
 
     def _format_legal(self, explanation: ComplianceExplanation) -> str:
         """Format for legal review."""
@@ -539,20 +556,22 @@ class ExplainabilityEngine:
             "",
             "REGULATORY BASIS:",
         ]
-        
+
         for cite in explanation.primary_citations:
             lines.append(f"  - {cite.to_citation_string()}")
-        
-        lines.extend([
-            "",
-            "ANALYSIS:",
-            explanation.summary,
-            "",
-            "CONFIDENCE ASSESSMENT:",
-            f"  Level: {explanation.confidence.value.upper()}",
-            f"  Score: {explanation.confidence_score:.0%}",
-        ])
-        
+
+        lines.extend(
+            [
+                "",
+                "ANALYSIS:",
+                explanation.summary,
+                "",
+                "CONFIDENCE ASSESSMENT:",
+                f"  Level: {explanation.confidence.value.upper()}",
+                f"  Score: {explanation.confidence_score:.0%}",
+            ]
+        )
+
         return "\n".join(lines)
 
     def _format_technical(self, explanation: ComplianceExplanation) -> str:
@@ -564,22 +583,26 @@ class ExplainabilityEngine:
             "",
             "Reasoning Steps:",
         ]
-        
+
         for step in explanation.reasoning_chain:
-            lines.append(f"  {step.step_number}. {step.description} (confidence: {step.confidence:.0%})")
-        
-        lines.extend([
-            "",
-            f"Confidence: {explanation.confidence_score:.0%}",
-            f"Model Version: {explanation.model_version}",
-        ])
-        
+            lines.append(
+                f"  {step.step_number}. {step.description} (confidence: {step.confidence:.0%})"
+            )
+
+        lines.extend(
+            [
+                "",
+                f"Confidence: {explanation.confidence_score:.0%}",
+                f"Model Version: {explanation.model_version}",
+            ]
+        )
+
         return "\n".join(lines)
 
     def _format_executive(self, explanation: ComplianceExplanation) -> str:
         """Format for executive summary."""
         risk_level = "HIGH" if explanation.decision_type == "violation" else "LOW"
-        
+
         return f"""EXECUTIVE SUMMARY
 ================
 
@@ -607,10 +630,10 @@ Reference: {explanation.id}
         # Hash inputs and outputs for integrity
         input_data = str(request.model_dump())
         input_hash = hashlib.sha256(input_data.encode()).hexdigest()
-        
+
         result_data = str(explanation.model_dump())
         result_hash = hashlib.sha256(result_data.encode()).hexdigest()
-        
+
         audit_log = DecisionAuditLog(
             organization_id=organization_id,
             user_id=user_id,
@@ -622,13 +645,13 @@ Reference: {explanation.id}
             result_hash=result_hash,
             previous_log_id=list(self._audit_logs.keys())[-1] if self._audit_logs else None,
         )
-        
+
         # Compute chain hash
         audit_log.chain_hash = audit_log.compute_chain_hash(self._last_chain_hash)
         self._last_chain_hash = audit_log.chain_hash
-        
+
         self._audit_logs[audit_log.id] = audit_log
-        
+
         return audit_log
 
     async def get_explanation(self, explanation_id: UUID) -> ComplianceExplanation | None:
@@ -645,10 +668,7 @@ Reference: {explanation.id}
         limit: int = 100,
     ) -> list[DecisionAuditLog]:
         """Get audit logs for an organization."""
-        logs = [
-            log for log in self._audit_logs.values()
-            if log.organization_id == organization_id
-        ]
+        logs = [log for log in self._audit_logs.values() if log.organization_id == organization_id]
         return sorted(logs, key=lambda x: x.timestamp, reverse=True)[:limit]
 
     async def verify_audit_chain(
@@ -658,13 +678,13 @@ Reference: {explanation.id}
         """Verify the integrity of the audit chain."""
         logs = await self.get_audit_logs(organization_id, limit=10000)
         logs.reverse()  # Oldest first
-        
+
         if not logs:
             return {"valid": True, "verified_count": 0, "message": "No audit logs to verify"}
-        
+
         previous_hash = None
         verified = 0
-        
+
         for log in logs:
             expected_hash = log.compute_chain_hash(previous_hash)
             if log.chain_hash != expected_hash:
@@ -676,7 +696,7 @@ Reference: {explanation.id}
                 }
             previous_hash = log.chain_hash
             verified += 1
-        
+
         return {
             "valid": True,
             "verified_count": verified,
@@ -691,19 +711,21 @@ Reference: {explanation.id}
         explanation = self._explanations.get(explanation_id)
         if not explanation:
             raise ValueError(f"Explanation {explanation_id} not found")
-        
+
         bias_indicators = []
-        
+
         # Check for potential biases
         if explanation.confidence_score < 0.5:
-            bias_indicators.append(BiasIndicator(
-                bias_type="uncertainty",
-                description="Low confidence may indicate insufficient training data for this case",
-                severity="medium",
-                mitigation="Consider additional human review",
-                confidence=0.7,
-            ))
-        
+            bias_indicators.append(
+                BiasIndicator(
+                    bias_type="uncertainty",
+                    description="Low confidence may indicate insufficient training data for this case",
+                    severity="medium",
+                    mitigation="Consider additional human review",
+                    confidence=0.7,
+                )
+            )
+
         return FairnessMetrics(
             explanation_id=explanation_id,
             consistency_score=0.85,

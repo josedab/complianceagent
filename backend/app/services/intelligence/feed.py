@@ -2,17 +2,14 @@
 
 import asyncio
 import hashlib
-import time
 from collections.abc import AsyncIterator
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
 
 from app.services.intelligence.models import (
-    CustomerProfile,
-    IntelligenceAlert,
     IntelligenceDigest,
     RegulatorySource,
     RegulatoryUpdate,
@@ -27,33 +24,130 @@ logger = structlog.get_logger()
 # Default regulatory sources to monitor
 DEFAULT_SOURCES = [
     # US Federal
-    RegulatorySource(name="SEC EDGAR", url="https://www.sec.gov/cgi-bin/browse-edgar", jurisdiction="US", framework="Securities", category="financial"),
-    RegulatorySource(name="FTC Press", url="https://www.ftc.gov/news-events/news/press-releases", jurisdiction="US", framework="Consumer Protection", category="privacy"),
-    RegulatorySource(name="HHS OCR", url="https://www.hhs.gov/hipaa/index.html", jurisdiction="US", framework="HIPAA", category="healthcare"),
-    RegulatorySource(name="NIST Cybersecurity", url="https://www.nist.gov/cyberframework", jurisdiction="US", framework="NIST", category="security"),
-    
+    RegulatorySource(
+        name="SEC EDGAR",
+        url="https://www.sec.gov/cgi-bin/browse-edgar",
+        jurisdiction="US",
+        framework="Securities",
+        category="financial",
+    ),
+    RegulatorySource(
+        name="FTC Press",
+        url="https://www.ftc.gov/news-events/news/press-releases",
+        jurisdiction="US",
+        framework="Consumer Protection",
+        category="privacy",
+    ),
+    RegulatorySource(
+        name="HHS OCR",
+        url="https://www.hhs.gov/hipaa/index.html",
+        jurisdiction="US",
+        framework="HIPAA",
+        category="healthcare",
+    ),
+    RegulatorySource(
+        name="NIST Cybersecurity",
+        url="https://www.nist.gov/cyberframework",
+        jurisdiction="US",
+        framework="NIST",
+        category="security",
+    ),
     # US State
-    RegulatorySource(name="California AG", url="https://oag.ca.gov/privacy", jurisdiction="US-CA", framework="CCPA/CPRA", category="privacy"),
-    RegulatorySource(name="Colorado AG", url="https://coag.gov/resources/colorado-privacy-act/", jurisdiction="US-CO", framework="CPA", category="privacy"),
-    
+    RegulatorySource(
+        name="California AG",
+        url="https://oag.ca.gov/privacy",
+        jurisdiction="US-CA",
+        framework="CCPA/CPRA",
+        category="privacy",
+    ),
+    RegulatorySource(
+        name="Colorado AG",
+        url="https://coag.gov/resources/colorado-privacy-act/",
+        jurisdiction="US-CO",
+        framework="CPA",
+        category="privacy",
+    ),
     # EU
-    RegulatorySource(name="EUR-Lex", url="https://eur-lex.europa.eu/", jurisdiction="EU", framework="GDPR", category="privacy"),
-    RegulatorySource(name="EDPB", url="https://edpb.europa.eu/edpb_en", jurisdiction="EU", framework="GDPR", category="privacy"),
-    RegulatorySource(name="EU AI Act Portal", url="https://artificialintelligenceact.eu/", jurisdiction="EU", framework="EU AI Act", category="ai"),
-    RegulatorySource(name="ENISA", url="https://www.enisa.europa.eu/", jurisdiction="EU", framework="NIS2", category="security"),
-    
+    RegulatorySource(
+        name="EUR-Lex",
+        url="https://eur-lex.europa.eu/",
+        jurisdiction="EU",
+        framework="GDPR",
+        category="privacy",
+    ),
+    RegulatorySource(
+        name="EDPB",
+        url="https://edpb.europa.eu/edpb_en",
+        jurisdiction="EU",
+        framework="GDPR",
+        category="privacy",
+    ),
+    RegulatorySource(
+        name="EU AI Act Portal",
+        url="https://artificialintelligenceact.eu/",
+        jurisdiction="EU",
+        framework="EU AI Act",
+        category="ai",
+    ),
+    RegulatorySource(
+        name="ENISA",
+        url="https://www.enisa.europa.eu/",
+        jurisdiction="EU",
+        framework="NIS2",
+        category="security",
+    ),
     # UK
-    RegulatorySource(name="ICO UK", url="https://ico.org.uk/for-organisations/", jurisdiction="UK", framework="UK GDPR", category="privacy"),
-    RegulatorySource(name="FCA", url="https://www.fca.org.uk/news", jurisdiction="UK", framework="Financial", category="financial"),
-    
+    RegulatorySource(
+        name="ICO UK",
+        url="https://ico.org.uk/for-organisations/",
+        jurisdiction="UK",
+        framework="UK GDPR",
+        category="privacy",
+    ),
+    RegulatorySource(
+        name="FCA",
+        url="https://www.fca.org.uk/news",
+        jurisdiction="UK",
+        framework="Financial",
+        category="financial",
+    ),
     # APAC
-    RegulatorySource(name="PDPC Singapore", url="https://www.pdpc.gov.sg/", jurisdiction="SG", framework="PDPA", category="privacy"),
-    RegulatorySource(name="PIPC Korea", url="https://www.pipc.go.kr/", jurisdiction="KR", framework="PIPA", category="privacy"),
-    RegulatorySource(name="MeitY India", url="https://www.meity.gov.in/", jurisdiction="IN", framework="DPDP", category="privacy"),
-    
+    RegulatorySource(
+        name="PDPC Singapore",
+        url="https://www.pdpc.gov.sg/",
+        jurisdiction="SG",
+        framework="PDPA",
+        category="privacy",
+    ),
+    RegulatorySource(
+        name="PIPC Korea",
+        url="https://www.pipc.go.kr/",
+        jurisdiction="KR",
+        framework="PIPA",
+        category="privacy",
+    ),
+    RegulatorySource(
+        name="MeitY India",
+        url="https://www.meity.gov.in/",
+        jurisdiction="IN",
+        framework="DPDP",
+        category="privacy",
+    ),
     # Industry
-    RegulatorySource(name="PCI SSC", url="https://www.pcisecuritystandards.org/", jurisdiction="Global", framework="PCI-DSS", category="payment"),
-    RegulatorySource(name="ISO Standards", url="https://www.iso.org/standards.html", jurisdiction="Global", framework="ISO", category="standards"),
+    RegulatorySource(
+        name="PCI SSC",
+        url="https://www.pcisecuritystandards.org/",
+        jurisdiction="Global",
+        framework="PCI-DSS",
+        category="payment",
+    ),
+    RegulatorySource(
+        name="ISO Standards",
+        url="https://www.iso.org/standards.html",
+        jurisdiction="Global",
+        framework="ISO",
+        category="standards",
+    ),
 ]
 
 
@@ -76,16 +170,16 @@ class IntelligenceFeed:
         """Start the intelligence feed monitoring."""
         self._running = True
         logger.info("Starting regulatory intelligence feed", sources=len(self.sources))
-        
+
         while self._running:
             try:
                 updates = await self._check_all_sources()
                 for update in updates:
                     await self._broadcast_update(update)
-                    
+
             except Exception as e:
                 logger.error(f"Feed check error: {e}")
-            
+
             await asyncio.sleep(self.check_interval)
 
     async def stop(self) -> None:
@@ -95,7 +189,7 @@ class IntelligenceFeed:
 
     def subscribe(self, subscriber_id: UUID) -> asyncio.Queue:
         """Subscribe to receive real-time updates.
-        
+
         Returns a queue that will receive RegulatoryUpdate objects.
         """
         queue: asyncio.Queue = asyncio.Queue()
@@ -116,24 +210,27 @@ class IntelligenceFeed:
         min_severity: UpdateSeverity | None = None,
     ) -> list[RegulatoryUpdate]:
         """Get recent updates with optional filters."""
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
-        
-        updates = [
-            u for u in self._update_cache.values()
-            if u.detected_at >= cutoff
-        ]
-        
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
+
+        updates = [u for u in self._update_cache.values() if u.detected_at >= cutoff]
+
         if jurisdictions:
             updates = [u for u in updates if u.jurisdiction in jurisdictions]
-        
+
         if frameworks:
             updates = [u for u in updates if u.framework in frameworks]
-        
+
         if min_severity:
-            severity_order = [UpdateSeverity.CRITICAL, UpdateSeverity.HIGH, UpdateSeverity.MEDIUM, UpdateSeverity.LOW, UpdateSeverity.INFO]
+            severity_order = [
+                UpdateSeverity.CRITICAL,
+                UpdateSeverity.HIGH,
+                UpdateSeverity.MEDIUM,
+                UpdateSeverity.LOW,
+                UpdateSeverity.INFO,
+            ]
             min_idx = severity_order.index(min_severity)
             updates = [u for u in updates if severity_order.index(u.severity) <= min_idx]
-        
+
         return sorted(updates, key=lambda u: u.detected_at, reverse=True)
 
     async def get_updates_stream(
@@ -141,14 +238,14 @@ class IntelligenceFeed:
         subscriber_id: UUID | None = None,
     ) -> AsyncIterator[RegulatoryUpdate]:
         """Async generator for streaming updates.
-        
+
         Usage:
             async for update in feed.get_updates_stream():
                 process(update)
         """
         sub_id = subscriber_id or uuid4()
         queue = self.subscribe(sub_id)
-        
+
         try:
             while True:
                 update = await queue.get()
@@ -158,7 +255,7 @@ class IntelligenceFeed:
 
     async def simulate_update(self, update: RegulatoryUpdate) -> None:
         """Simulate a regulatory update for testing."""
-        update.detected_at = datetime.utcnow()
+        update.detected_at = datetime.now(UTC)
         update.content_hash = self._hash_content(update.content)
         self._update_cache[str(update.id)] = update
         await self._broadcast_update(update)
@@ -166,28 +263,31 @@ class IntelligenceFeed:
     async def _check_all_sources(self) -> list[RegulatoryUpdate]:
         """Check all sources for updates."""
         updates = []
-        
+
         for source in self.sources:
             if not source.is_active:
                 continue
-            
+
             # Check if source needs to be checked
             last = self._last_check.get(source.name)
-            if last and (datetime.utcnow() - last).total_seconds() < source.check_frequency_hours * 3600:
+            if (
+                last
+                and (datetime.now(UTC) - last).total_seconds() < source.check_frequency_hours * 3600
+            ):
                 continue
-            
+
             try:
                 source_updates = await self._check_source(source)
                 updates.extend(source_updates)
-                self._last_check[source.name] = datetime.utcnow()
+                self._last_check[source.name] = datetime.now(UTC)
             except Exception as e:
                 logger.warning(f"Failed to check source {source.name}: {e}")
-        
+
         return updates
 
     async def _check_source(self, source: RegulatorySource) -> list[RegulatoryUpdate]:
         """Check a single source for updates.
-        
+
         In production, this would use web crawling (Playwright/HTTPX).
         For now, returns empty list (actual crawling implemented elsewhere).
         """
@@ -223,15 +323,15 @@ class IntelligenceFeed:
             keywords=update_data.get("keywords", []),
             metadata=update_data.get("metadata", {}),
         )
-        
+
         if update_data.get("effective_date"):
             update.effective_date = datetime.fromisoformat(update_data["effective_date"])
         if update_data.get("published_date"):
             update.published_date = datetime.fromisoformat(update_data["published_date"])
-        
+
         update.content_hash = self._hash_content(update.content)
         self._update_cache[str(update.id)] = update
-        
+
         return update
 
     def generate_digest(
@@ -242,52 +342,52 @@ class IntelligenceFeed:
         """Generate a digest from a list of updates."""
         digest = IntelligenceDigest(
             organization_id=organization_id,
-            period_start=min(u.detected_at for u in updates) if updates else datetime.utcnow(),
-            period_end=max(u.detected_at for u in updates) if updates else datetime.utcnow(),
+            period_start=min(u.detected_at for u in updates) if updates else datetime.now(UTC),
+            period_end=max(u.detected_at for u in updates) if updates else datetime.now(UTC),
             total_updates=len(updates),
             critical_count=sum(1 for u in updates if u.severity == UpdateSeverity.CRITICAL),
             high_count=sum(1 for u in updates if u.severity == UpdateSeverity.HIGH),
             medium_count=sum(1 for u in updates if u.severity == UpdateSeverity.MEDIUM),
             updates=updates,
         )
-        
+
         # Generate summary
         if updates:
             digest.summary = self._generate_digest_summary(updates)
         else:
             digest.summary = "No regulatory updates during this period."
-        
+
         return digest
 
     def _generate_digest_summary(self, updates: list[RegulatoryUpdate]) -> str:
         """Generate a human-readable summary for a digest."""
         by_framework: dict[str, int] = {}
         by_jurisdiction: dict[str, int] = {}
-        
+
         for u in updates:
             by_framework[u.framework] = by_framework.get(u.framework, 0) + 1
             by_jurisdiction[u.jurisdiction] = by_jurisdiction.get(u.jurisdiction, 0) + 1
-        
-        summary = f"## Regulatory Update Summary\n\n"
+
+        summary = "## Regulatory Update Summary\n\n"
         summary += f"**{len(updates)}** updates detected.\n\n"
-        
+
         # Top frameworks
         summary += "### By Framework\n"
         for fw, count in sorted(by_framework.items(), key=lambda x: -x[1])[:5]:
             summary += f"- {fw}: {count}\n"
-        
+
         # Top jurisdictions
         summary += "\n### By Jurisdiction\n"
         for jur, count in sorted(by_jurisdiction.items(), key=lambda x: -x[1])[:5]:
             summary += f"- {jur}: {count}\n"
-        
+
         # Critical updates
         critical = [u for u in updates if u.severity == UpdateSeverity.CRITICAL]
         if critical:
             summary += f"\n### ⚠️ Critical Updates ({len(critical)})\n"
             for u in critical[:3]:
                 summary += f"- **{u.title}** ({u.framework})\n"
-        
+
         return summary
 
     def get_available_sources(self) -> list[dict[str, Any]]:

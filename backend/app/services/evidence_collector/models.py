@@ -3,12 +3,12 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
 from uuid import UUID, uuid4
 
 
 class EvidenceType(str, Enum):
     """Types of compliance evidence."""
+
     CODE_ARTIFACT = "code_artifact"
     CONFIGURATION = "configuration"
     LOG_SAMPLE = "log_sample"
@@ -28,6 +28,7 @@ class EvidenceType(str, Enum):
 
 class EvidenceSource(str, Enum):
     """Sources of evidence collection."""
+
     GITHUB = "github"
     CODE_SCAN = "code_scan"
     CONFIG_FILE = "config_file"
@@ -42,6 +43,7 @@ class EvidenceSource(str, Enum):
 
 class AuditPackageStatus(str, Enum):
     """Status of audit package generation."""
+
     PENDING = "pending"
     COLLECTING = "collecting"
     VALIDATING = "validating"
@@ -53,6 +55,7 @@ class AuditPackageStatus(str, Enum):
 @dataclass
 class EvidenceItem:
     """Individual evidence item."""
+
     id: UUID = field(default_factory=uuid4)
     organization_id: UUID | None = None
     evidence_type: EvidenceType = EvidenceType.CODE_ARTIFACT
@@ -79,6 +82,7 @@ class EvidenceItem:
 @dataclass
 class ControlMapping:
     """Mapping between regulatory control and evidence requirements."""
+
     id: UUID = field(default_factory=uuid4)
     framework: str = ""
     control_id: str = ""
@@ -94,6 +98,7 @@ class ControlMapping:
 @dataclass
 class ControlEvidence:
     """Evidence collected for a specific control."""
+
     id: UUID = field(default_factory=uuid4)
     control_mapping_id: UUID | None = None
     control_id: str = ""
@@ -110,6 +115,7 @@ class ControlEvidence:
 @dataclass
 class AuditPackage:
     """Complete audit evidence package."""
+
     id: UUID = field(default_factory=uuid4)
     organization_id: UUID | None = None
     name: str = ""
@@ -135,6 +141,7 @@ class AuditPackage:
 @dataclass
 class CollectionTask:
     """Background task for evidence collection."""
+
     id: UUID = field(default_factory=uuid4)
     audit_package_id: UUID | None = None
     control_id: str = ""
@@ -165,7 +172,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="CC6.1",
             control_name="Logical Access Security",
             control_description="Logical access security software, infrastructure, and architectures are implemented",
-            required_evidence_types=[EvidenceType.CONFIGURATION, EvidenceType.ACCESS_REVIEW, EvidenceType.AUDIT_LOG],
+            required_evidence_types=[
+                EvidenceType.CONFIGURATION,
+                EvidenceType.ACCESS_REVIEW,
+                EvidenceType.AUDIT_LOG,
+            ],
             collection_frequency="quarterly",
             automation_level="full",
         ),
@@ -174,7 +185,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="CC6.6",
             control_name="Access Controls",
             control_description="Users are authenticated before accessing sensitive data",
-            required_evidence_types=[EvidenceType.CODE_ARTIFACT, EvidenceType.CONFIGURATION, EvidenceType.TEST_RESULT],
+            required_evidence_types=[
+                EvidenceType.CODE_ARTIFACT,
+                EvidenceType.CONFIGURATION,
+                EvidenceType.TEST_RESULT,
+            ],
             collection_frequency="quarterly",
             automation_level="full",
         ),
@@ -201,7 +216,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="CC8.1",
             control_name="Change Management",
             control_description="Changes are authorized, tested, and approved before implementation",
-            required_evidence_types=[EvidenceType.COMMIT_HISTORY, EvidenceType.TEST_RESULT, EvidenceType.AUDIT_LOG],
+            required_evidence_types=[
+                EvidenceType.COMMIT_HISTORY,
+                EvidenceType.TEST_RESULT,
+                EvidenceType.AUDIT_LOG,
+            ],
             collection_frequency="continuous",
             automation_level="full",
         ),
@@ -221,7 +240,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="Art6",
             control_name="Lawful Basis",
             control_description="Processing has valid legal basis such as consent or contract",
-            required_evidence_types=[EvidenceType.CODE_ARTIFACT, EvidenceType.CONFIGURATION, EvidenceType.AUDIT_LOG],
+            required_evidence_types=[
+                EvidenceType.CODE_ARTIFACT,
+                EvidenceType.CONFIGURATION,
+                EvidenceType.AUDIT_LOG,
+            ],
             collection_frequency="quarterly",
             automation_level="full",
         ),
@@ -230,7 +253,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="Art17",
             control_name="Right to Erasure",
             control_description="Data subjects can request deletion of their personal data",
-            required_evidence_types=[EvidenceType.CODE_ARTIFACT, EvidenceType.API_RESPONSE, EvidenceType.TEST_RESULT],
+            required_evidence_types=[
+                EvidenceType.CODE_ARTIFACT,
+                EvidenceType.API_RESPONSE,
+                EvidenceType.TEST_RESULT,
+            ],
             collection_frequency="quarterly",
             automation_level="full",
         ),
@@ -239,7 +266,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="Art32",
             control_name="Security of Processing",
             control_description="Appropriate technical and organizational measures are implemented",
-            required_evidence_types=[EvidenceType.ENCRYPTION_PROOF, EvidenceType.VULNERABILITY_SCAN, EvidenceType.ACCESS_REVIEW],
+            required_evidence_types=[
+                EvidenceType.ENCRYPTION_PROOF,
+                EvidenceType.VULNERABILITY_SCAN,
+                EvidenceType.ACCESS_REVIEW,
+            ],
             collection_frequency="quarterly",
             automation_level="full",
         ),
@@ -259,7 +290,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="164.312(a)",
             control_name="Access Control",
             control_description="Implement technical policies to limit access to ePHI",
-            required_evidence_types=[EvidenceType.CONFIGURATION, EvidenceType.ACCESS_REVIEW, EvidenceType.AUDIT_LOG],
+            required_evidence_types=[
+                EvidenceType.CONFIGURATION,
+                EvidenceType.ACCESS_REVIEW,
+                EvidenceType.AUDIT_LOG,
+            ],
             collection_frequency="quarterly",
             automation_level="full",
         ),
@@ -268,7 +303,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="164.312(b)",
             control_name="Audit Controls",
             control_description="Hardware, software, and procedures to record and examine access",
-            required_evidence_types=[EvidenceType.AUDIT_LOG, EvidenceType.LOG_SAMPLE, EvidenceType.CONFIGURATION],
+            required_evidence_types=[
+                EvidenceType.AUDIT_LOG,
+                EvidenceType.LOG_SAMPLE,
+                EvidenceType.CONFIGURATION,
+            ],
             collection_frequency="continuous",
             automation_level="full",
         ),
@@ -286,7 +325,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="164.312(d)",
             control_name="Person Authentication",
             control_description="Verify person seeking access is the one claimed",
-            required_evidence_types=[EvidenceType.CODE_ARTIFACT, EvidenceType.CONFIGURATION, EvidenceType.TEST_RESULT],
+            required_evidence_types=[
+                EvidenceType.CODE_ARTIFACT,
+                EvidenceType.CONFIGURATION,
+                EvidenceType.TEST_RESULT,
+            ],
             collection_frequency="quarterly",
             automation_level="full",
         ),
@@ -333,7 +376,11 @@ CONTROL_FRAMEWORKS: dict[str, list[ControlMapping]] = {
             control_id="6.5",
             control_name="Secure Development",
             control_description="Address common coding vulnerabilities in software development",
-            required_evidence_types=[EvidenceType.VULNERABILITY_SCAN, EvidenceType.TEST_RESULT, EvidenceType.COMMIT_HISTORY],
+            required_evidence_types=[
+                EvidenceType.VULNERABILITY_SCAN,
+                EvidenceType.TEST_RESULT,
+                EvidenceType.COMMIT_HISTORY,
+            ],
             collection_frequency="continuous",
             automation_level="full",
         ),

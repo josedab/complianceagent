@@ -13,13 +13,18 @@ from app.services.explainability.models import (
     ReasoningStep,
 )
 
+
 __all__ = [
+    "BiasIndicator",
     "CitationChain",
     "ComplianceExplanation",
     "DecisionAuditLog",
     "ExplainabilityEngine",
     "ExplanationConfidence",
     "ExplanationFormat",
+    "ExplanationRequest",
+    "ExplanationResponse",
+    "FairnessMetrics",
     "ReasoningStep",
     "get_explainability_engine",
 ]

@@ -115,12 +115,14 @@ class SingaporePDPAParser:
                 section_num = section_match.group(1)
                 section_info = PDPA_SECTIONS.get(section_num, {})
 
-                result["sections"].append({
-                    "number": section_num,
-                    "title": section_info.get("title", ""),
-                    "type": section_info.get("type", "general"),
-                    "content": section.get_text(separator="\n", strip=True),
-                })
+                result["sections"].append(
+                    {
+                        "number": section_num,
+                        "title": section_info.get("title", ""),
+                        "type": section_info.get("type", "general"),
+                        "content": section.get_text(separator="\n", strip=True),
+                    }
+                )
 
         return result
 
@@ -146,12 +148,14 @@ class SingaporePDPAParser:
                     date_elem = item.select_one(".date, time, .published")
 
                     if title_elem:
-                        guidelines.append({
-                            "title": title_elem.get_text(strip=True),
-                            "url": link_elem.get("href") if link_elem else None,
-                            "date": date_elem.get_text(strip=True) if date_elem else None,
-                            "type": "guideline",
-                        })
+                        guidelines.append(
+                            {
+                                "title": title_elem.get_text(strip=True),
+                                "url": link_elem.get("href") if link_elem else None,
+                                "date": date_elem.get_text(strip=True) if date_elem else None,
+                                "type": "guideline",
+                            }
+                        )
                 break
 
         return guidelines
@@ -182,18 +186,20 @@ class SingaporePDPAParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "section": section.get("number"),
-                    "title": section.get("title"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "citation": {
-                        "section": f"Section {section.get('number')}",
-                        "act": "Personal Data Protection Act 2012",
-                        "jurisdiction": "Singapore",
-                    },
-                })
+                requirements.append(
+                    {
+                        "section": section.get("number"),
+                        "title": section.get("title"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "citation": {
+                            "section": f"Section {section.get('number')}",
+                            "act": "Personal Data Protection Act 2012",
+                            "jurisdiction": "Singapore",
+                        },
+                    }
+                )
 
         return requirements
 

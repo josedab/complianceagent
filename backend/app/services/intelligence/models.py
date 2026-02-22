@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 class UpdateSeverity(str, Enum):
     """Severity/urgency of a regulatory update."""
+
     CRITICAL = "critical"  # Immediate action required
     HIGH = "high"  # Action within 30 days
     MEDIUM = "medium"  # Action within 90 days
@@ -18,6 +19,7 @@ class UpdateSeverity(str, Enum):
 
 class UpdateType(str, Enum):
     """Type of regulatory update."""
+
     NEW_REGULATION = "new_regulation"
     AMENDMENT = "amendment"
     GUIDANCE = "guidance"
@@ -29,6 +31,7 @@ class UpdateType(str, Enum):
 
 class NotificationChannel(str, Enum):
     """Notification delivery channels."""
+
     EMAIL = "email"
     SLACK = "slack"
     TEAMS = "teams"
@@ -38,6 +41,7 @@ class NotificationChannel(str, Enum):
 
 class NotificationFrequency(str, Enum):
     """Notification delivery frequency."""
+
     IMMEDIATE = "immediate"
     HOURLY = "hourly"
     DAILY = "daily"
@@ -47,6 +51,7 @@ class NotificationFrequency(str, Enum):
 @dataclass
 class RegulatorySource:
     """A regulatory source being monitored."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     url: str = ""
@@ -62,6 +67,7 @@ class RegulatorySource:
 @dataclass
 class RegulatoryUpdate:
     """A detected regulatory update/change."""
+
     id: UUID = field(default_factory=uuid4)
     source_id: UUID | None = None
     source_name: str = ""
@@ -86,6 +92,7 @@ class RegulatoryUpdate:
 @dataclass
 class RelevanceScore:
     """Relevance scoring for an update."""
+
     update_id: UUID | None = None
     organization_id: UUID | None = None
     overall_score: float = 0.0
@@ -104,6 +111,7 @@ class RelevanceScore:
 @dataclass
 class NotificationPreference:
     """User/org notification preferences."""
+
     id: UUID = field(default_factory=uuid4)
     organization_id: UUID | None = None
     user_id: UUID | None = None
@@ -124,6 +132,7 @@ class NotificationPreference:
 @dataclass
 class IntelligenceAlert:
     """An alert generated for a regulatory update."""
+
     id: UUID = field(default_factory=uuid4)
     update: RegulatoryUpdate | None = None
     relevance: RelevanceScore | None = None
@@ -141,9 +150,10 @@ class IntelligenceAlert:
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
-@dataclass 
+@dataclass
 class IntelligenceDigest:
     """A digest of multiple regulatory updates."""
+
     id: UUID = field(default_factory=uuid4)
     organization_id: UUID | None = None
     period_start: datetime | None = None
@@ -161,6 +171,7 @@ class IntelligenceDigest:
 @dataclass
 class CustomerProfile:
     """Customer profile for relevance scoring."""
+
     organization_id: UUID | None = None
     industries: list[str] = field(default_factory=list)
     jurisdictions: list[str] = field(default_factory=list)

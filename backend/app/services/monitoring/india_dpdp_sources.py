@@ -111,12 +111,14 @@ class IndiaDPDPParser:
                 # Save previous section
                 if current_section:
                     section_info = DPDP_SECTIONS.get(current_section, {})
-                    result["sections"].append({
-                        "number": current_section,
-                        "title": section_info.get("title", ""),
-                        "type": section_info.get("type", "general"),
-                        "content": "\n".join(current_content),
-                    })
+                    result["sections"].append(
+                        {
+                            "number": current_section,
+                            "title": section_info.get("title", ""),
+                            "type": section_info.get("type", "general"),
+                            "content": "\n".join(current_content),
+                        }
+                    )
 
                 current_section = section_match.group(1)
                 current_content = [line]
@@ -126,12 +128,14 @@ class IndiaDPDPParser:
         # Save last section
         if current_section:
             section_info = DPDP_SECTIONS.get(current_section, {})
-            result["sections"].append({
-                "number": current_section,
-                "title": section_info.get("title", ""),
-                "type": section_info.get("type", "general"),
-                "content": "\n".join(current_content),
-            })
+            result["sections"].append(
+                {
+                    "number": current_section,
+                    "title": section_info.get("title", ""),
+                    "type": section_info.get("type", "general"),
+                    "content": "\n".join(current_content),
+                }
+            )
 
         return result
 
@@ -158,12 +162,14 @@ class IndiaDPDPParser:
                     date_elem = item.select_one(".date, time, .published")
 
                     if title_elem:
-                        updates.append({
-                            "title": title_elem.get_text(strip=True),
-                            "url": link_elem.get("href") if link_elem else None,
-                            "date": date_elem.get_text(strip=True) if date_elem else None,
-                            "type": "update",
-                        })
+                        updates.append(
+                            {
+                                "title": title_elem.get_text(strip=True),
+                                "url": link_elem.get("href") if link_elem else None,
+                                "date": date_elem.get_text(strip=True) if date_elem else None,
+                                "type": "update",
+                            }
+                        )
                 break
 
         return updates
@@ -195,18 +201,20 @@ class IndiaDPDPParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "section": section.get("number"),
-                    "title": section.get("title"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "citation": {
-                        "section": f"Section {section.get('number')}",
-                        "act": "Digital Personal Data Protection Act, 2023",
-                        "jurisdiction": "India",
-                    },
-                })
+                requirements.append(
+                    {
+                        "section": section.get("number"),
+                        "title": section.get("title"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "citation": {
+                            "section": f"Section {section.get('number')}",
+                            "act": "Digital Personal Data Protection Act, 2023",
+                            "jurisdiction": "India",
+                        },
+                    }
+                )
 
         return requirements
 

@@ -137,7 +137,12 @@ HIPAA_SECURITY_REQUIREMENTS = [
         "subject": "covered_entity",
         "action": "implement policies and procedures to prevent, detect, contain, and correct security violations",
         "scope": {
-            "includes": ["risk_analysis", "risk_management", "sanction_policy", "information_system_activity_review"],
+            "includes": [
+                "risk_analysis",
+                "risk_management",
+                "sanction_policy",
+                "information_system_activity_review",
+            ],
         },
     },
     {
@@ -148,7 +153,11 @@ HIPAA_SECURITY_REQUIREMENTS = [
         "subject": "covered_entity",
         "action": "implement policies and procedures for authorization and supervision of workforce access",
         "scope": {
-            "addressable": ["authorization_procedures", "workforce_clearance", "termination_procedures"],
+            "addressable": [
+                "authorization_procedures",
+                "workforce_clearance",
+                "termination_procedures",
+            ],
         },
     },
     {
@@ -159,7 +168,12 @@ HIPAA_SECURITY_REQUIREMENTS = [
         "subject": "covered_entity",
         "action": "implement security awareness and training program for workforce",
         "scope": {
-            "addressable": ["security_reminders", "malicious_software_protection", "login_monitoring", "password_management"],
+            "addressable": [
+                "security_reminders",
+                "malicious_software_protection",
+                "login_monitoring",
+                "password_management",
+            ],
         },
     },
     {
@@ -170,7 +184,12 @@ HIPAA_SECURITY_REQUIREMENTS = [
         "subject": "covered_entity",
         "action": "implement technical policies and procedures for access control",
         "scope": {
-            "includes": ["unique_user_identification", "emergency_access", "automatic_logoff", "encryption"],
+            "includes": [
+                "unique_user_identification",
+                "emergency_access",
+                "automatic_logoff",
+                "encryption",
+            ],
         },
     },
     {
@@ -288,10 +307,12 @@ class HIPAAParser:
                     sibling = sibling.find_next_sibling()
 
                 if section_title:
-                    result["sections"].append({
-                        "title": section_title,
-                        "content": section_content,
-                    })
+                    result["sections"].append(
+                        {
+                            "title": section_title,
+                            "content": section_content,
+                        }
+                    )
 
         return result
 
@@ -318,14 +339,16 @@ class HIPAAParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "section": section.get("title"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "framework": "hipaa",
-                    "jurisdiction": "US-Federal",
-                })
+                requirements.append(
+                    {
+                        "section": section.get("title"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "framework": "hipaa",
+                        "jurisdiction": "US-Federal",
+                    }
+                )
 
         return requirements
 
@@ -430,13 +453,15 @@ def parse_hipaa_text(content: str) -> dict[str, Any]:
     obligations = re.findall(r"(?:shall|must|required to)\s+([^.]+\.)", content, re.IGNORECASE)
 
     for i, obligation in enumerate(obligations[:20]):
-        requirements.append({
-            "id": f"hipaa-{i+1}",
-            "obligation_type": "must",
-            "action": obligation.strip(),
-            "source_text": obligation,
-            "confidence": 0.75,
-        })
+        requirements.append(
+            {
+                "id": f"hipaa-{i + 1}",
+                "obligation_type": "must",
+                "action": obligation.strip(),
+                "source_text": obligation,
+                "confidence": 0.75,
+            }
+        )
 
     return {
         "framework": "hipaa",

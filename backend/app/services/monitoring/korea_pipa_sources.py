@@ -66,7 +66,10 @@ PIPA_ARTICLES = {
     "2": {"title": "Definitions", "type": "definitions"},
     "3": {"title": "Principles of personal information protection", "type": "principles"},
     "15": {"title": "Collection and use of personal information", "type": "lawful_basis"},
-    "16": {"title": "Limitation on collection of personal information", "type": "data_minimization"},
+    "16": {
+        "title": "Limitation on collection of personal information",
+        "type": "data_minimization",
+    },
     "17": {"title": "Provision of personal information", "type": "sharing"},
     "18": {"title": "Limitations on use and provision", "type": "purpose_limitation"},
     "20": {"title": "Notification of sources", "type": "transparency"},
@@ -130,12 +133,14 @@ class KoreaPIPAParser:
                 # Save previous article
                 if current_article:
                     article_info = PIPA_ARTICLES.get(current_article, {})
-                    result["articles"].append({
-                        "number": current_article,
-                        "title": article_info.get("title", ""),
-                        "type": article_info.get("type", "general"),
-                        "content": "\n".join(current_content),
-                    })
+                    result["articles"].append(
+                        {
+                            "number": current_article,
+                            "title": article_info.get("title", ""),
+                            "type": article_info.get("type", "general"),
+                            "content": "\n".join(current_content),
+                        }
+                    )
 
                 if article_match:
                     current_article = article_match.group(1)
@@ -152,12 +157,14 @@ class KoreaPIPAParser:
         # Save last article
         if current_article:
             article_info = PIPA_ARTICLES.get(current_article, {})
-            result["articles"].append({
-                "number": current_article,
-                "title": article_info.get("title", ""),
-                "type": article_info.get("type", "general"),
-                "content": "\n".join(current_content),
-            })
+            result["articles"].append(
+                {
+                    "number": current_article,
+                    "title": article_info.get("title", ""),
+                    "type": article_info.get("type", "general"),
+                    "content": "\n".join(current_content),
+                }
+            )
 
         return result
 
@@ -185,12 +192,14 @@ class KoreaPIPAParser:
                     if title_elem:
                         title_text = title_elem.get_text(strip=True)
                         if title_text and len(title_text) > 5:
-                            guidelines.append({
-                                "title": title_text,
-                                "url": link_elem.get("href") if link_elem else None,
-                                "date": date_elem.get_text(strip=True) if date_elem else None,
-                                "type": "guideline",
-                            })
+                            guidelines.append(
+                                {
+                                    "title": title_text,
+                                    "url": link_elem.get("href") if link_elem else None,
+                                    "date": date_elem.get_text(strip=True) if date_elem else None,
+                                    "type": "guideline",
+                                }
+                            )
                 break
 
         return guidelines
@@ -223,18 +232,20 @@ class KoreaPIPAParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "article": article.get("number"),
-                    "title": article.get("title"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "citation": {
-                        "article": f"Article {article.get('number')}",
-                        "act": "Personal Information Protection Act",
-                        "jurisdiction": "South Korea",
-                    },
-                })
+                requirements.append(
+                    {
+                        "article": article.get("number"),
+                        "title": article.get("title"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "citation": {
+                            "article": f"Article {article.get('number')}",
+                            "act": "Personal Information Protection Act",
+                            "jurisdiction": "South Korea",
+                        },
+                    }
+                )
 
         return requirements
 

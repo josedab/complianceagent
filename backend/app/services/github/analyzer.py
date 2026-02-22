@@ -17,21 +17,33 @@ class RepositoryAnalyzer:
 
     COMPLIANCE_PATTERNS = {
         "data_handling": [
-            "**/user*.py", "**/customer*.py", "**/profile*.py",
-            "**/data*.py", "**/pii*.py", "**/personal*.py",
+            "**/user*.py",
+            "**/customer*.py",
+            "**/profile*.py",
+            "**/data*.py",
+            "**/pii*.py",
+            "**/personal*.py",
         ],
         "consent": [
-            "**/consent*.py", "**/gdpr*.py", "**/privacy*.py",
+            "**/consent*.py",
+            "**/gdpr*.py",
+            "**/privacy*.py",
         ],
         "security": [
-            "**/auth*.py", "**/security*.py", "**/encrypt*.py",
-            "**/crypto*.py", "**/password*.py",
+            "**/auth*.py",
+            "**/security*.py",
+            "**/encrypt*.py",
+            "**/crypto*.py",
+            "**/password*.py",
         ],
         "logging": [
-            "**/log*.py", "**/audit*.py", "**/track*.py",
+            "**/log*.py",
+            "**/audit*.py",
+            "**/track*.py",
         ],
         "api": [
-            "**/api/**/*.py", "**/routes/**/*.py",
+            "**/api/**/*.py",
+            "**/routes/**/*.py",
         ],
     }
 
@@ -128,13 +140,15 @@ class RepositoryAnalyzer:
                         break
 
             if relevance_score > 0:
-                relevant.append({
-                    "path": item["path"],
-                    "sha": item["sha"],
-                    "size": item.get("size", 0),
-                    "relevance_score": relevance_score,
-                    "categories": categories,
-                })
+                relevant.append(
+                    {
+                        "path": item["path"],
+                        "sha": item["sha"],
+                        "size": item.get("size", 0),
+                        "relevance_score": relevance_score,
+                        "categories": categories,
+                    }
+                )
 
         relevant.sort(key=lambda x: x["relevance_score"], reverse=True)
         return relevant
@@ -142,9 +156,16 @@ class RepositoryAnalyzer:
     def _extract_languages(self, tree: list[dict]) -> list[str]:
         """Extract programming languages from file extensions."""
         extension_map = {
-            "py": "Python", "js": "JavaScript", "ts": "TypeScript",
-            "tsx": "TypeScript", "java": "Java", "go": "Go",
-            "rb": "Ruby", "php": "PHP", "cs": "C#", "rs": "Rust",
+            "py": "Python",
+            "js": "JavaScript",
+            "ts": "TypeScript",
+            "tsx": "TypeScript",
+            "java": "Java",
+            "go": "Go",
+            "rb": "Ruby",
+            "php": "PHP",
+            "cs": "C#",
+            "rs": "Rust",
         }
 
         language_counts = {}
@@ -174,12 +195,14 @@ class RepositoryAnalyzer:
                         lines = content.split("\n")
                         for i, line in enumerate(lines, 1):
                             if keyword in line.lower():
-                                findings[category].append({
-                                    "file": path,
-                                    "line": i,
-                                    "keyword": keyword,
-                                    "context": line.strip()[:100],
-                                })
+                                findings[category].append(
+                                    {
+                                        "file": path,
+                                        "line": i,
+                                        "keyword": keyword,
+                                        "context": line.strip()[:100],
+                                    }
+                                )
 
         return findings
 

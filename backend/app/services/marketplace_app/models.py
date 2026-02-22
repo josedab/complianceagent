@@ -82,7 +82,9 @@ class MarketplaceListingInfo:
     app_name: str = "ComplianceAgent"
     description: str = "Autonomous regulatory compliance for your codebase"
     plans: list[dict] = field(default_factory=list)
-    categories: list[str] = field(default_factory=lambda: ["compliance", "security", "code-quality"])
+    categories: list[str] = field(
+        default_factory=lambda: ["compliance", "security", "code-quality"]
+    )
     install_url: str = ""
     webhook_url: str = ""
 

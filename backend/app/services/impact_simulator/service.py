@@ -1,7 +1,7 @@
 """Regulatory Change Impact Simulator Service."""
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ from app.services.impact_simulator.models import (
     SimulationResult,
     SimulationStatus,
 )
+
 
 logger = structlog.get_logger()
 
@@ -174,7 +175,7 @@ class ImpactSimulatorService:
         """List simulation results."""
         results = sorted(
             self._results.values(),
-            key=lambda r: r.completed_at or datetime.min,
+            key=lambda r: r.completed_at or datetime.min.replace(tzinfo=UTC),
             reverse=True,
         )
         return results[:limit]
@@ -206,21 +207,58 @@ class ImpactSimulatorService:
 
         # Generate realistic component analysis
         component_templates = [
-            {"path": "src/auth/", "type": "module", "desc": "Authentication and authorization module"},
-            {"path": "src/data/storage.py", "type": "file", "desc": "Data storage and retention logic"},
+            {
+                "path": "src/auth/",
+                "type": "module",
+                "desc": "Authentication and authorization module",
+            },
+            {
+                "path": "src/data/storage.py",
+                "type": "file",
+                "desc": "Data storage and retention logic",
+            },
             {"path": "src/api/endpoints/", "type": "module", "desc": "API endpoint handlers"},
-            {"path": "src/models/user.py", "type": "file", "desc": "User data model with PII fields"},
+            {
+                "path": "src/models/user.py",
+                "type": "file",
+                "desc": "User data model with PII fields",
+            },
             {"path": "src/services/encryption.py", "type": "file", "desc": "Encryption service"},
-            {"path": "src/middleware/consent.py", "type": "file", "desc": "Consent management middleware"},
+            {
+                "path": "src/middleware/consent.py",
+                "type": "file",
+                "desc": "Consent management middleware",
+            },
             {"path": "src/logging/audit.py", "type": "file", "desc": "Audit logging system"},
-            {"path": "src/api/v2/data_export.py", "type": "api_endpoint", "desc": "Data export/portability endpoint"},
-            {"path": "infrastructure/terraform/", "type": "module", "desc": "Infrastructure-as-code definitions"},
-            {"path": "src/services/notification.py", "type": "service", "desc": "Breach notification service"},
-            {"path": "src/data/retention_policy.py", "type": "file", "desc": "Data retention policy enforcement"},
-            {"path": "src/api/v1/privacy.py", "type": "api_endpoint", "desc": "Privacy controls API"},
+            {
+                "path": "src/api/v2/data_export.py",
+                "type": "api_endpoint",
+                "desc": "Data export/portability endpoint",
+            },
+            {
+                "path": "infrastructure/terraform/",
+                "type": "module",
+                "desc": "Infrastructure-as-code definitions",
+            },
+            {
+                "path": "src/services/notification.py",
+                "type": "service",
+                "desc": "Breach notification service",
+            },
+            {
+                "path": "src/data/retention_policy.py",
+                "type": "file",
+                "desc": "Data retention policy enforcement",
+            },
+            {
+                "path": "src/api/v1/privacy.py",
+                "type": "api_endpoint",
+                "desc": "Privacy controls API",
+            },
         ]
 
         import hashlib
+
         seed = int(hashlib.md5(scenario_id.encode()).hexdigest()[:8], 16)
         num_components = 4 + (seed % 8)
 
@@ -233,22 +271,26 @@ class ImpactSimulatorService:
 
         for i, tmpl in enumerate(component_templates[:num_components]):
             level = impact_levels[i % 4]
-            components.append(BlastRadiusComponent(
-                component_path=tmpl["path"],
-                component_type=tmpl["type"],
-                impact_level=level,
-                regulations_affected=[regulation],
-                estimated_effort_hours=effort_map[level],
-                change_type=change_types[i % 3],
-                description=tmpl["desc"],
-            ))
+            components.append(
+                BlastRadiusComponent(
+                    component_path=tmpl["path"],
+                    component_type=tmpl["type"],
+                    impact_level=level,
+                    regulations_affected=[regulation],
+                    estimated_effort_hours=effort_map[level],
+                    change_type=change_types[i % 3],
+                    description=tmpl["desc"],
+                )
+            )
 
         critical = sum(1 for c in components if c.impact_level == "critical")
         high = sum(1 for c in components if c.impact_level == "high")
         medium = sum(1 for c in components if c.impact_level == "medium")
         low = sum(1 for c in components if c.impact_level == "low")
         total_effort = sum(c.estimated_effort_hours for c in components)
-        risk_score = round(min(10.0, (critical * 3 + high * 2 + medium * 1) / max(len(components), 1) * 4), 1)
+        risk_score = round(
+            min(10.0, (critical * 3 + high * 2 + medium * 1) / max(len(components), 1) * 4), 1
+        )
 
         return BlastRadiusAnalysis(
             scenario_id=scenario_id,
@@ -272,7 +314,7 @@ class ImpactSimulatorService:
         scenarios_data = []
         comparison_matrix: dict[str, dict[str, float]] = {}
 
-        best_score = float('inf')
+        best_score = float("inf")
         best_id = ""
 
         for sid in scenario_ids:
@@ -302,9 +344,13 @@ class ImpactSimulatorService:
                 best_id = sid
 
         recommendation = (
-            f"Scenario {best_id} has the lowest combined risk and effort. "
-            f"Consider prioritizing this scenario for implementation."
-        ) if best_id else "Insufficient data for recommendation."
+            (
+                f"Scenario {best_id} has the lowest combined risk and effort. "
+                f"Consider prioritizing this scenario for implementation."
+            )
+            if best_id
+            else "Insufficient data for recommendation."
+        )
 
         return ScenarioComparison(
             scenarios=scenarios_data,
@@ -320,35 +366,115 @@ class ImpactSimulatorService:
         # Simulate affected components based on regulation type
         regulation_components = {
             "gdpr": [
-                AffectedComponent(file_path="src/services/user_data.py", component_type="service", component_name="UserDataService", impact_level=ImpactLevel.HIGH, changes_required=["Update deletion logic", "Add async deletion queue"], estimated_hours=16),
-                AffectedComponent(file_path="src/api/users.py", component_type="endpoint", component_name="DELETE /users/{id}/data", impact_level=ImpactLevel.HIGH, changes_required=["Enforce new SLA"], estimated_hours=8),
-                AffectedComponent(file_path="src/models/user.py", component_type="model", component_name="User", impact_level=ImpactLevel.MODERATE, changes_required=["Add deletion tracking fields"], estimated_hours=4),
-                AffectedComponent(file_path="src/services/notification.py", component_type="service", component_name="NotificationService", impact_level=ImpactLevel.MODERATE, changes_required=["Update DSAR confirmation"], estimated_hours=4),
-                AffectedComponent(file_path="src/workers/data_deletion.py", component_type="service", component_name="DeletionWorker", impact_level=ImpactLevel.CRITICAL, changes_required=["Implement 24h SLA worker"], estimated_hours=24),
+                AffectedComponent(
+                    file_path="src/services/user_data.py",
+                    component_type="service",
+                    component_name="UserDataService",
+                    impact_level=ImpactLevel.HIGH,
+                    changes_required=["Update deletion logic", "Add async deletion queue"],
+                    estimated_hours=16,
+                ),
+                AffectedComponent(
+                    file_path="src/api/users.py",
+                    component_type="endpoint",
+                    component_name="DELETE /users/{id}/data",
+                    impact_level=ImpactLevel.HIGH,
+                    changes_required=["Enforce new SLA"],
+                    estimated_hours=8,
+                ),
+                AffectedComponent(
+                    file_path="src/models/user.py",
+                    component_type="model",
+                    component_name="User",
+                    impact_level=ImpactLevel.MODERATE,
+                    changes_required=["Add deletion tracking fields"],
+                    estimated_hours=4,
+                ),
+                AffectedComponent(
+                    file_path="src/services/notification.py",
+                    component_type="service",
+                    component_name="NotificationService",
+                    impact_level=ImpactLevel.MODERATE,
+                    changes_required=["Update DSAR confirmation"],
+                    estimated_hours=4,
+                ),
+                AffectedComponent(
+                    file_path="src/workers/data_deletion.py",
+                    component_type="service",
+                    component_name="DeletionWorker",
+                    impact_level=ImpactLevel.CRITICAL,
+                    changes_required=["Implement 24h SLA worker"],
+                    estimated_hours=24,
+                ),
             ],
             "hipaa": [
-                AffectedComponent(file_path="src/services/phi_handler.py", component_type="service", component_name="PHIHandler", impact_level=ImpactLevel.CRITICAL, changes_required=["Update breach detection"], estimated_hours=20),
-                AffectedComponent(file_path="src/services/breach_notification.py", component_type="service", component_name="BreachNotifier", impact_level=ImpactLevel.CRITICAL, changes_required=["Implement 1h notification"], estimated_hours=16),
-                AffectedComponent(file_path="src/config/hipaa.py", component_type="config", component_name="HIPAAConfig", impact_level=ImpactLevel.MODERATE, changes_required=["Update SLA parameters"], estimated_hours=2),
+                AffectedComponent(
+                    file_path="src/services/phi_handler.py",
+                    component_type="service",
+                    component_name="PHIHandler",
+                    impact_level=ImpactLevel.CRITICAL,
+                    changes_required=["Update breach detection"],
+                    estimated_hours=20,
+                ),
+                AffectedComponent(
+                    file_path="src/services/breach_notification.py",
+                    component_type="service",
+                    component_name="BreachNotifier",
+                    impact_level=ImpactLevel.CRITICAL,
+                    changes_required=["Implement 1h notification"],
+                    estimated_hours=16,
+                ),
+                AffectedComponent(
+                    file_path="src/config/hipaa.py",
+                    component_type="config",
+                    component_name="HIPAAConfig",
+                    impact_level=ImpactLevel.MODERATE,
+                    changes_required=["Update SLA parameters"],
+                    estimated_hours=2,
+                ),
             ],
             "pci_dss": [
-                AffectedComponent(file_path="src/services/payment.py", component_type="service", component_name="PaymentService", impact_level=ImpactLevel.CRITICAL, changes_required=["Replace encryption with tokenization"], estimated_hours=32),
-                AffectedComponent(file_path="src/models/payment.py", component_type="model", component_name="PaymentCard", impact_level=ImpactLevel.HIGH, changes_required=["Add token fields, remove encrypted PAN"], estimated_hours=8),
-                AffectedComponent(file_path="src/services/tokenization.py", component_type="service", component_name="TokenizationService", impact_level=ImpactLevel.CRITICAL, changes_required=["Implement new tokenization service"], estimated_hours=40),
+                AffectedComponent(
+                    file_path="src/services/payment.py",
+                    component_type="service",
+                    component_name="PaymentService",
+                    impact_level=ImpactLevel.CRITICAL,
+                    changes_required=["Replace encryption with tokenization"],
+                    estimated_hours=32,
+                ),
+                AffectedComponent(
+                    file_path="src/models/payment.py",
+                    component_type="model",
+                    component_name="PaymentCard",
+                    impact_level=ImpactLevel.HIGH,
+                    changes_required=["Add token fields, remove encrypted PAN"],
+                    estimated_hours=8,
+                ),
+                AffectedComponent(
+                    file_path="src/services/tokenization.py",
+                    component_type="service",
+                    component_name="TokenizationService",
+                    impact_level=ImpactLevel.CRITICAL,
+                    changes_required=["Implement new tokenization service"],
+                    estimated_hours=40,
+                ),
             ],
         }
 
         regulation_key = change.regulation.lower().replace("-", "_")
-        components = regulation_components.get(regulation_key, [
-            AffectedComponent(
-                file_path="src/services/compliance.py",
-                component_type="service",
-                component_name="ComplianceService",
-                impact_level=ImpactLevel.HIGH,
-                changes_required=change.new_requirements + change.modified_requirements,
-                estimated_hours=40,
-            ),
-        ])
+        components = regulation_components.get(
+            regulation_key,
+            [
+                AffectedComponent(
+                    file_path="src/services/compliance.py",
+                    component_type="service",
+                    component_name="ComplianceService",
+                    impact_level=ImpactLevel.HIGH,
+                    changes_required=change.new_requirements + change.modified_requirements,
+                    estimated_hours=40,
+                ),
+            ],
+        )
 
         total_hours = sum(c.estimated_hours for c in components)
         files = {c.file_path for c in components}
@@ -379,7 +505,9 @@ class ImpactSimulatorService:
         """Compute a 0-10 risk score."""
         component_score = min(len(blast_radius.affected_components) / 5, 1.0) * 3
         severity_score = sum(
-            {"critical": 3, "high": 2, "moderate": 1, "low": 0.5, "none": 0}.get(c.impact_level.value, 0)
+            {"critical": 3, "high": 2, "moderate": 1, "low": 0.5, "none": 0}.get(
+                c.impact_level.value, 0
+            )
             for c in blast_radius.affected_components
         )
         severity_score = min(severity_score / 5, 1.0) * 4
@@ -393,15 +521,23 @@ class ImpactSimulatorService:
         """Generate actionable recommendations."""
         recs = []
 
-        critical = [c for c in blast_radius.affected_components if c.impact_level == ImpactLevel.CRITICAL]
+        critical = [
+            c for c in blast_radius.affected_components if c.impact_level == ImpactLevel.CRITICAL
+        ]
         if critical:
-            recs.append(f"Prioritize {len(critical)} critical component(s): {', '.join(c.component_name for c in critical)}")
+            recs.append(
+                f"Prioritize {len(critical)} critical component(s): {', '.join(c.component_name for c in critical)}"
+            )
 
         if blast_radius.estimated_person_weeks > 2:
-            recs.append(f"Estimated effort: {blast_radius.estimated_person_weeks} person-weeks — consider dedicated sprint allocation")
+            recs.append(
+                f"Estimated effort: {blast_radius.estimated_person_weeks} person-weeks — consider dedicated sprint allocation"
+            )
 
         if change.new_requirements:
-            recs.append(f"Implement {len(change.new_requirements)} new requirement(s) — create tracking tickets for each")
+            recs.append(
+                f"Implement {len(change.new_requirements)} new requirement(s) — create tracking tickets for each"
+            )
 
         recs.append("Run compliance scan after implementation to verify coverage")
         recs.append("Update audit documentation with change rationale and implementation evidence")

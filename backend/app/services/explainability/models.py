@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class ExplanationFormat(str, Enum):
     """Output format for explanations."""
-    
+
     NATURAL_LANGUAGE = "natural_language"
     STRUCTURED = "structured"
     LEGAL = "legal"
@@ -20,7 +20,7 @@ class ExplanationFormat(str, Enum):
 
 class ExplanationConfidence(str, Enum):
     """Confidence level for explanations."""
-    
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -29,7 +29,7 @@ class ExplanationConfidence(str, Enum):
 
 class CitationChain(BaseModel):
     """Chain of regulatory citations supporting a decision."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     regulation: str
     article: str
@@ -39,7 +39,7 @@ class CitationChain(BaseModel):
     relevance_score: float = Field(ge=0.0, le=1.0)
     url: str | None = None
     effective_date: datetime | None = None
-    
+
     def to_citation_string(self) -> str:
         """Format as a citation string."""
         parts = [self.regulation, self.article]
@@ -52,14 +52,14 @@ class CitationChain(BaseModel):
 
 class ReasoningStep(BaseModel):
     """A single step in the reasoning chain."""
-    
+
     step_number: int
     description: str
     evidence: str | None = None
     citations: list[CitationChain] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     logic_type: str = "deductive"  # deductive, inductive, abductive
-    
+
     def to_natural_language(self) -> str:
         """Convert to natural language explanation."""
         text = f"Step {self.step_number}: {self.description}"
@@ -73,7 +73,7 @@ class ReasoningStep(BaseModel):
 
 class ComplianceExplanation(BaseModel):
     """Complete explanation for a compliance decision."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     decision: str
     decision_type: str  # violation, compliant, needs_review, uncertain
@@ -90,7 +90,7 @@ class ComplianceExplanation(BaseModel):
     model_version: str = "1.0.0"
     processing_time_ms: float | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-    
+
     def to_natural_language(self) -> str:
         """Convert entire explanation to natural language."""
         lines = [
@@ -100,34 +100,34 @@ class ComplianceExplanation(BaseModel):
             "",
             "### Reasoning",
         ]
-        
+
         for step in self.reasoning_chain:
             lines.append(step.to_natural_language())
             lines.append("")
-        
+
         if self.primary_citations:
             lines.append("### Primary Regulatory Basis")
             for cite in self.primary_citations:
                 lines.append(f"- {cite.to_citation_string()}")
-                lines.append(f"  \"{cite.text_excerpt[:200]}...\"")
+                lines.append(f'  "{cite.text_excerpt[:200]}..."')
             lines.append("")
-        
+
         if self.assumptions:
             lines.append("### Assumptions Made")
             for assumption in self.assumptions:
                 lines.append(f"- {assumption}")
             lines.append("")
-        
+
         if self.limitations:
             lines.append("### Limitations")
             for limitation in self.limitations:
                 lines.append(f"- {limitation}")
             lines.append("")
-        
+
         lines.append(f"**Confidence:** {self.confidence.value} ({self.confidence_score:.0%})")
-        
+
         return "\n".join(lines)
-    
+
     def to_audit_format(self) -> dict[str, Any]:
         """Convert to audit-ready format."""
         return {
@@ -167,7 +167,7 @@ class ComplianceExplanation(BaseModel):
 
 class DecisionAuditLog(BaseModel):
     """Audit log entry for an AI compliance decision."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     organization_id: UUID
     user_id: UUID | None = None
@@ -184,11 +184,11 @@ class DecisionAuditLog(BaseModel):
     reviewer_notes: str | None = None
     chain_hash: str | None = None  # For tamper-proof audit chain
     previous_log_id: UUID | None = None
-    
+
     def compute_chain_hash(self, previous_hash: str | None = None) -> str:
         """Compute tamper-proof chain hash."""
         import hashlib
-        
+
         data = f"{self.id}:{self.timestamp.isoformat()}:{self.input_hash}:{self.result_hash}"
         if previous_hash:
             data = f"{previous_hash}:{data}"
@@ -197,7 +197,7 @@ class DecisionAuditLog(BaseModel):
 
 class BiasIndicator(BaseModel):
     """Indicator of potential bias in AI decision."""
-    
+
     bias_type: str  # demographic, historical, sampling, confirmation
     description: str
     severity: str  # low, medium, high
@@ -207,7 +207,7 @@ class BiasIndicator(BaseModel):
 
 class FairnessMetrics(BaseModel):
     """Fairness metrics for AI compliance decisions."""
-    
+
     explanation_id: UUID
     demographic_parity: float | None = None
     equalized_odds: float | None = None
@@ -219,7 +219,7 @@ class FairnessMetrics(BaseModel):
 
 class ExplanationRequest(BaseModel):
     """Request for generating an explanation."""
-    
+
     decision_context: dict[str, Any]
     code_snippet: str | None = None
     file_path: str | None = None
@@ -233,7 +233,7 @@ class ExplanationRequest(BaseModel):
 
 class ExplanationResponse(BaseModel):
     """Response containing explanation."""
-    
+
     explanation: ComplianceExplanation
     formatted_output: str
     audit_log_id: UUID | None = None

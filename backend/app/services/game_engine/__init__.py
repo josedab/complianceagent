@@ -12,6 +12,7 @@ from app.services.game_engine.models import (
 )
 from app.services.game_engine.service import GameEngineService
 
+
 __all__ = [
     "Achievement",
     "AchievementTier",

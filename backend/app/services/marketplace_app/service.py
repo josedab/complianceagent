@@ -2,23 +2,24 @@
 
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.marketplace_app.models import (
+    PLAN_LIMITS,
     AppInstallation,
     AppPlatform,
     InstallationStatus,
     InstallationSyncResult,
     MarketplaceListingInfo,
     MarketplacePlan,
-    PLAN_LIMITS,
     UsageRecord,
     UsageSummary,
     WebhookEvent,
 )
+
 
 logger = structlog.get_logger()
 
@@ -200,26 +201,18 @@ class MarketplaceAppService:
 
         return {"status": "scan_triggered", "repo": repo, "pr": pr_number, "sha": head_sha}
 
-    async def _create_check_run(
-        self, repo: str, head_sha: str, pr_number: int
-    ) -> None:
+    async def _create_check_run(self, repo: str, head_sha: str, pr_number: int) -> None:
         """Create a GitHub check run for compliance scanning.
 
         Posts an in-progress check, runs a lightweight scan, then updates
         the check with the conclusion and SARIF-style annotations.
         """
-        import httpx
 
         # For production, use installation token from self.github
         # Here we demonstrate the GitHub Checks API contract.
-        base_url = f"https://api.github.com/repos/{repo}"
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
 
         # 1. Create in-progress check run
-        check_payload = {
+        {
             "name": "ComplianceAgent",
             "head_sha": head_sha,
             "status": "in_progress",
@@ -256,7 +249,7 @@ class MarketplaceAppService:
         tokens_used: int = 0,
     ) -> UsageRecord:
         """Record an API usage event for metering."""
-        if not hasattr(self, '_usage_records'):
+        if not hasattr(self, "_usage_records"):
             self._usage_records: list[UsageRecord] = []
 
         record = UsageRecord(
@@ -276,19 +269,17 @@ class MarketplaceAppService:
         period: str = "current_month",
     ) -> UsageSummary:
         """Get aggregated usage summary for an installation."""
-        if not hasattr(self, '_usage_records'):
+        if not hasattr(self, "_usage_records"):
             self._usage_records: list[UsageRecord] = []
 
-        inst_records = [
-            r for r in self._usage_records
-            if str(r.installation_id) == installation_id
-        ]
+        inst_records = [r for r in self._usage_records if str(r.installation_id) == installation_id]
 
         total_requests = len(inst_records)
         total_tokens = sum(r.tokens_used for r in inst_records)
         avg_rt = (
             sum(r.response_time_ms for r in inst_records) / total_requests
-            if total_requests > 0 else 0.0
+            if total_requests > 0
+            else 0.0
         )
 
         endpoints: dict[str, int] = {}

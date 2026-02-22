@@ -66,11 +66,45 @@ class EntityRollupService:
         self._init_demo_hierarchy()
 
     def _init_demo_hierarchy(self) -> None:
-        root = EntityNode(name="Acme Corp", level=0, compliance_score=85.0, frameworks=["GDPR", "SOC 2", "HIPAA"], member_count=500)
-        eng = EntityNode(name="Engineering", parent_id=root.id, level=1, compliance_score=88.0, frameworks=["GDPR", "SOC 2"], member_count=200)
-        finance = EntityNode(name="Finance", parent_id=root.id, level=1, compliance_score=82.0, frameworks=["SOX", "PCI-DSS"], member_count=50)
-        platform = EntityNode(name="Platform Team", parent_id=eng.id, level=2, compliance_score=92.0, frameworks=["GDPR", "SOC 2"], member_count=30)
-        data = EntityNode(name="Data Team", parent_id=eng.id, level=2, compliance_score=78.0, frameworks=["GDPR", "HIPAA"], member_count=15)
+        root = EntityNode(
+            name="Acme Corp",
+            level=0,
+            compliance_score=85.0,
+            frameworks=["GDPR", "SOC 2", "HIPAA"],
+            member_count=500,
+        )
+        eng = EntityNode(
+            name="Engineering",
+            parent_id=root.id,
+            level=1,
+            compliance_score=88.0,
+            frameworks=["GDPR", "SOC 2"],
+            member_count=200,
+        )
+        finance = EntityNode(
+            name="Finance",
+            parent_id=root.id,
+            level=1,
+            compliance_score=82.0,
+            frameworks=["SOX", "PCI-DSS"],
+            member_count=50,
+        )
+        platform = EntityNode(
+            name="Platform Team",
+            parent_id=eng.id,
+            level=2,
+            compliance_score=92.0,
+            frameworks=["GDPR", "SOC 2"],
+            member_count=30,
+        )
+        data = EntityNode(
+            name="Data Team",
+            parent_id=eng.id,
+            level=2,
+            compliance_score=78.0,
+            frameworks=["GDPR", "HIPAA"],
+            member_count=15,
+        )
 
         root.children_ids = [eng.id, finance.id]
         eng.children_ids = [platform.id, data.id]
@@ -101,13 +135,15 @@ class EntityRollupService:
             child = self._entities.get(child_id)
             if child:
                 child_rollup = await self.compute_rollup(child_id)
-                child_scores.append({
-                    "id": str(child.id),
-                    "name": child.name,
-                    "score": child.compliance_score,
-                    "aggregated": child_rollup.aggregated_score,
-                    "members": child_rollup.total_members,
-                })
+                child_scores.append(
+                    {
+                        "id": str(child.id),
+                        "name": child.name,
+                        "score": child.compliance_score,
+                        "aggregated": child_rollup.aggregated_score,
+                        "members": child_rollup.total_members,
+                    }
+                )
                 total_members += child_rollup.total_members
                 weighted_sum += child_rollup.aggregated_score * child_rollup.total_members
                 if child_rollup.aggregated_score < weakest_score:

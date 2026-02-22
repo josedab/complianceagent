@@ -1,7 +1,7 @@
 """GitLab integration client for repository analysis."""
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Self
 
 import httpx
 import structlog
@@ -13,6 +13,7 @@ logger = structlog.get_logger()
 @dataclass
 class GitLabFile:
     """Represents a file in a GitLab repository."""
+
     path: str
     name: str
     size: int
@@ -23,6 +24,7 @@ class GitLabFile:
 @dataclass
 class GitLabRepository:
     """Represents a GitLab repository."""
+
     id: int
     name: str
     path: str
@@ -49,7 +51,7 @@ class GitLabClient:
         self.api_url = f"{self.base_url}/api/v4"
         self._client: httpx.AsyncClient | None = None
 
-    async def __aenter__(self) -> "GitLabClient":
+    async def __aenter__(self) -> Self:
         """Async context manager entry."""
         self._client = httpx.AsyncClient(
             headers=self._get_headers(),
@@ -214,6 +216,7 @@ class GitLabClient:
         )
 
         import base64
+
         return base64.b64decode(data["content"]).decode("utf-8")
 
     async def get_file_blame(

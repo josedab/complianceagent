@@ -141,15 +141,17 @@ class HorizonScannerService:
             months = item["months_ahead"]
             if months <= 6:
                 severity = ImpactSeverity.HIGH if months <= 3 else ImpactSeverity.MEDIUM
-                self._alerts.append(HorizonAlert(
-                    legislation_id=leg.id,
-                    title=leg.title,
-                    message=f"{leg.title} takes effect in ~{months} months. "
-                            f"Frameworks affected: {', '.join(leg.frameworks_affected)}.",
-                    severity=severity,
-                    months_until_effective=months,
-                    created_at=now,
-                ))
+                self._alerts.append(
+                    HorizonAlert(
+                        legislation_id=leg.id,
+                        title=leg.title,
+                        message=f"{leg.title} takes effect in ~{months} months. "
+                        f"Frameworks affected: {', '.join(leg.frameworks_affected)}.",
+                        severity=severity,
+                        months_until_effective=months,
+                        created_at=now,
+                    )
+                )
 
     async def get_timeline(
         self,
@@ -164,14 +166,20 @@ class HorizonScannerService:
         if jurisdiction:
             items = [i for i in items if i.jurisdiction.lower() == jurisdiction.lower()]
         if framework:
-            items = [i for i in items
-                     if any(framework.lower() in f.lower() for f in i.frameworks_affected)]
+            items = [
+                i
+                for i in items
+                if any(framework.lower() in f.lower() for f in i.frameworks_affected)
+            ]
 
-        items = [i for i in items
-                 if i.expected_effective_date and i.expected_effective_date <= cutoff]
+        items = [
+            i for i in items if i.expected_effective_date and i.expected_effective_date <= cutoff
+        ]
         items.sort(key=lambda i: i.expected_effective_date or datetime.max.replace(tzinfo=UTC))
 
-        high_impact = sum(1 for a in self._alerts if a.severity in (ImpactSeverity.CRITICAL, ImpactSeverity.HIGH))
+        high_impact = sum(
+            1 for a in self._alerts if a.severity in (ImpactSeverity.CRITICAL, ImpactSeverity.HIGH)
+        )
 
         return HorizonTimeline(
             upcoming=items,
@@ -213,12 +221,17 @@ class HorizonScannerService:
         prediction = CodebaseImpactPrediction(
             legislation_id=legislation_id,
             affected_files=affected_files,
-            affected_modules=[f"compliance/{fw.lower().replace(' ', '_')}" for fw in legislation.frameworks_affected],
+            affected_modules=[
+                f"compliance/{fw.lower().replace(' ', '_')}"
+                for fw in legislation.frameworks_affected
+            ],
             estimated_effort_days=effort,
             impact_severity=severity_map.get(legislation.confidence, ImpactSeverity.MEDIUM),
             recommendations=[
                 f"Review {legislation.title} requirements against current codebase",
-                f"Prioritize {legislation.frameworks_affected[0]} compliance gap analysis" if legislation.frameworks_affected else "Begin compliance assessment",
+                f"Prioritize {legislation.frameworks_affected[0]} compliance gap analysis"
+                if legislation.frameworks_affected
+                else "Begin compliance assessment",
                 f"Allocate ~{effort:.0f} developer-days for implementation",
             ],
             confidence_score=0.65,
@@ -256,6 +269,7 @@ class HorizonScannerService:
         )
 
         import json
+
         try:
             data = json.loads(response.content.strip().strip("`").strip("json\n"))
         except json.JSONDecodeError:
@@ -278,9 +292,7 @@ class HorizonScannerService:
         logger.info("legislation_tracked", title=legislation.title)
         return legislation
 
-    async def get_alerts(
-        self, severity: ImpactSeverity | None = None
-    ) -> list[HorizonAlert]:
+    async def get_alerts(self, severity: ImpactSeverity | None = None) -> list[HorizonAlert]:
         if severity:
             return [a for a in self._alerts if a.severity == severity]
         return list(self._alerts)

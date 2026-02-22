@@ -7,6 +7,7 @@ from typing import Any
 @dataclass
 class PromptSection:
     """A section of a prompt with heading and content."""
+
     heading: str
     content: str
     priority: int = 0  # Higher priority sections appear first
@@ -14,7 +15,7 @@ class PromptSection:
 
 class PromptBuilder:
     """Builder for constructing maintainable AI prompts.
-    
+
     Example usage:
         prompt = (
             PromptBuilder()
@@ -73,11 +74,13 @@ class PromptBuilder:
         if requirement.get("obligation_type"):
             lines.append(f"**Obligation**: {requirement['obligation_type'].upper()}")
 
-        self._sections.append(PromptSection(
-            heading="Requirement",
-            content="\n".join(lines),
-            priority=100,
-        ))
+        self._sections.append(
+            PromptSection(
+                heading="Requirement",
+                content="\n".join(lines),
+                priority=100,
+            )
+        )
         return self
 
     def with_gaps(self, gaps: list[dict[str, Any]]) -> "PromptBuilder":
@@ -96,11 +99,13 @@ class PromptBuilder:
             if gap.get("recommendation"):
                 lines.append(f"   Recommendation: {gap['recommendation']}")
 
-        self._sections.append(PromptSection(
-            heading="Compliance Gaps to Address",
-            content="\n".join(lines),
-            priority=90,
-        ))
+        self._sections.append(
+            PromptSection(
+                heading="Compliance Gaps to Address",
+                content="\n".join(lines),
+                priority=90,
+            )
+        )
         return self
 
     def with_code_context(
@@ -131,20 +136,24 @@ class PromptBuilder:
             lines.append("```")
             lines.append("")
 
-        self._sections.append(PromptSection(
-            heading="Existing Code Context",
-            content="\n".join(lines),
-            priority=70,
-        ))
+        self._sections.append(
+            PromptSection(
+                heading="Existing Code Context",
+                content="\n".join(lines),
+                priority=70,
+            )
+        )
         return self
 
     def with_codebase_structure(self, structure: str) -> "PromptBuilder":
         """Add codebase structure information."""
-        self._sections.append(PromptSection(
-            heading="Codebase Structure",
-            content=structure,
-            priority=60,
-        ))
+        self._sections.append(
+            PromptSection(
+                heading="Codebase Structure",
+                content=structure,
+                priority=60,
+            )
+        )
         return self
 
     def with_constraints(self, constraints: list[str]) -> "PromptBuilder":
@@ -153,11 +162,13 @@ class PromptBuilder:
             return self
 
         lines = [f"- {c}" for c in constraints]
-        self._sections.append(PromptSection(
-            heading="Constraints",
-            content="\n".join(lines),
-            priority=50,
-        ))
+        self._sections.append(
+            PromptSection(
+                heading="Constraints",
+                content="\n".join(lines),
+                priority=50,
+            )
+        )
         return self
 
     def with_output_format(self, format_spec: dict[str, Any]) -> "PromptBuilder":
@@ -172,11 +183,13 @@ class PromptBuilder:
         priority: int = 40,
     ) -> "PromptBuilder":
         """Add a custom section to the prompt."""
-        self._sections.append(PromptSection(
-            heading=heading,
-            content=content,
-            priority=priority,
-        ))
+        self._sections.append(
+            PromptSection(
+                heading=heading,
+                content=content,
+                priority=priority,
+            )
+        )
         return self
 
     def build(self) -> str:
@@ -238,6 +251,7 @@ class PromptBuilder:
     def _format_output_spec(spec: dict[str, Any], indent: int = 2) -> str:
         """Format output specification as JSON-like structure."""
         import json
+
         return json.dumps(spec, indent=indent)
 
 
@@ -260,23 +274,33 @@ class CompliancePrompts:
             .with_requirement(requirement)
             .with_gaps(gaps)
             .with_code_context(existing_code)
-            .with_constraints([
-                "Follow existing codebase patterns and conventions",
-                "Include compliance comments with regulation citations",
-                "Include comprehensive tests for new code",
-                "Make minimally invasive changes",
-                "Document all changes thoroughly",
-            ])
-            .with_output_format({
-                "files": [{"path": "string", "operation": "create|modify", "content": "string"}],
-                "tests": [{"path": "string", "test_type": "unit|integration", "content": "string"}],
-                "documentation": "markdown string",
-                "compliance_comments": [{"file": "string", "line": "number", "comment": "string"}],
-                "pr_title": "string",
-                "pr_body": "markdown string",
-                "confidence": "0.0 to 1.0",
-                "warnings": ["string"],
-            })
+            .with_constraints(
+                [
+                    "Follow existing codebase patterns and conventions",
+                    "Include compliance comments with regulation citations",
+                    "Include comprehensive tests for new code",
+                    "Make minimally invasive changes",
+                    "Document all changes thoroughly",
+                ]
+            )
+            .with_output_format(
+                {
+                    "files": [
+                        {"path": "string", "operation": "create|modify", "content": "string"}
+                    ],
+                    "tests": [
+                        {"path": "string", "test_type": "unit|integration", "content": "string"}
+                    ],
+                    "documentation": "markdown string",
+                    "compliance_comments": [
+                        {"file": "string", "line": "number", "comment": "string"}
+                    ],
+                    "pr_title": "string",
+                    "pr_body": "markdown string",
+                    "confidence": "0.0 to 1.0",
+                    "warnings": ["string"],
+                }
+            )
             .build()
         )
 
@@ -291,32 +315,42 @@ class CompliancePrompts:
         return (
             PromptBuilder()
             .with_system_context("regulatory requirement extraction")
-            .with_custom_section("Regulatory Context", f"""
+            .with_custom_section(
+                "Regulatory Context",
+                f"""
 **Regulation**: {regulation_name}
 **Jurisdiction**: {jurisdiction}
 **Framework**: {framework}
-""", priority=100)
+""",
+                priority=100,
+            )
             .with_custom_section("Legal Text to Analyze", text[:10000], priority=90)
-            .with_constraints([
-                "Extract all actionable requirements from the text",
-                "Identify obligation type (must, should, may)",
-                "Categorize by compliance domain",
-                "Note applicable data types and processes",
-                "Provide confidence scores for each extraction",
-            ])
-            .with_output_format({
-                "requirements": [{
-                    "reference_id": "string",
-                    "title": "string",
-                    "description": "string",
-                    "obligation_type": "must|should|may",
-                    "category": "string",
-                    "data_types": ["string"],
-                    "processes": ["string"],
-                    "source_text": "string",
-                    "confidence": "0.0 to 1.0",
-                }]
-            })
+            .with_constraints(
+                [
+                    "Extract all actionable requirements from the text",
+                    "Identify obligation type (must, should, may)",
+                    "Categorize by compliance domain",
+                    "Note applicable data types and processes",
+                    "Provide confidence scores for each extraction",
+                ]
+            )
+            .with_output_format(
+                {
+                    "requirements": [
+                        {
+                            "reference_id": "string",
+                            "title": "string",
+                            "description": "string",
+                            "obligation_type": "must|should|may",
+                            "category": "string",
+                            "data_types": ["string"],
+                            "processes": ["string"],
+                            "source_text": "string",
+                            "confidence": "0.0 to 1.0",
+                        }
+                    ]
+                }
+            )
             .build()
         )
 
@@ -334,20 +368,30 @@ class CompliancePrompts:
             .with_requirement(requirement)
             .with_codebase_structure(codebase_structure)
             .with_code_context(sample_files)
-            .with_constraints([
-                "Identify all code locations relevant to the requirement",
-                "Detect existing implementations that satisfy the requirement",
-                "Identify gaps where compliance is missing",
-                "Assess severity of each gap",
-                "Provide effort estimates for remediation",
-            ])
-            .with_output_format({
-                "affected_files": ["string"],
-                "existing_implementations": [{"file": "string", "description": "string"}],
-                "gaps": [{"severity": "critical|major|minor", "description": "string", "location": "string"}],
-                "data_flows": [{"from": "string", "to": "string", "data_type": "string"}],
-                "estimated_effort_hours": "number",
-                "confidence": "0.0 to 1.0",
-            })
+            .with_constraints(
+                [
+                    "Identify all code locations relevant to the requirement",
+                    "Detect existing implementations that satisfy the requirement",
+                    "Identify gaps where compliance is missing",
+                    "Assess severity of each gap",
+                    "Provide effort estimates for remediation",
+                ]
+            )
+            .with_output_format(
+                {
+                    "affected_files": ["string"],
+                    "existing_implementations": [{"file": "string", "description": "string"}],
+                    "gaps": [
+                        {
+                            "severity": "critical|major|minor",
+                            "description": "string",
+                            "location": "string",
+                        }
+                    ],
+                    "data_flows": [{"from": "string", "to": "string", "data_type": "string"}],
+                    "estimated_effort_hours": "number",
+                    "confidence": "0.0 to 1.0",
+                }
+            )
             .build()
         )

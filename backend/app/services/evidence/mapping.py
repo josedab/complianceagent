@@ -37,7 +37,6 @@ CONTROL_MAPPINGS: list[ControlMapping] = [
         mapping_type="equivalent",
         notes="Both address change management",
     ),
-    
     # SOC2 <-> HIPAA
     ControlMapping(
         source_framework=Framework.SOC2,
@@ -55,7 +54,6 @@ CONTROL_MAPPINGS: list[ControlMapping] = [
         mapping_type="partial",
         notes="Both address audit controls and monitoring",
     ),
-    
     # ISO27001 <-> HIPAA
     ControlMapping(
         source_framework=Framework.ISO27001,
@@ -65,7 +63,6 @@ CONTROL_MAPPINGS: list[ControlMapping] = [
         mapping_type="partial",
         notes="Both address access control requirements",
     ),
-    
     # SOC2 <-> GDPR
     ControlMapping(
         source_framework=Framework.SOC2,
@@ -75,7 +72,6 @@ CONTROL_MAPPINGS: list[ControlMapping] = [
         mapping_type="partial",
         notes="Access controls support GDPR security requirements",
     ),
-    
     # PCI-DSS <-> SOC2
     ControlMapping(
         source_framework=Framework.PCI_DSS,
@@ -93,7 +89,6 @@ CONTROL_MAPPINGS: list[ControlMapping] = [
         mapping_type="partial",
         notes="Both address data encryption",
     ),
-    
     # ISO27001 <-> GDPR
     ControlMapping(
         source_framework=Framework.ISO27001,
@@ -139,21 +134,22 @@ class ControlMapper:
         """Get all mappings for a control."""
         key = f"{framework.value}:{control_id}"
         direct = self._index.get(key, [])
-        
+
         # Also check reverse mappings
         reverse = []
         for mapping in self._mappings:
-            if (mapping.target_framework == framework and
-                mapping.target_control_id == control_id):
-                reverse.append(ControlMapping(
-                    source_framework=mapping.target_framework,
-                    source_control_id=mapping.target_control_id,
-                    target_framework=mapping.source_framework,
-                    target_control_id=mapping.source_control_id,
-                    mapping_type=mapping.mapping_type,
-                    notes=mapping.notes,
-                ))
-        
+            if mapping.target_framework == framework and mapping.target_control_id == control_id:
+                reverse.append(
+                    ControlMapping(
+                        source_framework=mapping.target_framework,
+                        source_control_id=mapping.target_control_id,
+                        target_framework=mapping.source_framework,
+                        target_control_id=mapping.source_control_id,
+                        mapping_type=mapping.mapping_type,
+                        notes=mapping.notes,
+                    )
+                )
+
         return direct + reverse
 
     def get_equivalent_controls(
@@ -164,19 +160,21 @@ class ControlMapper:
     ) -> list[dict[str, Any]]:
         """Get equivalent controls in other frameworks."""
         mappings = self.get_mappings(framework, control_id)
-        
+
         results = []
         for mapping in mappings:
             if target_framework and mapping.target_framework != target_framework:
                 continue
-            
-            results.append({
-                "framework": mapping.target_framework.value,
-                "control_id": mapping.target_control_id,
-                "mapping_type": mapping.mapping_type,
-                "notes": mapping.notes,
-            })
-        
+
+            results.append(
+                {
+                    "framework": mapping.target_framework.value,
+                    "control_id": mapping.target_control_id,
+                    "mapping_type": mapping.mapping_type,
+                    "notes": mapping.notes,
+                }
+            )
+
         return results
 
     def calculate_coverage(
@@ -186,12 +184,12 @@ class ControlMapper:
         target_framework: Framework,
     ) -> dict[str, Any]:
         """Calculate coverage of target framework based on completed controls.
-        
+
         Args:
             source_framework: Framework where controls are completed
             completed_controls: List of completed control IDs
             target_framework: Framework to calculate coverage for
-            
+
         Returns:
             Coverage analysis
         """
@@ -202,7 +200,7 @@ class ControlMapper:
                 target_controls.add(mapping.target_control_id)
             if mapping.source_framework == target_framework:
                 target_controls.add(mapping.source_control_id)
-        
+
         # Find covered controls
         covered_controls = set()
         for control_id in completed_controls:
@@ -210,9 +208,11 @@ class ControlMapper:
             for mapping in mappings:
                 if mapping.target_framework == target_framework:
                     covered_controls.add(mapping.target_control_id)
-        
-        coverage_pct = (len(covered_controls) / len(target_controls) * 100) if target_controls else 0
-        
+
+        coverage_pct = (
+            (len(covered_controls) / len(target_controls) * 100) if target_controls else 0
+        )
+
         return {
             "source_framework": source_framework.value,
             "target_framework": target_framework.value,
@@ -230,25 +230,28 @@ class ControlMapper:
     ) -> dict[str, Any]:
         """Generate a report showing evidence reuse potential across frameworks."""
         reuse_opportunities = []
-        
+
         for mapping in self._mappings:
-            if (mapping.source_framework in frameworks and 
-                mapping.target_framework in frameworks):
-                reuse_opportunities.append({
-                    "from_framework": mapping.source_framework.value,
-                    "from_control": mapping.source_control_id,
-                    "to_framework": mapping.target_framework.value,
-                    "to_control": mapping.target_control_id,
-                    "mapping_type": mapping.mapping_type,
-                    "reuse_potential": "high" if mapping.mapping_type == "equivalent" else "medium",
-                })
-        
+            if mapping.source_framework in frameworks and mapping.target_framework in frameworks:
+                reuse_opportunities.append(
+                    {
+                        "from_framework": mapping.source_framework.value,
+                        "from_control": mapping.source_control_id,
+                        "to_framework": mapping.target_framework.value,
+                        "to_control": mapping.target_control_id,
+                        "mapping_type": mapping.mapping_type,
+                        "reuse_potential": "high"
+                        if mapping.mapping_type == "equivalent"
+                        else "medium",
+                    }
+                )
+
         # Count by mapping type
         type_counts = {}
         for opp in reuse_opportunities:
             mt = opp["mapping_type"]
             type_counts[mt] = type_counts.get(mt, 0) + 1
-        
+
         return {
             "frameworks_analyzed": [f.value for f in frameworks],
             "total_reuse_opportunities": len(reuse_opportunities),

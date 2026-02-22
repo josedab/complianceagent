@@ -1,8 +1,7 @@
 """Evidence Report Generator - Generates audit-ready compliance reports."""
 
-import json
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -11,7 +10,6 @@ import structlog
 from app.services.evidence.collector import EvidenceCollector, get_evidence_collector
 from app.services.evidence.mapping import ControlMapper, get_control_mapper
 from app.services.evidence.models import (
-    EvidenceCollection,
     EvidenceReport,
     EvidenceStatus,
     Framework,
@@ -41,61 +39,65 @@ class ReportGenerator:
         include_evidence_details: bool = True,
     ) -> EvidenceReport:
         """Generate a comprehensive evidence report.
-        
+
         Args:
             organization_id: Organization ID
             frameworks: Frameworks to include in report
             title: Optional report title
             include_evidence_details: Include full evidence details
-            
+
         Returns:
             EvidenceReport
         """
         start_time = time.perf_counter()
-        
+
         report = EvidenceReport(
             organization_id=organization_id,
-            title=title or f"Compliance Evidence Report - {datetime.utcnow().strftime('%Y-%m-%d')}",
+            title=title or f"Compliance Evidence Report - {datetime.now(UTC).strftime('%Y-%m-%d')}",
             frameworks=frameworks,
         )
-        
+
         # Collect evidence for all frameworks
         all_collections = await self.collector.collect_evidence(
             organization_id=organization_id,
             frameworks=frameworks,
         )
-        
+
         # Analyze collections
         total_controls = 0
         controls_with_evidence = 0
         controls_missing = 0
         gaps = []
-        
+
         for collection in all_collections:
             total_controls += 1
-            
+
             if collection.status in [EvidenceStatus.COLLECTED, EvidenceStatus.VALIDATED]:
                 if not collection.missing_evidence:
                     controls_with_evidence += 1
                 else:
                     controls_with_evidence += 1  # Partial
-                    gaps.append({
+                    gaps.append(
+                        {
+                            "framework": collection.framework.value,
+                            "control_id": collection.control_id,
+                            "control_title": collection.control_title,
+                            "missing_evidence": collection.missing_evidence,
+                            "severity": "medium",
+                        }
+                    )
+            else:
+                controls_missing += 1
+                gaps.append(
+                    {
                         "framework": collection.framework.value,
                         "control_id": collection.control_id,
                         "control_title": collection.control_title,
-                        "missing_evidence": collection.missing_evidence,
-                        "severity": "medium",
-                    })
-            else:
-                controls_missing += 1
-                gaps.append({
-                    "framework": collection.framework.value,
-                    "control_id": collection.control_id,
-                    "control_title": collection.control_title,
-                    "missing_evidence": collection.missing_evidence or ["all evidence"],
-                    "severity": "high",
-                })
-        
+                        "missing_evidence": collection.missing_evidence or ["all evidence"],
+                        "severity": "high",
+                    }
+                )
+
         # Update report
         report.total_controls = total_controls
         report.controls_with_evidence = controls_with_evidence
@@ -104,13 +106,13 @@ class ReportGenerator:
             (controls_with_evidence / total_controls * 100) if total_controls > 0 else 0
         )
         report.gaps = gaps
-        
+
         if include_evidence_details:
             report.collections = all_collections
-        
+
         # Store report
         self._reports[report.id] = report
-        
+
         logger.info(
             "Generated evidence report",
             report_id=str(report.id),
@@ -120,7 +122,7 @@ class ReportGenerator:
             gaps=len(gaps),
             duration_ms=(time.perf_counter() - start_time) * 1000,
         )
-        
+
         return report
 
     async def generate_gap_analysis(
@@ -129,7 +131,7 @@ class ReportGenerator:
         frameworks: list[Framework],
     ) -> dict[str, Any]:
         """Generate a gap analysis report.
-        
+
         Identifies missing evidence and provides remediation guidance.
         """
         report = await self.generate_report(
@@ -137,26 +139,28 @@ class ReportGenerator:
             frameworks=frameworks,
             include_evidence_details=False,
         )
-        
+
         # Categorize gaps
         critical_gaps = [g for g in report.gaps if g.get("severity") == "high"]
         medium_gaps = [g for g in report.gaps if g.get("severity") == "medium"]
-        
+
         # Generate remediation plan
         remediations = []
         for gap in critical_gaps[:10]:  # Top 10 critical
-            remediations.append({
-                "framework": gap["framework"],
-                "control_id": gap["control_id"],
-                "priority": "high",
-                "action": f"Collect missing evidence for {gap['control_title']}",
-                "missing_items": gap.get("missing_evidence", []),
-                "estimated_effort": "1-2 hours per item",
-            })
-        
+            remediations.append(
+                {
+                    "framework": gap["framework"],
+                    "control_id": gap["control_id"],
+                    "priority": "high",
+                    "action": f"Collect missing evidence for {gap['control_title']}",
+                    "missing_items": gap.get("missing_evidence", []),
+                    "estimated_effort": "1-2 hours per item",
+                }
+            )
+
         return {
             "organization_id": str(organization_id),
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "frameworks": [f.value for f in frameworks],
             "summary": {
                 "total_controls": report.total_controls,
@@ -184,7 +188,7 @@ class ReportGenerator:
         target_frameworks: list[Framework],
     ) -> dict[str, Any]:
         """Generate a report showing how primary framework evidence maps to others.
-        
+
         Useful for organizations pursuing multiple certifications.
         """
         # Get evidence for primary framework
@@ -192,34 +196,33 @@ class ReportGenerator:
             organization_id=organization_id,
             frameworks=[primary_framework],
         )
-        
+
         # Get completed controls
         completed_controls = [
-            c.control_id for c in collections
+            c.control_id
+            for c in collections
             if c.status in [EvidenceStatus.COLLECTED, EvidenceStatus.VALIDATED]
         ]
-        
+
         # Calculate coverage for each target framework
         coverage_analysis = []
         for target in target_frameworks:
             if target == primary_framework:
                 continue
-            
+
             coverage = self.mapper.calculate_coverage(
                 source_framework=primary_framework,
                 completed_controls=completed_controls,
                 target_framework=target,
             )
             coverage_analysis.append(coverage)
-        
+
         # Calculate potential effort savings
-        reuse_report = self.mapper.generate_reuse_report(
-            [primary_framework] + target_frameworks
-        )
-        
+        reuse_report = self.mapper.generate_reuse_report([primary_framework, *target_frameworks])
+
         return {
             "organization_id": str(organization_id),
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "primary_framework": primary_framework.value,
             "primary_framework_status": {
                 "controls_completed": len(completed_controls),
@@ -244,19 +247,18 @@ class ReportGenerator:
         format: str = "json",
     ) -> dict[str, Any]:
         """Export a report in the specified format.
-        
+
         Supported formats: json, summary
         """
         report = self._reports.get(report_id)
         if not report:
             raise ValueError(f"Report {report_id} not found")
-        
+
         if format == "json":
             return self._export_json(report)
-        elif format == "summary":
+        if format == "summary":
             return self._export_summary(report)
-        else:
-            raise ValueError(f"Unsupported format: {format}")
+        raise ValueError(f"Unsupported format: {format}")
 
     def _export_json(self, report: EvidenceReport) -> dict[str, Any]:
         """Export report as JSON."""
@@ -299,7 +301,7 @@ class ReportGenerator:
                 by_framework[fw]["compliant"] += 1
             elif collection.evidence:
                 by_framework[fw]["partial"] += 1
-        
+
         return {
             "report_id": str(report.id),
             "title": report.title,

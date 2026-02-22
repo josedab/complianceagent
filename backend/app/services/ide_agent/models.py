@@ -233,11 +233,13 @@ class AgentConfig:
     organization_id: UUID | None = None
 
     # Trigger settings
-    enabled_triggers: list[AgentTriggerType] = field(default_factory=lambda: [
-        AgentTriggerType.FILE_SAVE,
-        AgentTriggerType.PRE_COMMIT,
-        AgentTriggerType.MANUAL,
-    ])
+    enabled_triggers: list[AgentTriggerType] = field(
+        default_factory=lambda: [
+            AgentTriggerType.FILE_SAVE,
+            AgentTriggerType.PRE_COMMIT,
+            AgentTriggerType.MANUAL,
+        ]
+    )
 
     # Auto-fix settings
     auto_fix_enabled: bool = False
@@ -250,15 +252,22 @@ class AgentConfig:
     require_approval_for_prs: bool = True
 
     # Scope settings
-    enabled_regulations: list[str] = field(default_factory=lambda: [
-        "GDPR", "CCPA", "HIPAA", "EU AI Act", "SOC2", "PCI-DSS"
-    ])
-    excluded_paths: list[str] = field(default_factory=lambda: [
-        "node_modules/", "vendor/", ".git/", "__pycache__/", "dist/", "build/"
-    ])
-    included_languages: list[str] = field(default_factory=lambda: [
-        "python", "javascript", "typescript", "java", "go", "csharp"
-    ])
+    enabled_regulations: list[str] = field(
+        default_factory=lambda: ["GDPR", "CCPA", "HIPAA", "EU AI Act", "SOC2", "PCI-DSS"]
+    )
+    excluded_paths: list[str] = field(
+        default_factory=lambda: [
+            "node_modules/",
+            "vendor/",
+            ".git/",
+            "__pycache__/",
+            "dist/",
+            "build/",
+        ]
+    )
+    included_languages: list[str] = field(
+        default_factory=lambda: ["python", "javascript", "typescript", "java", "go", "csharp"]
+    )
 
     # Notification settings
     notify_on_violations: bool = True
@@ -319,8 +328,7 @@ class RefactorPlan:
             "fixable_violations": self.fixable_violations,
             "manual_review_required": self.manual_review_required,
             "changes_by_file": {
-                path: [f.to_dict() for f in fixes]
-                for path, fixes in self.changes_by_file.items()
+                path: [f.to_dict() for f in fixes] for path, fixes in self.changes_by_file.items()
             },
             "changes_by_regulation": {
                 reg: [f.to_dict() for f in fixes]

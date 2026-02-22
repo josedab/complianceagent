@@ -1,7 +1,7 @@
 """Models for infrastructure compliance analysis."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 class CloudProvider(str, Enum):
     """Supported cloud providers."""
-    
+
     AWS = "aws"
     AZURE = "azure"
     GCP = "gcp"
@@ -19,7 +19,7 @@ class CloudProvider(str, Enum):
 
 class InfrastructureType(str, Enum):
     """Types of infrastructure configuration."""
-    
+
     TERRAFORM = "terraform"
     KUBERNETES = "kubernetes"
     CLOUDFORMATION = "cloudformation"
@@ -30,7 +30,7 @@ class InfrastructureType(str, Enum):
 
 class ViolationSeverity(str, Enum):
     """Severity levels for compliance violations."""
-    
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -40,7 +40,7 @@ class ViolationSeverity(str, Enum):
 
 class ComplianceCategory(str, Enum):
     """Categories of compliance requirements."""
-    
+
     ENCRYPTION = "encryption"
     ACCESS_CONTROL = "access_control"
     NETWORK_SECURITY = "network_security"
@@ -55,31 +55,31 @@ class ComplianceCategory(str, Enum):
 @dataclass
 class InfrastructureResource:
     """Represents an infrastructure resource."""
-    
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     resource_type: str = ""
     provider: CloudProvider = CloudProvider.AWS
     infrastructure_type: InfrastructureType = InfrastructureType.TERRAFORM
-    
+
     # Location in source
     file_path: str = ""
     line_start: int = 0
     line_end: int = 0
-    
+
     # Resource properties
     properties: dict[str, Any] = field(default_factory=dict)
     tags: dict[str, str] = field(default_factory=dict)
-    
+
     # Dependencies
     depends_on: list[str] = field(default_factory=list)
     referenced_by: list[str] = field(default_factory=list)
-    
+
     # Data classification
     contains_pii: bool = False
     contains_phi: bool = False
     contains_pci: bool = False
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -103,33 +103,33 @@ class InfrastructureResource:
 @dataclass
 class PolicyRule:
     """A compliance policy rule."""
-    
+
     id: str
     name: str
     description: str
     severity: ViolationSeverity
     category: ComplianceCategory
-    
+
     # Applicable regulations
     regulations: list[str] = field(default_factory=list)
     requirement_ids: list[str] = field(default_factory=list)
-    
+
     # Applicable resource types
     resource_types: list[str] = field(default_factory=list)
     providers: list[CloudProvider] = field(default_factory=list)
-    
+
     # Check function signature: (resource) -> bool
     # True = compliant, False = violation
     check_expression: str = ""
-    
+
     # Remediation
     remediation_guidance: str = ""
     auto_remediation_available: bool = False
-    
+
     # Metadata
     enabled: bool = True
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -151,32 +151,32 @@ class PolicyRule:
 @dataclass
 class RemediationAction:
     """A remediation action for a compliance violation."""
-    
+
     id: UUID = field(default_factory=uuid4)
     action_type: str = ""  # add_property, modify_property, remove_resource, etc.
     description: str = ""
-    
+
     # Target resource
     resource_name: str = ""
     resource_type: str = ""
     file_path: str = ""
-    
+
     # Changes to make
     property_path: str = ""
     current_value: Any = None
     suggested_value: Any = None
-    
+
     # Generated code/config
     suggested_code: str = ""
-    
+
     # Effort
     estimated_effort_minutes: int = 5
     requires_manual_review: bool = False
-    
+
     # Impact
     breaking_change: bool = False
     affected_resources: list[str] = field(default_factory=list)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -200,39 +200,39 @@ class RemediationAction:
 @dataclass
 class ComplianceViolation:
     """A compliance violation found in infrastructure."""
-    
+
     id: UUID = field(default_factory=uuid4)
     rule_id: str = ""
     rule_name: str = ""
-    
+
     # Violation details
     severity: ViolationSeverity = ViolationSeverity.MEDIUM
     category: ComplianceCategory = ComplianceCategory.CONFIGURATION
     description: str = ""
-    
+
     # Resource info
     resource_name: str = ""
     resource_type: str = ""
     resource_id: str = ""
     provider: CloudProvider = CloudProvider.AWS
-    
+
     # Location
     file_path: str = ""
     line_number: int = 0
-    
+
     # Compliance context
     regulations: list[str] = field(default_factory=list)
     requirement_ids: list[str] = field(default_factory=list)
-    
+
     # Evidence
     evidence: dict[str, Any] = field(default_factory=dict)
-    
+
     # Remediation
     remediation: RemediationAction | None = None
-    
+
     # Metadata
-    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -259,62 +259,62 @@ class ComplianceViolation:
 @dataclass
 class InfrastructureAnalysisResult:
     """Result of infrastructure compliance analysis."""
-    
+
     id: UUID = field(default_factory=uuid4)
-    
+
     # Summary
     total_resources: int = 0
     compliant_resources: int = 0
     non_compliant_resources: int = 0
     compliance_score: float = 0.0
-    
+
     # Violation counts by severity
     critical_count: int = 0
     high_count: int = 0
     medium_count: int = 0
     low_count: int = 0
     info_count: int = 0
-    
+
     # Detailed results
     resources: list[InfrastructureResource] = field(default_factory=list)
     violations: list[ComplianceViolation] = field(default_factory=list)
-    
+
     # By provider
     provider_breakdown: dict[str, dict[str, int]] = field(default_factory=dict)
-    
+
     # By category
     category_breakdown: dict[str, dict[str, int]] = field(default_factory=dict)
-    
+
     # By regulation
     regulation_breakdown: dict[str, dict[str, int]] = field(default_factory=dict)
-    
+
     # Metadata
     analyzed_files: list[str] = field(default_factory=list)
-    analyzed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    analyzed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     analysis_duration_ms: int = 0
-    
+
     def calculate_score(self) -> float:
         """Calculate compliance score."""
         if self.total_resources == 0:
             return 100.0
-        
+
         # Weight violations by severity
         weighted_violations = (
-            self.critical_count * 10 +
-            self.high_count * 5 +
-            self.medium_count * 2 +
-            self.low_count * 1 +
-            self.info_count * 0.1
+            self.critical_count * 10
+            + self.high_count * 5
+            + self.medium_count * 2
+            + self.low_count * 1
+            + self.info_count * 0.1
         )
-        
+
         # Max possible score (all resources critical)
         max_weight = self.total_resources * 10
-        
+
         # Calculate score
         score = max(0, 100 - (weighted_violations / max_weight * 100))
         self.compliance_score = round(score, 2)
         return self.compliance_score
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -383,7 +383,6 @@ DEFAULT_POLICY_RULES: list[PolicyRule] = [
         remediation_guidance="Enable EBS encryption with KMS key",
         auto_remediation_available=True,
     ),
-    
     # Access control rules
     PolicyRule(
         id="IAM001",
@@ -411,7 +410,6 @@ DEFAULT_POLICY_RULES: list[PolicyRule] = [
         remediation_guidance="Enable public access block on S3 bucket",
         auto_remediation_available=True,
     ),
-    
     # Network security rules
     PolicyRule(
         id="NET001",
@@ -439,7 +437,6 @@ DEFAULT_POLICY_RULES: list[PolicyRule] = [
         remediation_guidance="Configure listener to use HTTPS with TLS 1.2+",
         auto_remediation_available=True,
     ),
-    
     # Logging rules
     PolicyRule(
         id="LOG001",
@@ -467,7 +464,6 @@ DEFAULT_POLICY_RULES: list[PolicyRule] = [
         remediation_guidance="Enable server access logging to a separate bucket",
         auto_remediation_available=True,
     ),
-    
     # Kubernetes rules
     PolicyRule(
         id="K8S001",

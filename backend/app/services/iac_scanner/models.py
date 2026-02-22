@@ -53,7 +53,7 @@ class ResourceType(str, Enum):
     K8S_POD = "k8s_pod"
     K8S_NETWORK_POLICY = "k8s_network_policy"
     K8S_RBAC = "k8s_rbac"
-    K8S_SECRET = "k8s_secret"
+    K8S_SECRET = "k8s_secret"  # noqa: S105
 
 
 @dataclass

@@ -17,8 +17,8 @@ from app.services.industry_packs.service import IndustryPacksService
 
 
 __all__ = [
-    "IndustryPacksService",
     "IndustryPack",
+    "IndustryPacksService",
     "IndustryVertical",
     "OnboardingWizardState",
     "PackProvisionResult",

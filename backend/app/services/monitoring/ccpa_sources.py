@@ -168,10 +168,12 @@ class CCPAParser:
                 section_content = body.get_text(separator="\n", strip=True)
 
             if section_num:
-                result["sections"].append({
-                    "number": section_num,
-                    "content": section_content,
-                })
+                result["sections"].append(
+                    {
+                        "number": section_num,
+                        "content": section_content,
+                    }
+                )
 
         return result
 
@@ -199,14 +201,16 @@ class CCPAParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "section": section.get("number"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "framework": "ccpa",
-                    "jurisdiction": "US-CA",
-                })
+                requirements.append(
+                    {
+                        "section": section.get("number"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "framework": "ccpa",
+                        "jurisdiction": "US-CA",
+                    }
+                )
 
         return requirements
 
@@ -305,13 +309,15 @@ def parse_ccpa_text(content: str) -> dict[str, Any]:
     obligations = re.findall(r"(?:shall|must|required to)\s+([^.]+\.)", content, re.IGNORECASE)
 
     for i, obligation in enumerate(obligations[:20]):  # Limit to first 20
-        requirements.append({
-            "id": f"ccpa-{i+1}",
-            "obligation_type": "must",
-            "action": obligation.strip(),
-            "source_text": obligation,
-            "confidence": 0.75,
-        })
+        requirements.append(
+            {
+                "id": f"ccpa-{i + 1}",
+                "obligation_type": "must",
+                "action": obligation.strip(),
+                "source_text": obligation,
+                "confidence": 0.75,
+            }
+        )
 
     return {
         "framework": "ccpa",

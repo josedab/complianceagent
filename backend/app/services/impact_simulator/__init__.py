@@ -17,12 +17,12 @@ from app.services.impact_simulator.service import ImpactSimulatorService
 
 
 __all__ = [
-    "ImpactSimulatorService",
     "AffectedComponent",
     "BlastRadius",
     "BlastRadiusAnalysis",
     "BlastRadiusComponent",
     "ImpactLevel",
+    "ImpactSimulatorService",
     "PrebuiltScenario",
     "RegulatoryChange",
     "ScenarioComparison",

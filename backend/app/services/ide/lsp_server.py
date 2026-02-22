@@ -32,7 +32,9 @@ class TextDocumentItem:
 class LSPServerConfig:
     """Configuration for the LSP server."""
 
-    enabled_regulations: list[str] = field(default_factory=lambda: ["GDPR", "CCPA", "HIPAA", "EU AI Act"])
+    enabled_regulations: list[str] = field(
+        default_factory=lambda: ["GDPR", "CCPA", "HIPAA", "EU AI Act"]
+    )
     severity_threshold: DiagnosticSeverity = DiagnosticSeverity.HINT
     analyze_on_open: bool = True
     analyze_on_change: bool = True
@@ -278,40 +280,46 @@ class ComplianceLSPServer:
                 code = diag.get("code", "")
 
                 # Add quick fix actions based on diagnostic
-                actions.append({
-                    "title": f"Fix: {diag.get('message', '')[:50]}...",
-                    "kind": "quickfix",
-                    "diagnostics": [diag],
-                    "command": {
-                        "title": "Apply Fix",
-                        "command": "complianceAgent.applyFix",
-                        "arguments": [uri, code, data],
-                    },
-                })
+                actions.append(
+                    {
+                        "title": f"Fix: {diag.get('message', '')[:50]}...",
+                        "kind": "quickfix",
+                        "diagnostics": [diag],
+                        "command": {
+                            "title": "Apply Fix",
+                            "command": "complianceAgent.applyFix",
+                            "arguments": [uri, code, data],
+                        },
+                    }
+                )
 
                 # Add ignore action
-                actions.append({
-                    "title": f"Ignore {code} for this line",
-                    "kind": "quickfix",
-                    "diagnostics": [diag],
-                    "command": {
-                        "title": "Ignore Issue",
-                        "command": "complianceAgent.ignoreIssue",
-                        "arguments": [uri, code, diag.get("range")],
-                    },
-                })
+                actions.append(
+                    {
+                        "title": f"Ignore {code} for this line",
+                        "kind": "quickfix",
+                        "diagnostics": [diag],
+                        "command": {
+                            "title": "Ignore Issue",
+                            "command": "complianceAgent.ignoreIssue",
+                            "arguments": [uri, code, diag.get("range")],
+                        },
+                    }
+                )
 
                 # Add documentation link
                 if data.get("regulation"):
-                    actions.append({
-                        "title": f"View {data['regulation']} documentation",
-                        "kind": "source",
-                        "command": {
-                            "title": "Open Documentation",
-                            "command": "complianceAgent.openDocumentation",
-                            "arguments": [data["regulation"], data.get("article_reference")],
-                        },
-                    })
+                    actions.append(
+                        {
+                            "title": f"View {data['regulation']} documentation",
+                            "kind": "source",
+                            "command": {
+                                "title": "Open Documentation",
+                                "command": "complianceAgent.openDocumentation",
+                                "arguments": [data["regulation"], data.get("article_reference")],
+                            },
+                        }
+                    )
 
         return actions
 
@@ -437,7 +445,9 @@ class ComplianceLSPServer:
         writer_transport, writer_protocol = await asyncio.get_event_loop().connect_write_pipe(
             asyncio.streams.FlowControlMixin, sys.stdout
         )
-        writer = asyncio.StreamWriter(writer_transport, writer_protocol, reader, asyncio.get_event_loop())
+        writer = asyncio.StreamWriter(
+            writer_transport, writer_protocol, reader, asyncio.get_event_loop()
+        )
 
         while not self._shutdown_requested:
             try:

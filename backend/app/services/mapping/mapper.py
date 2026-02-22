@@ -201,10 +201,12 @@ class CodebaseMappingService:
         functions = []
         for f in affected_files:
             for func in f.get("functions", []):
-                functions.append({
-                    "file": f.get("path"),
-                    "name": func,
-                })
+                functions.append(
+                    {
+                        "file": f.get("path"),
+                        "name": func,
+                    }
+                )
         return functions
 
     def _extract_classes(self, affected_files: list[dict]) -> list[dict]:
@@ -212,10 +214,12 @@ class CodebaseMappingService:
         classes = []
         for f in affected_files:
             for cls in f.get("classes", []):
-                classes.append({
-                    "file": f.get("path"),
-                    "name": cls,
-                })
+                classes.append(
+                    {
+                        "file": f.get("path"),
+                        "name": cls,
+                    }
+                )
         return classes
 
 

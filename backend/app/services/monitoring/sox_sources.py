@@ -184,7 +184,10 @@ SOX_IT_CONTROLS = [
         "category": "access_control",
         "name": "Access Reviews",
         "description": "Regular review of user access rights",
-        "testing_procedures": ["Review access review documentation", "Sample access certifications"],
+        "testing_procedures": [
+            "Review access review documentation",
+            "Sample access certifications",
+        ],
     },
     {
         "id": "IT-AC-04",
@@ -281,11 +284,13 @@ class SOXParser:
             href = link.get("href", "")
             text = link.get_text(strip=True)
             if text and len(text) > 10:
-                documents.append({
-                    "title": text,
-                    "url": href if href.startswith("http") else f"https://www.sec.gov{href}",
-                    "type": "guidance",
-                })
+                documents.append(
+                    {
+                        "title": text,
+                        "url": href if href.startswith("http") else f"https://www.sec.gov{href}",
+                        "type": "guidance",
+                    }
+                )
 
         return documents
 
@@ -296,37 +301,41 @@ class SOXParser:
         # Section-based requirements
         for section_num, section in SOX_REQUIREMENTS.items():
             for req in section["requirements"]:
-                all_requirements.append({
-                    "requirement_id": f"SOX-{req['id']}",
-                    "section": section_num,
-                    "section_title": section["title"],
-                    "title": req["title"],
-                    "description": req["description"],
-                    "obligation_type": req["obligation"],
-                    "control_type": req["control_type"],
-                    "framework": "SOX",
-                    "citation": {
-                        "section": f"Section {section_num}",
-                    },
-                })
+                all_requirements.append(
+                    {
+                        "requirement_id": f"SOX-{req['id']}",
+                        "section": section_num,
+                        "section_title": section["title"],
+                        "title": req["title"],
+                        "description": req["description"],
+                        "obligation_type": req["obligation"],
+                        "control_type": req["control_type"],
+                        "framework": "SOX",
+                        "citation": {
+                            "section": f"Section {section_num}",
+                        },
+                    }
+                )
 
         # IT controls
         for category_key, category in SOX_IT_CONTROLS.items():
             for control in category["controls"]:
-                all_requirements.append({
-                    "requirement_id": f"SOX-{control['id']}",
-                    "section": "IT",
-                    "section_title": category["title"],
-                    "title": control["title"],
-                    "description": control["description"],
-                    "obligation_type": control["obligation"],
-                    "control_type": "it_control",
-                    "framework": "SOX",
-                    "citation": {
-                        "control_id": control["id"],
-                        "category": category_key,
-                    },
-                })
+                all_requirements.append(
+                    {
+                        "requirement_id": f"SOX-{control['id']}",
+                        "section": "IT",
+                        "section_title": category["title"],
+                        "title": control["title"],
+                        "description": control["description"],
+                        "obligation_type": control["obligation"],
+                        "control_type": "it_control",
+                        "framework": "SOX",
+                        "citation": {
+                            "control_id": control["id"],
+                            "category": category_key,
+                        },
+                    }
+                )
 
         return all_requirements
 

@@ -3,14 +3,12 @@
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 
 from app.agents.copilot import CopilotClient, CopilotMessage
 from app.services.ide.diagnostic import (
-    CodeAction,
     ComplianceDiagnostic,
     DiagnosticCategory,
     DiagnosticSeverity,
@@ -104,11 +102,11 @@ Return JSON with:
         user_prompt = f"""Fix this compliance issue:
 
 **Language**: {language}
-**Regulation**: {diagnostic.regulation or 'General Compliance'}
+**Regulation**: {diagnostic.regulation or "General Compliance"}
 **Issue Code**: {diagnostic.code}
 **Issue Message**: {diagnostic.message}
-**Category**: {diagnostic.category.value if diagnostic.category else 'Unknown'}
-**Article Reference**: {diagnostic.article_reference or 'N/A'}
+**Category**: {diagnostic.category.value if diagnostic.category else "Unknown"}
+**Article Reference**: {diagnostic.article_reference or "N/A"}
 
 {context}
 
@@ -126,8 +124,7 @@ Provide a compliant fix. Return JSON only."""
             content = response.content.strip()
             if content.startswith("```"):
                 content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
+                content = content.removeprefix("json")
             content = content.rstrip("`")
 
             result = json.loads(content)
@@ -194,7 +191,7 @@ Return JSON with:
 
 **Issue**: {diagnostic.message}
 **Code**: {diagnostic.code}
-**Reference**: {diagnostic.article_reference or 'N/A'}
+**Reference**: {diagnostic.article_reference or "N/A"}
 
 Original code:
 ```{language}
@@ -216,8 +213,7 @@ Return JSON only."""
             if content.startswith("```"):
                 parts = content.split("```")
                 content = parts[1] if len(parts) > 1 else content
-                if content.startswith("json"):
-                    content = content[4:]
+                content = content.removeprefix("json")
             content = content.rstrip("`")
 
             result = json.loads(content)
@@ -276,8 +272,7 @@ Return JSON with:
             content = response.content.strip()
             if content.startswith("```"):
                 content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
+                content = content.removeprefix("json")
             return json.loads(content.rstrip("`"))
 
         except Exception as e:
@@ -304,7 +299,7 @@ Return JSON with:
 
         system_prompt = f"""You are an expert compliance auditor analyzing code for regulatory issues.
 
-Check the code against these regulations: {', '.join(regs)}
+Check the code against these regulations: {", ".join(regs)}
 
 For each issue found, provide:
 - line: Line number (0-indexed)
@@ -338,8 +333,7 @@ Return JSON array of issues. If no issues, return []."""
             content = response.content.strip()
             if content.startswith("```"):
                 content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
+                content = content.removeprefix("json")
             issues = json.loads(content.rstrip("`"))
 
             suggestions = []

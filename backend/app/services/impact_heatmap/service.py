@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import math
-import random
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import structlog
@@ -25,30 +24,143 @@ from app.services.impact_heatmap.models import (
 )
 
 
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
+
+
 logger = structlog.get_logger()
 
 # Realistic sample modules with baseline risk profiles
 _SAMPLE_MODULES: list[dict] = [
-    {"path": "src/auth", "module": "Authentication", "base_score": 92.0, "regs": ["SOC2", "ISO27001"]},
-    {"path": "src/payments", "module": "Payment Processing", "base_score": 65.0, "regs": ["PCI-DSS", "SOX"]},
-    {"path": "src/data/storage", "module": "Data Storage", "base_score": 78.0, "regs": ["GDPR", "CCPA"]},
-    {"path": "src/api/gateway", "module": "API Gateway", "base_score": 85.0, "regs": ["SOC2", "NIST"]},
-    {"path": "src/ml/models", "module": "ML Models", "base_score": 55.0, "regs": ["EU-AI-Act", "NIST-AI"]},
-    {"path": "src/ml/training", "module": "ML Training Pipeline", "base_score": 60.0, "regs": ["EU-AI-Act"]},
-    {"path": "src/data/pipelines", "module": "Data Pipelines", "base_score": 72.0, "regs": ["GDPR", "HIPAA"]},
-    {"path": "src/infrastructure/k8s", "module": "Kubernetes Infra", "base_score": 88.0, "regs": ["SOC2", "FedRAMP"]},
-    {"path": "src/logging", "module": "Audit Logging", "base_score": 95.0, "regs": ["SOC2", "HIPAA", "SOX"]},
-    {"path": "src/encryption", "module": "Encryption Services", "base_score": 90.0, "regs": ["PCI-DSS", "HIPAA"]},
-    {"path": "src/user/consent", "module": "User Consent Manager", "base_score": 70.0, "regs": ["GDPR", "CCPA", "LGPD"]},
-    {"path": "src/data/export", "module": "Data Export/Portability", "base_score": 68.0, "regs": ["GDPR", "CCPA"]},
-    {"path": "src/notifications", "module": "Notification Service", "base_score": 82.0, "regs": ["CAN-SPAM", "GDPR"]},
-    {"path": "src/vendor/integrations", "module": "Third-Party Integrations", "base_score": 58.0, "regs": ["SOC2", "GDPR"]},
-    {"path": "src/reporting", "module": "Compliance Reporting", "base_score": 87.0, "regs": ["SOX", "SOC2"]},
-    {"path": "src/access/rbac", "module": "Role-Based Access Control", "base_score": 91.0, "regs": ["SOC2", "HIPAA"]},
-    {"path": "src/data/anonymization", "module": "Data Anonymization", "base_score": 63.0, "regs": ["GDPR", "HIPAA"]},
-    {"path": "src/backup", "module": "Backup & Recovery", "base_score": 80.0, "regs": ["SOC2", "ISO27001"]},
-    {"path": "src/ci/scanning", "module": "CI Security Scanning", "base_score": 76.0, "regs": ["NIST", "SOC2"]},
-    {"path": "src/mobile/sdk", "module": "Mobile SDK", "base_score": 50.0, "regs": ["GDPR", "CCPA", "EU-AI-Act"]},
+    {
+        "path": "src/auth",
+        "module": "Authentication",
+        "base_score": 92.0,
+        "regs": ["SOC2", "ISO27001"],
+    },
+    {
+        "path": "src/payments",
+        "module": "Payment Processing",
+        "base_score": 65.0,
+        "regs": ["PCI-DSS", "SOX"],
+    },
+    {
+        "path": "src/data/storage",
+        "module": "Data Storage",
+        "base_score": 78.0,
+        "regs": ["GDPR", "CCPA"],
+    },
+    {
+        "path": "src/api/gateway",
+        "module": "API Gateway",
+        "base_score": 85.0,
+        "regs": ["SOC2", "NIST"],
+    },
+    {
+        "path": "src/ml/models",
+        "module": "ML Models",
+        "base_score": 55.0,
+        "regs": ["EU-AI-Act", "NIST-AI"],
+    },
+    {
+        "path": "src/ml/training",
+        "module": "ML Training Pipeline",
+        "base_score": 60.0,
+        "regs": ["EU-AI-Act"],
+    },
+    {
+        "path": "src/data/pipelines",
+        "module": "Data Pipelines",
+        "base_score": 72.0,
+        "regs": ["GDPR", "HIPAA"],
+    },
+    {
+        "path": "src/infrastructure/k8s",
+        "module": "Kubernetes Infra",
+        "base_score": 88.0,
+        "regs": ["SOC2", "FedRAMP"],
+    },
+    {
+        "path": "src/logging",
+        "module": "Audit Logging",
+        "base_score": 95.0,
+        "regs": ["SOC2", "HIPAA", "SOX"],
+    },
+    {
+        "path": "src/encryption",
+        "module": "Encryption Services",
+        "base_score": 90.0,
+        "regs": ["PCI-DSS", "HIPAA"],
+    },
+    {
+        "path": "src/user/consent",
+        "module": "User Consent Manager",
+        "base_score": 70.0,
+        "regs": ["GDPR", "CCPA", "LGPD"],
+    },
+    {
+        "path": "src/data/export",
+        "module": "Data Export/Portability",
+        "base_score": 68.0,
+        "regs": ["GDPR", "CCPA"],
+    },
+    {
+        "path": "src/notifications",
+        "module": "Notification Service",
+        "base_score": 82.0,
+        "regs": ["CAN-SPAM", "GDPR"],
+    },
+    {
+        "path": "src/vendor/integrations",
+        "module": "Third-Party Integrations",
+        "base_score": 58.0,
+        "regs": ["SOC2", "GDPR"],
+    },
+    {
+        "path": "src/reporting",
+        "module": "Compliance Reporting",
+        "base_score": 87.0,
+        "regs": ["SOX", "SOC2"],
+    },
+    {
+        "path": "src/access/rbac",
+        "module": "Role-Based Access Control",
+        "base_score": 91.0,
+        "regs": ["SOC2", "HIPAA"],
+    },
+    {
+        "path": "src/data/anonymization",
+        "module": "Data Anonymization",
+        "base_score": 63.0,
+        "regs": ["GDPR", "HIPAA"],
+    },
+    {
+        "path": "src/backup",
+        "module": "Backup & Recovery",
+        "base_score": 80.0,
+        "regs": ["SOC2", "ISO27001"],
+    },
+    {
+        "path": "src/ci/scanning",
+        "module": "CI Security Scanning",
+        "base_score": 76.0,
+        "regs": ["NIST", "SOC2"],
+    },
+    {
+        "path": "src/mobile/sdk",
+        "module": "Mobile SDK",
+        "base_score": 50.0,
+        "regs": ["GDPR", "CCPA", "EU-AI-Act"],
+    },
 ]
 
 _RISK_COLORS: dict[RiskLevel, str] = {
@@ -66,7 +178,7 @@ class ImpactHeatmapService:
     def __init__(self, db, copilot_client=None):
         self.db = db
         self.copilot_client = copilot_client
-        self._rng = random.Random(42)
+        self._rng_seed = 42
 
     async def get_current_heatmap(
         self,
@@ -93,7 +205,7 @@ class ImpactHeatmapService:
         timestamp: datetime,
     ) -> HeatmapSnapshot:
         """Get the compliance heatmap at a specific historical point in time."""
-        days_ago = (datetime.utcnow() - timestamp).days
+        days_ago = (datetime.now(UTC) - timestamp).days
         snapshot = self._generate_snapshot(org_id, days_offset=-days_ago)
         snapshot.timestamp = timestamp
 
@@ -112,7 +224,7 @@ class ImpactHeatmapService:
         granularity: str = "daily",
     ) -> HeatmapTimeSeries:
         """Get time-series heatmap data for the slider visualization."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         step_days = {"daily": 1, "weekly": 7, "monthly": 30}.get(granularity, 1)
         num_snapshots = max(1, period_days // step_days)
 
@@ -238,7 +350,7 @@ class ImpactHeatmapService:
         forecast = RiskForecast(
             id=uuid4(),
             org_id=org_id,
-            forecast_date=datetime.utcnow() + timedelta(days=forecast_days),
+            forecast_date=datetime.now(UTC) + timedelta(days=forecast_days),
             predicted_violations=predicted_violations,
             predicted_score=round(predicted_score, 1),
             confidence_pct=round(confidence, 1),
@@ -262,7 +374,7 @@ class ImpactHeatmapService:
         limit: int = 20,
     ) -> list[ModuleRiskTrend]:
         """Get risk trends per module over time."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         trends: list[ModuleRiskTrend] = []
 
         for mod_info in _SAMPLE_MODULES[:limit]:
@@ -293,13 +405,13 @@ class ImpactHeatmapService:
         """Export the current heatmap as a downloadable artifact."""
         export_format = ExportFormat(format.lower())
         export_id = uuid4()
-        export_title = title or f"Compliance Heatmap — {datetime.utcnow():%Y-%m-%d}"
+        export_title = title or f"Compliance Heatmap — {datetime.now(UTC):%Y-%m-%d}"
 
         export = HeatmapExport(
             id=export_id,
             format=export_format,
             content_url=f"/api/v1/impact-heatmap/exports/{export_id}.{export_format.value}",
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(UTC),
             title=export_title,
             description=f"Compliance risk heatmap for organization {org_id}",
         )
@@ -322,9 +434,7 @@ class ImpactHeatmapService:
         snapshot.framework_overlay = framework
 
         framework_upper = framework.upper().replace("_", "-")
-        snapshot.cells = [
-            c for c in snapshot.cells if framework_upper in c.regulations_affected
-        ]
+        snapshot.cells = [c for c in snapshot.cells if framework_upper in c.regulations_affected]
 
         if snapshot.cells:
             snapshot.overall_score = round(
@@ -398,7 +508,7 @@ class ImpactHeatmapService:
         x_mean = sum(x_vals) / n
         y_mean = sum(scores) / n
 
-        numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_vals, scores))
+        numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_vals, scores, strict=False))
         denominator = sum((x - x_mean) ** 2 for x in x_vals)
 
         if denominator == 0:
@@ -419,7 +529,7 @@ class ImpactHeatmapService:
     ) -> HeatmapSnapshot:
         """Generate a realistic heatmap snapshot with sample data."""
         cells: list[HeatmapCell] = []
-        now = datetime.utcnow() + timedelta(days=days_offset)
+        now = datetime.now(UTC) + timedelta(days=days_offset)
 
         for mod_info in _SAMPLE_MODULES:
             # Introduce time-based variation for realistic historical data
@@ -494,9 +604,7 @@ class ImpactHeatmapService:
 
         snapshot.cells = cells
         if cells:
-            snapshot.overall_score = round(
-                sum(c.compliance_score for c in cells) / len(cells), 1
-            )
+            snapshot.overall_score = round(sum(c.compliance_score for c in cells) / len(cells), 1)
             snapshot.total_violations = sum(c.violation_count for c in cells)
         else:
             snapshot.overall_score = 100.0
@@ -524,6 +632,6 @@ class ImpactHeatmapService:
         """Build a series of scores for a single module over time."""
         scores: list[float] = []
         for i in range(count):
-            variation = math.sin(i * 0.6) * 5.0 + self._rng.uniform(-2.0, 2.0)
+            variation = math.sin(i * 0.6) * 5.0 + _deterministic_float("hm_20772", -2.0, 2.0)
             scores.append(max(0.0, min(100.0, base_score + variation)))
         return scores

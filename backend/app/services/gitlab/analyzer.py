@@ -14,6 +14,7 @@ logger = structlog.get_logger()
 
 class ComplianceFileType(Enum):
     """Types of compliance-relevant files."""
+
     PRIVACY_POLICY = "privacy_policy"
     TERMS_OF_SERVICE = "terms_of_service"
     DATA_HANDLER = "data_handler"
@@ -31,6 +32,7 @@ class ComplianceFileType(Enum):
 @dataclass
 class ComplianceFile:
     """A file relevant to compliance analysis."""
+
     path: str
     file_type: ComplianceFileType
     content: str | None = None
@@ -40,6 +42,7 @@ class ComplianceFile:
 @dataclass
 class RepositoryStructure:
     """Analyzed structure of a repository."""
+
     languages: dict[str, float]
     frameworks: list[str]
     directories: list[str]
@@ -53,49 +56,119 @@ class RepositoryStructure:
 
 FILE_PATTERNS = {
     ComplianceFileType.PRIVACY_POLICY: [
-        "privacy", "privacy-policy", "gdpr", "data-protection",
+        "privacy",
+        "privacy-policy",
+        "gdpr",
+        "data-protection",
     ],
     ComplianceFileType.TERMS_OF_SERVICE: [
-        "terms", "tos", "terms-of-service", "legal",
+        "terms",
+        "tos",
+        "terms-of-service",
+        "legal",
     ],
     ComplianceFileType.DATA_HANDLER: [
-        "user", "customer", "profile", "account", "personal",
-        "pii", "data", "handler", "processor",
+        "user",
+        "customer",
+        "profile",
+        "account",
+        "personal",
+        "pii",
+        "data",
+        "handler",
+        "processor",
     ],
     ComplianceFileType.AUTHENTICATION: [
-        "auth", "login", "session", "jwt", "oauth", "saml",
-        "sso", "identity", "credential", "password",
+        "auth",
+        "login",
+        "session",
+        "jwt",
+        "oauth",
+        "saml",
+        "sso",
+        "identity",
+        "credential",
+        "password",
     ],
     ComplianceFileType.ENCRYPTION: [
-        "encrypt", "decrypt", "crypto", "cipher", "hash",
-        "secret", "key", "certificate", "ssl", "tls",
+        "encrypt",
+        "decrypt",
+        "crypto",
+        "cipher",
+        "hash",
+        "secret",
+        "key",
+        "certificate",
+        "ssl",
+        "tls",
     ],
     ComplianceFileType.LOGGING: [
-        "log", "audit", "trace", "monitor", "telemetry",
-        "analytics", "tracking", "event",
+        "log",
+        "audit",
+        "trace",
+        "monitor",
+        "telemetry",
+        "analytics",
+        "tracking",
+        "event",
     ],
     ComplianceFileType.CONFIGURATION: [
-        "config", "settings", "env", "environment", "secret",
+        "config",
+        "settings",
+        "env",
+        "environment",
+        "secret",
     ],
     ComplianceFileType.INFRASTRUCTURE: [
-        "docker", "kubernetes", "k8s", "terraform", "ansible",
-        "helm", "deploy", "infrastructure", "iac",
+        "docker",
+        "kubernetes",
+        "k8s",
+        "terraform",
+        "ansible",
+        "helm",
+        "deploy",
+        "infrastructure",
+        "iac",
     ],
     ComplianceFileType.SECURITY: [
-        "security", "firewall", "cors", "csp", "permission",
-        "rbac", "acl", "access", "policy",
+        "security",
+        "firewall",
+        "cors",
+        "csp",
+        "permission",
+        "rbac",
+        "acl",
+        "access",
+        "policy",
     ],
     ComplianceFileType.API_ENDPOINT: [
-        "api", "route", "controller", "endpoint", "handler",
-        "view", "resource",
+        "api",
+        "route",
+        "controller",
+        "endpoint",
+        "handler",
+        "view",
+        "resource",
     ],
     ComplianceFileType.DATABASE: [
-        "database", "db", "model", "schema", "migration",
-        "repository", "entity", "orm",
+        "database",
+        "db",
+        "model",
+        "schema",
+        "migration",
+        "repository",
+        "entity",
+        "orm",
     ],
     ComplianceFileType.CONSENT: [
-        "consent", "cookie", "preference", "opt-in", "opt-out",
-        "gdpr", "ccpa", "banner",
+        "consent",
+        "cookie",
+        "preference",
+        "opt-in",
+        "opt-out",
+        "gdpr",
+        "ccpa",
+        "banner",
     ],
 }
 
@@ -147,11 +220,9 @@ class GitLabAnalyzer:
             tree = []
 
         # Analyze structure
-        directories = list({
-            f.path.rsplit("/", 1)[0]
-            for f in tree
-            if "/" in f.path and f.type == "blob"
-        })
+        directories = list(
+            {f.path.rsplit("/", 1)[0] for f in tree if "/" in f.path and f.type == "blob"}
+        )
 
         # Detect frameworks
         file_paths = [f.path.lower() for f in tree]
@@ -165,21 +236,16 @@ class GitLabAnalyzer:
         )
 
         # Check for common project features
-        has_tests = any(
-            "test" in p or "spec" in p or "__tests__" in p
-            for p in file_paths
-        )
+        has_tests = any("test" in p or "spec" in p or "__tests__" in p for p in file_paths)
         has_ci = any(
             ".gitlab-ci" in p or ".github/workflows" in p or "Jenkinsfile" in p.lower()
             for p in file_paths
         )
         has_docker = any(
-            "dockerfile" in p.lower() or "docker-compose" in p.lower()
-            for p in file_paths
+            "dockerfile" in p.lower() or "docker-compose" in p.lower() for p in file_paths
         )
         has_security_config = any(
-            "security" in p.lower() or ".snyk" in p or "dependabot" in p
-            for p in file_paths
+            "security" in p.lower() or ".snyk" in p or "dependabot" in p for p in file_paths
         )
 
         return RepositoryStructure(
@@ -198,10 +264,7 @@ class GitLabAnalyzer:
         """Detect frameworks based on file patterns."""
         detected = []
         for framework, indicators in FRAMEWORK_INDICATORS.items():
-            if any(
-                any(ind.lower() in path for ind in indicators)
-                for path in file_paths
-            ):
+            if any(any(ind.lower() in path for ind in indicators) for path in file_paths):
                 detected.append(framework)
         return detected
 
@@ -224,16 +287,26 @@ class GitLabAnalyzer:
             for file_type, patterns in FILE_PATTERNS.items():
                 if any(p in path_lower or p in name_lower for p in patterns):
                     # Skip node_modules, vendor, etc.
-                    if any(skip in path_lower for skip in [
-                        "node_modules", "vendor", "venv", ".git",
-                        "dist", "build", "__pycache__",
-                    ]):
+                    if any(
+                        skip in path_lower
+                        for skip in [
+                            "node_modules",
+                            "vendor",
+                            "venv",
+                            ".git",
+                            "dist",
+                            "build",
+                            "__pycache__",
+                        ]
+                    ):
                         continue
 
-                    compliance_files.append(ComplianceFile(
-                        path=file_obj.path,
-                        file_type=file_type,
-                    ))
+                    compliance_files.append(
+                        ComplianceFile(
+                            path=file_obj.path,
+                            file_type=file_type,
+                        )
+                    )
                     break
 
         logger.info(
@@ -273,55 +346,75 @@ class GitLabAnalyzer:
 
             if compliance_file.file_type == ComplianceFileType.DATA_HANDLER:
                 pii_patterns = [
-                    "email", "phone", "address", "ssn", "social_security",
-                    "date_of_birth", "dob", "credit_card", "passport",
-                    "driver_license", "ip_address", "geolocation",
+                    "email",
+                    "phone",
+                    "address",
+                    "ssn",
+                    "social_security",
+                    "date_of_birth",
+                    "dob",
+                    "credit_card",
+                    "passport",
+                    "driver_license",
+                    "ip_address",
+                    "geolocation",
                 ]
-                analysis["patterns_found"] = [
-                    p for p in pii_patterns
-                    if p in content.lower()
-                ]
+                analysis["patterns_found"] = [p for p in pii_patterns if p in content.lower()]
                 analysis["has_pii_handling"] = len(analysis["patterns_found"]) > 0
 
             elif compliance_file.file_type == ComplianceFileType.ENCRYPTION:
                 crypto_patterns = [
-                    "aes", "rsa", "sha256", "sha512", "bcrypt", "argon2",
-                    "pbkdf2", "hmac", "encrypt", "decrypt",
+                    "aes",
+                    "rsa",
+                    "sha256",
+                    "sha512",
+                    "bcrypt",
+                    "argon2",
+                    "pbkdf2",
+                    "hmac",
+                    "encrypt",
+                    "decrypt",
                 ]
-                analysis["patterns_found"] = [
-                    p for p in crypto_patterns
-                    if p in content.lower()
-                ]
+                analysis["patterns_found"] = [p for p in crypto_patterns if p in content.lower()]
                 analysis["has_strong_crypto"] = any(
-                    p in analysis["patterns_found"]
-                    for p in ["aes", "rsa", "bcrypt", "argon2"]
+                    p in analysis["patterns_found"] for p in ["aes", "rsa", "bcrypt", "argon2"]
                 )
 
             elif compliance_file.file_type == ComplianceFileType.AUTHENTICATION:
                 auth_patterns = [
-                    "password", "token", "jwt", "session", "oauth",
-                    "mfa", "2fa", "totp", "sso", "saml",
+                    "password",
+                    "token",
+                    "jwt",
+                    "session",
+                    "oauth",
+                    "mfa",
+                    "2fa",
+                    "totp",
+                    "sso",
+                    "saml",
                 ]
-                analysis["patterns_found"] = [
-                    p for p in auth_patterns
-                    if p in content.lower()
-                ]
+                analysis["patterns_found"] = [p for p in auth_patterns if p in content.lower()]
                 analysis["has_secure_auth"] = any(
-                    p in analysis["patterns_found"]
-                    for p in ["mfa", "2fa", "totp", "oauth", "saml"]
+                    p in analysis["patterns_found"] for p in ["mfa", "2fa", "totp", "oauth", "saml"]
                 )
 
             elif compliance_file.file_type == ComplianceFileType.LOGGING:
                 logging_patterns = [
-                    "audit", "trail", "event", "action", "user_id",
-                    "timestamp", "ip_address", "sensitive", "mask",
+                    "audit",
+                    "trail",
+                    "event",
+                    "action",
+                    "user_id",
+                    "timestamp",
+                    "ip_address",
+                    "sensitive",
+                    "mask",
                 ]
-                analysis["patterns_found"] = [
-                    p for p in logging_patterns
-                    if p in content.lower()
-                ]
+                analysis["patterns_found"] = [p for p in logging_patterns if p in content.lower()]
                 analysis["has_audit_logging"] = "audit" in content.lower()
-                analysis["masks_sensitive"] = "mask" in content.lower() or "redact" in content.lower()
+                analysis["masks_sensitive"] = (
+                    "mask" in content.lower() or "redact" in content.lower()
+                )
 
             compliance_file.analysis = analysis
 
@@ -387,8 +480,15 @@ class GitLabAnalyzer:
             return findings
 
         config_extensions = [
-            ".env", ".yaml", ".yml", ".json", ".conf", ".cfg",
-            ".properties", ".ini", ".toml",
+            ".env",
+            ".yaml",
+            ".yml",
+            ".json",
+            ".conf",
+            ".cfg",
+            ".properties",
+            ".ini",
+            ".toml",
         ]
 
         for file_obj in tree:
@@ -409,11 +509,13 @@ class GitLabAnalyzer:
                             matches = re.finditer(pattern, content, re.IGNORECASE)
                             for match in matches:
                                 # Don't include actual secret values
-                                findings[category].append({
-                                    "file": file_obj.path,
-                                    "line_hint": content[:match.start()].count("\n") + 1,
-                                    "pattern_matched": pattern[:30] + "...",
-                                })
+                                findings[category].append(
+                                    {
+                                        "file": file_obj.path,
+                                        "line_hint": content[: match.start()].count("\n") + 1,
+                                        "pattern_matched": pattern[:30] + "...",
+                                    }
+                                )
 
                 except Exception:
                     continue

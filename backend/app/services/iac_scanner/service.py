@@ -27,313 +27,498 @@ logger = structlog.get_logger()
 COMPLIANCE_RULES: list[ComplianceRule] = [
     # --- S3 / Storage ---
     ComplianceRule(
-        id="IAC-001", name="S3 Public Access Blocked",
+        id="IAC-001",
+        name="S3 Public Access Blocked",
         description="S3 buckets must block public access to protect personal data",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.S3_BUCKET, severity=ViolationSeverity.CRITICAL,
-        regulation="GDPR", article="Article 32",
-        check_function="check_s3_public_access", fix_template="block_public_access = true",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.S3_BUCKET,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="GDPR",
+        article="Article 32",
+        check_function="check_s3_public_access",
+        fix_template="block_public_access = true",
     ),
     ComplianceRule(
-        id="IAC-002", name="S3 Encryption at Rest",
+        id="IAC-002",
+        name="S3 Encryption at Rest",
         description="S3 buckets must have server-side encryption enabled",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.S3_BUCKET, severity=ViolationSeverity.HIGH,
-        regulation="HIPAA", article="§164.312(a)(2)(iv)",
-        check_function="check_s3_encryption", fix_template='server_side_encryption_configuration { rule { apply_server_side_encryption_by_default { sse_algorithm = "aws:kms" } } }',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.S3_BUCKET,
+        severity=ViolationSeverity.HIGH,
+        regulation="HIPAA",
+        article="§164.312(a)(2)(iv)",
+        check_function="check_s3_encryption",
+        fix_template='server_side_encryption_configuration { rule { apply_server_side_encryption_by_default { sse_algorithm = "aws:kms" } } }',
     ),
     ComplianceRule(
-        id="IAC-003", name="S3 Versioning Enabled",
+        id="IAC-003",
+        name="S3 Versioning Enabled",
         description="S3 buckets should have versioning enabled for data integrity",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.S3_BUCKET, severity=ViolationSeverity.MEDIUM,
-        regulation="SOC 2", article="CC6.1",
-        check_function="check_s3_versioning", fix_template="versioning { enabled = true }",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.S3_BUCKET,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="SOC 2",
+        article="CC6.1",
+        check_function="check_s3_versioning",
+        fix_template="versioning { enabled = true }",
     ),
     ComplianceRule(
-        id="IAC-004", name="S3 Access Logging",
+        id="IAC-004",
+        name="S3 Access Logging",
         description="S3 buckets must have access logging enabled for audit trail",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.S3_BUCKET, severity=ViolationSeverity.MEDIUM,
-        regulation="PCI-DSS", article="Requirement 10.2",
-        check_function="check_s3_logging", fix_template='logging { target_bucket = "access-logs" }',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.S3_BUCKET,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="PCI-DSS",
+        article="Requirement 10.2",
+        check_function="check_s3_logging",
+        fix_template='logging { target_bucket = "access-logs" }',
     ),
     # --- RDS ---
     ComplianceRule(
-        id="IAC-005", name="RDS Encryption at Rest",
+        id="IAC-005",
+        name="RDS Encryption at Rest",
         description="RDS instances must have encryption at rest enabled for PHI protection",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.RDS_INSTANCE, severity=ViolationSeverity.CRITICAL,
-        regulation="HIPAA", article="§164.312(a)(2)(iv)",
-        check_function="check_rds_encryption", fix_template="storage_encrypted = true",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.RDS_INSTANCE,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="HIPAA",
+        article="§164.312(a)(2)(iv)",
+        check_function="check_rds_encryption",
+        fix_template="storage_encrypted = true",
     ),
     ComplianceRule(
-        id="IAC-006", name="RDS Multi-AZ Deployment",
+        id="IAC-006",
+        name="RDS Multi-AZ Deployment",
         description="RDS instances should use Multi-AZ for high availability",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.RDS_INSTANCE, severity=ViolationSeverity.MEDIUM,
-        regulation="SOC 2", article="A1.2",
-        check_function="check_rds_multi_az", fix_template="multi_az = true",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.RDS_INSTANCE,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="SOC 2",
+        article="A1.2",
+        check_function="check_rds_multi_az",
+        fix_template="multi_az = true",
     ),
     ComplianceRule(
-        id="IAC-007", name="RDS Public Access Disabled",
+        id="IAC-007",
+        name="RDS Public Access Disabled",
         description="RDS instances must not be publicly accessible",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.RDS_INSTANCE, severity=ViolationSeverity.CRITICAL,
-        regulation="GDPR", article="Article 25",
-        check_function="check_rds_public_access", fix_template="publicly_accessible = false",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.RDS_INSTANCE,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="GDPR",
+        article="Article 25",
+        check_function="check_rds_public_access",
+        fix_template="publicly_accessible = false",
     ),
     # --- IAM ---
     ComplianceRule(
-        id="IAC-008", name="IAM MFA Enforcement",
+        id="IAC-008",
+        name="IAM MFA Enforcement",
         description="IAM policies should enforce MFA for privileged actions",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.IAM_POLICY, severity=ViolationSeverity.HIGH,
-        regulation="SOC 2", article="CC6.1",
-        check_function="check_iam_mfa", fix_template='condition { test = "Bool" variable = "aws:MultiFactorAuthPresent" values = ["true"] }',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.IAM_POLICY,
+        severity=ViolationSeverity.HIGH,
+        regulation="SOC 2",
+        article="CC6.1",
+        check_function="check_iam_mfa",
+        fix_template='condition { test = "Bool" variable = "aws:MultiFactorAuthPresent" values = ["true"] }',
     ),
     ComplianceRule(
-        id="IAC-009", name="IAM No Wildcard Actions",
+        id="IAC-009",
+        name="IAM No Wildcard Actions",
         description="IAM policies must not use wildcard (*) actions",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.IAM_POLICY, severity=ViolationSeverity.HIGH,
-        regulation="PCI-DSS", article="Requirement 7.1",
-        check_function="check_iam_wildcard", fix_template="# Replace Action: ['*'] with specific actions",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.IAM_POLICY,
+        severity=ViolationSeverity.HIGH,
+        regulation="PCI-DSS",
+        article="Requirement 7.1",
+        check_function="check_iam_wildcard",
+        fix_template="# Replace Action: ['*'] with specific actions",
     ),
     # --- Security Groups ---
     ComplianceRule(
-        id="IAC-010", name="Security Group No Open Ingress",
+        id="IAC-010",
+        name="Security Group No Open Ingress",
         description="Security groups must not allow unrestricted ingress (0.0.0.0/0)",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.SECURITY_GROUP, severity=ViolationSeverity.CRITICAL,
-        regulation="PCI-DSS", article="Requirement 1.3",
-        check_function="check_sg_open_ingress", fix_template="# Restrict cidr_blocks to specific IP ranges",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.SECURITY_GROUP,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="PCI-DSS",
+        article="Requirement 1.3",
+        check_function="check_sg_open_ingress",
+        fix_template="# Restrict cidr_blocks to specific IP ranges",
     ),
     ComplianceRule(
-        id="IAC-011", name="Security Group SSH Restricted",
+        id="IAC-011",
+        name="Security Group SSH Restricted",
         description="SSH access (port 22) must be restricted to specific IPs",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.SECURITY_GROUP, severity=ViolationSeverity.HIGH,
-        regulation="SOC 2", article="CC6.6",
-        check_function="check_sg_ssh_restricted", fix_template='cidr_blocks = ["10.0.0.0/8"]',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.SECURITY_GROUP,
+        severity=ViolationSeverity.HIGH,
+        regulation="SOC 2",
+        article="CC6.6",
+        check_function="check_sg_ssh_restricted",
+        fix_template='cidr_blocks = ["10.0.0.0/8"]',
     ),
     # --- KMS ---
     ComplianceRule(
-        id="IAC-012", name="KMS Key Rotation Enabled",
+        id="IAC-012",
+        name="KMS Key Rotation Enabled",
         description="KMS keys must have automatic rotation enabled",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.KMS_KEY, severity=ViolationSeverity.HIGH,
-        regulation="PCI-DSS", article="Requirement 3.6",
-        check_function="check_kms_rotation", fix_template="enable_key_rotation = true",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.KMS_KEY,
+        severity=ViolationSeverity.HIGH,
+        regulation="PCI-DSS",
+        article="Requirement 3.6",
+        check_function="check_kms_rotation",
+        fix_template="enable_key_rotation = true",
     ),
     # --- EC2 ---
     ComplianceRule(
-        id="IAC-013", name="EC2 IMDSv2 Required",
+        id="IAC-013",
+        name="EC2 IMDSv2 Required",
         description="EC2 instances must use IMDSv2 to prevent SSRF attacks",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.EC2_INSTANCE, severity=ViolationSeverity.HIGH,
-        regulation="SOC 2", article="CC6.1",
-        check_function="check_ec2_imdsv2", fix_template='metadata_options { http_tokens = "required" }',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.EC2_INSTANCE,
+        severity=ViolationSeverity.HIGH,
+        regulation="SOC 2",
+        article="CC6.1",
+        check_function="check_ec2_imdsv2",
+        fix_template='metadata_options { http_tokens = "required" }',
     ),
     # --- EKS ---
     ComplianceRule(
-        id="IAC-014", name="EKS Secrets Encryption",
+        id="IAC-014",
+        name="EKS Secrets Encryption",
         description="EKS clusters must encrypt Kubernetes secrets at rest",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.EKS_CLUSTER, severity=ViolationSeverity.HIGH,
-        regulation="HIPAA", article="§164.312(a)(2)(iv)",
-        check_function="check_eks_secrets_encryption", fix_template='encryption_config { provider { key_arn = aws_kms_key.eks.arn } resources = ["secrets"] }',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.EKS_CLUSTER,
+        severity=ViolationSeverity.HIGH,
+        regulation="HIPAA",
+        article="§164.312(a)(2)(iv)",
+        check_function="check_eks_secrets_encryption",
+        fix_template='encryption_config { provider { key_arn = aws_kms_key.eks.arn } resources = ["secrets"] }',
     ),
     ComplianceRule(
-        id="IAC-015", name="EKS Logging Enabled",
+        id="IAC-015",
+        name="EKS Logging Enabled",
         description="EKS clusters must enable control plane logging",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.EKS_CLUSTER, severity=ViolationSeverity.MEDIUM,
-        regulation="PCI-DSS", article="Requirement 10.2",
-        check_function="check_eks_logging", fix_template='enabled_cluster_log_types = ["api", "audit", "authenticator"]',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.EKS_CLUSTER,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="PCI-DSS",
+        article="Requirement 10.2",
+        check_function="check_eks_logging",
+        fix_template='enabled_cluster_log_types = ["api", "audit", "authenticator"]',
     ),
     # --- Kubernetes ---
     ComplianceRule(
-        id="IAC-016", name="K8s Network Policy Required",
+        id="IAC-016",
+        name="K8s Network Policy Required",
         description="All namespaces must have a NetworkPolicy for network segmentation",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.MULTI_CLOUD,
-        resource_type=ResourceType.K8S_NETWORK_POLICY, severity=ViolationSeverity.HIGH,
-        regulation="PCI-DSS", article="Requirement 1.2",
-        check_function="check_k8s_network_policy", fix_template="# Add NetworkPolicy resource to namespace",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.MULTI_CLOUD,
+        resource_type=ResourceType.K8S_NETWORK_POLICY,
+        severity=ViolationSeverity.HIGH,
+        regulation="PCI-DSS",
+        article="Requirement 1.2",
+        check_function="check_k8s_network_policy",
+        fix_template="# Add NetworkPolicy resource to namespace",
     ),
     ComplianceRule(
-        id="IAC-017", name="K8s Pod Security Context",
+        id="IAC-017",
+        name="K8s Pod Security Context",
         description="Pods must not run as root and must drop all capabilities",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.MULTI_CLOUD,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.HIGH,
-        regulation="SOC 2", article="CC6.3",
-        check_function="check_k8s_pod_security", fix_template='securityContext: { runAsNonRoot: true, capabilities: { drop: ["ALL"] } }',
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.MULTI_CLOUD,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.HIGH,
+        regulation="SOC 2",
+        article="CC6.3",
+        check_function="check_k8s_pod_security",
+        fix_template='securityContext: { runAsNonRoot: true, capabilities: { drop: ["ALL"] } }',
     ),
     ComplianceRule(
-        id="IAC-018", name="K8s RBAC Least Privilege",
+        id="IAC-018",
+        name="K8s RBAC Least Privilege",
         description="RBAC roles must follow least privilege principle",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.MULTI_CLOUD,
-        resource_type=ResourceType.K8S_RBAC, severity=ViolationSeverity.CRITICAL,
-        regulation="SOC 2", article="CC6.1",
-        check_function="check_k8s_rbac_least_privilege", fix_template="# Replace wildcard verbs/resources with specific ones",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.MULTI_CLOUD,
+        resource_type=ResourceType.K8S_RBAC,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="SOC 2",
+        article="CC6.1",
+        check_function="check_k8s_rbac_least_privilege",
+        fix_template="# Replace wildcard verbs/resources with specific ones",
     ),
     ComplianceRule(
-        id="IAC-019", name="K8s Secrets Not in Env",
+        id="IAC-019",
+        name="K8s Secrets Not in Env",
         description="Kubernetes secrets should not be exposed as environment variables",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.MULTI_CLOUD,
-        resource_type=ResourceType.K8S_SECRET, severity=ViolationSeverity.MEDIUM,
-        regulation="GDPR", article="Article 32",
-        check_function="check_k8s_secrets_env", fix_template="# Use volume mounts instead of envFrom for secrets",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.MULTI_CLOUD,
+        resource_type=ResourceType.K8S_SECRET,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="GDPR",
+        article="Article 32",
+        check_function="check_k8s_secrets_env",
+        fix_template="# Use volume mounts instead of envFrom for secrets",
     ),
     ComplianceRule(
-        id="IAC-020", name="K8s Resource Limits Required",
+        id="IAC-020",
+        name="K8s Resource Limits Required",
         description="Pods must define CPU and memory resource limits",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.MULTI_CLOUD,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.MEDIUM,
-        regulation="SOC 2", article="A1.1",
-        check_function="check_k8s_resource_limits", fix_template='resources: { limits: { cpu: "500m", memory: "256Mi" } }',
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.MULTI_CLOUD,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="SOC 2",
+        article="A1.1",
+        check_function="check_k8s_resource_limits",
+        fix_template='resources: { limits: { cpu: "500m", memory: "256Mi" } }',
     ),
     # --- CloudFormation ---
     ComplianceRule(
-        id="IAC-021", name="CFN S3 Bucket Encryption",
+        id="IAC-021",
+        name="CFN S3 Bucket Encryption",
         description="CloudFormation S3 buckets must have BucketEncryption configured",
-        platform=IaCPlatform.CLOUDFORMATION, provider=CloudProvider.AWS,
-        resource_type=ResourceType.S3_BUCKET, severity=ViolationSeverity.HIGH,
-        regulation="HIPAA", article="§164.312(a)(2)(iv)",
-        check_function="check_cfn_s3_encryption", fix_template="BucketEncryption: { ServerSideEncryptionConfiguration: [{ ServerSideEncryptionByDefault: { SSEAlgorithm: aws:kms } }] }",
+        platform=IaCPlatform.CLOUDFORMATION,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.S3_BUCKET,
+        severity=ViolationSeverity.HIGH,
+        regulation="HIPAA",
+        article="§164.312(a)(2)(iv)",
+        check_function="check_cfn_s3_encryption",
+        fix_template="BucketEncryption: { ServerSideEncryptionConfiguration: [{ ServerSideEncryptionByDefault: { SSEAlgorithm: aws:kms } }] }",
     ),
     ComplianceRule(
-        id="IAC-022", name="CFN RDS Storage Encrypted",
+        id="IAC-022",
+        name="CFN RDS Storage Encrypted",
         description="CloudFormation RDS instances must have StorageEncrypted set to true",
-        platform=IaCPlatform.CLOUDFORMATION, provider=CloudProvider.AWS,
-        resource_type=ResourceType.RDS_INSTANCE, severity=ViolationSeverity.CRITICAL,
-        regulation="HIPAA", article="§164.312(a)(2)(iv)",
-        check_function="check_cfn_rds_encryption", fix_template="StorageEncrypted: true",
+        platform=IaCPlatform.CLOUDFORMATION,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.RDS_INSTANCE,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="HIPAA",
+        article="§164.312(a)(2)(iv)",
+        check_function="check_cfn_rds_encryption",
+        fix_template="StorageEncrypted: true",
     ),
     # --- Lambda ---
     ComplianceRule(
-        id="IAC-023", name="Lambda VPC Configuration",
+        id="IAC-023",
+        name="Lambda VPC Configuration",
         description="Lambda functions handling sensitive data must run inside a VPC",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.LAMBDA_FUNCTION, severity=ViolationSeverity.MEDIUM,
-        regulation="HIPAA", article="§164.312(e)(1)",
-        check_function="check_lambda_vpc", fix_template="vpc_config { subnet_ids = [...] security_group_ids = [...] }",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.LAMBDA_FUNCTION,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="HIPAA",
+        article="§164.312(e)(1)",
+        check_function="check_lambda_vpc",
+        fix_template="vpc_config { subnet_ids = [...] security_group_ids = [...] }",
     ),
     # --- Azure Storage ---
     ComplianceRule(
-        id="IAC-024", name="Azure Storage HTTPS Only",
+        id="IAC-024",
+        name="Azure Storage HTTPS Only",
         description="Azure Storage accounts must enforce HTTPS-only access",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AZURE,
-        resource_type=ResourceType.AZURE_STORAGE, severity=ViolationSeverity.HIGH,
-        regulation="GDPR", article="Article 32",
-        check_function="check_azure_storage_https", fix_template="enable_https_traffic_only = true",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AZURE,
+        resource_type=ResourceType.AZURE_STORAGE,
+        severity=ViolationSeverity.HIGH,
+        regulation="GDPR",
+        article="Article 32",
+        check_function="check_azure_storage_https",
+        fix_template="enable_https_traffic_only = true",
     ),
     ComplianceRule(
-        id="IAC-025", name="Azure Storage Encryption",
+        id="IAC-025",
+        name="Azure Storage Encryption",
         description="Azure Storage accounts must have blob encryption enabled",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AZURE,
-        resource_type=ResourceType.AZURE_STORAGE, severity=ViolationSeverity.HIGH,
-        regulation="HIPAA", article="§164.312(a)(2)(iv)",
-        check_function="check_azure_storage_encryption", fix_template="blob_properties { delete_retention_policy { days = 7 } }",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AZURE,
+        resource_type=ResourceType.AZURE_STORAGE,
+        severity=ViolationSeverity.HIGH,
+        regulation="HIPAA",
+        article="§164.312(a)(2)(iv)",
+        check_function="check_azure_storage_encryption",
+        fix_template="blob_properties { delete_retention_policy { days = 7 } }",
     ),
     # --- Kubernetes ---
     ComplianceRule(
-        id="IAC-026", name="K8s Pod Security Context",
+        id="IAC-026",
+        name="K8s Pod Security Context",
         description="Pods must not run as root for least-privilege compliance",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.AWS,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.HIGH,
-        regulation="SOC 2", article="CC6.1",
-        check_function="check_k8s_run_as_nonroot", fix_template="securityContext:\n  runAsNonRoot: true",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.HIGH,
+        regulation="SOC 2",
+        article="CC6.1",
+        check_function="check_k8s_run_as_nonroot",
+        fix_template="securityContext:\n  runAsNonRoot: true",
     ),
     ComplianceRule(
-        id="IAC-027", name="K8s Network Policy Required",
+        id="IAC-027",
+        name="K8s Network Policy Required",
         description="Namespaces must have NetworkPolicy for network segmentation",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.AWS,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.HIGH,
-        regulation="PCI-DSS", article="Requirement 1.3",
-        check_function="check_k8s_network_policy", fix_template="kind: NetworkPolicy",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.HIGH,
+        regulation="PCI-DSS",
+        article="Requirement 1.3",
+        check_function="check_k8s_network_policy",
+        fix_template="kind: NetworkPolicy",
     ),
     ComplianceRule(
-        id="IAC-028", name="K8s Resource Limits",
+        id="IAC-028",
+        name="K8s Resource Limits",
         description="Containers must have resource limits to prevent DoS",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.AWS,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.MEDIUM,
-        regulation="SOC 2", article="A1.1",
-        check_function="check_k8s_resource_limits", fix_template="resources:\n  limits:\n    cpu: 500m\n    memory: 256Mi",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="SOC 2",
+        article="A1.1",
+        check_function="check_k8s_resource_limits",
+        fix_template="resources:\n  limits:\n    cpu: 500m\n    memory: 256Mi",
     ),
     ComplianceRule(
-        id="IAC-029", name="K8s Secret Encryption",
+        id="IAC-029",
+        name="K8s Secret Encryption",
         description="Secrets must not be stored in plaintext in manifests",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.AWS,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.CRITICAL,
-        regulation="HIPAA", article="§164.312(a)(2)(iv)",
-        check_function="check_k8s_secret_plaintext", fix_template="# Use sealed-secrets or external-secrets-operator",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="HIPAA",
+        article="§164.312(a)(2)(iv)",
+        check_function="check_k8s_secret_plaintext",
+        fix_template="# Use sealed-secrets or external-secrets-operator",
     ),
     ComplianceRule(
-        id="IAC-030", name="K8s Readonly Root Filesystem",
+        id="IAC-030",
+        name="K8s Readonly Root Filesystem",
         description="Containers should use read-only root filesystem",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.AWS,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.MEDIUM,
-        regulation="GDPR", article="Article 32",
-        check_function="check_k8s_readonly_fs", fix_template="securityContext:\n  readOnlyRootFilesystem: true",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="GDPR",
+        article="Article 32",
+        check_function="check_k8s_readonly_fs",
+        fix_template="securityContext:\n  readOnlyRootFilesystem: true",
     ),
     ComplianceRule(
-        id="IAC-031", name="K8s Privileged Containers Forbidden",
+        id="IAC-031",
+        name="K8s Privileged Containers Forbidden",
         description="Containers must not run in privileged mode",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.AWS,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.CRITICAL,
-        regulation="SOC 2", article="CC6.1",
-        check_function="check_k8s_privileged", fix_template="securityContext:\n  privileged: false",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="SOC 2",
+        article="CC6.1",
+        check_function="check_k8s_privileged",
+        fix_template="securityContext:\n  privileged: false",
     ),
     ComplianceRule(
-        id="IAC-032", name="K8s Image Pull Policy",
+        id="IAC-032",
+        name="K8s Image Pull Policy",
         description="Containers must use Always image pull policy for supply chain security",
-        platform=IaCPlatform.KUBERNETES, provider=CloudProvider.AWS,
-        resource_type=ResourceType.K8S_POD, severity=ViolationSeverity.MEDIUM,
-        regulation="NIST", article="SP 800-53 CM-2",
-        check_function="check_k8s_image_pull_policy", fix_template="imagePullPolicy: Always",
+        platform=IaCPlatform.KUBERNETES,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.K8S_POD,
+        severity=ViolationSeverity.MEDIUM,
+        regulation="NIST",
+        article="SP 800-53 CM-2",
+        check_function="check_k8s_image_pull_policy",
+        fix_template="imagePullPolicy: Always",
     ),
     # --- Additional AWS Rules ---
     ComplianceRule(
-        id="IAC-033", name="CloudTrail Enabled",
+        id="IAC-033",
+        name="CloudTrail Enabled",
         description="CloudTrail must be enabled for API audit logging",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.SECURITY_GROUP, severity=ViolationSeverity.HIGH,
-        regulation="SOC 2", article="CC7.2",
-        check_function="check_cloudtrail_enabled", fix_template='resource "aws_cloudtrail" "audit" { ... }',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.SECURITY_GROUP,
+        severity=ViolationSeverity.HIGH,
+        regulation="SOC 2",
+        article="CC7.2",
+        check_function="check_cloudtrail_enabled",
+        fix_template='resource "aws_cloudtrail" "audit" { ... }',
     ),
     ComplianceRule(
-        id="IAC-034", name="KMS Key Rotation",
+        id="IAC-034",
+        name="KMS Key Rotation",
         description="KMS keys must have automatic rotation enabled",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.SECURITY_GROUP, severity=ViolationSeverity.HIGH,
-        regulation="PCI-DSS", article="Requirement 3.6",
-        check_function="check_kms_rotation", fix_template="enable_key_rotation = true",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.SECURITY_GROUP,
+        severity=ViolationSeverity.HIGH,
+        regulation="PCI-DSS",
+        article="Requirement 3.6",
+        check_function="check_kms_rotation",
+        fix_template="enable_key_rotation = true",
     ),
     ComplianceRule(
-        id="IAC-035", name="VPC Flow Logs Enabled",
+        id="IAC-035",
+        name="VPC Flow Logs Enabled",
         description="VPC must have flow logs enabled for network monitoring",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.AWS,
-        resource_type=ResourceType.VPC, severity=ViolationSeverity.HIGH,
-        regulation="PCI-DSS", article="Requirement 10.6",
-        check_function="check_vpc_flow_logs", fix_template='resource "aws_flow_log" "main" { ... }',
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.AWS,
+        resource_type=ResourceType.VPC,
+        severity=ViolationSeverity.HIGH,
+        regulation="PCI-DSS",
+        article="Requirement 10.6",
+        check_function="check_vpc_flow_logs",
+        fix_template='resource "aws_flow_log" "main" { ... }',
     ),
     # --- GCP Rules ---
     ComplianceRule(
-        id="IAC-036", name="GCS Bucket Not Public",
+        id="IAC-036",
+        name="GCS Bucket Not Public",
         description="GCS buckets must not allow public access",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.GCP,
-        resource_type=ResourceType.GCS_BUCKET, severity=ViolationSeverity.CRITICAL,
-        regulation="GDPR", article="Article 32",
-        check_function="check_gcs_public_access", fix_template="uniform_bucket_level_access = true",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.GCP,
+        resource_type=ResourceType.GCS_BUCKET,
+        severity=ViolationSeverity.CRITICAL,
+        regulation="GDPR",
+        article="Article 32",
+        check_function="check_gcs_public_access",
+        fix_template="uniform_bucket_level_access = true",
     ),
     ComplianceRule(
-        id="IAC-037", name="GCS Bucket Encryption",
+        id="IAC-037",
+        name="GCS Bucket Encryption",
         description="GCS buckets must use customer-managed encryption keys",
-        platform=IaCPlatform.TERRAFORM, provider=CloudProvider.GCP,
-        resource_type=ResourceType.GCS_BUCKET, severity=ViolationSeverity.HIGH,
-        regulation="HIPAA", article="§164.312(a)(2)(iv)",
-        check_function="check_gcs_encryption", fix_template="encryption { default_kms_key_name = ... }",
+        platform=IaCPlatform.TERRAFORM,
+        provider=CloudProvider.GCP,
+        resource_type=ResourceType.GCS_BUCKET,
+        severity=ViolationSeverity.HIGH,
+        regulation="HIPAA",
+        article="§164.312(a)(2)(iv)",
+        check_function="check_gcs_encryption",
+        fix_template="encryption { default_kms_key_name = ... }",
     ),
 ]
 
@@ -348,7 +533,10 @@ class IaCScannerService:
         self._rules = list(COMPLIANCE_RULES)
 
     async def scan_repository(
-        self, org_id: str, repo_url: str, config: ScanConfiguration | None = None,
+        self,
+        org_id: str,
+        repo_url: str,
+        config: ScanConfiguration | None = None,
     ) -> IaCScanResult:
         """Scan a repository's IaC files for compliance violations."""
         start = datetime.now(UTC)
@@ -389,13 +577,18 @@ class IaCScannerService:
         self._scan_results.append(result)
         logger.info(
             "Repository scan complete",
-            org_id=org_id, repo_url=repo_url,
-            files_scanned=files_scanned, violations=len(all_violations),
+            org_id=org_id,
+            repo_url=repo_url,
+            files_scanned=files_scanned,
+            violations=len(all_violations),
         )
         return result
 
     async def scan_file(
-        self, content: str, platform: IaCPlatform, filename: str,
+        self,
+        content: str,
+        platform: IaCPlatform,
+        filename: str,
     ) -> list[IaCViolation]:
         """Scan a single IaC file for compliance violations."""
         scanners = {
@@ -428,7 +621,9 @@ class IaCScannerService:
     async def scan_cloudformation(self, content: str, filename: str) -> list[IaCViolation]:
         """Scan CloudFormation template for compliance violations."""
         violations: list[IaCViolation] = []
-        cfn_rules = [r for r in self._rules if r.platform == IaCPlatform.CLOUDFORMATION and r.enabled]
+        cfn_rules = [
+            r for r in self._rules if r.platform == IaCPlatform.CLOUDFORMATION and r.enabled
+        ]
         content_lower = content.lower()
 
         for rule in cfn_rules:
@@ -454,12 +649,16 @@ class IaCScannerService:
         return violations
 
     async def get_scan_results(
-        self, org_id: str, limit: int = 20,
+        self,
+        org_id: str,
+        limit: int = 20,
     ) -> list[IaCScanResult]:
         """Get scan results for an organization."""
         results = [r for r in self._scan_results if r.org_id == org_id]
         return sorted(
-            results, key=lambda r: r.scanned_at or datetime.min, reverse=True,
+            results,
+            key=lambda r: r.scanned_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
         )[:limit]
 
     async def get_fix_suggestion(self, violation_id: UUID) -> IaCFixSuggestion:
@@ -512,41 +711,49 @@ class IaCScannerService:
         for v in scan_result.violations:
             if v.rule_id not in seen_rule_ids:
                 seen_rule_ids.add(v.rule_id)
-                rules.append({
-                    "id": v.rule_id,
-                    "shortDescription": {"text": v.description},
-                    "helpUri": f"https://docs.complianceagent.io/rules/{v.rule_id}",
-                    "properties": {
-                        "regulation": v.regulation,
-                        "article": v.article,
-                    },
-                })
+                rules.append(
+                    {
+                        "id": v.rule_id,
+                        "shortDescription": {"text": v.description},
+                        "helpUri": f"https://docs.complianceagent.io/rules/{v.rule_id}",
+                        "properties": {
+                            "regulation": v.regulation,
+                            "article": v.article,
+                        },
+                    }
+                )
 
-            results.append({
-                "ruleId": v.rule_id,
-                "level": severity_map.get(v.severity, "warning"),
-                "message": {"text": v.description},
-                "locations": [{
-                    "physicalLocation": {
-                        "artifactLocation": {"uri": v.file_path},
-                        "region": {"startLine": v.line_number},
-                    },
-                }],
-            })
+            results.append(
+                {
+                    "ruleId": v.rule_id,
+                    "level": severity_map.get(v.severity, "warning"),
+                    "message": {"text": v.description},
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {"uri": v.file_path},
+                                "region": {"startLine": v.line_number},
+                            },
+                        }
+                    ],
+                }
+            )
 
         return {
             "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
             "version": "2.1.0",
-            "runs": [{
-                "tool": {
-                    "driver": {
-                        "name": "ComplianceAgent IaC Scanner",
-                        "version": "1.0.0",
-                        "rules": rules,
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "ComplianceAgent IaC Scanner",
+                            "version": "1.0.0",
+                            "rules": rules,
+                        },
                     },
-                },
-                "results": results,
-            }],
+                    "results": results,
+                }
+            ],
         }
 
     async def get_pre_commit_config(self, platforms: list[IaCPlatform]) -> str:
@@ -595,7 +802,11 @@ class IaCScannerService:
     # --- Private helpers ---
 
     def _check_terraform_rule(
-        self, rule: ComplianceRule, content: str, content_lower: str, filename: str,
+        self,
+        rule: ComplianceRule,
+        content: str,
+        content_lower: str,
+        filename: str,
     ) -> IaCViolation | None:
         """Check a single Terraform compliance rule against content."""
         checks = {
@@ -610,8 +821,7 @@ class IaCScannerService:
                 and "aws_s3_bucket_server_side_encryption" not in content_lower
             ),
             "check_s3_versioning": (
-                'resource "aws_s3_bucket"' in content_lower
-                and "versioning" not in content_lower
+                'resource "aws_s3_bucket"' in content_lower and "versioning" not in content_lower
             ),
             "check_s3_logging": (
                 'resource "aws_s3_bucket"' in content_lower
@@ -623,8 +833,7 @@ class IaCScannerService:
                 and "storage_encrypted" not in content_lower
             ),
             "check_rds_multi_az": (
-                'resource "aws_db_instance"' in content_lower
-                and "multi_az" not in content_lower
+                'resource "aws_db_instance"' in content_lower and "multi_az" not in content_lower
             ),
             "check_rds_public_access": (
                 'resource "aws_db_instance"' in content_lower
@@ -699,17 +908,19 @@ class IaCScannerService:
         )
 
     def _check_cloudformation_rule(
-        self, rule: ComplianceRule, content: str, content_lower: str, filename: str,
+        self,
+        rule: ComplianceRule,
+        content: str,
+        content_lower: str,
+        filename: str,
     ) -> IaCViolation | None:
         """Check a single CloudFormation compliance rule against content."""
         checks = {
             "check_cfn_s3_encryption": (
-                "aws::s3::bucket" in content_lower
-                and "bucketencryption" not in content_lower
+                "aws::s3::bucket" in content_lower and "bucketencryption" not in content_lower
             ),
             "check_cfn_rds_encryption": (
-                "aws::rds::dbinstance" in content_lower
-                and "storageencrypted" not in content_lower
+                "aws::rds::dbinstance" in content_lower and "storageencrypted" not in content_lower
             ),
         }
 
@@ -732,7 +943,11 @@ class IaCScannerService:
         )
 
     def _check_kubernetes_rule(
-        self, rule: ComplianceRule, content: str, content_lower: str, filename: str,
+        self,
+        rule: ComplianceRule,
+        content: str,
+        content_lower: str,
+        filename: str,
     ) -> IaCViolation | None:
         """Check a single Kubernetes compliance rule against content."""
         checks = {
@@ -778,12 +993,16 @@ class IaCScannerService:
         )
 
     def _apply_config_filters(
-        self, violations: list[IaCViolation], config: ScanConfiguration,
+        self,
+        violations: list[IaCViolation],
+        config: ScanConfiguration,
     ) -> list[IaCViolation]:
         """Filter violations based on scan configuration."""
         severity_order = {
-            ViolationSeverity.INFO: 0, ViolationSeverity.LOW: 1,
-            ViolationSeverity.MEDIUM: 2, ViolationSeverity.HIGH: 3,
+            ViolationSeverity.INFO: 0,
+            ViolationSeverity.LOW: 1,
+            ViolationSeverity.MEDIUM: 2,
+            ViolationSeverity.HIGH: 3,
             ViolationSeverity.CRITICAL: 4,
         }
         threshold = severity_order.get(config.severity_threshold, 0)
@@ -800,7 +1019,9 @@ class IaCScannerService:
         return filtered
 
     def _build_summary(
-        self, violations: list[IaCViolation], files_scanned: int,
+        self,
+        violations: list[IaCViolation],
+        files_scanned: int,
     ) -> ScanSummary:
         """Build a scan summary from violations."""
         critical = sum(1 for v in violations if v.severity == ViolationSeverity.CRITICAL)

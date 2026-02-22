@@ -542,11 +542,15 @@ class SOC2Parser:
                 text = link.get_text(strip=True)
                 href = link.get("href", "")
                 if text and len(text) > 5:
-                    result["documents"].append({
-                        "title": text,
-                        "url": href if href.startswith("http") else f"https://www.aicpa.org{href}",
-                        "type": "guidance",
-                    })
+                    result["documents"].append(
+                        {
+                            "title": text,
+                            "url": href
+                            if href.startswith("http")
+                            else f"https://www.aicpa.org{href}",
+                            "type": "guidance",
+                        }
+                    )
 
         return result
 
@@ -557,7 +561,8 @@ class SOC2Parser:
     def get_requirements_by_category(self, category: str) -> list[dict[str, Any]]:
         """Get SOC 2 requirements filtered by category."""
         return [
-            req for req in SOC2_REQUIREMENTS
+            req
+            for req in SOC2_REQUIREMENTS
             if req["category"] == category or "all" in req["applies_to"]
         ]
 

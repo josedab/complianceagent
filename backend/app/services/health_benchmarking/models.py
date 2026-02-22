@@ -30,6 +30,7 @@ class CompanySize(str, Enum):
 @dataclass
 class HealthScore:
     """Organization compliance health score with multi-dimensional breakdown."""
+
     id: UUID = field(default_factory=uuid4)
     org_id: str = ""
     overall_score: float = 0.0
@@ -44,6 +45,7 @@ class HealthScore:
 @dataclass
 class PeerBenchmark:
     """Aggregated benchmark data for a peer group."""
+
     peer_group: str = ""
     company_size: CompanySize = CompanySize.MEDIUM
     industry: str = ""
@@ -61,6 +63,7 @@ class PeerBenchmark:
 @dataclass
 class ImprovementSuggestion:
     """Actionable suggestion to improve a specific compliance dimension."""
+
     dimension: str = ""
     current_score: float = 0.0
     target_score: float = 0.0
@@ -72,6 +75,7 @@ class ImprovementSuggestion:
 @dataclass
 class BenchmarkComparison:
     """Side-by-side comparison of org score vs peer benchmark."""
+
     org_score: HealthScore = field(default_factory=HealthScore)
     benchmark: PeerBenchmark = field(default_factory=PeerBenchmark)
     rank_position: int = 0
@@ -84,6 +88,7 @@ class BenchmarkComparison:
 @dataclass
 class ScoreHistory:
     """Historical health scores with trend analysis."""
+
     scores: list[HealthScore] = field(default_factory=list)
     trend_direction: str = ""  # up, down, stable
     trend_pct: float = 0.0
@@ -93,6 +98,7 @@ class ScoreHistory:
 @dataclass
 class BoardReport:
     """Executive board-ready compliance health report."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     org_score: HealthScore = field(default_factory=HealthScore)
@@ -107,6 +113,7 @@ class BoardReport:
 @dataclass
 class LeaderboardEntry:
     """Anonymized leaderboard entry for peer comparison."""
+
     rank: int = 0
     org_name_anonymized: str = ""
     industry: str = ""

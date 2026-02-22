@@ -31,7 +31,11 @@ class IDEComplianceAnalyzer:
         severity_threshold: DiagnosticSeverity = DiagnosticSeverity.HINT,
     ):
         self.enabled_regulations = enabled_regulations or [
-            "GDPR", "CCPA", "HIPAA", "EU AI Act", "SOX"
+            "GDPR",
+            "CCPA",
+            "HIPAA",
+            "EU AI Act",
+            "SOX",
         ]
         self.custom_patterns = custom_patterns or {}
         self.severity_threshold = severity_threshold
@@ -45,8 +49,7 @@ class IDEComplianceAnalyzer:
             if config.get("regulation") in self.enabled_regulations or not config.get("regulation"):
                 try:
                     self._compiled_patterns[name] = re.compile(
-                        config["pattern"],
-                        re.IGNORECASE | re.MULTILINE
+                        config["pattern"], re.IGNORECASE | re.MULTILINE
                     )
                 except re.error as e:
                     logger.warning(f"Invalid pattern {name}: {e}")
@@ -93,10 +96,7 @@ class IDEComplianceAnalyzer:
             DiagnosticSeverity.HINT,
         ]
         threshold_idx = severity_order.index(self.severity_threshold)
-        diagnostics = [
-            d for d in diagnostics
-            if severity_order.index(d.severity) <= threshold_idx
-        ]
+        diagnostics = [d for d in diagnostics if severity_order.index(d.severity) <= threshold_idx]
 
         # Add code actions for fixable issues
         for diagnostic in diagnostics:
@@ -200,31 +200,37 @@ class IDEComplianceAnalyzer:
         pickle_pattern = re.compile(r"import\s+pickle|pickle\.(load|loads)\s*\(")
         for i, line in enumerate(lines):
             if pickle_pattern.search(line):
-                diagnostics.append(ComplianceDiagnostic(
-                    range=Range(
-                        start=Position(line=i, character=0),
-                        end=Position(line=i, character=len(line)),
-                    ),
-                    message="Pickle deserialization can execute arbitrary code. Consider using safer alternatives like JSON.",
-                    severity=DiagnosticSeverity.WARNING,
-                    code="SEC-PICKLE-001",
-                    category=DiagnosticCategory.SECURITY,
-                ))
+                diagnostics.append(
+                    ComplianceDiagnostic(
+                        range=Range(
+                            start=Position(line=i, character=0),
+                            end=Position(line=i, character=len(line)),
+                        ),
+                        message="Pickle deserialization can execute arbitrary code. Consider using safer alternatives like JSON.",
+                        severity=DiagnosticSeverity.WARNING,
+                        code="SEC-PICKLE-001",
+                        category=DiagnosticCategory.SECURITY,
+                    )
+                )
 
         # Check for SQL injection vulnerabilities
-        sql_pattern = re.compile(r'(execute|cursor\.execute)\s*\(\s*[f"\'].*%s.*["\'].*%|format\s*\(')
+        sql_pattern = re.compile(
+            r'(execute|cursor\.execute)\s*\(\s*[f"\'].*%s.*["\'].*%|format\s*\('
+        )
         for i, line in enumerate(lines):
             if sql_pattern.search(line) and "parameterized" not in line.lower():
-                diagnostics.append(ComplianceDiagnostic(
-                    range=Range(
-                        start=Position(line=i, character=0),
-                        end=Position(line=i, character=len(line)),
-                    ),
-                    message="Potential SQL injection vulnerability. Use parameterized queries.",
-                    severity=DiagnosticSeverity.ERROR,
-                    code="SEC-SQL-001",
-                    category=DiagnosticCategory.SECURITY,
-                ))
+                diagnostics.append(
+                    ComplianceDiagnostic(
+                        range=Range(
+                            start=Position(line=i, character=0),
+                            end=Position(line=i, character=len(line)),
+                        ),
+                        message="Potential SQL injection vulnerability. Use parameterized queries.",
+                        severity=DiagnosticSeverity.ERROR,
+                        code="SEC-SQL-001",
+                        category=DiagnosticCategory.SECURITY,
+                    )
+                )
 
         return diagnostics
 
@@ -236,31 +242,37 @@ class IDEComplianceAnalyzer:
         eval_pattern = re.compile(r"\beval\s*\(")
         for i, line in enumerate(lines):
             if eval_pattern.search(line):
-                diagnostics.append(ComplianceDiagnostic(
-                    range=Range(
-                        start=Position(line=i, character=0),
-                        end=Position(line=i, character=len(line)),
-                    ),
-                    message="eval() is a security risk. Consider safer alternatives.",
-                    severity=DiagnosticSeverity.ERROR,
-                    code="SEC-EVAL-001",
-                    category=DiagnosticCategory.SECURITY,
-                ))
+                diagnostics.append(
+                    ComplianceDiagnostic(
+                        range=Range(
+                            start=Position(line=i, character=0),
+                            end=Position(line=i, character=len(line)),
+                        ),
+                        message="eval() is a security risk. Consider safer alternatives.",
+                        severity=DiagnosticSeverity.ERROR,
+                        code="SEC-EVAL-001",
+                        category=DiagnosticCategory.SECURITY,
+                    )
+                )
 
         # Check for localStorage with sensitive data
-        storage_pattern = re.compile(r"localStorage\.(setItem|getItem)\s*\([^)]*\b(token|password|secret|key)\b")
+        storage_pattern = re.compile(
+            r"localStorage\.(setItem|getItem)\s*\([^)]*\b(token|password|secret|key)\b"
+        )
         for i, line in enumerate(lines):
             if storage_pattern.search(line):
-                diagnostics.append(ComplianceDiagnostic(
-                    range=Range(
-                        start=Position(line=i, character=0),
-                        end=Position(line=i, character=len(line)),
-                    ),
-                    message="Storing sensitive data in localStorage is insecure. Consider httpOnly cookies or secure storage.",
-                    severity=DiagnosticSeverity.WARNING,
-                    code="SEC-STORAGE-001",
-                    category=DiagnosticCategory.SECURITY,
-                ))
+                diagnostics.append(
+                    ComplianceDiagnostic(
+                        range=Range(
+                            start=Position(line=i, character=0),
+                            end=Position(line=i, character=len(line)),
+                        ),
+                        message="Storing sensitive data in localStorage is insecure. Consider httpOnly cookies or secure storage.",
+                        severity=DiagnosticSeverity.WARNING,
+                        code="SEC-STORAGE-001",
+                        category=DiagnosticCategory.SECURITY,
+                    )
+                )
 
         return diagnostics
 
@@ -269,19 +281,23 @@ class IDEComplianceAnalyzer:
         diagnostics = []
 
         # Check for hardcoded credentials
-        cred_pattern = re.compile(r'(password|secret|apiKey|api_key)\s*=\s*"[^"]+"|\.setPassword\s*\("[^"]+"\)')
+        cred_pattern = re.compile(
+            r'(password|secret|apiKey|api_key)\s*=\s*"[^"]+"|\.setPassword\s*\("[^"]+"\)'
+        )
         for i, line in enumerate(lines):
             if cred_pattern.search(line):
-                diagnostics.append(ComplianceDiagnostic(
-                    range=Range(
-                        start=Position(line=i, character=0),
-                        end=Position(line=i, character=len(line)),
-                    ),
-                    message="Hardcoded credentials detected. Use environment variables or secure vault.",
-                    severity=DiagnosticSeverity.ERROR,
-                    code="SEC-CRED-001",
-                    category=DiagnosticCategory.SECURITY,
-                ))
+                diagnostics.append(
+                    ComplianceDiagnostic(
+                        range=Range(
+                            start=Position(line=i, character=0),
+                            end=Position(line=i, character=len(line)),
+                        ),
+                        message="Hardcoded credentials detected. Use environment variables or secure vault.",
+                        severity=DiagnosticSeverity.ERROR,
+                        code="SEC-CRED-001",
+                        category=DiagnosticCategory.SECURITY,
+                    )
+                )
 
         return diagnostics
 
@@ -296,46 +312,58 @@ class IDEComplianceAnalyzer:
 
         # Generate fix based on diagnostic code
         if diagnostic.code == "GDPR-LOG-001":
-            actions.append(CodeAction(
-                title="Mask PII in log statement",
-                kind="quickfix",
-                is_preferred=True,
-            ))
-            actions.append(CodeAction(
-                title="Remove sensitive data from log",
-                kind="quickfix",
-            ))
+            actions.append(
+                CodeAction(
+                    title="Mask PII in log statement",
+                    kind="quickfix",
+                    is_preferred=True,
+                )
+            )
+            actions.append(
+                CodeAction(
+                    title="Remove sensitive data from log",
+                    kind="quickfix",
+                )
+            )
 
         elif diagnostic.code == "SEC-SQL-001":
-            actions.append(CodeAction(
-                title="Convert to parameterized query",
-                kind="quickfix",
-                is_preferred=True,
-            ))
+            actions.append(
+                CodeAction(
+                    title="Convert to parameterized query",
+                    kind="quickfix",
+                    is_preferred=True,
+                )
+            )
 
         elif diagnostic.code == "GDPR-CON-001":
-            actions.append(CodeAction(
-                title="Add consent verification check",
-                kind="quickfix",
-                is_preferred=True,
-            ))
+            actions.append(
+                CodeAction(
+                    title="Add consent verification check",
+                    kind="quickfix",
+                    is_preferred=True,
+                )
+            )
 
         elif diagnostic.code == "EUAI-DOC-001":
-            actions.append(CodeAction(
-                title="Generate AI model documentation template",
-                kind="source",
-            ))
+            actions.append(
+                CodeAction(
+                    title="Generate AI model documentation template",
+                    kind="source",
+                )
+            )
 
         # Always add "Learn more" action
         if diagnostic.regulation:
-            actions.append(CodeAction(
-                title=f"Learn more about {diagnostic.regulation} compliance",
-                kind="source",
-                command={
-                    "command": "complianceAgent.openDocumentation",
-                    "arguments": [diagnostic.regulation, diagnostic.article_reference],
-                },
-            ))
+            actions.append(
+                CodeAction(
+                    title=f"Learn more about {diagnostic.regulation} compliance",
+                    kind="source",
+                    command={
+                        "command": "complianceAgent.openDocumentation",
+                        "arguments": [diagnostic.regulation, diagnostic.article_reference],
+                    },
+                )
+            )
 
         return actions
 
@@ -355,18 +383,28 @@ class IDEComplianceAnalyzer:
 
         # Find diagnostics that contain this position
         for diagnostic in result.diagnostics:
-            if (diagnostic.range.start.line <= line <= diagnostic.range.end.line and
-                (line != diagnostic.range.start.line or character >= diagnostic.range.start.character) and
-                (line != diagnostic.range.end.line or character <= diagnostic.range.end.character)):
-
-                hover_content = f"**{diagnostic.regulation or 'Compliance'} Issue: {diagnostic.code}**\n\n"
+            if (
+                diagnostic.range.start.line <= line <= diagnostic.range.end.line
+                and (
+                    line != diagnostic.range.start.line
+                    or character >= diagnostic.range.start.character
+                )
+                and (
+                    line != diagnostic.range.end.line or character <= diagnostic.range.end.character
+                )
+            ):
+                hover_content = (
+                    f"**{diagnostic.regulation or 'Compliance'} Issue: {diagnostic.code}**\n\n"
+                )
                 hover_content += f"{diagnostic.message}\n\n"
 
                 if diagnostic.article_reference:
                     hover_content += f"📖 Reference: {diagnostic.article_reference}\n\n"
 
                 if diagnostic.category:
-                    hover_content += f"🏷️ Category: {diagnostic.category.value.replace('_', ' ').title()}\n\n"
+                    hover_content += (
+                        f"🏷️ Category: {diagnostic.category.value.replace('_', ' ').title()}\n\n"
+                    )
 
                 hover_content += f"⚠️ Severity: {diagnostic.severity.value.upper()}"
 

@@ -1,7 +1,7 @@
 """Federated Compliance Intelligence Network implementation."""
 
 import hashlib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -103,7 +103,7 @@ class FederatedIntelligenceNetwork:
         self._network.industries_covered = list(industries)
         self._network.regulations_covered = list(regulations)
         self._network.regions_covered = list(regions)
-        self._network.updated_at = datetime.utcnow()
+        self._network.updated_at = datetime.now(UTC)
 
     async def join_network(
         self,
@@ -116,7 +116,7 @@ class FederatedIntelligenceNetwork:
         """Join the federated intelligence network."""
         # Generate anonymous ID
         anonymous_id = hashlib.sha256(
-            f"{organization_id}{datetime.utcnow().isoformat()}".encode()
+            f"{organization_id}{datetime.now(UTC).isoformat()}".encode()
         ).hexdigest()[:16]
 
         member = NetworkMember(
@@ -181,7 +181,7 @@ class FederatedIntelligenceNetwork:
 
         member.contributions_count += 1
         member.reputation_score = min(100, member.reputation_score + 2)
-        member.last_active = datetime.utcnow()
+        member.last_active = datetime.now(UTC)
 
         self._update_network_stats()
 
@@ -219,7 +219,7 @@ class FederatedIntelligenceNetwork:
 
         member.contributions_count += 1
         member.reputation_score = min(100, member.reputation_score + 1)
-        member.last_active = datetime.utcnow()
+        member.last_active = datetime.now(UTC)
 
         self._update_network_stats()
 
@@ -245,7 +245,7 @@ class FederatedIntelligenceNetwork:
             member.reputation_score = min(100, member.reputation_score + 0.5)
 
         member.verifications_count += 1
-        member.last_active = datetime.utcnow()
+        member.last_active = datetime.now(UTC)
 
         return threat
 
@@ -346,7 +346,7 @@ class FederatedIntelligenceNetwork:
             return []
 
         if since is None:
-            since = datetime.utcnow() - timedelta(days=7)
+            since = datetime.now(UTC) - timedelta(days=7)
 
         threats = []
         for threat in self._threats.values():
@@ -379,7 +379,7 @@ class FederatedIntelligenceNetwork:
         }
         threats.sort(key=lambda t: (severity_order.get(t.severity, 5), -t.last_updated.timestamp()))
 
-        member.last_active = datetime.utcnow()
+        member.last_active = datetime.now(UTC)
 
         return threats
 
@@ -394,13 +394,12 @@ class FederatedIntelligenceNetwork:
             msg = "Member not found"
             raise ValueError(msg)
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         period = f"{now.year}-W{now.isocalendar()[1]}"
 
         # Get relevant threats
         relevant_threats = [
-            t for t in self._threats.values()
-            if member.industry in t.industries or not t.industries
+            t for t in self._threats.values() if member.industry in t.industries or not t.industries
         ]
 
         # Calculate statistics
@@ -412,7 +411,8 @@ class FederatedIntelligenceNetwork:
 
         # Get relevant patterns
         relevant_patterns = [
-            p for p in self._patterns.values()
+            p
+            for p in self._patterns.values()
             if member.industry in p.industries or not p.industries
         ]
 
@@ -491,12 +491,15 @@ class FederatedIntelligenceNetwork:
             },
         }
 
-        return benchmarks.get(industry, {
-            "average_compliance_score": 70,
-            "top_regulations": ["GDPR", "SOC 2"],
-            "common_violations": ["Data protection", "Access control"],
-            "average_time_to_compliance": 45,
-        })
+        return benchmarks.get(
+            industry,
+            {
+                "average_compliance_score": 70,
+                "top_regulations": ["GDPR", "SOC 2"],
+                "common_violations": ["Data protection", "Access control"],
+                "average_time_to_compliance": 45,
+            },
+        )
 
     async def update_member_preferences(
         self,
@@ -520,7 +523,7 @@ class FederatedIntelligenceNetwork:
         if sharing_level is not None:
             member.sharing_level = sharing_level
 
-        member.last_active = datetime.utcnow()
+        member.last_active = datetime.now(UTC)
 
         return member
 
@@ -578,7 +581,11 @@ class FederatedIntelligenceNetwork:
         """Get summary of anonymization status for the network."""
         config = self._privacy_config
         total_threats = len(self._threats)
-        hashed_count = sum(1 for t in self._threats.values() if t.contributor_id is None or config.hash_contributor_ids)
+        hashed_count = sum(
+            1
+            for t in self._threats.values()
+            if t.contributor_id is None or config.hash_contributor_ids
+        )
         generalized_count = sum(1 for t in self._threats.values() if config.generalize_locations)
 
         return {
@@ -617,16 +624,18 @@ class FederatedIntelligenceNetwork:
             else:
                 tier = "bronze"
 
-            scores.append(ContributorScore(
-                member_id=member.id,
-                organization_name=member.anonymous_id,
-                total_contributions=total,
-                verified_contributions=verified,
-                accuracy_score=round(accuracy, 3),
-                reputation_tier=tier,
-                first_contribution=member.joined_at,
-                last_contribution=member.last_active,
-            ))
+            scores.append(
+                ContributorScore(
+                    member_id=member.id,
+                    organization_name=member.anonymous_id,
+                    total_contributions=total,
+                    verified_contributions=verified,
+                    accuracy_score=round(accuracy, 3),
+                    reputation_tier=tier,
+                    first_contribution=member.joined_at,
+                    last_contribution=member.last_active,
+                )
+            )
 
         # Sort by reputation (total contributions * accuracy) descending
         scores.sort(key=lambda s: s.total_contributions * s.accuracy_score, reverse=True)
@@ -650,7 +659,9 @@ class FederatedIntelligenceNetwork:
         avg_contributions = sum(contributions) / len(contributions)
         sorted_contribs = sorted(contributions)
         median_contributions = sorted_contribs[len(sorted_contribs) // 2]
-        contrib_percentile = (sum(1 for c in contributions if c <= your_contributions) / len(contributions)) * 100
+        contrib_percentile = (
+            sum(1 for c in contributions if c <= your_contributions) / len(contributions)
+        ) * 100
 
         # Reputation score insight
         reputations = [m.reputation_score for m in peers] or [50.0]
@@ -658,7 +669,9 @@ class FederatedIntelligenceNetwork:
         avg_reputation = sum(reputations) / len(reputations)
         sorted_reps = sorted(reputations)
         median_reputation = sorted_reps[len(sorted_reps) // 2]
-        rep_percentile = (sum(1 for r in reputations if r <= your_reputation) / len(reputations)) * 100
+        rep_percentile = (
+            sum(1 for r in reputations if r <= your_reputation) / len(reputations)
+        ) * 100
 
         # Verification engagement insight
         verifications = [m.verifications_count for m in peers] or [0]
@@ -666,7 +679,9 @@ class FederatedIntelligenceNetwork:
         avg_verifications = sum(verifications) / len(verifications)
         sorted_verifs = sorted(verifications)
         median_verifications = sorted_verifs[len(sorted_verifs) // 2]
-        verif_percentile = (sum(1 for v in verifications if v <= your_verifications) / len(verifications)) * 100
+        verif_percentile = (
+            sum(1 for v in verifications if v <= your_verifications) / len(verifications)
+        ) * 100
 
         # Industry threat exposure
         industry_threats = [t for t in self._threats.values() if industry in t.industries]
@@ -717,12 +732,11 @@ class FederatedIntelligenceNetwork:
 
     async def get_network_health(self) -> NetworkHealthMetrics:
         """Get overall network health metrics."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         thirty_days_ago = now - timedelta(days=30)
 
         active_members = [
-            m for m in self._members.values()
-            if m.is_active and m.last_active >= thirty_days_ago
+            m for m in self._members.values() if m.is_active and m.last_active >= thirty_days_ago
         ]
 
         # Verification rate: ratio of verified threats to total
@@ -785,8 +799,8 @@ class FederatedIntelligenceNetwork:
                 threat.verified = False
 
         member.verifications_count += 1
-        member.last_active = datetime.utcnow()
-        threat.last_updated = datetime.utcnow()
+        member.last_active = datetime.now(UTC)
+        threat.last_updated = datetime.now(UTC)
 
         logger.info(
             "Verification vote cast",

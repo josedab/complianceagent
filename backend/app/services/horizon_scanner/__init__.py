@@ -12,6 +12,7 @@ from app.services.horizon_scanner.models import (
 )
 from app.services.horizon_scanner.service import HorizonScannerService
 
+
 __all__ = [
     "CodebaseImpactPrediction",
     "ConfidenceLevel",

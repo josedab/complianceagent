@@ -2,7 +2,7 @@
 
 import hashlib
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -179,21 +179,21 @@ class EvidenceCollector:
         sources: dict[str, Any] | None = None,
     ) -> list[EvidenceCollection]:
         """Collect evidence for specified frameworks.
-        
+
         Args:
             organization_id: Organization ID
             frameworks: List of frameworks to collect evidence for
             sources: Optional source configuration
-            
+
         Returns:
             List of evidence collections
         """
         start_time = time.perf_counter()
         collections = []
-        
+
         for framework in frameworks:
             controls = FRAMEWORK_CONTROLS.get(framework, [])
-            
+
             for control in controls:
                 collection = await self._collect_for_control(
                     organization_id=organization_id,
@@ -202,7 +202,7 @@ class EvidenceCollector:
                 )
                 collections.append(collection)
                 self._collections[collection.id] = collection
-        
+
         logger.info(
             "Evidence collection completed",
             organization_id=str(organization_id),
@@ -210,7 +210,7 @@ class EvidenceCollector:
             collections=len(collections),
             duration_ms=(time.perf_counter() - start_time) * 1000,
         )
-        
+
         return collections
 
     async def _collect_for_control(
@@ -227,7 +227,7 @@ class EvidenceCollector:
             control_title=control.title,
             status=EvidenceStatus.COLLECTING,
         )
-        
+
         # Collect evidence based on requirements
         for requirement in control.evidence_requirements:
             evidence = await self._collect_evidence_item(
@@ -239,7 +239,7 @@ class EvidenceCollector:
                 collection.evidence.append(evidence)
             else:
                 collection.missing_evidence.append(requirement)
-        
+
         # Update status
         if not collection.missing_evidence:
             collection.status = EvidenceStatus.COLLECTED
@@ -247,7 +247,7 @@ class EvidenceCollector:
             collection.status = EvidenceStatus.COLLECTED  # Partial
         else:
             collection.status = EvidenceStatus.PENDING
-        
+
         return collection
 
     async def _collect_evidence_item(
@@ -269,14 +269,12 @@ class EvidenceCollector:
             "user_policy": self._collect_policy_document,
             "sanctions_policy": self._collect_policy_document,
             "breach_procedure": self._collect_policy_document,
-            
             # Configuration evidence
             "mfa_config": self._collect_config_evidence,
             "monitoring_config": self._collect_config_evidence,
             "encryption_config": self._collect_config_evidence,
             "tls_config": self._collect_config_evidence,
             "firewall_rules": self._collect_config_evidence,
-            
             # Code artifacts
             "pr_reviews": self._collect_code_artifact,
             "deployment_logs": self._collect_code_artifact,
@@ -284,7 +282,6 @@ class EvidenceCollector:
             "incident_logs": self._collect_code_artifact,
             "audit_logs": self._collect_code_artifact,
             "breach_log": self._collect_code_artifact,
-            
             # Records
             "training_records": self._collect_records,
             "access_reviews": self._collect_records,
@@ -292,7 +289,6 @@ class EvidenceCollector:
             "processing_records": self._collect_records,
             "policy_review_records": self._collect_records,
             "change_records": self._collect_records,
-            
             # Technical documentation
             "network_diagram": self._collect_documentation,
             "asset_inventory": self._collect_documentation,
@@ -300,7 +296,7 @@ class EvidenceCollector:
             "risk_analysis": self._collect_documentation,
             "risk_management_plan": self._collect_documentation,
         }
-        
+
         collector = collectors.get(requirement, self._collect_generic)
         return await collector(requirement, control, sources)
 
@@ -416,7 +412,11 @@ class EvidenceCollector:
             content_hash=hashlib.sha256(requirement.encode()).hexdigest()[:16],
             controls=[control.control_id],
             frameworks=[control.framework],
-            metadata={"requirement": requirement, "auto_collected": False, "needs_manual_review": True},
+            metadata={
+                "requirement": requirement,
+                "auto_collected": False,
+                "needs_manual_review": True,
+            },
         )
 
     async def get_collection(self, collection_id: UUID) -> EvidenceCollection | None:
@@ -432,12 +432,12 @@ class EvidenceCollector:
         collection = self._collections.get(collection_id)
         if not collection:
             return None
-        
+
         collection.status = EvidenceStatus.VALIDATED
-        collection.validated_at = datetime.utcnow()
+        collection.validated_at = datetime.now(UTC)
         collection.validated_by = validator
-        collection.updated_at = datetime.utcnow()
-        
+        collection.updated_at = datetime.now(UTC)
+
         return collection
 
 

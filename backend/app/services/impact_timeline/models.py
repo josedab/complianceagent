@@ -31,6 +31,7 @@ class TaskStatus(str, Enum):
 @dataclass
 class TimelineEvent:
     """A regulatory event on the timeline."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     description: str = ""
@@ -49,6 +50,7 @@ class TimelineEvent:
 @dataclass
 class RemediationTask:
     """Auto-generated task from a timeline event."""
+
     id: UUID = field(default_factory=uuid4)
     timeline_event_id: UUID = field(default_factory=uuid4)
     title: str = ""
@@ -64,6 +66,7 @@ class RemediationTask:
 @dataclass
 class TimelineView:
     """A complete timeline view."""
+
     events: list[TimelineEvent] = field(default_factory=list)
     tasks: list[RemediationTask] = field(default_factory=list)
     total_events: int = 0

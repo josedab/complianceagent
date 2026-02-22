@@ -230,7 +230,11 @@ HIGH_RISK_REQUIREMENTS = [
         "action": "draw up EU declaration of conformity",
         "scope": {
             "before": "placing on market or putting into service",
-            "content": ["provider identification", "AI system identification", "conformity assessment body"],
+            "content": [
+                "provider identification",
+                "AI system identification",
+                "conformity assessment body",
+            ],
         },
     },
     {
@@ -333,11 +337,13 @@ class EUAIActParser:
                 if content_elem:
                     article_content = content_elem.get_text(separator="\n", strip=True)
 
-                result["articles"].append({
-                    "number": article_num,
-                    "title": article_title,
-                    "content": article_content,
-                })
+                result["articles"].append(
+                    {
+                        "number": article_num,
+                        "title": article_title,
+                        "content": article_content,
+                    }
+                )
 
         return result
 
@@ -363,15 +369,17 @@ class EUAIActParser:
                 context_end = min(len(content), match.end() + 100)
                 context = content[context_start:context_end]
 
-                requirements.append({
-                    "article": article.get("number"),
-                    "title": article.get("title"),
-                    "obligation_type": obligation_type,
-                    "action": action,
-                    "source_text": context,
-                    "framework": "eu_ai_act",
-                    "jurisdiction": "EU",
-                })
+                requirements.append(
+                    {
+                        "article": article.get("number"),
+                        "title": article.get("title"),
+                        "obligation_type": obligation_type,
+                        "action": action,
+                        "source_text": context,
+                        "framework": "eu_ai_act",
+                        "jurisdiction": "EU",
+                    }
+                )
 
         return requirements
 
@@ -459,19 +467,21 @@ def parse_eu_ai_act_text(content: str) -> dict[str, Any]:
     provider_obligations = re.findall(
         r"provider[s]?\s+(?:of\s+(?:high-risk|general-purpose)\s+AI\s+systems?\s+)?(?:shall|must)\s+([^.]+\.)",
         content,
-        re.IGNORECASE
+        re.IGNORECASE,
     )
 
     all_obligations = obligations + provider_obligations
 
     for i, obligation in enumerate(all_obligations[:30]):
-        requirements.append({
-            "id": f"eu-ai-act-{i+1}",
-            "obligation_type": "must",
-            "action": obligation.strip(),
-            "source_text": obligation,
-            "confidence": 0.75,
-        })
+        requirements.append(
+            {
+                "id": f"eu-ai-act-{i + 1}",
+                "obligation_type": "must",
+                "action": obligation.strip(),
+                "source_text": obligation,
+                "confidence": 0.75,
+            }
+        )
 
     return {
         "framework": "eu_ai_act",

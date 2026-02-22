@@ -2,4 +2,11 @@
 
 from app.services.entity_rollup.service import EntityRollupService
 
-__all__ = ["EntityRollupService"]
+
+__all__ = [
+    "EntityNode",
+    "EntityRollupService",
+    "PolicyInheritanceResult",
+    "PolicyMode",
+    "RollupScore",
+]
