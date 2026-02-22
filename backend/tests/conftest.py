@@ -129,7 +129,8 @@ async def test_user(db_session: AsyncSession, test_organization: Organization) -
 async def auth_headers(test_user: User, test_organization: Organization) -> dict[str, str]:
     """Create authentication headers for test user."""
     token = create_access_token(
-        data={"sub": str(test_user.id), "org": str(test_organization.id)}
+        subject=str(test_user.id),
+        org_id=str(test_organization.id),
     )
     return {"Authorization": f"Bearer {token}"}
 
@@ -139,32 +140,38 @@ def mock_copilot_client() -> MagicMock:
     """Create mock Copilot client."""
     client = MagicMock()
     client.chat = AsyncMock(return_value="Mock AI response")
-    client.analyze_legal_text = AsyncMock(return_value={
-        "requirements": [
-            {
-                "obligation_type": "must",
-                "subject": "data controller",
-                "action": "provide information",
-                "scope": {"data_types": ["personal data"]},
-                "confidence": 0.95,
-            }
-        ]
-    })
-    client.map_to_code = AsyncMock(return_value={
-        "mappings": [
-            {
-                "file": "src/api/users.py",
-                "function": "get_user_data",
-                "compliance_status": "compliant",
-                "confidence": 0.88,
-            }
-        ]
-    })
-    client.generate_code = AsyncMock(return_value={
-        "code": "def handle_dsar(user_id: str):\n    pass",
-        "explanation": "DSAR handler implementation",
-        "tests": "def test_dsar():\n    pass",
-    })
+    client.analyze_legal_text = AsyncMock(
+        return_value={
+            "requirements": [
+                {
+                    "obligation_type": "must",
+                    "subject": "data controller",
+                    "action": "provide information",
+                    "scope": {"data_types": ["personal data"]},
+                    "confidence": 0.95,
+                }
+            ]
+        }
+    )
+    client.map_to_code = AsyncMock(
+        return_value={
+            "mappings": [
+                {
+                    "file": "src/api/users.py",
+                    "function": "get_user_data",
+                    "compliance_status": "compliant",
+                    "confidence": 0.88,
+                }
+            ]
+        }
+    )
+    client.generate_code = AsyncMock(
+        return_value={
+            "code": "def handle_dsar(user_id: str):\n    pass",
+            "explanation": "DSAR handler implementation",
+            "tests": "def test_dsar():\n    pass",
+        }
+    )
     return client
 
 
@@ -172,19 +179,25 @@ def mock_copilot_client() -> MagicMock:
 def mock_github_client() -> MagicMock:
     """Create mock GitHub client."""
     client = MagicMock()
-    client.get_repository = AsyncMock(return_value={
-        "id": 12345,
-        "full_name": "test/repo",
-        "default_branch": "main",
-    })
+    client.get_repository = AsyncMock(
+        return_value={
+            "id": 12345,
+            "full_name": "test/repo",
+            "default_branch": "main",
+        }
+    )
     client.get_file_content = AsyncMock(return_value="# Test file content")
-    client.list_files = AsyncMock(return_value=[
-        {"path": "src/main.py", "type": "file"},
-        {"path": "src/api/users.py", "type": "file"},
-    ])
+    client.list_files = AsyncMock(
+        return_value=[
+            {"path": "src/main.py", "type": "file"},
+            {"path": "src/api/users.py", "type": "file"},
+        ]
+    )
     client.create_branch = AsyncMock(return_value={"ref": "refs/heads/compliance-fix"})
-    client.create_pull_request = AsyncMock(return_value={
-        "number": 123,
-        "html_url": "https://github.com/test/repo/pull/123",
-    })
+    client.create_pull_request = AsyncMock(
+        return_value={
+            "number": 123,
+            "html_url": "https://github.com/test/repo/pull/123",
+        }
+    )
     return client

@@ -178,7 +178,7 @@ async def test_user(db_session):
 @pytest.fixture
 def auth_headers(test_user):
     """Generate authentication headers."""
-    token = create_access_token(data={"sub": str(test_user.id)})
+    token = create_access_token(subject=str(test_user.id))
     return {"Authorization": f"Bearer {token}"}
 ```
 
