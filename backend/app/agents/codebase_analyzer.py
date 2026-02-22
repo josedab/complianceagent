@@ -63,9 +63,7 @@ class CodebaseAnalyzer:
 
             async with self._copilot:
                 for requirement in requirements:
-                    mapping = await self._map_requirement(
-                        repository, requirement, structure_text
-                    )
+                    mapping = await self._map_requirement(repository, requirement, structure_text)
                     mappings.append(mapping)
 
             await self.db.flush()

@@ -33,6 +33,7 @@ logger = structlog.get_logger()
 @dataclass
 class CopilotMessage:
     """A message in a Copilot conversation."""
+
     role: str  # "user" or "assistant"
     content: str
 
@@ -40,6 +41,7 @@ class CopilotMessage:
 @dataclass
 class CopilotResponse:
     """Response from Copilot API."""
+
     content: str
     model: str
     usage: dict[str, int]
@@ -49,6 +51,7 @@ class CopilotResponse:
 @dataclass
 class CircuitBreakerState:
     """State for circuit breaker pattern."""
+
     failure_count: int = 0
     last_failure_time: datetime | None = None
     state: str = "closed"  # closed, open, half-open
@@ -57,7 +60,7 @@ class CircuitBreakerState:
 
 class CircuitBreaker:
     """Circuit breaker to prevent cascading failures to external APIs.
-    
+
     States:
     - closed: Normal operation, requests pass through
     - open: Failures exceeded threshold, requests fail fast
@@ -128,7 +131,9 @@ class CircuitBreaker:
             return {
                 "state": self._state.state,
                 "failure_count": self._state.failure_count,
-                "last_failure_time": self._state.last_failure_time.isoformat() if self._state.last_failure_time else None,
+                "last_failure_time": self._state.last_failure_time.isoformat()
+                if self._state.last_failure_time
+                else None,
             }
 
 
@@ -198,13 +203,15 @@ class CopilotClient:
     def _create_retry_decorator(self):
         """Create a retry decorator with current settings."""
         return retry(
-            retry=retry_if_exception_type((
-                CopilotConnectionError,
-                CopilotTimeoutError,
-                CopilotRateLimitError,
-                httpx.ConnectError,
-                httpx.ReadTimeout,
-            )),
+            retry=retry_if_exception_type(
+                (
+                    CopilotConnectionError,
+                    CopilotTimeoutError,
+                    CopilotRateLimitError,
+                    httpx.ConnectError,
+                    httpx.ReadTimeout,
+                )
+            ),
             stop=stop_after_attempt(self.max_retries),
             wait=wait_exponential(
                 multiplier=1,
@@ -241,9 +248,7 @@ class CopilotClient:
         except httpx.ReadTimeout as e:
             metrics.inc_copilot_error()
             await _circuit_breaker.record_failure()
-            raise CopilotTimeoutError(
-                f"Copilot API request timed out after {self.timeout}s"
-            ) from e
+            raise CopilotTimeoutError(f"Copilot API request timed out after {self.timeout}s") from e
         except httpx.TimeoutException as e:
             metrics.inc_copilot_error()
             await _circuit_breaker.record_failure()
@@ -449,14 +454,14 @@ Return JSON with:
         user_prompt = f"""Map this requirement to the codebase:
 
 **Requirement**:
-- ID: {requirement.get('reference_id')}
-- Title: {requirement.get('title')}
-- Description: {requirement.get('description')}
-- Category: {requirement.get('category')}
-- Data Types: {requirement.get('data_types', [])}
-- Processes: {requirement.get('processes', [])}
+- ID: {requirement.get("reference_id")}
+- Title: {requirement.get("title")}
+- Description: {requirement.get("description")}
+- Category: {requirement.get("category")}
+- Data Types: {requirement.get("data_types", [])}
+- Processes: {requirement.get("processes", [])}
 
-**Languages**: {', '.join(languages)}
+**Languages**: {", ".join(languages)}
 
 **Codebase Structure**:
 {codebase_structure[:5000]}
@@ -522,8 +527,7 @@ Return JSON with:
 - warnings: [string]"""
 
         gaps_text = "\n".join(
-            f"- [{g.get('severity', 'unknown').upper()}] {g.get('description')}"
-            for g in gaps
+            f"- [{g.get('severity', 'unknown').upper()}] {g.get('description')}" for g in gaps
         )
 
         existing_text = "\n\n".join(
@@ -533,9 +537,9 @@ Return JSON with:
 
         user_prompt = f"""Generate compliant code for:
 
-**Requirement**: {requirement.get('title')}
-**Description**: {requirement.get('description')}
-**Regulation**: {requirement.get('regulation_name', 'Unknown')}
+**Requirement**: {requirement.get("title")}
+**Description**: {requirement.get("description")}
+**Regulation**: {requirement.get("regulation_name", "Unknown")}
 
 **Gaps to Address**:
 {gaps_text}
@@ -543,7 +547,7 @@ Return JSON with:
 **Existing Code**:
 {existing_text}
 
-**Style Guide**: {style_guide or 'Follow existing patterns'}
+**Style Guide**: {style_guide or "Follow existing patterns"}
 
 Return JSON only."""
 
@@ -577,7 +581,7 @@ Return JSON only."""
 
 def create_copilot_client() -> CopilotClient:
     """Factory function to create a new CopilotClient instance.
-    
+
     Prefer using this factory over direct instantiation to allow
     for configuration changes and testing.
     """
@@ -586,7 +590,7 @@ def create_copilot_client() -> CopilotClient:
 
 async def get_copilot_client() -> CopilotClient:
     """Get a Copilot client instance for dependency injection.
-    
+
     Creates a new instance per request to avoid global mutable state.
     The CopilotClient is lightweight and safe to create per-request.
     """

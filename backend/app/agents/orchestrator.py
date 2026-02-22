@@ -31,7 +31,7 @@ tracer = trace.get_tracer("complianceagent.orchestrator")
 
 class ComplianceOrchestrator:
     """Orchestrates the compliance analysis pipeline with OpenTelemetry tracing.
-    
+
     This class coordinates the pipeline components:
     - RequirementExtractor: Extracts requirements from regulatory text
     - RelevanceFilter: Filters requirements by customer profile
@@ -102,7 +102,9 @@ class ComplianceOrchestrator:
                     relevant_requirements = self._relevance_filter.filter(
                         requirements, customer_profile
                     )
-                    filter_span.set_attribute("requirements.relevant_count", len(relevant_requirements))
+                    filter_span.set_attribute(
+                        "requirements.relevant_count", len(relevant_requirements)
+                    )
 
                 span.set_attribute("requirements.total", len(requirements))
                 span.set_attribute("requirements.relevant", len(relevant_requirements))
@@ -167,7 +169,10 @@ class ComplianceOrchestrator:
         for req_data in relevant_requirements:
             requirement = Requirement(
                 regulation_id=regulation.id,
-                reference_id=req_data.get("reference_id", f"REQ-{regulation.framework.value}-{datetime.now(UTC).timestamp()}"),
+                reference_id=req_data.get(
+                    "reference_id",
+                    f"REQ-{regulation.framework.value}-{datetime.now(UTC).timestamp()}",
+                ),
                 title=req_data.get("title", "Untitled"),
                 description=req_data.get("description", ""),
                 obligation_type=req_data.get("obligation_type", "must").lower(),
@@ -241,7 +246,9 @@ class ComplianceOrchestrator:
                         "reference_id": requirement.reference_id,
                         "title": requirement.title,
                         "description": requirement.description,
-                        "regulation_name": requirement.regulation.name if requirement.regulation else "Unknown",
+                        "regulation_name": requirement.regulation.name
+                        if requirement.regulation
+                        else "Unknown",
                     },
                     gaps=mapping.gaps,
                     existing_code={},  # Would fetch from GitHub

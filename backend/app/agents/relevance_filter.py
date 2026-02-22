@@ -41,13 +41,15 @@ class ProcessRelevanceStrategy(RelevanceStrategy):
 class PIIRelevanceStrategy(RelevanceStrategy):
     """Check relevance for PII-related requirements."""
 
-    PII_CATEGORIES = frozenset({
-        "data_collection",
-        "data_storage",
-        "data_processing",
-        "consent",
-        "data_deletion",
-    })
+    PII_CATEGORIES = frozenset(
+        {
+            "data_collection",
+            "data_storage",
+            "data_processing",
+            "consent",
+            "data_deletion",
+        }
+    )
 
     def is_relevant(self, req: dict[str, Any], profile: CustomerProfile) -> bool:
         if not profile.processes_pii:
@@ -80,13 +82,13 @@ class AIMLRelevanceStrategy(RelevanceStrategy):
 
 class RelevanceFilter:
     """Filters requirements based on relevance to customer profile.
-    
+
     Uses Strategy pattern to allow extensible filtering rules.
     """
 
     def __init__(self, strategies: list[RelevanceStrategy] | None = None):
         """Initialize with filtering strategies.
-        
+
         Args:
             strategies: List of relevance strategies. If None, uses default strategies.
         """
