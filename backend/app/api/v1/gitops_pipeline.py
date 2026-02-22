@@ -31,8 +31,11 @@ async def evaluate_gate(request: GateRequest, db: DB) -> dict:
     """Evaluate compliance gate for a commit or PR."""
     svc = GitOpsPipelineService(db)
     result = await svc.evaluate_gate(
-        repo=request.repo, branch=request.branch, commit_sha=request.commit_sha,
-        changed_files=request.changed_files, baseline_score=request.baseline_score,
+        repo=request.repo,
+        branch=request.branch,
+        commit_sha=request.commit_sha,
+        changed_files=request.changed_files,
+        baseline_score=request.baseline_score,
     )
     return {
         "decision": result.decision.value,
@@ -49,7 +52,9 @@ async def create_remediation(request: RemediationRequest, db: DB, copilot: Copil
     """Create a remediation branch with auto-generated fixes."""
     svc = GitOpsPipelineService(db, copilot_client=copilot)
     branch = await svc.create_remediation_branch(
-        repo=request.repo, violations=request.violations, source_branch=request.source_branch,
+        repo=request.repo,
+        violations=request.violations,
+        source_branch=request.source_branch,
     )
     return {
         "id": str(branch.id),

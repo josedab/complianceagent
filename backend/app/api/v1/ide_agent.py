@@ -1,7 +1,7 @@
 """API endpoints for Compliance Co-Pilot IDE Agent."""
 
 import asyncio
-import json
+import contextlib
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -271,10 +271,8 @@ async def list_sessions(
 
     agent_status = None
     if status_filter:
-        try:
+        with contextlib.suppress(ValueError):
             agent_status = AgentStatus(status_filter)
-        except ValueError:
-            pass
 
     sessions = service.list_sessions(status=agent_status, limit=limit)
     return [_session_to_response(s) for s in sessions]
@@ -292,11 +290,11 @@ async def get_session(
 
     try:
         uuid_session_id = UUID(session_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session ID format",
-        )
+        ) from exc
 
     session = service.get_session(uuid_session_id)
     if not session:
@@ -322,11 +320,11 @@ async def approve_action(
     try:
         uuid_session_id = UUID(session_id)
         uuid_action_id = UUID(request.action_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid ID format",
-        )
+        ) from exc
 
     if request.approved:
         action = await service.approve_action(uuid_session_id, uuid_action_id)
@@ -362,11 +360,11 @@ async def cancel_session(
 
     try:
         uuid_session_id = UUID(session_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session ID format",
-        )
+        ) from exc
 
     session = service.cancel_session(uuid_session_id)
     if not session:
@@ -397,11 +395,11 @@ async def apply_bulk_fixes(
 
     try:
         uuid_session_id = UUID(request.session_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session ID format",
-        )
+        ) from exc
 
     session = service.get_session(uuid_session_id)
     if not session:
@@ -694,17 +692,20 @@ async def stream_session(
 
     try:
         # Send initial connection confirmation
-        await websocket.send_json({
-            "type": "connected",
-            "session_id": session_id,
-            "timestamp": datetime.now(UTC).isoformat(),
-        })
+        await websocket.send_json(
+            {
+                "type": "connected",
+                "session_id": session_id,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
 
         # Get initial session state if it exists
         from app.core.database import get_db_context
 
         async with get_db_context() as session_db:
             from sqlalchemy import select
+
             from app.models.ide_agent import IDEAgentSession
 
             result = await session_db.execute(
@@ -713,15 +714,19 @@ async def stream_session(
             session = result.scalar_one_or_none()
 
             if session:
-                await websocket.send_json({
-                    "type": "progress",
-                    "status": session.status.value if hasattr(session.status, 'value') else session.status,
-                    "step": session.current_step,
-                    "progress": session.progress,
-                    "violations_found": session.violations_found,
-                    "fixes_applied": session.fixes_applied,
-                    "pending_approval_count": session.pending_approval_count,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "progress",
+                        "status": session.status.value
+                        if hasattr(session.status, "value")
+                        else session.status,
+                        "step": session.current_step,
+                        "progress": session.progress,
+                        "violations_found": session.violations_found,
+                        "fixes_applied": session.fixes_applied,
+                        "pending_approval_count": session.pending_approval_count,
+                    }
+                )
 
         # Listen for client messages
         while True:
@@ -730,22 +735,26 @@ async def stream_session(
                     websocket.receive_json(),
                     timeout=30.0,  # Heartbeat timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Send heartbeat
-                await websocket.send_json({
-                    "type": "heartbeat",
-                    "timestamp": datetime.now(UTC).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "heartbeat",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
                 continue
 
             action = data.get("action")
 
             if action == "subscribe":
                 # Client is subscribing to updates
-                await websocket.send_json({
-                    "type": "subscribed",
-                    "session_id": session_id,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "subscribed",
+                        "session_id": session_id,
+                    }
+                )
 
             elif action == "approve":
                 # Approve an action
@@ -755,9 +764,7 @@ async def stream_session(
                         from app.models.ide_agent import IDEAgentAction
 
                         result = await action_db.execute(
-                            select(IDEAgentAction).where(
-                                IDEAgentAction.id == UUID(action_id)
-                            )
+                            select(IDEAgentAction).where(IDEAgentAction.id == UUID(action_id))
                         )
                         action_obj = result.scalar_one_or_none()
 
@@ -766,11 +773,14 @@ async def stream_session(
                             action_obj.approved_at = datetime.now(UTC)
                             await action_db.commit()
 
-                            await ws_manager.broadcast_to_session(session_id, {
-                                "type": "action_approved",
-                                "action_id": action_id,
-                                "timestamp": datetime.now(UTC).isoformat(),
-                            })
+                            await ws_manager.broadcast_to_session(
+                                session_id,
+                                {
+                                    "type": "action_approved",
+                                    "action_id": action_id,
+                                    "timestamp": datetime.now(UTC).isoformat(),
+                                },
+                            )
 
             elif action == "reject":
                 # Reject an action
@@ -781,9 +791,7 @@ async def stream_session(
                         from app.models.ide_agent import IDEAgentAction
 
                         result = await action_db.execute(
-                            select(IDEAgentAction).where(
-                                IDEAgentAction.id == UUID(action_id)
-                            )
+                            select(IDEAgentAction).where(IDEAgentAction.id == UUID(action_id))
                         )
                         action_obj = result.scalar_one_or_none()
 
@@ -792,22 +800,24 @@ async def stream_session(
                             action_obj.rejection_reason = reason
                             await action_db.commit()
 
-                            await ws_manager.broadcast_to_session(session_id, {
-                                "type": "action_rejected",
-                                "action_id": action_id,
-                                "reason": reason,
-                                "timestamp": datetime.now(UTC).isoformat(),
-                            })
+                            await ws_manager.broadcast_to_session(
+                                session_id,
+                                {
+                                    "type": "action_rejected",
+                                    "action_id": action_id,
+                                    "reason": reason,
+                                    "timestamp": datetime.now(UTC).isoformat(),
+                                },
+                            )
 
             elif action == "cancel":
                 # Cancel the session
                 async with get_db_context() as cancel_db:
-                    from app.models.ide_agent import IDEAgentSession, AgentStatus as DBAgentStatus
+                    from app.models.ide_agent import AgentStatus as DBAgentStatus
+                    from app.models.ide_agent import IDEAgentSession
 
                     result = await cancel_db.execute(
-                        select(IDEAgentSession).where(
-                            IDEAgentSession.id == UUID(session_id)
-                        )
+                        select(IDEAgentSession).where(IDEAgentSession.id == UUID(session_id))
                     )
                     session = result.scalar_one_or_none()
 
@@ -816,18 +826,23 @@ async def stream_session(
                         session.completed_at = datetime.now(UTC)
                         await cancel_db.commit()
 
-                        await ws_manager.broadcast_to_session(session_id, {
-                            "type": "cancelled",
-                            "session_id": session_id,
-                            "timestamp": datetime.now(UTC).isoformat(),
-                        })
+                        await ws_manager.broadcast_to_session(
+                            session_id,
+                            {
+                                "type": "cancelled",
+                                "session_id": session_id,
+                                "timestamp": datetime.now(UTC).isoformat(),
+                            },
+                        )
 
             elif action == "ping":
                 # Respond to ping
-                await websocket.send_json({
-                    "type": "pong",
-                    "timestamp": datetime.now(UTC).isoformat(),
-                })
+                await websocket.send_json(
+                    {
+                        "type": "pong",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
 
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket, session_id)
@@ -850,60 +865,78 @@ async def stream_progress_update(
     fixes_applied: int = 0,
 ) -> None:
     """Stream a progress update to all connected clients."""
-    await ws_manager.broadcast_to_session(str(session_id), {
-        "type": "progress",
-        "status": status,
-        "step": step,
-        "progress": progress,
-        "violations_found": violations_found,
-        "fixes_applied": fixes_applied,
-        "timestamp": datetime.now(UTC).isoformat(),
-    })
+    await ws_manager.broadcast_to_session(
+        str(session_id),
+        {
+            "type": "progress",
+            "status": status,
+            "step": step,
+            "progress": progress,
+            "violations_found": violations_found,
+            "fixes_applied": fixes_applied,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+    )
 
 
 async def stream_violation(session_id: str, violation: dict) -> None:
     """Stream a detected violation to all connected clients."""
-    await ws_manager.broadcast_to_session(str(session_id), {
-        "type": "violation",
-        "violation": violation,
-        "timestamp": datetime.now(UTC).isoformat(),
-    })
+    await ws_manager.broadcast_to_session(
+        str(session_id),
+        {
+            "type": "violation",
+            "violation": violation,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+    )
 
 
 async def stream_fix(session_id: str, fix: dict) -> None:
     """Stream a generated fix to all connected clients."""
-    await ws_manager.broadcast_to_session(str(session_id), {
-        "type": "fix",
-        "fix": fix,
-        "timestamp": datetime.now(UTC).isoformat(),
-    })
+    await ws_manager.broadcast_to_session(
+        str(session_id),
+        {
+            "type": "fix",
+            "fix": fix,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+    )
 
 
 async def stream_action(session_id: str, action: dict) -> None:
     """Stream an action update to all connected clients."""
-    await ws_manager.broadcast_to_session(str(session_id), {
-        "type": "action",
-        "action": action,
-        "timestamp": datetime.now(UTC).isoformat(),
-    })
+    await ws_manager.broadcast_to_session(
+        str(session_id),
+        {
+            "type": "action",
+            "action": action,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+    )
 
 
 async def stream_completion(session_id: str, session: dict) -> None:
     """Stream session completion to all connected clients."""
-    await ws_manager.broadcast_to_session(str(session_id), {
-        "type": "completed",
-        "session": session,
-        "timestamp": datetime.now(UTC).isoformat(),
-    })
+    await ws_manager.broadcast_to_session(
+        str(session_id),
+        {
+            "type": "completed",
+            "session": session,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+    )
 
 
 async def stream_error(session_id: str, message: str) -> None:
     """Stream an error to all connected clients."""
-    await ws_manager.broadcast_to_session(str(session_id), {
-        "type": "error",
-        "message": message,
-        "timestamp": datetime.now(UTC).isoformat(),
-    })
+    await ws_manager.broadcast_to_session(
+        str(session_id),
+        {
+            "type": "error",
+            "message": message,
+            "timestamp": datetime.now(UTC).isoformat(),
+        },
+    )
 
 
 # ============================================================================
@@ -1018,3 +1051,153 @@ async def get_feedback_stats(db: DB) -> FeedbackStatsSchema:
     service = IDEAgentService(db=db, organization_id=uuid4())
     stats = service.get_feedback_stats()
     return FeedbackStatsSchema(**stats.to_dict())
+
+
+# ---------------------------------------------------------------------------
+# v2: Semantic Analysis — Regulation Tooltips & Compliance Panel
+# ---------------------------------------------------------------------------
+
+
+class TooltipResponse(BaseModel):
+    """Regulation-context hover tooltip."""
+
+    line: int
+    column: int
+    end_line: int
+    end_column: int
+    regulation: str
+    article: str
+    title: str
+    description: str
+    severity: str
+    fix_available: bool
+    citation_url: str | None = None
+
+
+class FilePostureResponse(BaseModel):
+    """Compliance posture score for a file."""
+
+    file_path: str
+    score: float
+    grade: str
+    violations_count: int
+    critical_count: int
+    warning_count: int
+    info_count: int
+    frameworks_affected: list[str]
+
+
+class AnalyzeFileRequest(BaseModel):
+    """Request to analyze a file for compliance tooltips."""
+
+    file_content: str = Field(..., description="Full file content")
+    file_path: str = Field(..., description="File path in repository")
+    language: str = Field("python", description="Programming language")
+
+
+class CompliancePanelResponse(BaseModel):
+    """Data for the IDE compliance side panel."""
+
+    repository: str
+    overall_score: float
+    overall_grade: str
+    files_analyzed: int
+    total_violations: int
+    critical_violations: int
+    frameworks: list[dict]
+    top_issues: list[dict]
+
+
+@router.post(
+    "/semantic/tooltips",
+    response_model=list[TooltipResponse],
+    summary="Get regulation tooltips for a file",
+)
+async def get_semantic_tooltips(
+    request: AnalyzeFileRequest,
+    db: DB,
+) -> list[TooltipResponse]:
+    """Analyze a file and return regulation-context hover tooltips.
+
+    Each tooltip includes the regulation article, description, severity,
+    and whether an auto-fix is available.
+    """
+    from app.services.ide_agent.semantic import SemanticAnalyzer
+
+    analyzer = SemanticAnalyzer(db=db)
+    tooltips = await analyzer.analyze_file_for_tooltips(
+        file_content=request.file_content,
+        file_path=request.file_path,
+        language=request.language,
+    )
+    return [
+        TooltipResponse(
+            line=t.line,
+            column=t.column,
+            end_line=t.end_line,
+            end_column=t.end_column,
+            regulation=t.regulation,
+            article=t.article,
+            title=t.title,
+            description=t.description,
+            severity=t.severity.value,
+            fix_available=t.fix_available,
+            citation_url=t.citation_url,
+        )
+        for t in tooltips
+    ]
+
+
+@router.post(
+    "/semantic/posture",
+    response_model=FilePostureResponse,
+    summary="Get file compliance posture score",
+)
+async def get_file_posture(
+    request: AnalyzeFileRequest,
+    db: DB,
+) -> FilePostureResponse:
+    """Calculate compliance posture score for a single file."""
+    from app.services.ide_agent.semantic import SemanticAnalyzer
+
+    analyzer = SemanticAnalyzer(db=db)
+    score = await analyzer.get_file_posture(
+        file_content=request.file_content,
+        file_path=request.file_path,
+    )
+    return FilePostureResponse(
+        file_path=score.file_path,
+        score=score.score,
+        grade=score.grade,
+        violations_count=score.violations_count,
+        critical_count=score.critical_count,
+        warning_count=score.warning_count,
+        info_count=score.info_count,
+        frameworks_affected=score.frameworks_affected,
+    )
+
+
+@router.post(
+    "/semantic/panel",
+    response_model=CompliancePanelResponse,
+    summary="Get compliance panel data",
+)
+async def get_compliance_panel(
+    db: DB,
+    repository: str = "owner/repo",
+) -> CompliancePanelResponse:
+    """Generate compliance panel data for the IDE sidebar."""
+    from app.services.ide_agent.semantic import SemanticAnalyzer
+
+    analyzer = SemanticAnalyzer(db=db)
+    panel = await analyzer.get_compliance_panel(repository=repository)
+    return CompliancePanelResponse(
+        repository=panel.repository,
+        overall_score=panel.overall_score,
+        overall_grade=panel.overall_grade,
+        files_analyzed=panel.files_analyzed,
+        total_violations=panel.total_violations,
+        critical_violations=panel.critical_violations,
+        frameworks=panel.frameworks,
+        top_issues=panel.top_issues,
+    )

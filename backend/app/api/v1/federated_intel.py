@@ -1,6 +1,6 @@
 """API endpoints for Federated Compliance Intelligence Network."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -159,6 +159,7 @@ async def get_threats(
 
     cat = ThreatCategory(category) if category else None
     from app.services.federated_intel.models import Severity
+
     sev = Severity(severity) if severity else None
 
     threats = await network.get_threats(
@@ -303,7 +304,7 @@ async def get_threat_feed(
 
     return {
         "member_id": str(net_member.id),
-        "feed_generated_at": datetime.utcnow().isoformat(),
+        "feed_generated_at": datetime.now(UTC).isoformat(),
         "threat_count": len(threats),
         "threats": [
             {
@@ -555,6 +556,7 @@ async def cast_verification_vote(
     """Cast a verification vote on a shared threat."""
     network = get_federated_network()
     from uuid import UUID as _UUID
+
     try:
         result = await network.cast_verification_vote(
             threat_id=_UUID(threat_id),
@@ -563,5 +565,209 @@ async def cast_verification_vote(
             confidence=request.confidence,
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return result
+
+
+# ---------------------------------------------------------------------------
+# v2: Differential Privacy & Similar Organizations
+# ---------------------------------------------------------------------------
+
+
+class AnonymizeRequest(BaseModel):
+    """Request to anonymize compliance patterns."""
+
+    patterns: list[dict] = Field(
+        ..., description="Patterns to anonymize (each with id, frequency, category, etc.)"
+    )
+    privacy_level: str = Field("balanced", description="Privacy level: strict, balanced, relaxed")
+
+
+class AnonymizedPatternSchema(BaseModel):
+    """An anonymized compliance pattern."""
+
+    id: str
+    category: str
+    description: str
+    frequency: float
+    industry: str
+    regulation: str
+    anonymization_method: str
+    epsilon: float
+
+
+class SimilarOrgRequest(BaseModel):
+    """Request to find similar organizations."""
+
+    regulations: list[str] = Field(..., description="Regulations your org complies with")
+    industry: str = Field(..., description="Your industry vertical")
+    size_bucket: str = Field(
+        "medium", description="Organization size: small, medium, large, enterprise"
+    )
+
+
+class SimilarOrgSchema(BaseModel):
+    """A similar organization match."""
+
+    id: str
+    industry: str
+    similarity_score: float
+    shared_regulations: list[str]
+
+
+class PrivacyBudgetSchema(BaseModel):
+    """Privacy budget status."""
+
+    epsilon_total: float
+    epsilon_spent: float
+    epsilon_remaining: float
+    queries_executed: int
+    is_exhausted: bool
+
+
+@router.post(
+    "/v2/anonymize", response_model=list[AnonymizedPatternSchema], summary="Anonymize patterns"
+)
+async def anonymize_patterns(request: AnonymizeRequest) -> list[AnonymizedPatternSchema]:
+    """Anonymize compliance patterns using differential privacy for safe sharing."""
+    from app.services.federated_intel.differential_privacy import (
+        PrivacyLevel,
+        anonymize_compliance_patterns,
+    )
+
+    level = PrivacyLevel(request.privacy_level)
+    anonymized = anonymize_compliance_patterns(request.patterns, privacy_level=level)
+    return [
+        AnonymizedPatternSchema(
+            id=p.id,
+            category=p.category,
+            description=p.description,
+            frequency=p.frequency,
+            industry=p.industry,
+            regulation=p.regulation,
+            anonymization_method=p.anonymization_method,
+            epsilon=p.epsilon,
+        )
+        for p in anonymized
+    ]
+
+
+@router.post(
+    "/v2/similar-orgs", response_model=list[SimilarOrgSchema], summary="Find similar organizations"
+)
+async def find_similar_organizations(request: SimilarOrgRequest) -> list[SimilarOrgSchema]:
+    """Find organizations with similar compliance profiles using anonymized matching."""
+    from app.services.federated_intel.differential_privacy import compute_similar_organizations
+
+    org_profile = {
+        "regulations": request.regulations,
+        "industry": request.industry,
+        "size_bucket": request.size_bucket,
+    }
+
+    # Seed network profiles for demo (in production, these come from the network)
+    seed_profiles = [
+        {
+            "id": "org-fintech-001",
+            "regulations": ["gdpr", "pci-dss", "sox"],
+            "industry": "fintech",
+            "size_bucket": "medium",
+        },
+        {
+            "id": "org-fintech-002",
+            "regulations": ["gdpr", "ccpa", "soc2"],
+            "industry": "fintech",
+            "size_bucket": "large",
+        },
+        {
+            "id": "org-health-001",
+            "regulations": ["hipaa", "soc2", "gdpr"],
+            "industry": "healthtech",
+            "size_bucket": "medium",
+        },
+        {
+            "id": "org-health-002",
+            "regulations": ["hipaa", "hitrust"],
+            "industry": "healthtech",
+            "size_bucket": "small",
+        },
+        {
+            "id": "org-ai-001",
+            "regulations": ["eu-ai-act", "gdpr", "iso-42001"],
+            "industry": "ai_company",
+            "size_bucket": "medium",
+        },
+        {
+            "id": "org-ecom-001",
+            "regulations": ["gdpr", "ccpa", "pci-dss"],
+            "industry": "ecommerce",
+            "size_bucket": "large",
+        },
+        {
+            "id": "org-saas-001",
+            "regulations": ["soc2", "gdpr", "ccpa"],
+            "industry": "saas",
+            "size_bucket": "medium",
+        },
+        {
+            "id": "org-bank-001",
+            "regulations": ["sox", "pci-dss", "gdpr", "dora"],
+            "industry": "fintech",
+            "size_bucket": "enterprise",
+        },
+    ]
+
+    matches = compute_similar_organizations(org_profile, seed_profiles, max_results=5)
+    return [
+        SimilarOrgSchema(
+            id=m["id"],
+            industry=m["industry"],
+            similarity_score=m["similarity_score"],
+            shared_regulations=m["shared_regulations"],
+        )
+        for m in matches
+    ]
+
+
+@router.get(
+    "/v2/privacy-budget", response_model=PrivacyBudgetSchema, summary="Privacy budget status"
+)
+async def get_privacy_budget() -> PrivacyBudgetSchema:
+    """Get the current differential privacy budget status."""
+    from app.services.federated_intel.differential_privacy import PrivacyBudget
+
+    budget = PrivacyBudget()
+    return PrivacyBudgetSchema(
+        epsilon_total=budget.epsilon_total,
+        epsilon_spent=budget.epsilon_spent,
+        epsilon_remaining=budget.epsilon_remaining,
+        queries_executed=budget.queries_executed,
+        is_exhausted=budget.is_exhausted,
+    )
+
+
+@router.post("/v2/noise-demo", summary="Differential privacy noise demonstration")
+async def demonstrate_noise(
+    true_value: float = 100.0,
+    sensitivity: float = 1.0,
+    epsilon: float = 1.0,
+) -> dict:
+    """Demonstrate Laplace noise mechanism for a given value.
+
+    Shows how differential privacy adds noise to protect individual contributions.
+    """
+    from app.services.federated_intel.differential_privacy import add_laplace_noise
+
+    result = add_laplace_noise(
+        value=true_value,
+        sensitivity=sensitivity,
+        epsilon=epsilon,
+        clamp_min=0.0,
+    )
+    return {
+        "noisy_value": result.noisy_value,
+        "epsilon_used": result.epsilon_used,
+        "noise_scale": round(result.noise_scale, 4),
+        "sensitivity": result.sensitivity,
+        "note": "The true value is never stored or returned — only the noisy version",
+    }

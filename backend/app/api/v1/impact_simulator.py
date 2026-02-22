@@ -8,12 +8,12 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep
-
 from app.services.impact_simulator import (
     ImpactSimulatorService,
     RegulatoryChange,
     ScenarioType,
 )
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -115,9 +115,12 @@ def _to_result_schema(r: Any) -> SimulationResultSchema:
             total_data_stores=r.blast_radius.total_data_stores,
             affected_components=[
                 AffectedComponentSchema(
-                    file_path=c.file_path, component_type=c.component_type,
-                    component_name=c.component_name, impact_level=c.impact_level.value,
-                    changes_required=c.changes_required, estimated_hours=c.estimated_hours,
+                    file_path=c.file_path,
+                    component_type=c.component_type,
+                    component_name=c.component_name,
+                    impact_level=c.impact_level.value,
+                    changes_required=c.changes_required,
+                    estimated_hours=c.estimated_hours,
                 )
                 for c in r.blast_radius.affected_components
             ],
@@ -155,7 +158,9 @@ async def run_simulation(
     )
 
     result = await service.run_simulation(
-        scenario_name=request.scenario_name, change=change, repo=request.repo,
+        scenario_name=request.scenario_name,
+        change=change,
+        repo=request.repo,
     )
     return _to_result_schema(result)
 
@@ -194,8 +199,11 @@ async def list_scenarios(
     scenarios = await service.list_prebuilt_scenarios(category=category)
     return [
         PrebuiltScenarioSchema(
-            id=s.id, name=s.name, description=s.description,
-            category=s.category, difficulty=s.difficulty,
+            id=s.id,
+            name=s.name,
+            description=s.description,
+            category=s.category,
+            difficulty=s.difficulty,
             regulation=s.change.regulation,
         )
         for s in scenarios

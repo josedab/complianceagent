@@ -58,9 +58,7 @@ async def get_mapping(
     """Get mapping details."""
     result = await db.execute(
         select(CodebaseMapping)
-        .options(
-            selectinload(CodebaseMapping.repository).selectinload(Repository.customer_profile)
-        )
+        .options(selectinload(CodebaseMapping.repository).selectinload(Repository.customer_profile))
         .where(CodebaseMapping.id == mapping_id)
     )
     mapping = result.scalar_one_or_none()
@@ -94,9 +92,7 @@ async def review_mapping(
 
     result = await db.execute(
         select(CodebaseMapping)
-        .options(
-            selectinload(CodebaseMapping.repository).selectinload(Repository.customer_profile)
-        )
+        .options(selectinload(CodebaseMapping.repository).selectinload(Repository.customer_profile))
         .where(CodebaseMapping.id == mapping_id)
     )
     mapping = result.scalar_one_or_none()

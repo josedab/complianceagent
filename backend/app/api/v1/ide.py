@@ -1,5 +1,6 @@
 """IDE integration API endpoints for real-time compliance analysis."""
 
+import contextlib
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -183,7 +184,9 @@ class DeepAnalysisResponse(BaseModel):
 _analyzer_cache: dict[UUID, IDEComplianceAnalyzer] = {}
 
 
-def get_analyzer(organization_id: UUID, regulations: list[str] | None = None) -> IDEComplianceAnalyzer:
+def get_analyzer(
+    organization_id: UUID, regulations: list[str] | None = None
+) -> IDEComplianceAnalyzer:
     """Get or create an analyzer for an organization."""
     cache_key = organization_id
     if cache_key not in _analyzer_cache:
@@ -216,19 +219,24 @@ async def analyze_document(
 
     diagnostics = []
     for diag in result.diagnostics:
-        diagnostics.append(DiagnosticResponse(
-            range={
-                "start": {"line": diag.range.start.line, "character": diag.range.start.character},
-                "end": {"line": diag.range.end.line, "character": diag.range.end.character},
-            },
-            message=diag.message,
-            severity=diag.severity.value,
-            code=diag.code,
-            source=diag.source,
-            category=diag.category.value if diag.category else None,
-            regulation=diag.regulation,
-            article_reference=diag.article_reference,
-        ))
+        diagnostics.append(
+            DiagnosticResponse(
+                range={
+                    "start": {
+                        "line": diag.range.start.line,
+                        "character": diag.range.start.character,
+                    },
+                    "end": {"line": diag.range.end.line, "character": diag.range.end.character},
+                },
+                message=diag.message,
+                severity=diag.severity.value,
+                code=diag.code,
+                source=diag.source,
+                category=diag.category.value if diag.category else None,
+                regulation=diag.regulation,
+                article_reference=diag.article_reference,
+            )
+        )
 
     return AnalyzeDocumentResponse(
         uri=result.uri,
@@ -318,7 +326,16 @@ async def get_ide_config(
         enabled_regulations=analyzer.enabled_regulations,
         severity_threshold=analyzer.severity_threshold.value,
         custom_patterns_count=len(analyzer.custom_patterns),
-        supported_languages=["python", "javascript", "typescript", "java", "go", "ruby", "php", "csharp"],
+        supported_languages=[
+            "python",
+            "javascript",
+            "typescript",
+            "java",
+            "go",
+            "ruby",
+            "php",
+            "csharp",
+        ],
     )
 
 
@@ -334,7 +351,9 @@ async def update_ide_config(
     # Create new analyzer with updated config
     new_analyzer = IDEComplianceAnalyzer(
         enabled_regulations=regulations or ["GDPR", "CCPA", "HIPAA", "EU AI Act"],
-        severity_threshold=DiagnosticSeverity(severity_threshold) if severity_threshold else DiagnosticSeverity.HINT,
+        severity_threshold=DiagnosticSeverity(severity_threshold)
+        if severity_threshold
+        else DiagnosticSeverity.HINT,
     )
 
     # Copy custom patterns from old analyzer
@@ -349,7 +368,16 @@ async def update_ide_config(
         enabled_regulations=new_analyzer.enabled_regulations,
         severity_threshold=new_analyzer.severity_threshold.value,
         custom_patterns_count=len(new_analyzer.custom_patterns),
-        supported_languages=["python", "javascript", "typescript", "java", "go", "ruby", "php", "csharp"],
+        supported_languages=[
+            "python",
+            "javascript",
+            "typescript",
+            "java",
+            "go",
+            "ruby",
+            "php",
+            "csharp",
+        ],
     )
 
 
@@ -383,10 +411,8 @@ async def get_ai_suggestion(
     # Create diagnostic from request
     category = None
     if request.category:
-        try:
+        with contextlib.suppress(ValueError):
             category = DiagnosticCategory(request.category)
-        except ValueError:
-            pass
 
     diagnostic = ComplianceDiagnostic(
         range=Range(start=Position(0, 0), end=Position(0, len(request.code))),
@@ -479,10 +505,8 @@ async def get_regulation_tooltip(
 
     category = None
     if request.category:
-        try:
+        with contextlib.suppress(ValueError):
             category = DiagnosticCategory(request.category)
-        except ValueError:
-            pass
 
     tooltip = await suggester.get_regulation_tooltip(
         regulation=request.regulation,
@@ -522,26 +546,28 @@ async def deep_analyze_code(
 
     issues = []
     for s in suggestions:
-        issues.append(DeepAnalysisIssue(
-            range={
-                "start": {
-                    "line": s.diagnostic.range.start.line,
-                    "character": s.diagnostic.range.start.character,
+        issues.append(
+            DeepAnalysisIssue(
+                range={
+                    "start": {
+                        "line": s.diagnostic.range.start.line,
+                        "character": s.diagnostic.range.start.character,
+                    },
+                    "end": {
+                        "line": s.diagnostic.range.end.line,
+                        "character": s.diagnostic.range.end.character,
+                    },
                 },
-                "end": {
-                    "line": s.diagnostic.range.end.line,
-                    "character": s.diagnostic.range.end.character,
-                },
-            },
-            message=s.diagnostic.message,
-            severity=s.diagnostic.severity.value,
-            code=s.diagnostic.code,
-            regulation=s.diagnostic.regulation,
-            article_reference=s.diagnostic.article_reference,
-            fix_code=s.fix_code,
-            explanation=s.explanation,
-            confidence=s.confidence,
-        ))
+                message=s.diagnostic.message,
+                severity=s.diagnostic.severity.value,
+                code=s.diagnostic.code,
+                regulation=s.diagnostic.regulation,
+                article_reference=s.diagnostic.article_reference,
+                fix_code=s.fix_code,
+                explanation=s.explanation,
+                confidence=s.confidence,
+            )
+        )
 
     return DeepAnalysisResponse(
         issues=issues,
@@ -579,13 +605,15 @@ async def ide_websocket(
 
                 diagnostics = [d.to_lsp_diagnostic() for d in result.diagnostics]
 
-                await websocket.send_json({
-                    "type": "diagnostics",
-                    "uri": result.uri,
-                    "version": result.version,
-                    "diagnostics": diagnostics,
-                    "analysisTimeMs": result.analysis_time_ms,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "diagnostics",
+                        "uri": result.uri,
+                        "version": result.version,
+                        "diagnostics": diagnostics,
+                        "analysisTimeMs": result.analysis_time_ms,
+                    }
+                )
 
             elif action == "hover":
                 hover_info = analyzer.get_hover_info(
@@ -595,19 +623,23 @@ async def ide_websocket(
                     character=data.get("character", 0),
                 )
 
-                await websocket.send_json({
-                    "type": "hover",
-                    "info": hover_info,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "hover",
+                        "info": hover_info,
+                    }
+                )
 
             elif action == "setRegulations":
                 analyzer = IDEComplianceAnalyzer(
                     enabled_regulations=data.get("regulations", []),
                 )
-                await websocket.send_json({
-                    "type": "configUpdated",
-                    "regulations": analyzer.enabled_regulations,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "configUpdated",
+                        "regulations": analyzer.enabled_regulations,
+                    }
+                )
 
             elif action == "deepAnalyze":
                 suggester = get_copilot_suggester()
@@ -619,28 +651,32 @@ async def ide_websocket(
 
                 issues = []
                 for s in suggestions:
-                    issues.append({
-                        "range": {
-                            "start": {
-                                "line": s.diagnostic.range.start.line,
-                                "character": s.diagnostic.range.start.character,
+                    issues.append(
+                        {
+                            "range": {
+                                "start": {
+                                    "line": s.diagnostic.range.start.line,
+                                    "character": s.diagnostic.range.start.character,
+                                },
+                                "end": {
+                                    "line": s.diagnostic.range.end.line,
+                                    "character": s.diagnostic.range.end.character,
+                                },
                             },
-                            "end": {
-                                "line": s.diagnostic.range.end.line,
-                                "character": s.diagnostic.range.end.character,
-                            },
-                        },
-                        "message": s.diagnostic.message,
-                        "severity": s.diagnostic.severity.value,
-                        "code": s.diagnostic.code,
-                        "fixCode": s.fix_code,
-                        "explanation": s.explanation,
-                    })
+                            "message": s.diagnostic.message,
+                            "severity": s.diagnostic.severity.value,
+                            "code": s.diagnostic.code,
+                            "fixCode": s.fix_code,
+                            "explanation": s.explanation,
+                        }
+                    )
 
-                await websocket.send_json({
-                    "type": "deepAnalysis",
-                    "issues": issues,
-                })
+                await websocket.send_json(
+                    {
+                        "type": "deepAnalysis",
+                        "issues": issues,
+                    }
+                )
 
     except WebSocketDisconnect:
         pass
@@ -653,7 +689,7 @@ async def ide_websocket(
 
 class TeamSuppressionRequest(BaseModel):
     """Request to create a team suppression."""
-    
+
     rule_id: str
     pattern: str | None = None
     reason: str
@@ -662,7 +698,7 @@ class TeamSuppressionRequest(BaseModel):
 
 class TeamSuppressionResponse(BaseModel):
     """Team suppression entry."""
-    
+
     id: str
     rule_id: str
     pattern: str | None
@@ -677,7 +713,7 @@ class TeamSuppressionResponse(BaseModel):
 
 class FeedbackRequest(BaseModel):
     """Request to submit feedback on a detection."""
-    
+
     type: str  # false_positive, false_negative, severity_adjustment, helpful
     issue: dict[str, Any]
     reason: str | None = None
@@ -703,13 +739,13 @@ async def request_team_suppression(
     db: DB,
 ) -> TeamSuppressionResponse:
     """Request a new team-wide suppression.
-    
+
     Suppressions require approval from an admin before taking effect.
     """
     # In a real implementation, this would save to database
     # and notify admins for approval
     from uuid import uuid4
-    
+
     return TeamSuppressionResponse(
         id=str(uuid4()),
         rule_id=request.rule_id,
@@ -760,12 +796,13 @@ async def submit_feedback(
     db: DB,
 ) -> dict[str, str]:
     """Submit feedback on a compliance detection.
-    
+
     Feedback is used to improve detection accuracy through machine learning.
     """
     import structlog
+
     logger = structlog.get_logger()
-    
+
     # Log feedback for analysis
     logger.info(
         "IDE feedback received",
@@ -775,12 +812,12 @@ async def submit_feedback(
         rule_id=request.issue.get("requirementId"),
         reason=request.reason,
     )
-    
+
     # In a real implementation, this would:
     # 1. Store feedback in database
     # 2. Aggregate for ML model training
     # 3. Auto-create suppressions if high false positive rate
-    
+
     return {"status": "received", "message": "Thank you for your feedback!"}
 
 
@@ -791,7 +828,7 @@ async def submit_feedback(
 
 class RuleStatsResponse(BaseModel):
     """Statistics for a compliance rule."""
-    
+
     rule_id: str
     total_detections: int
     false_positive_rate: float
@@ -807,7 +844,7 @@ async def get_rule_statistics(
     db: DB,
 ) -> list[RuleStatsResponse]:
     """Get aggregated statistics for compliance rules.
-    
+
     Useful for understanding which rules are most effective
     and which may need tuning.
     """

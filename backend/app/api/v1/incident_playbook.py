@@ -107,30 +107,30 @@ def _incident_to_schema(inc) -> IncidentSchema:
 def _parse_incident_type(it: str) -> IncidentType:
     try:
         return IncidentType(it)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid incident type: {it}. Use: {[t.value for t in IncidentType]}",
-        )
+        ) from exc
 
 
 def _parse_severity(s: str) -> IncidentSeverity:
     try:
         return IncidentSeverity(s)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid severity: {s}. Use: {[v.value for v in IncidentSeverity]}",
-        )
+        ) from exc
 
 
 def _parse_status(s: str) -> IncidentStatus:
     try:
         return IncidentStatus(s)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400, detail=f"Invalid status: {s}. Use: {[v.value for v in IncidentStatus]}"
-        )
+        ) from exc
 
 
 @router.get("/playbooks", response_model=list[PlaybookSchema], summary="List playbooks")
@@ -165,7 +165,7 @@ async def get_playbook(playbook_id: str, db: DB, copilot: CopilotDep) -> Playboo
 
         p = await service.get_playbook(UUID(playbook_id))
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return PlaybookSchema(
         id=str(p.id),
         name=p.name,
@@ -198,7 +198,7 @@ async def create_incident(
             req.jurisdictions,
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return _incident_to_schema(incident)
 
 
@@ -220,7 +220,7 @@ async def update_incident_status(
 
         incident = await service.update_incident_status(UUID(incident_id), status)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return _incident_to_schema(incident)
 
 
@@ -239,7 +239,7 @@ async def add_evidence(
 
         incident = await service.add_evidence(UUID(incident_id), req.evidence_item)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return _incident_to_schema(incident)
 
 
@@ -257,7 +257,7 @@ async def get_notification_requirements(
 
         reqs = await service.get_notification_requirements(UUID(incident_id))
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return [
         NotificationSchema(
             jurisdiction=r.jurisdiction,
@@ -284,7 +284,7 @@ async def generate_incident_report(
 
         report = await service.generate_incident_report(UUID(incident_id))
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return IncidentReportSchema(
         id=str(report.id),
         incident_id=str(report.incident_id),

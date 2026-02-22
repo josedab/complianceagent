@@ -1,6 +1,5 @@
 """API endpoints for AI Model Card Generator."""
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -9,9 +8,8 @@ from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 from app.services.model_cards import (
-    ModelType,
     BiasCategory,
-    ModelCardGenerator,
+    ModelType,
     get_model_card_generator,
 )
 
@@ -26,7 +24,7 @@ router = APIRouter()
 
 class PerformanceMetricsRequest(BaseModel):
     """Performance metrics for model card."""
-    
+
     accuracy: float | None = None
     precision: float | None = None
     recall: float | None = None
@@ -37,7 +35,7 @@ class PerformanceMetricsRequest(BaseModel):
 
 class FairnessMetricsRequest(BaseModel):
     """Fairness metrics for model card."""
-    
+
     demographic_parity: dict[str, float] = Field(default_factory=dict)
     disparate_impact: dict[str, float] = Field(default_factory=dict)
     bias_detected: list[str] = Field(default_factory=list)
@@ -47,7 +45,7 @@ class FairnessMetricsRequest(BaseModel):
 
 class IntendedUseRequest(BaseModel):
     """Intended use documentation."""
-    
+
     primary_uses: list[str] = Field(default_factory=list)
     primary_users: list[str] = Field(default_factory=list)
     prohibited_uses: list[str] = Field(default_factory=list)
@@ -57,7 +55,7 @@ class IntendedUseRequest(BaseModel):
 
 class TrainingDataRequest(BaseModel):
     """Training data documentation."""
-    
+
     data_sources: list[str] = Field(default_factory=list)
     total_samples: int | None = None
     contains_pii: bool = False
@@ -67,7 +65,7 @@ class TrainingDataRequest(BaseModel):
 
 class LimitationsRequest(BaseModel):
     """Model limitations documentation."""
-    
+
     technical_limitations: list[str] = Field(default_factory=list)
     out_of_scope_uses: list[str] = Field(default_factory=list)
     failure_modes: list[str] = Field(default_factory=list)
@@ -75,7 +73,7 @@ class LimitationsRequest(BaseModel):
 
 class CreateModelCardRequest(BaseModel):
     """Request to create a model card."""
-    
+
     model_name: str
     model_version: str
     model_type: str
@@ -93,7 +91,7 @@ class CreateModelCardRequest(BaseModel):
 
 class UpdateModelCardRequest(BaseModel):
     """Request to update a model card."""
-    
+
     description: str | None = None
     developers: list[str] | None = None
     license: str | None = None
@@ -101,7 +99,7 @@ class UpdateModelCardRequest(BaseModel):
 
 class ModelCardSummaryResponse(BaseModel):
     """Summary response for a model card."""
-    
+
     id: str
     model_name: str
     model_version: str
@@ -117,7 +115,7 @@ class ModelCardSummaryResponse(BaseModel):
 
 class RiskClassificationResponse(BaseModel):
     """Response for risk classification."""
-    
+
     risk_level: str
     category: str | None
     prohibited_practice: str | None
@@ -130,7 +128,7 @@ class RiskClassificationResponse(BaseModel):
 
 class ComplianceGapsResponse(BaseModel):
     """Response for compliance gap assessment."""
-    
+
     compliance_score: float
     gaps_count: int
     gaps: list[str]
@@ -141,7 +139,7 @@ class ComplianceGapsResponse(BaseModel):
 
 class ModelCardDetailResponse(BaseModel):
     """Detailed model card response."""
-    
+
     id: str
     model_name: str
     model_version: str
@@ -151,14 +149,14 @@ class ModelCardDetailResponse(BaseModel):
     license: str | None
     framework: str | None
     architecture: str | None
-    
+
     # Compliance info
     risk_level: str | None
     category: str | None
     compliance_score: float
     conformity_assessment_required: bool
     conformity_assessment_completed: bool
-    
+
     # Documentation sections
     intended_use: dict[str, Any]
     training_data: dict[str, Any]
@@ -167,7 +165,7 @@ class ModelCardDetailResponse(BaseModel):
     limitations: dict[str, Any]
     ethical_considerations: dict[str, Any]
     regulatory: dict[str, Any]
-    
+
     status: str
     created_at: str
     updated_at: str
@@ -186,7 +184,7 @@ async def create_model_card(
     db: DB,
 ) -> ModelCardSummaryResponse:
     """Create a new AI Model Card.
-    
+
     Model cards document AI systems for EU AI Act compliance, including:
     - Model description and intended use
     - Training data and performance metrics
@@ -194,15 +192,15 @@ async def create_model_card(
     - Regulatory classification
     """
     generator = get_model_card_generator()
-    
+
     try:
         model_type = ModelType(request.model_type)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid model type. Valid types: {[t.value for t in ModelType]}",
-        )
-    
+        ) from exc
+
     # Build kwargs for optional sections
     kwargs: dict[str, Any] = {
         "developers": request.developers,
@@ -210,7 +208,7 @@ async def create_model_card(
         "framework": request.framework,
         "architecture": request.architecture,
     }
-    
+
     card = await generator.create_model_card(
         model_name=request.model_name,
         model_version=request.model_version,
@@ -219,7 +217,7 @@ async def create_model_card(
         organization_id=organization.id,
         **kwargs,
     )
-    
+
     # Update sections if provided
     if request.intended_use:
         card.intended_use.primary_uses = request.intended_use.primary_uses
@@ -227,14 +225,14 @@ async def create_model_card(
         card.intended_use.prohibited_uses = request.intended_use.prohibited_uses
         card.intended_use.human_oversight_required = request.intended_use.human_oversight_required
         card.intended_use.oversight_description = request.intended_use.oversight_description
-    
+
     if request.training_data:
         card.training_data.data_sources = request.training_data.data_sources
         card.training_data.total_samples = request.training_data.total_samples
         card.training_data.contains_pii = request.training_data.contains_pii
         card.training_data.pii_handling = request.training_data.pii_handling
         card.training_data.preprocessing_steps = request.training_data.preprocessing_steps
-    
+
     if request.performance:
         card.performance.accuracy = request.performance.accuracy
         card.performance.precision = request.performance.precision
@@ -242,27 +240,37 @@ async def create_model_card(
         card.performance.f1_score = request.performance.f1_score
         card.performance.auc_roc = request.performance.auc_roc
         card.performance.custom_metrics = request.performance.custom_metrics
-    
+
     if request.fairness:
         card.fairness.demographic_parity = request.fairness.demographic_parity
         card.fairness.disparate_impact = request.fairness.disparate_impact
-        card.fairness.bias_detected = [BiasCategory(b) for b in request.fairness.bias_detected if b in [e.value for e in BiasCategory]]
+        card.fairness.bias_detected = [
+            BiasCategory(b)
+            for b in request.fairness.bias_detected
+            if b in [e.value for e in BiasCategory]
+        ]
         card.fairness.bias_severity = request.fairness.bias_severity
         card.fairness.mitigation_techniques = request.fairness.mitigation_techniques
-    
+
     if request.limitations:
         card.limitations.technical_limitations = request.limitations.technical_limitations
         card.limitations.out_of_scope_uses = request.limitations.out_of_scope_uses
         card.limitations.failure_modes = request.limitations.failure_modes
-    
+
     return ModelCardSummaryResponse(
         id=str(card.id),
         model_name=card.model_name,
         model_version=card.model_version,
         model_type=card.model_type.value,
-        short_description=card.description[:100] + "..." if len(card.description) > 100 else card.description,
-        risk_level=card.regulatory.eu_ai_act_risk_level.value if card.regulatory.eu_ai_act_risk_level else None,
-        category=card.regulatory.eu_ai_act_category.value if card.regulatory.eu_ai_act_category else None,
+        short_description=card.description[:100] + "..."
+        if len(card.description) > 100
+        else card.description,
+        risk_level=card.regulatory.eu_ai_act_risk_level.value
+        if card.regulatory.eu_ai_act_risk_level
+        else None,
+        category=card.regulatory.eu_ai_act_category.value
+        if card.regulatory.eu_ai_act_category
+        else None,
         compliance_score=card.get_compliance_score(),
         status=card.status,
         created_at=card.created_at.isoformat(),
@@ -279,16 +287,22 @@ async def list_model_cards(
     """List all model cards for the organization."""
     generator = get_model_card_generator()
     cards = await generator.list_model_cards(organization_id=organization.id)
-    
+
     return [
         ModelCardSummaryResponse(
             id=str(card.id),
             model_name=card.model_name,
             model_version=card.model_version,
             model_type=card.model_type.value,
-            short_description=card.description[:100] + "..." if len(card.description) > 100 else card.description,
-            risk_level=card.regulatory.eu_ai_act_risk_level.value if card.regulatory.eu_ai_act_risk_level else None,
-            category=card.regulatory.eu_ai_act_category.value if card.regulatory.eu_ai_act_category else None,
+            short_description=card.description[:100] + "..."
+            if len(card.description) > 100
+            else card.description,
+            risk_level=card.regulatory.eu_ai_act_risk_level.value
+            if card.regulatory.eu_ai_act_risk_level
+            else None,
+            category=card.regulatory.eu_ai_act_category.value
+            if card.regulatory.eu_ai_act_category
+            else None,
             compliance_score=card.get_compliance_score(),
             status=card.status,
             created_at=card.created_at.isoformat(),
@@ -307,22 +321,22 @@ async def get_model_card(
 ) -> ModelCardDetailResponse:
     """Get a model card by ID with full details."""
     generator = get_model_card_generator()
-    
+
     try:
         card_uuid = UUID(card_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid card ID format",
-        )
-    
+        ) from exc
+
     card = await generator.get_model_card(card_uuid)
     if not card:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model card not found",
         )
-    
+
     return ModelCardDetailResponse(
         id=str(card.id),
         model_name=card.model_name,
@@ -333,8 +347,12 @@ async def get_model_card(
         license=card.license,
         framework=card.framework,
         architecture=card.architecture,
-        risk_level=card.regulatory.eu_ai_act_risk_level.value if card.regulatory.eu_ai_act_risk_level else None,
-        category=card.regulatory.eu_ai_act_category.value if card.regulatory.eu_ai_act_category else None,
+        risk_level=card.regulatory.eu_ai_act_risk_level.value
+        if card.regulatory.eu_ai_act_risk_level
+        else None,
+        category=card.regulatory.eu_ai_act_category.value
+        if card.regulatory.eu_ai_act_category
+        else None,
         compliance_score=card.get_compliance_score(),
         conformity_assessment_required=card.regulatory.conformity_assessment_required,
         conformity_assessment_completed=card.regulatory.conformity_assessment_completed,
@@ -379,8 +397,12 @@ async def get_model_card(
             "affected_stakeholders": card.ethical_considerations.affected_stakeholders,
         },
         regulatory={
-            "eu_ai_act_risk_level": card.regulatory.eu_ai_act_risk_level.value if card.regulatory.eu_ai_act_risk_level else None,
-            "eu_ai_act_category": card.regulatory.eu_ai_act_category.value if card.regulatory.eu_ai_act_category else None,
+            "eu_ai_act_risk_level": card.regulatory.eu_ai_act_risk_level.value
+            if card.regulatory.eu_ai_act_risk_level
+            else None,
+            "eu_ai_act_category": card.regulatory.eu_ai_act_category.value
+            if card.regulatory.eu_ai_act_category
+            else None,
             "conformity_assessment_required": card.regulatory.conformity_assessment_required,
             "conformity_assessment_completed": card.regulatory.conformity_assessment_completed,
             "gdpr_compliant": card.regulatory.gdpr_compliant,
@@ -406,7 +428,7 @@ async def classify_risk(
     db: DB = None,
 ) -> RiskClassificationResponse:
     """Classify AI system risk level per EU AI Act.
-    
+
     Determines:
     - Risk level (unacceptable, high, limited, minimal)
     - System category
@@ -414,24 +436,24 @@ async def classify_risk(
     - Whether conformity assessment is needed
     """
     generator = get_model_card_generator()
-    
+
     try:
         card_uuid = UUID(card_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid card ID format",
-        )
-    
+        ) from exc
+
     card = await generator.get_model_card(card_uuid)
     if not card:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model card not found",
         )
-    
+
     result = await generator.classify_ai_risk(card, use_case_description)
-    
+
     return RiskClassificationResponse(
         risk_level=result["risk_level"].value,
         category=result["category"].value if result["category"] else None,
@@ -452,31 +474,31 @@ async def assess_compliance_gaps(
     db: DB,
 ) -> ComplianceGapsResponse:
     """Assess compliance gaps in a model card.
-    
+
     Reviews the model card for completeness and identifies:
     - Missing documentation
     - EU AI Act requirement gaps
     - Recommendations for improvement
     """
     generator = get_model_card_generator()
-    
+
     try:
         card_uuid = UUID(card_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid card ID format",
-        )
-    
+        ) from exc
+
     card = await generator.get_model_card(card_uuid)
     if not card:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model card not found",
         )
-    
+
     result = await generator.assess_compliance_gaps(card)
-    
+
     return ComplianceGapsResponse(
         compliance_score=result["compliance_score"],
         gaps_count=result["gaps_count"],
@@ -501,24 +523,24 @@ async def export_markdown(
 ) -> dict[str, str]:
     """Export model card as Markdown documentation."""
     generator = get_model_card_generator()
-    
+
     try:
         card_uuid = UUID(card_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid card ID format",
-        )
-    
+        ) from exc
+
     card = await generator.get_model_card(card_uuid)
     if not card:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model card not found",
         )
-    
+
     markdown = await generator.generate_markdown(card)
-    
+
     return {
         "filename": f"{card.model_name.replace(' ', '_')}_model_card.md",
         "content": markdown,
@@ -535,24 +557,24 @@ async def export_json(
 ) -> dict[str, Any]:
     """Export model card as JSON (Hugging Face compatible format)."""
     generator = get_model_card_generator()
-    
+
     try:
         card_uuid = UUID(card_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid card ID format",
-        )
-    
+        ) from exc
+
     card = await generator.get_model_card(card_uuid)
     if not card:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model card not found",
         )
-    
+
     json_data = await generator.export_json(card)
-    
+
     return {
         "filename": f"{card.model_name.replace(' ', '_')}_model_card.json",
         "data": json_data,
@@ -578,12 +600,12 @@ async def get_risk_levels(
 ) -> dict[str, Any]:
     """Get EU AI Act risk levels and their requirements."""
     from app.services.model_cards.models import (
-        AIRiskLevel,
         HIGH_RISK_REQUIREMENTS,
         PROHIBITED_PRACTICES,
         TRANSPARENCY_REQUIREMENTS,
+        AIRiskLevel,
     )
-    
+
     return {
         "risk_levels": [
             {
@@ -617,8 +639,8 @@ async def get_high_risk_categories(
     db: DB,
 ) -> list[dict[str, str]]:
     """Get EU AI Act Annex III high-risk categories."""
-    from app.services.model_cards.models import AISystemCategory, HIGH_RISK_CATEGORIES
-    
+    from app.services.model_cards.models import HIGH_RISK_CATEGORIES, AISystemCategory
+
     descriptions = {
         AISystemCategory.BIOMETRIC_ID: "Remote biometric identification systems",
         AISystemCategory.CRITICAL_INFRASTRUCTURE: "Safety components of critical infrastructure",
@@ -630,7 +652,7 @@ async def get_high_risk_categories(
         AISystemCategory.JUSTICE: "Administration of justice and democratic processes",
         AISystemCategory.DEMOCRATIC_PROCESS: "AI systems intended to influence electoral processes",
     }
-    
+
     return [
         {"category": cat.value, "description": descriptions.get(cat, "")}
         for cat in HIGH_RISK_CATEGORIES

@@ -1,7 +1,6 @@
 """API endpoints for infrastructure compliance analysis."""
 
 from typing import Any
-from uuid import UUID
 
 from fastapi import APIRouter, Body, HTTPException, Path, Query
 from pydantic import BaseModel, Field
@@ -16,14 +15,16 @@ from app.services.infrastructure import (
     get_infrastructure_analyzer,
 )
 
+
 router = APIRouter(prefix="/infrastructure", tags=["infrastructure"])
 
 
 # Request/Response Models
 
+
 class AnalyzeContentRequest(BaseModel):
     """Request to analyze infrastructure configuration content."""
-    
+
     content: str = Field(..., description="Infrastructure configuration content")
     infrastructure_type: InfrastructureType = Field(
         ...,
@@ -41,7 +42,7 @@ class AnalyzeContentRequest(BaseModel):
 
 class AnalyzeDirectoryRequest(BaseModel):
     """Request to analyze infrastructure configurations in a directory."""
-    
+
     directory: str = Field(..., description="Directory path to scan")
     recursive: bool = Field(
         default=True,
@@ -55,7 +56,7 @@ class AnalyzeDirectoryRequest(BaseModel):
 
 class ViolationResponse(BaseModel):
     """Compliance violation response."""
-    
+
     id: str
     rule_id: str
     rule_name: str
@@ -73,7 +74,7 @@ class ViolationResponse(BaseModel):
 
 class ResourceResponse(BaseModel):
     """Infrastructure resource response."""
-    
+
     id: str
     name: str
     resource_type: str
@@ -87,7 +88,7 @@ class ResourceResponse(BaseModel):
 
 class AnalysisResultResponse(BaseModel):
     """Infrastructure analysis result response."""
-    
+
     id: str
     compliance_score: float
     total_resources: int
@@ -105,7 +106,7 @@ class AnalysisResultResponse(BaseModel):
 
 class PolicyRuleResponse(BaseModel):
     """Policy rule response."""
-    
+
     id: str
     name: str
     description: str
@@ -120,6 +121,7 @@ class PolicyRuleResponse(BaseModel):
 
 
 # Helper functions
+
 
 def _violation_to_response(v: ComplianceViolation) -> ViolationResponse:
     """Convert violation to response model."""
@@ -182,6 +184,7 @@ def _result_to_response(result: InfrastructureAnalysisResult) -> AnalysisResultR
 
 # Endpoints
 
+
 @router.post(
     "/analyze",
     response_model=AnalysisResultResponse,
@@ -193,14 +196,14 @@ async def analyze_infrastructure(
 ) -> AnalysisResultResponse:
     """Analyze infrastructure configuration for compliance violations."""
     analyzer = get_infrastructure_analyzer()
-    
+
     result = analyzer.analyze_content(
         content=request.content,
         infrastructure_type=request.infrastructure_type,
         file_path=request.file_path,
         regulations=request.regulations,
     )
-    
+
     return _result_to_response(result)
 
 
@@ -216,13 +219,13 @@ async def analyze_terraform(
 ) -> AnalysisResultResponse:
     """Analyze Terraform configuration for compliance."""
     analyzer = get_infrastructure_analyzer()
-    
+
     result = analyzer.analyze_content(
         content=content,
         infrastructure_type=InfrastructureType.TERRAFORM,
         regulations=regulations,
     )
-    
+
     return _result_to_response(result)
 
 
@@ -238,13 +241,13 @@ async def analyze_kubernetes(
 ) -> AnalysisResultResponse:
     """Analyze Kubernetes manifest for compliance."""
     analyzer = get_infrastructure_analyzer()
-    
+
     result = analyzer.analyze_content(
         content=content,
         infrastructure_type=InfrastructureType.KUBERNETES,
         regulations=regulations,
     )
-    
+
     return _result_to_response(result)
 
 
@@ -260,13 +263,13 @@ async def analyze_cloudformation(
 ) -> AnalysisResultResponse:
     """Analyze CloudFormation template for compliance."""
     analyzer = get_infrastructure_analyzer()
-    
+
     result = analyzer.analyze_content(
         content=content,
         infrastructure_type=InfrastructureType.CLOUDFORMATION,
         regulations=regulations,
     )
-    
+
     return _result_to_response(result)
 
 
@@ -281,13 +284,13 @@ async def analyze_directory(
 ) -> AnalysisResultResponse:
     """Analyze all infrastructure files in a directory."""
     analyzer = get_infrastructure_analyzer()
-    
+
     result = analyzer.analyze_directory(
         directory=request.directory,
         regulations=request.regulations,
         recursive=request.recursive,
     )
-    
+
     return _result_to_response(result)
 
 
@@ -306,22 +309,22 @@ async def list_policy_rules(
     """List all available policy rules."""
     analyzer = get_infrastructure_analyzer()
     rules = analyzer.get_policy_rules()
-    
+
     # Apply filters
     filtered = rules
-    
+
     if regulation:
         filtered = [r for r in filtered if regulation in r.regulations]
-    
+
     if category:
         filtered = [r for r in filtered if r.category.value == category]
-    
+
     if severity:
         filtered = [r for r in filtered if r.severity == severity]
-    
+
     if provider:
         filtered = [r for r in filtered if provider in r.providers or not r.providers]
-    
+
     return [
         PolicyRuleResponse(
             id=r.id,
@@ -352,7 +355,7 @@ async def get_policy_rule(
     """Get a specific policy rule."""
     analyzer = get_infrastructure_analyzer()
     rules = analyzer.get_policy_rules()
-    
+
     for rule in rules:
         if rule.id == rule_id:
             return PolicyRuleResponse(
@@ -368,7 +371,7 @@ async def get_policy_rule(
                 auto_remediation_available=rule.auto_remediation_available,
                 enabled=rule.enabled,
             )
-    
+
     raise HTTPException(status_code=404, detail=f"Policy rule {rule_id} not found")
 
 
@@ -394,6 +397,7 @@ async def get_supported_types() -> dict[str, list[str]]:
 
 class MultiCloudPostureResponse(BaseModel):
     """Multi-cloud compliance posture summary."""
+
     providers: list[str]
     terraform_rules: int
     k8s_rules: int
@@ -404,6 +408,7 @@ class MultiCloudPostureResponse(BaseModel):
 
 class ScanHistoryResponse(BaseModel):
     """Scan history entry."""
+
     scanned_at: str
     provider_count: int
     total_violations: int
@@ -428,7 +433,9 @@ async def get_multi_cloud_posture() -> MultiCloudPostureResponse:
     response_model=list[ScanHistoryResponse],
     summary="Get infrastructure scan history",
 )
-async def get_scan_history(limit: int = Query(default=20, ge=1, le=100)) -> list[ScanHistoryResponse]:
+async def get_scan_history(
+    limit: int = Query(default=20, ge=1, le=100),
+) -> list[ScanHistoryResponse]:
     """Get historical infrastructure scan results."""
     analyzer = get_infrastructure_analyzer()
     history = await analyzer.get_scan_history(limit=limit)

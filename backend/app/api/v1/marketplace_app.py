@@ -4,11 +4,10 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
-
 from app.services.marketplace_app import (
     AppPlatform,
     InstallationStatus,
@@ -16,6 +15,7 @@ from app.services.marketplace_app import (
     MarketplacePlan,
     WebhookEvent,
 )
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -276,3 +276,85 @@ async def check_plan_enforcement(
     service = MarketplaceAppService(db=db)
     result = service.check_plan_enforcement(installation_id, action)
     return PlanEnforcementSchema(**result)
+
+
+# ---------------------------------------------------------------------------
+# v2: Secure Webhook Verification & GitHub App Manifest
+# ---------------------------------------------------------------------------
+
+
+class WebhookVerifyRequest(BaseModel):
+    """Request body for webhook signature verification."""
+
+    payload: str = Field(..., description="Raw webhook payload body")
+    signature: str = Field(..., description="X-Hub-Signature-256 header value")
+
+
+class WebhookVerifyResponse(BaseModel):
+    """Result of webhook signature verification."""
+
+    valid: bool
+    message: str
+
+
+class AppManifestResponse(BaseModel):
+    """GitHub App manifest for automated app registration."""
+
+    name: str
+    url: str
+    description: str
+    public: bool
+    default_events: list[str]
+    default_permissions: dict[str, str]
+    hook_url: str
+    redirect_url: str
+
+
+@router.post(
+    "/webhook/verify",
+    response_model=WebhookVerifyResponse,
+    summary="Verify webhook signature",
+)
+async def verify_webhook(request: WebhookVerifyRequest) -> WebhookVerifyResponse:
+    """Verify a GitHub webhook HMAC-SHA256 signature.
+
+    Use this to validate that incoming webhooks are genuinely from GitHub.
+    """
+    from app.core.config import settings
+    from app.services.marketplace_app.webhook_auth import verify_webhook_signature
+
+    secret = getattr(settings, "github_webhook_secret", "")
+    is_valid = verify_webhook_signature(
+        payload_body=request.payload.encode("utf-8"),
+        signature_header=request.signature,
+        webhook_secret=secret,
+    )
+    return WebhookVerifyResponse(
+        valid=is_valid,
+        message="Signature valid" if is_valid else "Signature verification failed",
+    )
+
+
+@router.get(
+    "/app-manifest",
+    response_model=AppManifestResponse,
+    summary="Get GitHub App manifest",
+)
+async def get_app_manifest() -> AppManifestResponse:
+    """Return the GitHub App manifest for automated app registration.
+
+    This manifest defines the permissions, events, and URLs the
+    ComplianceAgent GitHub App requires.
+    """
+    from app.services.marketplace_app.webhook_auth import APP_MANIFEST
+
+    return AppManifestResponse(
+        name=APP_MANIFEST["name"],
+        url=APP_MANIFEST["url"],
+        description=APP_MANIFEST["description"],
+        public=APP_MANIFEST["public"],
+        default_events=APP_MANIFEST["default_events"],
+        default_permissions=APP_MANIFEST["default_permissions"],
+        hook_url=APP_MANIFEST["hook_attributes"]["url"],
+        redirect_url=APP_MANIFEST["redirect_url"],
+    )

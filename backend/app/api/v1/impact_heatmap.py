@@ -1,6 +1,6 @@
 """API endpoints for Regulatory Change Impact Heat Maps."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query
@@ -184,8 +184,10 @@ async def get_heatmap_at(
 ) -> HeatmapSnapshotSchema:
     try:
         ts = datetime.fromisoformat(timestamp)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid timestamp format. Use ISO 8601.")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail="Invalid timestamp format. Use ISO 8601."
+        ) from exc
 
     service = ImpactHeatmapService(db=db, copilot_client=copilot)
     snapshot = await service.get_heatmap_at(
@@ -242,8 +244,8 @@ async def compare_timepoints(
     try:
         fd = datetime.fromisoformat(from_date)
         td = datetime.fromisoformat(to_date)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO 8601.")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO 8601.") from exc
 
     service = ImpactHeatmapService(db=db, copilot_client=copilot)
     result = await service.compare_timepoints(
@@ -345,11 +347,11 @@ async def export_heatmap(
 ) -> HeatmapExportSchema:
     try:
         ExportFormat(request.format.lower())
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported format '{request.format}'. Use: png, pdf, svg, json",
-        )
+        ) from exc
 
     service = ImpactHeatmapService(db=db, copilot_client=copilot)
     export = await service.export_heatmap(
@@ -437,7 +439,7 @@ async def get_shareable_link(
         id=export_id,
         format="pdf",
         content_url=f"/api/v1/impact-heatmap/exports/{export_id}.pdf",
-        generated_at=datetime.utcnow().isoformat(),
+        generated_at=datetime.now(UTC).isoformat(),
         title="Shared Compliance Heatmap",
         description=f"Shareable heatmap export for organization {organization.id}",
     )

@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.evidence_vault import (
     AuditorRole,
     ControlFramework,
@@ -171,10 +171,14 @@ async def store_evidence(request: StoreEvidenceRequest, db: DB) -> EvidenceItemS
         metadata=request.metadata,
     )
     return EvidenceItemSchema(
-        id=str(item.id), evidence_type=item.evidence_type.value,
-        title=item.title, description=item.description,
-        content_hash=item.content_hash, framework=item.framework.value,
-        control_id=item.control_id, control_name=item.control_name,
+        id=str(item.id),
+        evidence_type=item.evidence_type.value,
+        title=item.title,
+        description=item.description,
+        content_hash=item.content_hash,
+        framework=item.framework.value,
+        control_id=item.control_id,
+        control_name=item.control_name,
         collected_at=item.collected_at.isoformat() if item.collected_at else None,
         source=item.source,
     )
@@ -196,13 +200,19 @@ async def query_evidence(
     service = EvidenceVaultService(db=db)
     fw = ControlFramework(framework) if framework else None
     et = EvidenceType(evidence_type) if evidence_type else None
-    items = await service.get_evidence(framework=fw, control_id=control_id, evidence_type=et, limit=limit)
+    items = await service.get_evidence(
+        framework=fw, control_id=control_id, evidence_type=et, limit=limit
+    )
     return [
         EvidenceItemSchema(
-            id=str(i.id), evidence_type=i.evidence_type.value,
-            title=i.title, description=i.description,
-            content_hash=i.content_hash, framework=i.framework.value,
-            control_id=i.control_id, control_name=i.control_name,
+            id=str(i.id),
+            evidence_type=i.evidence_type.value,
+            title=i.title,
+            description=i.description,
+            content_hash=i.content_hash,
+            framework=i.framework.value,
+            control_id=i.control_id,
+            control_name=i.control_name,
             collected_at=i.collected_at.isoformat() if i.collected_at else None,
             source=i.source,
         )
@@ -232,9 +242,12 @@ async def get_control_mappings(framework: str, db: DB) -> list[ControlMappingSch
     mappings = await service.get_control_mappings(ControlFramework(framework))
     return [
         ControlMappingSchema(
-            control_id=m.control_id, control_name=m.control_name,
-            framework=m.framework.value, evidence_count=len(m.evidence_ids),
-            coverage_pct=m.coverage_pct, status=m.status,
+            control_id=m.control_id,
+            control_name=m.control_name,
+            framework=m.framework.value,
+            evidence_count=len(m.evidence_ids),
+            coverage_pct=m.coverage_pct,
+            status=m.status,
         )
         for m in mappings
     ]
@@ -247,7 +260,8 @@ async def get_control_mappings(framework: str, db: DB) -> list[ControlMappingSch
     summary="Create auditor session",
 )
 async def create_auditor_session(
-    request: CreateAuditorSessionRequest, db: DB,
+    request: CreateAuditorSessionRequest,
+    db: DB,
 ) -> AuditorSessionSchema:
     """Create a read-only auditor portal session."""
     service = EvidenceVaultService(db=db)
@@ -260,8 +274,10 @@ async def create_auditor_session(
         expires_hours=request.expires_hours,
     )
     return AuditorSessionSchema(
-        id=str(session.id), auditor_email=session.auditor_email,
-        auditor_name=session.auditor_name, firm=session.firm,
+        id=str(session.id),
+        auditor_email=session.auditor_email,
+        auditor_name=session.auditor_name,
+        firm=session.firm,
         role=session.role.value,
         frameworks=[f.value for f in session.frameworks],
         expires_at=session.expires_at.isoformat() if session.expires_at else None,
@@ -280,8 +296,10 @@ async def list_auditor_sessions(db: DB) -> list[AuditorSessionSchema]:
     sessions = await service.list_auditor_sessions()
     return [
         AuditorSessionSchema(
-            id=str(s.id), auditor_email=s.auditor_email,
-            auditor_name=s.auditor_name, firm=s.firm,
+            id=str(s.id),
+            auditor_email=s.auditor_email,
+            auditor_name=s.auditor_name,
+            firm=s.firm,
             role=s.role.value,
             frameworks=[f.value for f in s.frameworks],
             expires_at=s.expires_at.isoformat() if s.expires_at else None,
@@ -305,8 +323,10 @@ async def generate_report(request: GenerateReportRequest, db: DB) -> AuditReport
         report_format=request.report_format,
     )
     return AuditReportSchema(
-        id=str(report.id), framework=report.framework.value,
-        title=report.title, total_controls=report.total_controls,
+        id=str(report.id),
+        framework=report.framework.value,
+        title=report.title,
+        total_controls=report.total_controls,
         controls_with_evidence=report.controls_with_evidence,
         coverage_pct=report.coverage_pct,
         generated_at=report.generated_at.isoformat() if report.generated_at else None,
@@ -375,7 +395,9 @@ class BlockchainAnchorSchema(BaseModel):
 class BatchVerificationRequestSchema(BaseModel):
     """Request for batch verification."""
 
-    evidence_ids: list[str] | None = Field(default=None, description="Evidence IDs to verify (all if omitted)")
+    evidence_ids: list[str] | None = Field(
+        default=None, description="Evidence IDs to verify (all if omitted)"
+    )
 
 
 class BatchVerificationResultSchema(BaseModel):
@@ -442,13 +464,17 @@ async def anchor_to_blockchain(framework: str, db: DB) -> BlockchainAnchorSchema
     description="Verify multiple evidence items at once with chain and blockchain checks",
 )
 async def verify_batch(
-    framework: str, db: DB, request: BatchVerificationRequestSchema | None = None,
+    framework: str,
+    db: DB,
+    request: BatchVerificationRequestSchema | None = None,
 ) -> BatchVerificationResultSchema:
     """Batch verify evidence items."""
     from uuid import UUID as _UUID
 
     service = EvidenceVaultService(db=db)
-    evidence_ids = [_UUID(eid) for eid in request.evidence_ids] if request and request.evidence_ids else None
+    evidence_ids = (
+        [_UUID(eid) for eid in request.evidence_ids] if request and request.evidence_ids else None
+    )
     result = await service.verify_batch(ControlFramework(framework), evidence_ids=evidence_ids)
     return BatchVerificationResultSchema(
         id=str(result.id),
@@ -471,7 +497,9 @@ async def verify_batch(
     description="Get chronological audit timeline events",
 )
 async def get_audit_timeline(
-    db: DB, framework: str | None = None, limit: int = 50,
+    db: DB,
+    framework: str | None = None,
+    limit: int = 50,
 ) -> list[AuditTimelineEventSchema]:
     """Get audit timeline events."""
     service = EvidenceVaultService(db=db)
@@ -525,6 +553,7 @@ async def get_blockchain_anchor(framework: str, db: DB) -> BlockchainAnchorSchem
 
 class ReadinessReportSchema(BaseModel):
     """Audit readiness report response."""
+
     framework: str
     generated_at: str
     total_controls: int
@@ -538,6 +567,7 @@ class ReadinessReportSchema(BaseModel):
 
 class SessionValidationSchema(BaseModel):
     """Auditor session validation response."""
+
     valid: bool
     reason: str | None = None
     session: dict | None = None
@@ -581,3 +611,166 @@ async def get_readiness_report(framework: str, db: DB) -> ReadinessReportSchema:
     service = EvidenceVaultService(db=db)
     report = await service.generate_readiness_report(framework)
     return ReadinessReportSchema(**report)
+
+
+# ---------------------------------------------------------------------------
+# v2: Multi-Framework Control Mapping Engine
+# ---------------------------------------------------------------------------
+
+
+class ControlDefinitionSchema(BaseModel):
+    """A compliance control definition."""
+
+    id: str
+    framework: str
+    category: str
+    title: str
+    description: str
+    required_evidence: list[str]
+
+
+class ControlAssessmentSchema(BaseModel):
+    """Assessment of a single control."""
+
+    control_id: str
+    framework: str
+    status: str
+    evidence_quality: str
+    evidence_ids: list[str]
+    gaps: list[str]
+
+
+class FrameworkReadinessSchema(BaseModel):
+    """Readiness assessment for a single framework."""
+
+    framework: str
+    total_controls: int
+    implemented: int
+    partial: int
+    not_implemented: int
+    readiness_score: float
+    grade: str
+    critical_gaps: list[str]
+    recommendations: list[str]
+
+
+class MultiFrameworkReadinessSchema(BaseModel):
+    """Readiness report across multiple frameworks."""
+
+    id: str
+    organization_id: str
+    frameworks: list[FrameworkReadinessSchema]
+    overall_readiness: float
+    overall_grade: str
+    estimated_prep_hours: float
+    generated_at: str
+
+
+class AssessFrameworkRequest(BaseModel):
+    """Request to assess a framework."""
+
+    framework: str = Field(..., description="Framework: soc2, iso27001, hipaa, pci-dss")
+    available_evidence: list[str] = Field(
+        default_factory=list,
+        description="List of evidence titles the organization has",
+    )
+
+
+@router.get(
+    "/v2/controls/{framework}",
+    response_model=list[ControlDefinitionSchema],
+    summary="List controls for a framework",
+)
+async def list_framework_controls(framework: str) -> list[ControlDefinitionSchema]:
+    """List all compliance controls for a given framework."""
+    from app.services.evidence_vault.control_mapping import CONTROL_CATALOGS
+
+    controls = CONTROL_CATALOGS.get(framework.lower(), [])
+    if not controls:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Framework '{framework}' not found. Available: {list(CONTROL_CATALOGS.keys())}",
+        )
+    return [
+        ControlDefinitionSchema(
+            id=c.id,
+            framework=c.framework,
+            category=c.category,
+            title=c.title,
+            description=c.description,
+            required_evidence=c.required_evidence,
+        )
+        for c in controls
+    ]
+
+
+@router.post(
+    "/v2/assess",
+    response_model=FrameworkReadinessSchema,
+    summary="Assess framework readiness",
+)
+async def assess_framework_readiness(
+    request: AssessFrameworkRequest,
+) -> FrameworkReadinessSchema:
+    """Assess compliance readiness for a specific framework given available evidence."""
+    from app.services.evidence_vault.control_mapping import ControlMappingEngine
+
+    engine = ControlMappingEngine()
+    readiness = engine.assess_framework(
+        framework=request.framework,
+        available_evidence=request.available_evidence,
+    )
+    return FrameworkReadinessSchema(
+        framework=readiness.framework,
+        total_controls=readiness.total_controls,
+        implemented=readiness.implemented,
+        partial=readiness.partial,
+        not_implemented=readiness.not_implemented,
+        readiness_score=readiness.readiness_score,
+        grade=readiness.grade,
+        critical_gaps=readiness.critical_gaps,
+        recommendations=readiness.recommendations,
+    )
+
+
+@router.post(
+    "/v2/readiness-report",
+    response_model=MultiFrameworkReadinessSchema,
+    summary="Generate multi-framework readiness report",
+)
+async def generate_multi_framework_report(
+    organization: CurrentOrganization,
+    frameworks: list[str] | None = None,
+    available_evidence: list[str] | None = None,
+) -> MultiFrameworkReadinessSchema:
+    """Generate a comprehensive readiness report across multiple frameworks."""
+    from app.services.evidence_vault.control_mapping import ControlMappingEngine
+
+    engine = ControlMappingEngine()
+    report = engine.generate_readiness_report(
+        organization_id=str(organization.id),
+        frameworks=frameworks,
+        available_evidence=available_evidence,
+    )
+    return MultiFrameworkReadinessSchema(
+        id=str(report.id),
+        organization_id=report.organization_id,
+        frameworks=[
+            FrameworkReadinessSchema(
+                framework=f.framework,
+                total_controls=f.total_controls,
+                implemented=f.implemented,
+                partial=f.partial,
+                not_implemented=f.not_implemented,
+                readiness_score=f.readiness_score,
+                grade=f.grade,
+                critical_gaps=f.critical_gaps,
+                recommendations=f.recommendations,
+            )
+            for f in report.frameworks
+        ],
+        overall_readiness=report.overall_readiness,
+        overall_grade=report.overall_grade,
+        estimated_prep_hours=report.estimated_prep_hours,
+        generated_at=report.generated_at.isoformat(),
+    )

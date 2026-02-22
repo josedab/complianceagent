@@ -1,7 +1,5 @@
 """API endpoints for Compliance Simulation Game Engine."""
 
-from uuid import UUID
-
 import structlog
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -12,11 +10,13 @@ from app.services.game_engine import (
     ScenarioDifficulty,
 )
 
+
 logger = structlog.get_logger()
 router = APIRouter()
 
 
 # --- Response Models ---
+
 
 class GameDecisionSchema(BaseModel):
     id: str
@@ -87,6 +87,7 @@ class AchievementSchema(BaseModel):
 
 # --- Endpoints ---
 
+
 @router.get("/scenarios", response_model=list[GameScenarioSummarySchema])
 async def list_scenarios(
     category: str | None = Query(None),
@@ -95,18 +96,25 @@ async def list_scenarios(
     svc = GameEngineService()
     try:
         cat = ScenarioCategory(category) if category else None
-    except ValueError:
-        raise HTTPException(status_code=422, detail=f"Invalid category: {category}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid category: {category}") from exc
     try:
         diff = ScenarioDifficulty(difficulty) if difficulty else None
-    except ValueError:
-        raise HTTPException(status_code=422, detail=f"Invalid difficulty: {difficulty}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid difficulty: {difficulty}") from exc
     scenarios = await svc.list_scenarios(category=cat, difficulty=diff)
     return [
-        {"id": s.id, "title": s.title, "description": s.description,
-         "category": s.category.value, "difficulty": s.difficulty.value,
-         "estimated_minutes": s.estimated_minutes, "max_score": s.max_score,
-         "decisions_count": len(s.decisions), "frameworks": s.frameworks}
+        {
+            "id": s.id,
+            "title": s.title,
+            "description": s.description,
+            "category": s.category.value,
+            "difficulty": s.difficulty.value,
+            "estimated_minutes": s.estimated_minutes,
+            "max_score": s.max_score,
+            "decisions_count": len(s.decisions),
+            "frameworks": s.frameworks,
+        }
         for s in scenarios
     ]
 
@@ -118,16 +126,26 @@ async def get_scenario(scenario_id: str) -> dict:
     if not s:
         raise HTTPException(status_code=404, detail="Scenario not found")
     return {
-        "id": s.id, "title": s.title, "description": s.description,
-        "category": s.category.value, "difficulty": s.difficulty.value,
-        "estimated_minutes": s.estimated_minutes, "max_score": s.max_score,
+        "id": s.id,
+        "title": s.title,
+        "description": s.description,
+        "category": s.category.value,
+        "difficulty": s.difficulty.value,
+        "estimated_minutes": s.estimated_minutes,
+        "max_score": s.max_score,
         "decisions": [
-            {"id": d.id, "prompt": d.prompt, "options": d.options,
-             "points": d.points, "time_limit_seconds": d.time_limit_seconds,
-             "regulation_reference": d.regulation_reference}
+            {
+                "id": d.id,
+                "prompt": d.prompt,
+                "options": d.options,
+                "points": d.points,
+                "time_limit_seconds": d.time_limit_seconds,
+                "regulation_reference": d.regulation_reference,
+            }
             for d in s.decisions
         ],
-        "learning_objectives": s.learning_objectives, "frameworks": s.frameworks,
+        "learning_objectives": s.learning_objectives,
+        "frameworks": s.frameworks,
     }
 
 
@@ -137,7 +155,7 @@ async def submit_decision(scenario_id: str, req: SubmitDecisionRequest) -> dict:
     try:
         result = await svc.submit_decision(scenario_id, req.decision_id, req.selected_option)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return result
 
 
@@ -146,11 +164,16 @@ async def get_leaderboard(limit: int = Query(10, ge=1, le=100)) -> list[dict]:
     svc = GameEngineService()
     entries = await svc.get_leaderboard(limit=limit)
     return [
-        {"display_name": e.display_name, "organization": e.organization,
-         "total_xp": e.total_xp, "level": e.level,
-         "scenarios_completed": e.scenarios_completed,
-         "achievements_count": e.achievements_count,
-         "accuracy_rate": e.accuracy_rate, "rank": e.rank}
+        {
+            "display_name": e.display_name,
+            "organization": e.organization,
+            "total_xp": e.total_xp,
+            "level": e.level,
+            "scenarios_completed": e.scenarios_completed,
+            "achievements_count": e.achievements_count,
+            "accuracy_rate": e.accuracy_rate,
+            "rank": e.rank,
+        }
         for e in entries
     ]
 
@@ -160,7 +183,13 @@ async def get_achievements() -> list[dict]:
     svc = GameEngineService()
     achievements = await svc.get_achievements()
     return [
-        {"id": a.id, "name": a.name, "description": a.description,
-         "tier": a.tier.value, "icon": a.icon, "xp_reward": a.xp_reward}
+        {
+            "id": a.id,
+            "name": a.name,
+            "description": a.description,
+            "tier": a.tier.value,
+            "icon": a.icon,
+            "xp_reward": a.xp_reward,
+        }
         for a in achievements
     ]

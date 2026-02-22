@@ -108,7 +108,9 @@ async def parse_regulation(
     strategy = ConsensusStrategy(request.strategy) if request.strategy else None
 
     result = await service.parse_regulation(
-        text=request.text, framework=request.framework, strategy=strategy,
+        text=request.text,
+        framework=request.framework,
+        strategy=strategy,
     )
 
     return ConsensusResultSchema(
@@ -117,9 +119,12 @@ async def parse_regulation(
         strategy=result.strategy.value,
         provider_results=[
             ProviderResultSchema(
-                provider=pr.provider.value, model_name=pr.model_name,
-                obligations=pr.obligations, entities=pr.entities,
-                confidence=pr.confidence, latency_ms=pr.latency_ms,
+                provider=pr.provider.value,
+                model_name=pr.model_name,
+                obligations=pr.obligations,
+                entities=pr.entities,
+                confidence=pr.confidence,
+                latency_ms=pr.latency_ms,
                 error=pr.error,
             )
             for pr in result.provider_results
@@ -144,8 +149,10 @@ async def list_providers(db: DB, copilot: CopilotDep) -> list[ProviderInfoSchema
     providers = await service.list_providers()
     return [
         ProviderInfoSchema(
-            provider=p.provider.value, model_name=p.model_name,
-            enabled=p.enabled, weight=p.weight,
+            provider=p.provider.value,
+            model_name=p.model_name,
+            enabled=p.enabled,
+            weight=p.weight,
         )
         for p in providers
     ]
@@ -175,8 +182,10 @@ async def add_provider(
     )
     result = await service.add_provider(config)
     return ProviderInfoSchema(
-        provider=result.provider.value, model_name=result.model_name,
-        enabled=result.enabled, weight=result.weight,
+        provider=result.provider.value,
+        model_name=result.model_name,
+        enabled=result.enabled,
+        weight=result.weight,
     )
 
 
@@ -209,8 +218,10 @@ async def get_config(db: DB, copilot: CopilotDep) -> ConfigResponse:
     return ConfigResponse(
         providers=[
             ProviderInfoSchema(
-                provider=p.provider.value, model_name=p.model_name,
-                enabled=p.enabled, weight=p.weight,
+                provider=p.provider.value,
+                model_name=p.model_name,
+                enabled=p.enabled,
+                weight=p.weight,
             )
             for p in config.providers
         ],
@@ -262,8 +273,10 @@ async def get_provider_health(db: DB, copilot: CopilotDep) -> list[ProviderHealt
     metrics = await service.get_provider_health()
     return [
         ProviderHealthSchema(
-            provider=m.provider.value, model_name=m.model_name,
-            status=m.status, avg_latency_ms=round(m.avg_latency_ms, 1),
+            provider=m.provider.value,
+            model_name=m.model_name,
+            status=m.status,
+            avg_latency_ms=round(m.avg_latency_ms, 1),
             p95_latency_ms=round(m.p95_latency_ms, 1),
             p99_latency_ms=round(m.p99_latency_ms, 1),
             success_rate=round(m.success_rate, 4),
@@ -289,9 +302,12 @@ async def get_cost_recommendations(db: DB, copilot: CopilotDep) -> list[CostReco
     recs = await service.get_cost_recommendations()
     return [
         CostRecommendationSchema(
-            id=str(r.id), title=r.title, description=r.description,
+            id=str(r.id),
+            title=r.title,
+            description=r.description,
             estimated_savings_monthly=round(r.estimated_savings_monthly, 2),
-            effort=r.effort, current_cost=round(r.current_cost, 2),
+            effort=r.effort,
+            current_cost=round(r.current_cost, 2),
             optimized_cost=round(r.optimized_cost, 2),
         )
         for r in recs
@@ -467,10 +483,11 @@ async def escalate_for_review(
     service = MultiLLMService(db=db, copilot_client=copilot)
     try:
         ticket = await service.escalate_for_review(
-            consensus_id=_UUID(consensus_id), reason=request.reason,
+            consensus_id=_UUID(consensus_id),
+            reason=request.reason,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     return _ticket_to_schema(ticket)
 
 
@@ -516,7 +533,7 @@ async def resolve_escalation(
             resolved_by=request.resolved_by,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     return _ticket_to_schema(ticket)
 
 
@@ -546,3 +563,86 @@ async def get_failover_history(
         )
         for e in events
     ]
+
+
+# ---------------------------------------------------------------------------
+# v2: Smart Routing & Complexity Classification
+# ---------------------------------------------------------------------------
+
+
+class RoutingRequest(BaseModel):
+    """Request to determine optimal LLM routing."""
+
+    text: str = Field(..., description="Regulatory text to classify")
+    framework: str = Field("", description="Optional framework hint")
+
+
+class RoutingResponse(BaseModel):
+    """Smart routing decision for a regulatory parsing request."""
+
+    complexity: str
+    primary_provider: str
+    secondary_providers: list[str]
+    use_consensus: bool
+    reason: str
+    estimated_cost_usd: float
+
+
+class ComplexityCheckResponse(BaseModel):
+    """Complexity classification result."""
+
+    text_length: int
+    complexity: str
+    critical_keywords_found: list[str]
+    complex_keywords_found: list[str]
+
+
+@router.post("/route", response_model=RoutingResponse, summary="Smart-route a parsing request")
+async def smart_route_request(request: RoutingRequest, db: DB) -> RoutingResponse:
+    """Determine the optimal provider routing for a regulatory parsing request.
+
+    Routes simple queries to cheap models and critical queries to all providers.
+    """
+    from app.services.multi_llm.router import route_request
+
+    service = MultiLLMService(db=db)
+    providers = await service.list_providers()
+
+    decision = route_request(
+        text=request.text,
+        framework=request.framework,
+        available_providers=providers,
+    )
+    return RoutingResponse(
+        complexity=decision.complexity.value,
+        primary_provider=decision.primary_provider.value,
+        secondary_providers=[p.value for p in decision.secondary_providers],
+        use_consensus=decision.use_consensus,
+        reason=decision.reason,
+        estimated_cost_usd=round(decision.estimated_cost_usd, 6),
+    )
+
+
+@router.post(
+    "/classify-complexity",
+    response_model=ComplexityCheckResponse,
+    summary="Classify text complexity",
+)
+async def classify_text_complexity(
+    text: str = "What is GDPR?",
+) -> ComplexityCheckResponse:
+    """Classify the complexity of regulatory text for routing decisions."""
+    from app.services.multi_llm.router import (
+        _COMPLEX_KEYWORDS,
+        _CRITICAL_KEYWORDS,
+        classify_complexity,
+    )
+
+    complexity = classify_complexity(text)
+    text_lower = text.lower()
+    return ComplexityCheckResponse(
+        text_length=len(text),
+        complexity=complexity.value,
+        critical_keywords_found=[kw for kw in _CRITICAL_KEYWORDS if kw in text_lower],
+        complex_keywords_found=[kw for kw in _COMPLEX_KEYWORDS if kw in text_lower],
+    )

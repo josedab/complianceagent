@@ -1,8 +1,7 @@
 """Regulatory Intelligence Feed API endpoints."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -21,6 +20,7 @@ router = APIRouter(prefix="/intelligence", tags=["Intelligence Feed"])
 
 class RegulatoryUpdateResponse(BaseModel):
     """A regulatory update."""
+
     id: str
     source_name: str
     title: str
@@ -38,6 +38,7 @@ class RegulatoryUpdateResponse(BaseModel):
 
 class RelevanceScoreResponse(BaseModel):
     """Relevance score response."""
+
     update_id: str
     overall_score: float
     jurisdiction_match: float
@@ -51,6 +52,7 @@ class RelevanceScoreResponse(BaseModel):
 
 class IntelligenceAlertResponse(BaseModel):
     """Alert response."""
+
     id: str
     title: str
     body: str
@@ -64,6 +66,7 @@ class IntelligenceAlertResponse(BaseModel):
 
 class DigestResponse(BaseModel):
     """Digest response."""
+
     id: str
     period_start: datetime
     period_end: datetime
@@ -77,6 +80,7 @@ class DigestResponse(BaseModel):
 
 class CustomerProfileRequest(BaseModel):
     """Customer profile for relevance scoring."""
+
     industries: list[str] = Field(default_factory=list)
     jurisdictions: list[str] = Field(default_factory=list)
     applicable_regulations: list[str] = Field(default_factory=list)
@@ -86,6 +90,7 @@ class CustomerProfileRequest(BaseModel):
 
 class NotificationPreferenceRequest(BaseModel):
     """Notification preference request."""
+
     channel: str  # email, slack, teams, webhook, in_app
     frequency: str = "daily"  # immediate, hourly, daily, weekly
     min_severity: str = "medium"
@@ -99,6 +104,7 @@ class NotificationPreferenceRequest(BaseModel):
 
 class IngestUpdateRequest(BaseModel):
     """Request to ingest a regulatory update."""
+
     source: str
     title: str
     summary: str
@@ -131,31 +137,31 @@ async def get_recent_updates(
     limit: int = Query(50, ge=1, le=200),
 ) -> list[RegulatoryUpdateResponse]:
     """Get recent regulatory updates.
-    
+
     Retrieves updates from the last N hours with optional filters.
     Updates are sorted by detection time (newest first).
     """
     from app.services.intelligence import IntelligenceFeed, UpdateSeverity
-    
+
     feed = IntelligenceFeed()
-    
+
     severity = None
     if min_severity:
         try:
             severity = UpdateSeverity(min_severity)
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid severity: {min_severity}",
-            )
-    
+            ) from exc
+
     updates = await feed.get_recent_updates(
         hours=hours,
         jurisdictions=jurisdictions,
         frameworks=frameworks,
         min_severity=severity,
     )
-    
+
     return [
         RegulatoryUpdateResponse(
             id=str(u.id),
@@ -185,9 +191,9 @@ async def get_update(
 ) -> RegulatoryUpdateResponse:
     """Get a specific regulatory update by ID."""
     from app.services.intelligence import IntelligenceFeed
-    
+
     feed = IntelligenceFeed()
-    
+
     # In production, would query database
     # For now, check cache
     if update_id not in feed._update_cache:
@@ -195,9 +201,9 @@ async def get_update(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Update {update_id} not found",
         )
-    
+
     u = feed._update_cache[update_id]
-    
+
     return RegulatoryUpdateResponse(
         id=str(u.id),
         source_name=u.source_name,
@@ -223,30 +229,32 @@ async def ingest_update(
     db: DB,
 ) -> RegulatoryUpdateResponse:
     """Ingest a regulatory update from external source.
-    
+
     Use this endpoint to push updates from crawlers, webhooks,
     or other monitoring systems.
     """
     from app.services.intelligence import IntelligenceFeed
-    
+
     feed = IntelligenceFeed()
-    
-    update = feed.ingest_update({
-        "source": request.source,
-        "title": request.title,
-        "summary": request.summary,
-        "content": request.content,
-        "url": request.url,
-        "jurisdiction": request.jurisdiction,
-        "framework": request.framework,
-        "type": request.update_type,
-        "severity": request.severity,
-        "effective_date": request.effective_date,
-        "published_date": request.published_date,
-        "keywords": request.keywords,
-        "metadata": request.metadata,
-    })
-    
+
+    update = feed.ingest_update(
+        {
+            "source": request.source,
+            "title": request.title,
+            "summary": request.summary,
+            "content": request.content,
+            "url": request.url,
+            "jurisdiction": request.jurisdiction,
+            "framework": request.framework,
+            "type": request.update_type,
+            "severity": request.severity,
+            "effective_date": request.effective_date,
+            "published_date": request.published_date,
+            "keywords": request.keywords,
+            "metadata": request.metadata,
+        }
+    )
+
     return RegulatoryUpdateResponse(
         id=str(update.id),
         source_name=update.source_name,
@@ -273,23 +281,23 @@ async def score_update_relevance(
     db: DB,
 ) -> RelevanceScoreResponse:
     """Score the relevance of an update for your organization.
-    
+
     Uses ML-powered relevance scoring based on your profile.
     """
     from app.services.intelligence import IntelligenceFeed, RelevanceScorer
     from app.services.intelligence.models import CustomerProfile
-    
+
     feed = IntelligenceFeed()
     scorer = RelevanceScorer()
-    
+
     if update_id not in feed._update_cache:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Update {update_id} not found",
         )
-    
+
     update = feed._update_cache[update_id]
-    
+
     customer_profile = CustomerProfile(
         organization_id=organization.id,
         industries=profile.industries,
@@ -298,9 +306,9 @@ async def score_update_relevance(
         data_types_processed=profile.data_types_processed,
         keywords_of_interest=profile.keywords_of_interest,
     )
-    
+
     score = scorer.score_update(update, customer_profile)
-    
+
     return RelevanceScoreResponse(
         update_id=str(score.update_id),
         overall_score=score.overall_score,
@@ -326,12 +334,12 @@ async def batch_score_updates(
     """Score multiple updates and return ranked by relevance."""
     from app.services.intelligence import IntelligenceFeed, RelevanceScorer
     from app.services.intelligence.models import CustomerProfile
-    
+
     feed = IntelligenceFeed()
     scorer = RelevanceScorer()
-    
+
     updates = await feed.get_recent_updates(hours=hours)
-    
+
     customer_profile = CustomerProfile(
         organization_id=organization.id,
         industries=profile.industries,
@@ -340,9 +348,9 @@ async def batch_score_updates(
         data_types_processed=profile.data_types_processed,
         keywords_of_interest=profile.keywords_of_interest,
     )
-    
+
     scored = scorer.batch_score(updates, customer_profile, min_score)
-    
+
     return [
         {
             "update": {
@@ -373,18 +381,18 @@ async def predict_update_impact(
     """Predict the impact of an update on your organization."""
     from app.services.intelligence import IntelligenceFeed, RelevanceScorer
     from app.services.intelligence.models import CustomerProfile
-    
+
     feed = IntelligenceFeed()
     scorer = RelevanceScorer()
-    
+
     if update_id not in feed._update_cache:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Update {update_id} not found",
         )
-    
+
     update = feed._update_cache[update_id]
-    
+
     customer_profile = CustomerProfile(
         organization_id=organization.id,
         industries=profile.industries,
@@ -393,7 +401,7 @@ async def predict_update_impact(
         data_types_processed=profile.data_types_processed,
         keywords_of_interest=profile.keywords_of_interest,
     )
-    
+
     return scorer.predict_impact(update, customer_profile)
 
 
@@ -406,11 +414,11 @@ async def get_intelligence_digest(
 ) -> DigestResponse:
     """Get a digest of recent regulatory updates."""
     from app.services.intelligence import IntelligenceFeed
-    
+
     feed = IntelligenceFeed()
     updates = await feed.get_recent_updates(hours=hours)
     digest = feed.generate_digest(updates, organization.id)
-    
+
     return DigestResponse(
         id=str(digest.id),
         period_start=digest.period_start,
@@ -450,7 +458,7 @@ async def get_alerts(
     limit: int = Query(50, ge=1, le=200),
 ) -> list[IntelligenceAlertResponse]:
     """Get intelligence alerts for the organization.
-    
+
     Returns alerts sorted by creation time (newest first).
     """
     # In production, would query from database
@@ -469,7 +477,7 @@ async def acknowledge_alert(
         "status": "acknowledged",
         "alert_id": alert_id,
         "acknowledged_by": str(member.user_id),
-        "acknowledged_at": datetime.utcnow().isoformat(),
+        "acknowledged_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -481,10 +489,10 @@ async def get_notification_preferences(
 ) -> list[dict[str, Any]]:
     """Get notification preferences for the organization."""
     from app.services.intelligence import NotificationService
-    
+
     service = NotificationService()
     prefs = service.get_preferences(organization.id)
-    
+
     return [
         {
             "id": str(p.id),
@@ -518,9 +526,9 @@ async def set_notification_preferences(
         NotificationPreference,
         UpdateSeverity,
     )
-    
+
     service = NotificationService()
-    
+
     prefs = [
         NotificationPreference(
             organization_id=organization.id,
@@ -536,9 +544,9 @@ async def set_notification_preferences(
         )
         for p in preferences
     ]
-    
+
     service.set_preferences(organization.id, prefs)
-    
+
     return {
         "status": "updated",
         "count": len(prefs),
@@ -559,20 +567,20 @@ async def test_notification(
     from app.services.intelligence.models import (
         IntelligenceAlert,
         NotificationChannel,
-        NotificationPreference,
         NotificationFrequency,
+        NotificationPreference,
         UpdateSeverity,
     )
-    
+
     service = NotificationService()
-    
+
     test_alert = IntelligenceAlert(
         organization_id=organization.id,
         title="🧪 Test Alert - ComplianceAgent",
         body="This is a test notification from ComplianceAgent Intelligence Feed.\n\nIf you received this, your notification integration is working correctly!",
         action_required="No action required - this is a test",
     )
-    
+
     pref = NotificationPreference(
         organization_id=organization.id,
         channel=NotificationChannel(channel),
@@ -581,10 +589,10 @@ async def test_notification(
         webhook_url=webhook_url,
         slack_channel=slack_channel,
     )
-    
+
     async with service:
         result = await service.send_alert(test_alert, [pref])
-    
+
     return {
         "status": "sent" if any(result.values()) else "failed",
         "results": result,
@@ -599,7 +607,7 @@ async def list_regulatory_sources(
 ) -> list[dict[str, Any]]:
     """List available regulatory sources being monitored."""
     from app.services.intelligence import IntelligenceFeed
-    
+
     feed = IntelligenceFeed()
     return feed.get_available_sources()
 
@@ -611,7 +619,7 @@ async def stream_updates(
     db: DB,
 ) -> StreamingResponse:
     """Stream regulatory updates in real-time using Server-Sent Events.
-    
+
     Usage with JavaScript:
     ```javascript
     const eventSource = new EventSource('/api/v1/intelligence/stream');
@@ -624,23 +632,24 @@ async def stream_updates(
     import asyncio
     import json
     from uuid import uuid4
+
     from app.services.intelligence import IntelligenceFeed
-    
+
     feed = IntelligenceFeed()
-    
+
     async def event_generator():
         subscriber_id = uuid4()
         queue = feed.subscribe(subscriber_id)
-        
+
         try:
             # Send initial ping
             yield f"data: {json.dumps({'type': 'connected', 'subscriber_id': str(subscriber_id)})}\n\n"
-            
+
             while True:
                 try:
                     # Wait for updates with timeout (for keepalive)
                     update = await asyncio.wait_for(queue.get(), timeout=30.0)
-                    
+
                     data = {
                         "type": "update",
                         "update": {
@@ -653,14 +662,14 @@ async def stream_updates(
                         },
                     }
                     yield f"data: {json.dumps(data)}\n\n"
-                    
-                except asyncio.TimeoutError:
+
+                except TimeoutError:
                     # Send keepalive ping
                     yield f"data: {json.dumps({'type': 'ping'})}\n\n"
-                    
+
         finally:
             feed.unsubscribe(subscriber_id)
-    
+
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",

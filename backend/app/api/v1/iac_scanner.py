@@ -137,11 +137,17 @@ class PlatformInfoSchema(BaseModel):
 def _violation_to_schema(v: Any) -> ViolationSchema:
     """Convert a violation dataclass to response schema."""
     return ViolationSchema(
-        id=str(v.id), rule_id=v.rule_id, severity=v.severity.value,
-        resource_type=v.resource_type.value, resource_name=v.resource_name,
-        file_path=v.file_path, line_number=v.line_number,
-        description=v.description, regulation=v.regulation,
-        article=v.article, fix_suggestion=v.fix_suggestion,
+        id=str(v.id),
+        rule_id=v.rule_id,
+        severity=v.severity.value,
+        resource_type=v.resource_type.value,
+        resource_name=v.resource_name,
+        file_path=v.file_path,
+        line_number=v.line_number,
+        description=v.description,
+        regulation=v.regulation,
+        article=v.article,
+        fix_suggestion=v.fix_suggestion,
         auto_fixable=v.auto_fixable,
     )
 
@@ -149,15 +155,19 @@ def _violation_to_schema(v: Any) -> ViolationSchema:
 def _result_to_schema(result: Any) -> ScanResultSchema:
     """Convert a scan result dataclass to response schema."""
     return ScanResultSchema(
-        id=str(result.id), org_id=result.org_id,
-        platform=result.platform.value, provider=result.provider.value,
+        id=str(result.id),
+        org_id=result.org_id,
+        platform=result.platform.value,
+        provider=result.provider.value,
         files_scanned=result.files_scanned,
         violations=[_violation_to_schema(v) for v in result.violations],
         summary=ScanSummarySchema(
             total_resources=result.summary.total_resources,
             total_violations=result.summary.total_violations,
-            critical=result.summary.critical, high=result.summary.high,
-            medium=result.summary.medium, low=result.summary.low,
+            critical=result.summary.critical,
+            high=result.summary.high,
+            medium=result.summary.medium,
+            low=result.summary.low,
             compliance_score=result.summary.compliance_score,
             top_violations=result.summary.top_violations,
         ),
@@ -186,7 +196,9 @@ async def scan_repository(request: ScanRepositoryRequest, db: DB) -> ScanResultS
     )
     service = IaCScannerService(db=db)
     result = await service.scan_repository(
-        org_id=request.org_id, repo_url=request.repo_url, config=config,
+        org_id=request.org_id,
+        repo_url=request.repo_url,
+        config=config,
     )
     return _result_to_schema(result)
 
@@ -201,7 +213,9 @@ async def scan_file(request: ScanFileRequest, db: DB) -> list[ViolationSchema]:
     service = IaCScannerService(db=db)
     platform = IaCPlatform(request.platform)
     violations = await service.scan_file(
-        content=request.content, platform=platform, filename=request.filename,
+        content=request.content,
+        platform=platform,
+        filename=request.filename,
     )
     return [_violation_to_schema(v) for v in violations]
 
@@ -235,7 +249,8 @@ async def get_result(scan_id: UUID, db: DB) -> ScanResultSchema:
         if result.id == scan_id:
             return _result_to_schema(result)
     raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Scan result not found",
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Scan result not found",
     )
 
 
@@ -273,11 +288,17 @@ async def list_rules(
     rules = await service.list_rules(platform=p, regulation=regulation)
     return [
         ComplianceRuleSchema(
-            id=r.id, name=r.name, description=r.description,
-            platform=r.platform.value, provider=r.provider.value,
-            resource_type=r.resource_type.value, severity=r.severity.value,
-            regulation=r.regulation, article=r.article,
-            fix_template=r.fix_template, enabled=r.enabled,
+            id=r.id,
+            name=r.name,
+            description=r.description,
+            platform=r.platform.value,
+            provider=r.provider.value,
+            resource_type=r.resource_type.value,
+            severity=r.severity.value,
+            regulation=r.regulation,
+            article=r.article,
+            fix_template=r.fix_template,
+            enabled=r.enabled,
         )
         for r in rules
     ]
@@ -295,7 +316,8 @@ async def generate_sarif_report(scan_id: UUID, db: DB) -> dict:
         if result.id == scan_id:
             return await service.generate_sarif_report(result)
     raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="Scan result not found",
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Scan result not found",
     )
 
 
@@ -330,7 +352,8 @@ async def list_supported_platforms() -> list[PlatformInfoSchema]:
     }
     return [
         PlatformInfoSchema(
-            name=p.value.title(), value=p.value,
+            name=p.value.title(),
+            value=p.value,
             providers=[pr.value for pr in providers],
         )
         for p, providers in platform_providers.items()
@@ -347,7 +370,8 @@ async def scan_diff(request: ScanDiffRequest, db: DB) -> list[ViolationSchema]:
     service = IaCScannerService(db=db)
     platform = IaCPlatform(request.platform)
     violations = await service.scan_file(
-        content=request.diff_content, platform=platform,
+        content=request.diff_content,
+        platform=platform,
         filename=f"diff:{request.base_branch}",
     )
     return [_violation_to_schema(v) for v in violations]

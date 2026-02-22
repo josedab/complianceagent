@@ -1,13 +1,12 @@
 """Knowledge graph explorer API endpoints."""
 
-from typing import Any
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB, CopilotDep, CurrentOrganization, OrgMember
+from app.api.v1.deps import DB, CopilotDep, CurrentOrganization
 from app.services.knowledge_graph import (
     KnowledgeGraphService,
     NodeType,
@@ -21,8 +20,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class BuildGraphRequest(BaseModel):
     """Request to build a knowledge graph."""
+
     name: str = "Compliance Knowledge Graph"
     include_regulations: bool = True
     include_code: bool = True
@@ -31,6 +32,7 @@ class BuildGraphRequest(BaseModel):
 
 class GraphNodeSchema(BaseModel):
     """Node in the graph."""
+
     id: str
     type: str
     name: str
@@ -45,6 +47,7 @@ class GraphNodeSchema(BaseModel):
 
 class GraphEdgeSchema(BaseModel):
     """Edge in the graph."""
+
     id: str
     source: str
     target: str
@@ -54,6 +57,7 @@ class GraphEdgeSchema(BaseModel):
 
 class GraphSummarySchema(BaseModel):
     """Summary of a knowledge graph."""
+
     id: UUID
     name: str
     node_count: int
@@ -63,6 +67,7 @@ class GraphSummarySchema(BaseModel):
 
 class GraphVisualizationSchema(BaseModel):
     """Graph data for visualization."""
+
     nodes: list[GraphNodeSchema] = Field(default_factory=list)
     edges: list[GraphEdgeSchema] = Field(default_factory=list)
     statistics: dict = Field(default_factory=dict)
@@ -70,6 +75,7 @@ class GraphVisualizationSchema(BaseModel):
 
 class QueryRequest(BaseModel):
     """Request to query the graph."""
+
     natural_query: str = ""
     node_types: list[str] = Field(default_factory=list)
     relation_types: list[str] = Field(default_factory=list)
@@ -81,6 +87,7 @@ class QueryRequest(BaseModel):
 
 class QueryResultSchema(BaseModel):
     """Query result response."""
+
     query_id: str
     natural_answer: str
     total_nodes: int
@@ -92,6 +99,7 @@ class QueryResultSchema(BaseModel):
 
 class PathRequest(BaseModel):
     """Request to find path between nodes."""
+
     source_id: str
     target_id: str
     max_depth: int = 5
@@ -99,6 +107,7 @@ class PathRequest(BaseModel):
 
 class NodeDetailsSchema(BaseModel):
     """Detailed node information."""
+
     node: GraphNodeSchema
     neighbors: list[GraphNodeSchema] = Field(default_factory=list)
     edges: list[GraphEdgeSchema] = Field(default_factory=list)
@@ -106,6 +115,7 @@ class NodeDetailsSchema(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 def _node_to_schema(node) -> GraphNodeSchema:
     """Convert GraphNode to schema."""
@@ -136,6 +146,7 @@ def _edge_to_schema(edge) -> GraphEdgeSchema:
 
 # --- Endpoints ---
 
+
 @router.post(
     "/build",
     response_model=GraphSummarySchema,
@@ -150,7 +161,7 @@ async def build_knowledge_graph(
 ) -> GraphSummarySchema:
     """Build a new knowledge graph."""
     service = KnowledgeGraphService(db=db, copilot=copilot)
-    
+
     graph = await service.build_graph(
         organization_id=organization.id,
         name=request.name,
@@ -158,16 +169,13 @@ async def build_knowledge_graph(
         include_code=request.include_code,
         include_vendors=request.include_vendors,
     )
-    
+
     return GraphSummarySchema(
         id=graph.id,
         name=graph.name,
         node_count=graph.node_count,
         edge_count=graph.edge_count,
-        node_types={
-            nt.value: len(nodes)
-            for nt, nodes in graph.nodes_by_type.items()
-        },
+        node_types={nt.value: len(nodes) for nt, nodes in graph.nodes_by_type.items()},
     )
 
 
@@ -185,15 +193,15 @@ async def get_graph_visualization(
 ) -> GraphVisualizationSchema:
     """Get graph visualization data."""
     service = KnowledgeGraphService(db=db, copilot=copilot)
-    
+
     try:
         data = await service.export_for_visualization(graph_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Graph not found",
-        )
-    
+        ) from exc
+
     return GraphVisualizationSchema(
         nodes=[
             GraphNodeSchema(
@@ -239,9 +247,9 @@ async def query_graph(
 ) -> QueryResultSchema:
     """Query the knowledge graph."""
     service = KnowledgeGraphService(db=db, copilot=copilot)
-    
+
     from app.services.knowledge_graph.models import GraphQuery
-    
+
     query = GraphQuery(
         natural_query=request.natural_query,
         node_types=[NodeType(t) for t in request.node_types if t],
@@ -251,15 +259,15 @@ async def query_graph(
         max_results=request.max_results,
         start_nodes=[UUID(nid) for nid in request.start_node_ids if nid],
     )
-    
+
     try:
         result = await service.query(graph_id, query)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
-    
+        ) from e
+
     return QueryResultSchema(
         query_id=str(result.query_id),
         natural_answer=result.natural_answer,
@@ -286,15 +294,15 @@ async def get_node_details(
 ) -> NodeDetailsSchema:
     """Get node details with neighbors."""
     service = KnowledgeGraphService(db=db, copilot=copilot)
-    
+
     details = await service.get_node_details(graph_id, node_id)
-    
+
     if not details:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Node not found",
         )
-    
+
     return NodeDetailsSchema(
         node=_node_to_schema(details["node"]),
         neighbors=[_node_to_schema(n) for n in details["neighbors"]],
@@ -317,14 +325,14 @@ async def find_path(
 ) -> dict:
     """Find paths between nodes."""
     service = KnowledgeGraphService(db=db, copilot=copilot)
-    
+
     paths = await service.find_path(
         graph_id=graph_id,
         source_id=UUID(request.source_id),
         target_id=UUID(request.target_id),
         max_depth=request.max_depth,
     )
-    
+
     return {
         "paths": [[str(nid) for nid in path] for path in paths],
         "path_count": len(paths),
@@ -355,8 +363,7 @@ async def get_node_types() -> dict:
     """Get available node types."""
     return {
         "node_types": [
-            {"value": nt.value, "name": nt.value.replace("_", " ").title()}
-            for nt in NodeType
+            {"value": nt.value, "name": nt.value.replace("_", " ").title()} for nt in NodeType
         ]
     }
 
@@ -370,7 +377,6 @@ async def get_relation_types() -> dict:
     """Get available relation types."""
     return {
         "relation_types": [
-            {"value": rt.value, "name": rt.value.replace("_", " ").title()}
-            for rt in RelationType
+            {"value": rt.value, "name": rt.value.replace("_", " ").title()} for rt in RelationType
         ]
     }

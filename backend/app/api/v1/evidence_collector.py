@@ -1,7 +1,6 @@
 """Evidence collection API endpoints."""
 
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 import structlog
@@ -10,7 +9,6 @@ from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep, CurrentOrganization, OrgMember
 from app.services.evidence_collector import (
-    AuditPackageStatus,
     EvidenceCollectorService,
 )
 
@@ -21,8 +19,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class CreatePackageRequest(BaseModel):
     """Request to create an audit package."""
+
     name: str = Field(..., min_length=1, max_length=200)
     description: str = ""
     frameworks: list[str] = Field(..., min_items=1)
@@ -32,6 +32,7 @@ class CreatePackageRequest(BaseModel):
 
 class ControlEvidenceSchema(BaseModel):
     """Control evidence response."""
+
     control_id: str
     framework: str
     status: str
@@ -44,6 +45,7 @@ class ControlEvidenceSchema(BaseModel):
 
 class AuditPackageSchema(BaseModel):
     """Audit package response."""
+
     id: UUID
     name: str
     description: str
@@ -61,11 +63,13 @@ class AuditPackageSchema(BaseModel):
 
 class PackageDetailSchema(AuditPackageSchema):
     """Detailed audit package with controls."""
+
     controls: list[ControlEvidenceSchema] = Field(default_factory=list)
 
 
 class ControlMappingSchema(BaseModel):
     """Control mapping response."""
+
     control_id: str
     control_name: str
     control_description: str
@@ -75,6 +79,7 @@ class ControlMappingSchema(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 def _package_to_schema(package) -> AuditPackageSchema:
     """Convert AuditPackage to response schema."""
@@ -110,7 +115,7 @@ def _package_to_detail(package) -> PackageDetailSchema:
         )
         for ce in package.control_evidence
     ]
-    
+
     return PackageDetailSchema(
         id=package.id,
         name=package.name,
@@ -131,6 +136,7 @@ def _package_to_detail(package) -> PackageDetailSchema:
 
 # --- Endpoints ---
 
+
 @router.post(
     "/packages",
     response_model=AuditPackageSchema,
@@ -147,7 +153,7 @@ async def create_audit_package(
 ) -> AuditPackageSchema:
     """Create a new audit evidence package."""
     service = EvidenceCollectorService(db=db, copilot=copilot)
-    
+
     package = await service.create_audit_package(
         organization_id=organization.id,
         name=request.name,
@@ -157,7 +163,7 @@ async def create_audit_package(
         audit_period_end=request.audit_period_end,
         created_by=member.user_id,
     )
-    
+
     return _package_to_schema(package)
 
 
@@ -193,19 +199,19 @@ async def get_audit_package(
     """Get detailed audit package."""
     service = EvidenceCollectorService(db=db, copilot=copilot)
     package = await service.get_package(package_id)
-    
+
     if not package:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Audit package not found",
         )
-    
+
     if package.organization_id != organization.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     return _package_to_detail(package)
 
 
@@ -224,7 +230,7 @@ async def collect_evidence(
 ) -> PackageDetailSchema:
     """Trigger evidence collection for an audit package."""
     service = EvidenceCollectorService(db=db, copilot=copilot)
-    
+
     # Verify package exists and belongs to org
     package = await service.get_package(package_id)
     if not package:
@@ -232,19 +238,19 @@ async def collect_evidence(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Audit package not found",
         )
-    
+
     if package.organization_id != organization.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     # Collect evidence
     package = await service.collect_evidence(
         package_id=package_id,
         repository_id=repository_id,
     )
-    
+
     return _package_to_detail(package)
 
 
@@ -262,7 +268,7 @@ async def export_audit_package(
 ) -> dict:
     """Export audit package in specified format."""
     service = EvidenceCollectorService(db=db, copilot=copilot)
-    
+
     # Verify package exists
     package = await service.get_package(package_id)
     if not package:
@@ -270,13 +276,13 @@ async def export_audit_package(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Audit package not found",
         )
-    
+
     if package.organization_id != organization.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     try:
         export_data = await service.export_package(package_id, format)
         return export_data
@@ -284,7 +290,7 @@ async def export_audit_package(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get(
@@ -316,13 +322,13 @@ async def get_framework_controls(
     """Get control mappings for a framework."""
     service = EvidenceCollectorService(db=db, copilot=copilot)
     mappings = await service.get_control_mappings(framework)
-    
+
     if not mappings:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Framework not found: {framework}",
         )
-    
+
     return [
         ControlMappingSchema(
             control_id=m.control_id,

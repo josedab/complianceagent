@@ -43,7 +43,9 @@ async def get_horizon_timeline(
 ) -> TimelineResponse:
     """Get the regulatory horizon timeline showing upcoming legislation."""
     svc = HorizonScannerService(db)
-    timeline = await svc.get_timeline(jurisdiction=jurisdiction, framework=framework, months_ahead=months_ahead)
+    timeline = await svc.get_timeline(
+        jurisdiction=jurisdiction, framework=framework, months_ahead=months_ahead
+    )
 
     return TimelineResponse(
         total_tracked=timeline.total_tracked,
@@ -56,7 +58,9 @@ async def get_horizon_timeline(
                 "status": leg.status.value,
                 "confidence": leg.confidence.value,
                 "frameworks_affected": leg.frameworks_affected,
-                "expected_effective_date": leg.expected_effective_date.isoformat() if leg.expected_effective_date else None,
+                "expected_effective_date": leg.expected_effective_date.isoformat()
+                if leg.expected_effective_date
+                else None,
                 "tags": leg.tags,
             }
             for leg in timeline.upcoming

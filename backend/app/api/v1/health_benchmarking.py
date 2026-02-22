@@ -1,6 +1,5 @@
 """API endpoints for Compliance Health Score Benchmarking Dashboard."""
 
-
 import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -13,6 +12,7 @@ router = APIRouter()
 
 
 # --- Pydantic response schemas ---
+
 
 class HealthScoreSchema(BaseModel):
     id: str = Field(..., description="Health score ID")
@@ -105,6 +105,7 @@ class IndustryStatsSchema(BaseModel):
 
 # --- Helper functions ---
 
+
 def _score_to_schema(score) -> HealthScoreSchema:
     return HealthScoreSchema(
         id=str(score.id),
@@ -122,12 +123,17 @@ def _score_to_schema(score) -> HealthScoreSchema:
 def _benchmark_to_schema(b) -> PeerBenchmarkSchema:
     return PeerBenchmarkSchema(
         peer_group=b.peer_group,
-        company_size=b.company_size.value if hasattr(b.company_size, "value") else str(b.company_size),
+        company_size=b.company_size.value
+        if hasattr(b.company_size, "value")
+        else str(b.company_size),
         industry=b.industry,
         sample_size=b.sample_size,
         avg_score=b.avg_score,
         median_score=b.median_score,
-        p25=b.p25, p50=b.p50, p75=b.p75, p90=b.p90,
+        p25=b.p25,
+        p50=b.p50,
+        p75=b.p75,
+        p90=b.p90,
         grade_distribution=b.grade_distribution,
         top_gaps=b.top_gaps,
     )
@@ -146,10 +152,12 @@ def _suggestion_to_schema(s) -> ImprovementSuggestionSchema:
 
 def _get_service(db, copilot):
     from app.services.health_benchmarking import HealthBenchmarkingService
+
     return HealthBenchmarkingService(db=db, copilot_client=copilot)
 
 
 # --- Endpoints ---
+
 
 @router.get("/score", response_model=HealthScoreSchema, summary="Compute current health score")
 async def compute_health_score(
@@ -166,7 +174,9 @@ async def compute_health_score(
     return _score_to_schema(score)
 
 
-@router.get("/benchmark/{industry}", response_model=PeerBenchmarkSchema, summary="Get industry benchmark")
+@router.get(
+    "/benchmark/{industry}", response_model=PeerBenchmarkSchema, summary="Get industry benchmark"
+)
 async def get_peer_benchmark(
     industry: str,
     db: DB,
@@ -179,7 +189,7 @@ async def get_peer_benchmark(
     try:
         benchmark = await service.get_peer_benchmark(industry, company_size)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return _benchmark_to_schema(benchmark)
 
 
@@ -197,7 +207,7 @@ async def compare_to_peers(
     try:
         comparison = await service.compare_to_peers(str(org.id), industry, company_size)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return BenchmarkComparisonSchema(
         org_score=_score_to_schema(comparison.org_score),
         benchmark=_benchmark_to_schema(comparison.benchmark),
@@ -205,7 +215,9 @@ async def compare_to_peers(
         total_in_group=comparison.total_in_group,
         gap_to_median=comparison.gap_to_median,
         gap_to_p75=comparison.gap_to_p75,
-        improvement_suggestions=[_suggestion_to_schema(s) for s in comparison.improvement_suggestions],
+        improvement_suggestions=[
+            _suggestion_to_schema(s) for s in comparison.improvement_suggestions
+        ],
     )
 
 
@@ -245,7 +257,7 @@ async def get_leaderboard(
     try:
         entries = await service.get_leaderboard(industry, limit=limit)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return [
         LeaderboardEntrySchema(
             rank=e.rank,
@@ -272,12 +284,14 @@ async def generate_board_report(
     try:
         report = await service.generate_board_report(str(org.id), request.industry, request.format)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return BoardReportSchema(
         id=str(report.id),
         title=report.title,
         overall_score=report.org_score.overall_score,
-        grade=report.org_score.grade.value if hasattr(report.org_score.grade, "value") else str(report.org_score.grade),
+        grade=report.org_score.grade.value
+        if hasattr(report.org_score.grade, "value")
+        else str(report.org_score.grade),
         percentile=report.org_score.percentile,
         highlights=report.highlights,
         risks=report.risks,

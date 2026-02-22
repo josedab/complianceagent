@@ -6,8 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
-
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.industry_packs import IndustryPacksService, IndustryVertical
 
 
@@ -198,15 +197,19 @@ async def get_pack(
         estimated_setup_minutes=pack.estimated_setup_minutes,
         regulations=[
             RegulationBundleSchema(
-                framework=r.framework, name=r.name,
-                description=r.description, mandatory=r.mandatory,
+                framework=r.framework,
+                name=r.name,
+                description=r.description,
+                mandatory=r.mandatory,
             )
             for r in pack.regulations
         ],
         policies=[
             PolicyTemplateSchema(
-                id=str(p.id), name=p.name,
-                description=p.description, category=p.category,
+                id=str(p.id),
+                name=p.name,
+                description=p.description,
+                category=p.category,
             )
             for p in pack.policies
         ],
@@ -268,8 +271,7 @@ async def list_verticals() -> dict:
     """List supported industry verticals."""
     return {
         "verticals": [
-            {"value": v.value, "name": v.value.replace("_", " ").title()}
-            for v in IndustryVertical
+            {"value": v.value, "name": v.value.replace("_", " ").title()} for v in IndustryVertical
         ]
     }
 
@@ -287,3 +289,162 @@ async def get_wizard_steps(
     service = IndustryPacksService(db=db)
     steps = service.get_wizard_steps(vertical)
     return [WizardStepSchema(**s.to_dict()) for s in steps]
+
+
+# ---------------------------------------------------------------------------
+# v2: Enhanced Starter Packs with Onboarding Wizard
+# ---------------------------------------------------------------------------
+
+
+class StarterPackSchema(BaseModel):
+    """An industry starter pack configuration."""
+
+    id: str
+    industry: str
+    name: str
+    description: str
+    regulations: list[str]
+    lint_rules: list[str]
+    policy_templates: list[str]
+    cicd_checks: list[str]
+    estimated_setup_minutes: int
+    icon: str
+
+
+class ProvisionRequest(BaseModel):
+    """Request to provision a starter pack."""
+
+    pack_id: str = Field(..., description="Pack ID: fintech, healthtech, ai_company, ecommerce")
+
+
+class OnboardingProgressSchema(BaseModel):
+    """Onboarding wizard progress."""
+
+    provision_id: str
+    pack_id: str
+    total_steps: int
+    completed_steps: int
+    progress_pct: float
+    is_complete: bool
+    steps: list[dict]
+
+
+class UpdateStepRequest(BaseModel):
+    """Request to update an onboarding step."""
+
+    step_id: str
+    status: str = Field("completed", description="Status: pending, in_progress, completed, skipped")
+
+
+@router.get(
+    "/v2/starter-packs", response_model=list[StarterPackSchema], summary="List starter packs"
+)
+async def list_starter_packs() -> list[StarterPackSchema]:
+    """List all available industry compliance starter packs."""
+    from app.services.industry_packs.starter_packs import StarterPackService
+
+    service = StarterPackService()
+    packs = service.list_packs()
+    return [
+        StarterPackSchema(
+            id=p.id,
+            industry=p.industry.value,
+            name=p.name,
+            description=p.description,
+            regulations=p.regulations,
+            lint_rules=p.lint_rules,
+            policy_templates=p.policy_templates,
+            cicd_checks=p.cicd_checks,
+            estimated_setup_minutes=p.estimated_setup_minutes,
+            icon=p.icon,
+        )
+        for p in packs
+    ]
+
+
+@router.get(
+    "/v2/starter-packs/{pack_id}", response_model=StarterPackSchema, summary="Get starter pack"
+)
+async def get_starter_pack(pack_id: str) -> StarterPackSchema:
+    """Get a specific starter pack by ID."""
+    from app.services.industry_packs.starter_packs import StarterPackService
+
+    service = StarterPackService()
+    pack = service.get_pack(pack_id)
+    if not pack:
+        raise HTTPException(status_code=404, detail=f"Pack '{pack_id}' not found")
+    return StarterPackSchema(
+        id=pack.id,
+        industry=pack.industry.value,
+        name=pack.name,
+        description=pack.description,
+        regulations=pack.regulations,
+        lint_rules=pack.lint_rules,
+        policy_templates=pack.policy_templates,
+        cicd_checks=pack.cicd_checks,
+        estimated_setup_minutes=pack.estimated_setup_minutes,
+        icon=pack.icon,
+    )
+
+
+@router.post("/v2/provision", summary="Provision a starter pack")
+async def provision_starter_pack(
+    request: ProvisionRequest,
+    organization: CurrentOrganization,
+) -> dict:
+    """Provision a starter pack for the current organization."""
+    from app.services.industry_packs.starter_packs import StarterPackService
+
+    service = StarterPackService()
+    result = await service.provision(
+        organization_id=str(organization.id),
+        pack_id=request.pack_id,
+    )
+    return {
+        "provision_id": str(result.id),
+        "pack_id": result.pack_id,
+        "industry": result.industry,
+        "regulations_enabled": result.regulations_enabled,
+        "policies_created": result.policies_created,
+        "lint_rules_enabled": result.lint_rules_enabled,
+        "cicd_configured": result.cicd_configured,
+    }
+
+
+@router.get(
+    "/v2/onboarding/{provision_id}",
+    response_model=OnboardingProgressSchema,
+    summary="Onboarding progress",
+)
+async def get_onboarding_progress(provision_id: str) -> OnboardingProgressSchema:
+    """Get onboarding wizard progress for a provisioned pack."""
+    from uuid import UUID
+
+    from app.services.industry_packs.starter_packs import StarterPackService
+
+    service = StarterPackService()
+    progress = await service.get_onboarding_progress(UUID(provision_id))
+    if "error" in progress:
+        raise HTTPException(status_code=404, detail=progress["error"])
+    return OnboardingProgressSchema(**progress)
+
+
+@router.put("/v2/onboarding/{provision_id}/steps", summary="Update onboarding step")
+async def update_onboarding_step(
+    provision_id: str,
+    request: UpdateStepRequest,
+) -> dict:
+    """Update the status of an onboarding step."""
+    from uuid import UUID
+
+    from app.services.industry_packs.starter_packs import OnboardingStepStatus, StarterPackService
+
+    service = StarterPackService()
+    result = await service.update_onboarding_step(
+        provision_id=UUID(provision_id),
+        step_id=request.step_id,
+        status=OnboardingStepStatus(request.status),
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Provision not found")
+    return {"status": "updated", "step_id": request.step_id}
