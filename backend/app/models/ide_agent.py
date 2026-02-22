@@ -88,9 +88,7 @@ class IDEAgentSession(Base, UUIDMixin, TimestampMixin):
     trigger_context: Mapped[dict] = mapped_column(JSONBType, default=dict)
 
     # State
-    status: Mapped[AgentStatus] = mapped_column(
-        String(50), default=AgentStatus.IDLE, index=True
-    )
+    status: Mapped[AgentStatus] = mapped_column(String(50), default=AgentStatus.IDLE, index=True)
     current_step: Mapped[str] = mapped_column(String(255), default="")
     progress: Mapped[float] = mapped_column(Float, default=0.0)  # 0-100
 
@@ -159,9 +157,7 @@ class IDEAgentAction(Base, UUIDMixin, TimestampMixin):
     result: Mapped[dict] = mapped_column(JSONBType, default=dict)
 
     # Relationship
-    session: Mapped["IDEAgentSession"] = relationship(
-        "IDEAgentSession", back_populates="actions"
-    )
+    session: Mapped["IDEAgentSession"] = relationship("IDEAgentSession", back_populates="actions")
     fixes: Mapped[list["IDEAgentFix"]] = relationship(
         "IDEAgentFix", back_populates="action", cascade="all, delete-orphan"
     )
@@ -236,9 +232,7 @@ class IDEAgentFix(Base, UUIDMixin, TimestampMixin):
     explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Confidence
-    confidence: Mapped[FixConfidence] = mapped_column(
-        String(50), default=FixConfidence.MEDIUM
-    )
+    confidence: Mapped[FixConfidence] = mapped_column(String(50), default=FixConfidence.MEDIUM)
     confidence_score: Mapped[float] = mapped_column(Float, default=0.5)
 
     # Metadata
@@ -253,9 +247,7 @@ class IDEAgentFix(Base, UUIDMixin, TimestampMixin):
     rollback_available: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relationships
-    action: Mapped["IDEAgentAction"] = relationship(
-        "IDEAgentAction", back_populates="fixes"
-    )
+    action: Mapped["IDEAgentAction"] = relationship("IDEAgentAction", back_populates="fixes")
     violation: Mapped["IDEAgentViolation | None"] = relationship(
         "IDEAgentViolation", back_populates="fix"
     )

@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import ArrayType, Base, JSONBType, UUIDType
 from app.models.base import TimestampMixin, UUIDMixin
@@ -62,9 +62,7 @@ class ViolationRisk(Base, UUIDMixin, TimestampMixin):
     severity: Mapped[RiskSeverity] = mapped_column(
         String(50), default=RiskSeverity.MEDIUM, index=True
     )
-    category: Mapped[RiskCategory] = mapped_column(
-        String(50), default=RiskCategory.REGULATORY_FINE
-    )
+    category: Mapped[RiskCategory] = mapped_column(String(50), default=RiskCategory.REGULATORY_FINE)
 
     # Financial estimates
     min_exposure: Mapped[float] = mapped_column(Float, default=0.0)
@@ -148,7 +146,9 @@ class RepositoryRiskProfile(Base, UUIDMixin, TimestampMixin):
     )
 
     def __repr__(self) -> str:
-        return f"<RepositoryRiskProfile {self.repository_name} - Score: {self.overall_risk_score:.1f}>"
+        return (
+            f"<RepositoryRiskProfile {self.repository_name} - Score: {self.overall_risk_score:.1f}>"
+        )
 
 
 class OrganizationRiskSnapshot(Base, UUIDMixin, TimestampMixin):
@@ -206,7 +206,9 @@ class RiskReport(Base, UUIDMixin, TimestampMixin):
     )
 
     # Report type and period
-    report_type: Mapped[str] = mapped_column(String(50), default="monthly")  # monthly, quarterly, annual
+    report_type: Mapped[str] = mapped_column(
+        String(50), default="monthly"
+    )  # monthly, quarterly, annual
     period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

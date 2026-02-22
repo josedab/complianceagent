@@ -31,17 +31,11 @@ class ArchitectureReview(Base, UUIDMixin, TimestampMixin):
     # Detailed results as JSON
     detected_patterns: Mapped[dict] = mapped_column(JSONBType, default=dict)
     risks: Mapped[dict] = mapped_column(JSONBType, default=dict)
-    recommendations: Mapped[list[str]] = mapped_column(
-        ArrayType(String), default=list
-    )
-    regulations_analyzed: Mapped[list[str]] = mapped_column(
-        ArrayType(String), default=list
-    )
+    recommendations: Mapped[list[str]] = mapped_column(ArrayType(String), default=list)
+    regulations_analyzed: Mapped[list[str]] = mapped_column(ArrayType(String), default=list)
 
     # Status
-    status: Mapped[str] = mapped_column(
-        String(50), default="completed", index=True
-    )
+    status: Mapped[str] = mapped_column(String(50), default="completed", index=True)
 
     # AI metadata
     ai_enhanced: Mapped[bool] = mapped_column(default=False)
@@ -55,9 +49,7 @@ class ArchitectureRiskRecord(Base, UUIDMixin, TimestampMixin):
 
     __tablename__ = "architecture_risk_records"
 
-    review_id: Mapped[uuid.UUID] = mapped_column(
-        UUIDType, nullable=False, index=True
-    )
+    review_id: Mapped[uuid.UUID] = mapped_column(UUIDType, nullable=False, index=True)
     repository: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
 
     # Risk details
@@ -65,19 +57,13 @@ class ArchitectureRiskRecord(Base, UUIDMixin, TimestampMixin):
     severity: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    affected_files: Mapped[list[str]] = mapped_column(
-        ArrayType(String), default=list
-    )
+    affected_files: Mapped[list[str]] = mapped_column(ArrayType(String), default=list)
     remediation: Mapped[str | None] = mapped_column(Text, nullable=True)
-    regulations: Mapped[list[str]] = mapped_column(
-        ArrayType(String), default=list
-    )
+    regulations: Mapped[list[str]] = mapped_column(ArrayType(String), default=list)
 
     # Resolution tracking
     is_resolved: Mapped[bool] = mapped_column(default=False)
-    resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self) -> str:
         return f"<ArchitectureRiskRecord {self.title} ({self.severity})>"

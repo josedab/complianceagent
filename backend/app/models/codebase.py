@@ -72,7 +72,9 @@ class Repository(Base, UUIDMixin, TimestampMixin):
     installation_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Analysis state
-    last_analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_analyzed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     last_analyzed_commit: Mapped[str | None] = mapped_column(String(40), nullable=True)
     analysis_status: Mapped[str] = mapped_column(String(50), default="pending")
 

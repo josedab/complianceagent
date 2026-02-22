@@ -33,9 +33,7 @@ class TestSuiteRun(Base, UUIDMixin, TimestampMixin):
 
     # Execution metadata
     execution_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    status: Mapped[str] = mapped_column(
-        String(50), default="completed", index=True
-    )
+    status: Mapped[str] = mapped_column(String(50), default="completed", index=True)
 
     def __repr__(self) -> str:
         return f"<TestSuiteRun {self.regulation}/{self.framework} ({self.total_tests} tests)>"
@@ -46,9 +44,7 @@ class GeneratedTestRecord(Base, UUIDMixin, TimestampMixin):
 
     __tablename__ = "generated_test_records"
 
-    suite_run_id: Mapped[uuid.UUID] = mapped_column(
-        UUIDType, nullable=False, index=True
-    )
+    suite_run_id: Mapped[uuid.UUID] = mapped_column(UUIDType, nullable=False, index=True)
     regulation: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     framework: Mapped[str] = mapped_column(String(50), nullable=False)
     pattern_id: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -60,9 +56,7 @@ class GeneratedTestRecord(Base, UUIDMixin, TimestampMixin):
 
     # Validation
     is_valid: Mapped[bool | None] = mapped_column(nullable=True)
-    validation_errors: Mapped[list[str]] = mapped_column(
-        ArrayType(String), default=list
-    )
+    validation_errors: Mapped[list[str]] = mapped_column(ArrayType(String), default=list)
 
     # AI metadata
     ai_generated: Mapped[bool] = mapped_column(default=False)

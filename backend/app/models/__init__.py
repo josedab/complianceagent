@@ -47,13 +47,6 @@ from app.models.saas_tenant import (
     TenantUsageRecord,
 )
 
-# Testing models
-from app.models.testing import (
-    GeneratedTestRecord,
-    TestSuiteRun,
-)
-from app.models.user import User
-
 # Strategic Features models
 from app.models.strategic_features import (
     AuditWorkspaceRecord,
@@ -67,6 +60,13 @@ from app.models.strategic_features import (
     PendingLegislationRecord,
 )
 
+# Testing models
+from app.models.testing import (
+    GeneratedTestRecord,
+    TestSuiteRun,
+)
+from app.models.user import User
+
 
 __all__ = [
     # Architecture Review
@@ -74,11 +74,19 @@ __all__ = [
     "ArchitectureRiskRecord",
     # Core models
     "AuditTrail",
+    # Strategic Features
+    "AuditWorkspaceRecord",
+    "BoardReportRecord",
     "CodebaseMapping",
     "ComplianceAction",
     # Pattern Marketplace
     "CompliancePattern",
+    "ControlTestRecord",
+    "ControlTestResultRecord",
     "CustomerProfile",
+    "DependencyScanRecord",
+    "EntityNodeRecord",
+    "GapAnalysisRecord",
     # Testing
     "GeneratedTestRecord",
     "IDEAgentAction",
@@ -87,6 +95,7 @@ __all__ = [
     # IDE Agent
     "IDEAgentSession",
     "IDEAgentViolation",
+    "ImpactPredictionRecord",
     "Organization",
     "OrganizationMember",
     "OrganizationRiskSnapshot",
@@ -94,6 +103,7 @@ __all__ = [
     "PatternPurchase",
     "PatternRating",
     "PatternVersion",
+    "PendingLegislationRecord",
     "PublisherProfile",
     "Regulation",
     "RegulatorySource",
@@ -112,14 +122,4 @@ __all__ = [
     # Risk Quantification
     "ViolationRisk",
     "WhatIfScenario",
-    # Strategic Features
-    "AuditWorkspaceRecord",
-    "BoardReportRecord",
-    "ControlTestRecord",
-    "ControlTestResultRecord",
-    "DependencyScanRecord",
-    "EntityNodeRecord",
-    "GapAnalysisRecord",
-    "ImpactPredictionRecord",
-    "PendingLegislationRecord",
 ]

@@ -90,9 +90,7 @@ class OrganizationMember(Base, UUIDMixin, TimestampMixin):
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    organization: Mapped["Organization"] = relationship(
-        "Organization", back_populates="members"
-    )
+    organization: Mapped["Organization"] = relationship("Organization", back_populates="members")
     user: Mapped["User"] = relationship("User", back_populates="memberships")
 
     def __repr__(self) -> str:

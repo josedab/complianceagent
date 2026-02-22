@@ -115,9 +115,7 @@ class Requirement(Base, UUIDMixin, TimestampMixin):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Related requirements (stored as JSON array of UUID strings for cross-DB compatibility)
-    related_requirement_ids: Mapped[list[str]] = mapped_column(
-        JSONBType, default=list
-    )
+    related_requirement_ids: Mapped[list[str]] = mapped_column(JSONBType, default=list)
 
     # Metadata
     tags: Mapped[list[str]] = mapped_column(ArrayType(String), default=list)

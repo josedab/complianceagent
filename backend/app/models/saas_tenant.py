@@ -4,8 +4,8 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, JSONBType, UUIDType
 from app.models.base import TimestampMixin, UUIDMixin
@@ -39,12 +39,8 @@ class SaasTenant(Base, UUIDMixin, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
 
     # Plan and status
-    plan: Mapped[TenantPlan] = mapped_column(
-        String(50), default=TenantPlan.FREE, index=True
-    )
-    status: Mapped[TenantStatus] = mapped_column(
-        String(50), default=TenantStatus.TRIAL, index=True
-    )
+    plan: Mapped[TenantPlan] = mapped_column(String(50), default=TenantPlan.FREE, index=True)
+    status: Mapped[TenantStatus] = mapped_column(String(50), default=TenantStatus.TRIAL, index=True)
 
     # Owner
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
@@ -62,9 +58,7 @@ class SaasTenant(Base, UUIDMixin, TimestampMixin):
     resource_limits: Mapped[dict] = mapped_column(JSONBType, default=dict)
 
     # Trial and onboarding
-    trial_ends_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     onboarding_completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -94,12 +88,8 @@ class TenantUsageRecord(Base, UUIDMixin, TimestampMixin):
     value: Mapped[float] = mapped_column(Float, default=0.0)
 
     # Period
-    period_start: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    period_end: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # Extra metadata
     record_metadata: Mapped[dict] = mapped_column(JSONBType, default=dict)
