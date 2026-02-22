@@ -24,7 +24,9 @@ router = APIRouter()
 
 
 class GenerateReportRequest(BaseModel):
-    framework: AuditFramework = Field(..., description="Compliance framework to generate report for")
+    framework: AuditFramework = Field(
+        ..., description="Compliance framework to generate report for"
+    )
     period_start: datetime = Field(..., description="Start of the audit period")
     period_end: datetime = Field(..., description="End of the audit period")
     format: ReportFormat = Field(ReportFormat.PDF, description="Output format for the report")
@@ -45,7 +47,9 @@ class AuditorCommentRequest(BaseModel):
     session_id: str = Field(..., description="Auditor session ID")
     control_id: str = Field(..., description="Control being commented on")
     comment: str = Field(..., description="Auditor comment text")
-    requires_response: bool = Field(False, description="Whether a response is required from the org")
+    requires_response: bool = Field(
+        False, description="Whether a response is required from the org"
+    )
 
 
 # --- Response Models ---
@@ -355,7 +359,7 @@ async def get_framework(
     try:
         defn = await service.get_framework_definition(framework)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return FrameworkDefinitionSchema(
         framework=defn.framework.value,
         version=defn.version,
@@ -450,7 +454,9 @@ async def auditor_report_view(
     service = AuditReportService(db=db)
     session = await service.validate_auditor_session(session_id, access_token)
     if session is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or expired auditor session")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid or expired auditor session"
+        )
 
     reports = await service.list_reports(org_id=session.org_id, framework=session.framework)
     if not reports:
@@ -478,7 +484,7 @@ async def submit_auditor_comment(
             requires_response=request.requires_response,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return AuditorCommentSchema(
         id=str(comment.id),
         session_id=str(comment.session_id),
@@ -532,5 +538,5 @@ async def export_evidence_package(
     try:
         package = await service.export_evidence_package(report_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return ExportPackageSchema(**package)

@@ -1,6 +1,5 @@
 """API endpoints for Regulation-to-Architecture Advisor."""
 
-
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -125,26 +124,37 @@ async def analyze_architecture(
         repo=result.repo,
         detected_patterns=[
             PatternSchema(
-                pattern_type=p.pattern_type.value, confidence=p.confidence,
-                evidence=p.evidence, description=p.description,
+                pattern_type=p.pattern_type.value,
+                confidence=p.confidence,
+                evidence=p.evidence,
+                description=p.description,
             )
             for p in result.detected_patterns
         ],
         risks=[
             RiskSchema(
-                id=str(r.id), pattern=r.pattern.value, regulation=r.regulation,
-                severity=r.severity.value, title=r.title, description=r.description,
-                affected_components=r.affected_components, recommendation=r.recommendation,
+                id=str(r.id),
+                pattern=r.pattern.value,
+                regulation=r.regulation,
+                severity=r.severity.value,
+                title=r.title,
+                description=r.description,
+                affected_components=r.affected_components,
+                recommendation=r.recommendation,
             )
             for r in result.risks
         ],
         recommendations=[
             RecommendationSchema(
-                id=str(r.id), title=r.title, description=r.description,
-                regulation=r.regulation, current_pattern=r.current_pattern.value,
+                id=str(r.id),
+                title=r.title,
+                description=r.description,
+                regulation=r.regulation,
+                current_pattern=r.current_pattern.value,
                 recommended_pattern=r.recommended_pattern,
                 effort_estimate_days=r.effort_estimate_days,
-                impact=r.impact.value, trade_offs=r.trade_offs,
+                impact=r.impact.value,
+                trade_offs=r.trade_offs,
             )
             for r in result.recommendations
         ],

@@ -76,20 +76,20 @@ class DashboardSchema(BaseModel):
 def _parse_category(cat: str) -> CostCategory:
     try:
         return CostCategory(cat)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid category: {cat}. Use: {[c.value for c in CostCategory]}",
-        )
+        ) from exc
 
 
 def _parse_period(p: str) -> CostPeriod:
     try:
         return CostPeriod(p)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400, detail=f"Invalid period: {p}. Use: {[v.value for v in CostPeriod]}"
-        )
+        ) from exc
 
 
 @router.post("/costs", response_model=CostEntrySchema, summary="Record compliance cost")

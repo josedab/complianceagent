@@ -28,8 +28,19 @@ async def query_graph(request: GraphQueryRequest, db: DB) -> dict:
         "interpretation": result.interpretation,
         "total_nodes": result.total_nodes,
         "total_edges": result.total_edges,
-        "nodes": [{"id": str(n.id), "type": n.node_type.value, "label": n.label, "properties": n.properties} for n in result.nodes],
-        "edges": [{"source": str(e.source_id), "target": str(e.target_id), "type": e.edge_type.value} for e in result.edges],
+        "nodes": [
+            {
+                "id": str(n.id),
+                "type": n.node_type.value,
+                "label": n.label,
+                "properties": n.properties,
+            }
+            for n in result.nodes
+        ],
+        "edges": [
+            {"source": str(e.source_id), "target": str(e.target_id), "type": e.edge_type.value}
+            for e in result.edges
+        ],
     }
 
 
@@ -55,6 +66,11 @@ async def get_node_neighbors(node_id: UUID, db: DB) -> dict:
     return {
         "total_nodes": result.total_nodes,
         "total_edges": result.total_edges,
-        "nodes": [{"id": str(n.id), "type": n.node_type.value, "label": n.label} for n in result.nodes],
-        "edges": [{"source": str(e.source_id), "target": str(e.target_id), "type": e.edge_type.value} for e in result.edges],
+        "nodes": [
+            {"id": str(n.id), "type": n.node_type.value, "label": n.label} for n in result.nodes
+        ],
+        "edges": [
+            {"source": str(e.source_id), "target": str(e.target_id), "type": e.edge_type.value}
+            for e in result.edges
+        ],
     }

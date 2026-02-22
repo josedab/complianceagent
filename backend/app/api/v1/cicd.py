@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
@@ -368,7 +368,12 @@ async def list_supported_regulations(
                 "code": "SOC 2",
                 "name": "System and Organization Controls 2",
                 "jurisdiction": "Global",
-                "categories": ["security", "availability", "processing_integrity", "confidentiality"],
+                "categories": [
+                    "security",
+                    "availability",
+                    "processing_integrity",
+                    "confidentiality",
+                ],
             },
         ],
     }

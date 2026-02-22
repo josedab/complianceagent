@@ -1,6 +1,5 @@
 """API endpoints for Cross-Border Data Flow Mapper."""
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -9,11 +8,8 @@ from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 from app.services.data_flow import (
-    DataClassification,
-    DataFlowMapper,
-    CrossBorderAnalyzer,
-    get_data_flow_mapper,
     get_cross_border_analyzer,
+    get_data_flow_mapper,
 )
 
 
@@ -27,7 +23,7 @@ router = APIRouter()
 
 class DataLocationRequest(BaseModel):
     """Request model for adding a data location."""
-    
+
     name: str
     description: str | None = None
     country: str
@@ -39,24 +35,21 @@ class DataLocationRequest(BaseModel):
 
 class DiscoverFlowsRequest(BaseModel):
     """Request to discover data flows."""
-    
+
     code_files: dict[str, str] | None = Field(
-        default=None,
-        description="Dictionary of filepath -> file content for code analysis"
+        default=None, description="Dictionary of filepath -> file content for code analysis"
     )
     infrastructure_config: dict[str, Any] | None = Field(
-        default=None,
-        description="Terraform, Kubernetes, or other infrastructure config"
+        default=None, description="Terraform, Kubernetes, or other infrastructure config"
     )
     manual_locations: list[DataLocationRequest] | None = Field(
-        default=None,
-        description="Manually specified data locations"
+        default=None, description="Manually specified data locations"
     )
 
 
 class AddFlowRequest(BaseModel):
     """Request to add a manual data flow."""
-    
+
     source_id: str
     destination_id: str
     data_types: list[str]
@@ -65,7 +58,7 @@ class AddFlowRequest(BaseModel):
 
 class DataLocationResponse(BaseModel):
     """Response model for a data location."""
-    
+
     id: str
     name: str
     description: str | None
@@ -80,7 +73,7 @@ class DataLocationResponse(BaseModel):
 
 class DataFlowResponse(BaseModel):
     """Response model for a data flow."""
-    
+
     id: str
     name: str
     description: str | None
@@ -101,7 +94,7 @@ class DataFlowResponse(BaseModel):
 
 class JurisdictionConflictResponse(BaseModel):
     """Response model for a jurisdiction conflict."""
-    
+
     id: str
     flow_id: str
     source_jurisdiction: str
@@ -117,7 +110,7 @@ class JurisdictionConflictResponse(BaseModel):
 
 class FlowMapSummaryResponse(BaseModel):
     """Summary response for a data flow map."""
-    
+
     id: str
     total_locations: int
     total_flows: int
@@ -136,7 +129,7 @@ class FlowMapSummaryResponse(BaseModel):
 
 class FlowMapDetailResponse(FlowMapSummaryResponse):
     """Detailed response including locations and flows."""
-    
+
     locations: list[DataLocationResponse]
     flows: list[DataFlowResponse]
     conflicts: list[JurisdictionConflictResponse]
@@ -144,7 +137,7 @@ class FlowMapDetailResponse(FlowMapSummaryResponse):
 
 class TIAResponse(BaseModel):
     """Response model for Transfer Impact Assessment."""
-    
+
     id: str
     flow_id: str
     assessment_date: str
@@ -170,7 +163,7 @@ class TIAResponse(BaseModel):
 
 class AnalysisResultResponse(BaseModel):
     """Response for flow map analysis."""
-    
+
     total_flows: int
     cross_border_flows: int
     conflicts_detected: int
@@ -193,27 +186,27 @@ async def discover_data_flows(
     db: DB,
 ) -> FlowMapDetailResponse:
     """Discover data flows from code, infrastructure, and manual entries.
-    
+
     Analyzes:
     - Code files for database connections, API calls, cloud services
     - Infrastructure config (Terraform, Kubernetes)
     - Manual location entries
-    
+
     Returns a complete data flow map with compliance analysis.
     """
     mapper = get_data_flow_mapper()
-    
+
     manual_locs = None
     if request.manual_locations:
         manual_locs = [loc.model_dump() for loc in request.manual_locations]
-    
+
     flow_map = await mapper.discover_data_flows(
         organization_id=organization.id,
         code_files=request.code_files,
         infrastructure_config=request.infrastructure_config,
         manual_locations=manual_locs,
     )
-    
+
     return FlowMapDetailResponse(
         id=str(flow_map.id),
         total_locations=flow_map.total_locations,
@@ -293,22 +286,22 @@ async def get_flow_map(
 ) -> FlowMapDetailResponse:
     """Get a data flow map by ID."""
     mapper = get_data_flow_mapper()
-    
+
     try:
         map_uuid = UUID(map_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid map ID format",
-        )
-    
+        ) from exc
+
     flow_map = await mapper.get_flow_map(map_uuid)
     if not flow_map:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Flow map not found",
         )
-    
+
     return FlowMapDetailResponse(
         id=str(flow_map.id),
         total_locations=flow_map.total_locations,
@@ -389,17 +382,17 @@ async def add_flow(
 ) -> DataFlowResponse:
     """Add a manual data flow to an existing map."""
     mapper = get_data_flow_mapper()
-    
+
     try:
         map_uuid = UUID(map_id)
         source_uuid = UUID(request.source_id)
         dest_uuid = UUID(request.destination_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid ID format",
-        )
-    
+        ) from exc
+
     flow = await mapper.add_flow(
         map_id=map_uuid,
         source_id=source_uuid,
@@ -407,13 +400,13 @@ async def add_flow(
         data_types=request.data_types,
         purpose=request.purpose,
     )
-    
+
     if not flow:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Map or locations not found",
         )
-    
+
     return DataFlowResponse(
         id=str(flow.id),
         name=flow.name,
@@ -447,7 +440,7 @@ async def analyze_flow_map(
     db: DB,
 ) -> AnalysisResultResponse:
     """Analyze a data flow map for compliance issues and generate TIAs.
-    
+
     Performs:
     - Jurisdiction conflict detection
     - Transfer Impact Assessment generation
@@ -456,24 +449,24 @@ async def analyze_flow_map(
     """
     mapper = get_data_flow_mapper()
     analyzer = get_cross_border_analyzer()
-    
+
     try:
         map_uuid = UUID(map_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid map ID format",
-        )
-    
+        ) from exc
+
     flow_map = await mapper.get_flow_map(map_uuid)
     if not flow_map:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Flow map not found",
         )
-    
+
     result = await analyzer.analyze_flow_map(flow_map)
-    
+
     return AnalysisResultResponse(
         total_flows=result["total_flows"],
         cross_border_flows=result["cross_border_flows"],
@@ -494,22 +487,22 @@ async def list_tias(
 ) -> list[TIAResponse]:
     """List Transfer Impact Assessments for a flow map."""
     mapper = get_data_flow_mapper()
-    
+
     try:
         map_uuid = UUID(map_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid map ID format",
-        )
-    
+        ) from exc
+
     flow_map = await mapper.get_flow_map(map_uuid)
     if not flow_map:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Flow map not found",
         )
-    
+
     return [
         TIAResponse(
             id=str(tia.id),
@@ -547,25 +540,25 @@ async def approve_tia(
 ) -> TIAResponse:
     """Approve a Transfer Impact Assessment."""
     analyzer = get_cross_border_analyzer()
-    
+
     try:
         tia_uuid = UUID(tia_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid TIA ID format",
-        )
-    
+        ) from exc
+
     # Use member info as approver
-    approver = f"User:{member.user_id}" if hasattr(member, 'user_id') else "Authorized Approver"
-    
+    approver = f"User:{member.user_id}" if hasattr(member, "user_id") else "Authorized Approver"
+
     tia = await analyzer.approve_assessment(tia_uuid, approver)
     if not tia:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="TIA not found",
         )
-    
+
     return TIAResponse(
         id=str(tia.id),
         flow_id=str(tia.flow_id),
@@ -604,26 +597,26 @@ async def quick_scan(
     db: DB,
 ) -> dict[str, Any]:
     """Quick scan code for cross-border data flow issues.
-    
+
     Returns a summary of detected flows and compliance issues.
     Suitable for CI/CD integration.
     """
     mapper = get_data_flow_mapper()
     analyzer = get_cross_border_analyzer()
-    
+
     flow_map = await mapper.discover_data_flows(
         organization_id=organization.id,
         code_files=code_files,
     )
-    
+
     analysis = await analyzer.analyze_flow_map(flow_map)
-    
+
     # Determine pass/fail
     passed = (
-        analysis["critical_issues"] == 0 and
-        analysis["compliance_summary"]["overall_status"] != "CRITICAL"
+        analysis["critical_issues"] == 0
+        and analysis["compliance_summary"]["overall_status"] != "CRITICAL"
     )
-    
+
     return {
         "passed": passed,
         "map_id": str(flow_map.id),
@@ -656,7 +649,7 @@ async def list_jurisdictions(
     db: DB,
 ) -> dict[str, Any]:
     """Get jurisdiction reference data.
-    
+
     Returns information about:
     - EEA countries
     - Adequate countries (EU adequacy decisions)
@@ -664,13 +657,13 @@ async def list_jurisdictions(
     - Government access risk countries
     """
     from app.services.data_flow.models import (
+        DATA_LOCALIZATION_COUNTRIES,
         EEA_COUNTRIES,
         EU_ADEQUATE_COUNTRIES,
-        DATA_LOCALIZATION_COUNTRIES,
         HIGH_GOVERNMENT_ACCESS_RISK,
         JURISDICTION_REGULATIONS,
     )
-    
+
     return {
         "eea_countries": EEA_COUNTRIES,
         "adequate_countries": EU_ADEQUATE_COUNTRIES,

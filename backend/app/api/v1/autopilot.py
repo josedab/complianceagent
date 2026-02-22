@@ -1,6 +1,5 @@
 """API endpoints for Agentic Compliance Autopilot."""
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -9,12 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 from app.services.autopilot import (
-    RemediationStatus,
-    RemediationPriority,
-    RemediationType,
-    ApprovalStatus,
     AutopilotConfig,
-    AutopilotEngine,
     get_autopilot_engine,
 )
 
@@ -29,7 +23,7 @@ router = APIRouter()
 
 class AutopilotConfigRequest(BaseModel):
     """Configuration for autopilot."""
-    
+
     enabled: bool = True
     auto_remediate_low_risk: bool = False
     auto_create_prs: bool = True
@@ -43,14 +37,14 @@ class AutopilotConfigRequest(BaseModel):
 
 class CreateSessionRequest(BaseModel):
     """Request to create an autopilot session."""
-    
+
     name: str | None = None
     config: AutopilotConfigRequest | None = None
 
 
 class ViolationInput(BaseModel):
     """Input for a compliance violation."""
-    
+
     rule_id: str
     rule_name: str
     regulation: str = "General"
@@ -67,25 +61,25 @@ class ViolationInput(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     """Request to analyze violations."""
-    
+
     violations: list[ViolationInput]
 
 
 class ApproveActionRequest(BaseModel):
     """Request to approve an action."""
-    
+
     comment: str | None = None
 
 
 class RejectActionRequest(BaseModel):
     """Request to reject an action."""
-    
+
     reason: str
 
 
 class ActionResponse(BaseModel):
     """Response for a remediation action."""
-    
+
     id: str
     violation_id: str
     action_type: str
@@ -108,7 +102,7 @@ class ActionResponse(BaseModel):
 
 class ViolationResponse(BaseModel):
     """Response for a compliance violation."""
-    
+
     id: str
     rule_id: str
     rule_name: str
@@ -123,7 +117,7 @@ class ViolationResponse(BaseModel):
 
 class PlanResponse(BaseModel):
     """Response for a remediation plan."""
-    
+
     id: str
     name: str
     description: str
@@ -138,14 +132,14 @@ class PlanResponse(BaseModel):
 
 class PlanDetailResponse(PlanResponse):
     """Detailed plan response."""
-    
+
     violations: list[ViolationResponse]
     actions: list[ActionResponse]
 
 
 class SessionResponse(BaseModel):
     """Response for an autopilot session."""
-    
+
     id: str
     name: str
     status: str
@@ -160,7 +154,7 @@ class SessionResponse(BaseModel):
 
 class ExecutionResultResponse(BaseModel):
     """Response for action execution."""
-    
+
     action_id: str
     success: bool
     execution_time_ms: float | None
@@ -184,12 +178,12 @@ async def create_session(
     db: DB,
 ) -> SessionResponse:
     """Create a new autopilot session.
-    
+
     The autopilot can analyze compliance violations and generate
     automated remediation plans with code fixes and pull requests.
     """
     engine = get_autopilot_engine()
-    
+
     config = None
     if request.config:
         config = AutopilotConfig(
@@ -203,13 +197,13 @@ async def create_session(
             pr_title_prefix=request.config.pr_title_prefix,
             pr_labels=request.config.pr_labels,
         )
-    
+
     session = await engine.create_session(
         organization_id=organization.id,
         name=request.name,
         config=config,
     )
-    
+
     return SessionResponse(
         id=str(session.id),
         name=session.name,
@@ -233,22 +227,22 @@ async def get_session(
 ) -> SessionResponse:
     """Get an autopilot session by ID."""
     engine = get_autopilot_engine()
-    
+
     try:
         session_uuid = UUID(session_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session ID format",
-        )
-    
+        ) from exc
+
     session = await engine.get_session(session_uuid)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
-    
+
     return SessionResponse(
         id=str(session.id),
         name=session.name,
@@ -277,32 +271,32 @@ async def analyze_violations(
     db: DB,
 ) -> PlanDetailResponse:
     """Analyze violations and generate a remediation plan.
-    
+
     Takes a list of compliance violations and generates:
     - Remediation actions with automated fixes
     - Code diffs and PR suggestions
     - Validation and rollback steps
     """
     engine = get_autopilot_engine()
-    
+
     try:
         session_uuid = UUID(session_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session ID format",
-        )
-    
+        ) from exc
+
     session = await engine.get_session(session_uuid)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
-    
+
     violations_data = [v.model_dump() for v in request.violations]
     plan = await engine.analyze_violations(session_uuid, violations_data)
-    
+
     return PlanDetailResponse(
         id=str(plan.id),
         name=plan.name,
@@ -364,22 +358,22 @@ async def get_plan(
 ) -> PlanDetailResponse:
     """Get a remediation plan by ID."""
     engine = get_autopilot_engine()
-    
+
     try:
         plan_uuid = UUID(plan_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid plan ID format",
-        )
-    
+        ) from exc
+
     plan = await engine.get_plan(plan_uuid)
     if not plan:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Plan not found",
         )
-    
+
     return PlanDetailResponse(
         id=str(plan.id),
         name=plan.name,
@@ -445,9 +439,9 @@ async def get_pending_approvals(
 ) -> list[ActionResponse]:
     """Get all actions pending approval for the organization."""
     engine = get_autopilot_engine()
-    
+
     actions = await engine.get_pending_approvals(organization.id)
-    
+
     return [
         ActionResponse(
             id=str(a.id),
@@ -483,24 +477,24 @@ async def approve_action(
 ) -> ActionResponse:
     """Approve a remediation action for execution."""
     engine = get_autopilot_engine()
-    
+
     try:
         action_uuid = UUID(action_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid action ID format",
-        )
-    
-    approver = f"User:{member.user_id}" if hasattr(member, 'user_id') else "Authorized Approver"
-    
+        ) from exc
+
+    approver = f"User:{member.user_id}" if hasattr(member, "user_id") else "Authorized Approver"
+
     action = await engine.approve_action(action_uuid, approver)
     if not action:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Action not found",
         )
-    
+
     return ActionResponse(
         id=str(action.id),
         violation_id=str(action.violation_id),
@@ -533,24 +527,24 @@ async def reject_action(
 ) -> ActionResponse:
     """Reject a remediation action."""
     engine = get_autopilot_engine()
-    
+
     try:
         action_uuid = UUID(action_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid action ID format",
-        )
-    
-    rejector = f"User:{member.user_id}" if hasattr(member, 'user_id') else "Authorized User"
-    
+        ) from exc
+
+    rejector = f"User:{member.user_id}" if hasattr(member, "user_id") else "Authorized User"
+
     action = await engine.reject_action(action_uuid, rejector, request.reason)
     if not action:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Action not found",
         )
-    
+
     return ActionResponse(
         id=str(action.id),
         violation_id=str(action.violation_id),
@@ -587,23 +581,23 @@ async def execute_action(
 ) -> ExecutionResultResponse:
     """Execute a single remediation action."""
     engine = get_autopilot_engine()
-    
+
     try:
         action_uuid = UUID(action_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid action ID format",
-        )
-    
+        ) from exc
+
     try:
         result = await engine.execute_action(action_uuid)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
-    
+        ) from e
+
     return ExecutionResultResponse(
         action_id=str(result.action_id),
         success=result.success,
@@ -625,28 +619,28 @@ async def execute_plan(
     db: DB = None,
 ) -> list[ExecutionResultResponse]:
     """Execute all actions in a remediation plan.
-    
+
     By default, only executes approved actions. Set execute_approved_only=false
     to execute all actions (not recommended for production).
     """
     engine = get_autopilot_engine()
-    
+
     try:
         plan_uuid = UUID(plan_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid plan ID format",
-        )
-    
+        ) from exc
+
     try:
         results = await engine.execute_plan(plan_uuid, execute_approved_only)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
-    
+        ) from e
+
     return [
         ExecutionResultResponse(
             action_id=str(r.action_id),
@@ -671,23 +665,23 @@ async def rollback_action(
 ) -> ExecutionResultResponse:
     """Rollback a completed remediation action."""
     engine = get_autopilot_engine()
-    
+
     try:
         action_uuid = UUID(action_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid action ID format",
-        )
-    
+        ) from exc
+
     try:
         result = await engine.rollback_action(action_uuid)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
-    
+        ) from e
+
     return ExecutionResultResponse(
         action_id=str(result.action_id),
         success=result.success,
@@ -714,26 +708,28 @@ async def quick_fix(
     db: DB = None,
 ) -> dict[str, Any]:
     """Quick fix endpoint for CI/CD integration.
-    
+
     Creates a session, analyzes violations, and optionally auto-approves
     low-risk fixes. Returns a summary suitable for pipeline output.
     """
     engine = get_autopilot_engine()
-    
+
     # Create session
     config = AutopilotConfig(
         auto_remediate_low_risk=auto_approve_low_risk,
     )
     session = await engine.create_session(
-        organization_id=organization.id if organization else UUID('00000000-0000-0000-0000-000000000000'),
+        organization_id=organization.id
+        if organization
+        else UUID("00000000-0000-0000-0000-000000000000"),
         name="Quick Fix Session",
         config=config,
     )
-    
+
     # Analyze violations
     violations_data = [v.model_dump() for v in violations]
     plan = await engine.analyze_violations(session.id, violations_data)
-    
+
     # Auto-approve low risk if enabled
     approved_count = 0
     if auto_approve_low_risk:
@@ -742,7 +738,7 @@ async def quick_fix(
             if violation and violation.severity == "low":
                 await engine.approve_action(action.id, "auto-approved")
                 approved_count += 1
-    
+
     return {
         "session_id": str(session.id),
         "plan_id": str(plan.id),
@@ -764,9 +760,11 @@ async def quick_fix(
             for a in plan.actions
         ],
         "next_steps": [
-            f"Review and approve pending actions at /autopilot/approvals/pending",
+            "Review and approve pending actions at /autopilot/approvals/pending",
             f"Execute approved actions: POST /autopilot/plans/{plan.id}/execute",
-        ] if len(plan.actions) > approved_count else [
+        ]
+        if len(plan.actions) > approved_count
+        else [
             f"Execute approved actions: POST /autopilot/plans/{plan.id}/execute",
         ],
     }

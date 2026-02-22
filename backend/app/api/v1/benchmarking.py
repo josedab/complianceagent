@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep
-
 from app.services.benchmarking import BenchmarkingService
 
 
@@ -135,7 +134,11 @@ async def create_corpus(
             framework=p.framework,
             article_ref=p.article_ref,
             text=p.text,
-            labels=[AnnotationLabel(lbl) for lbl in p.labels if lbl in AnnotationLabel.__members__.values()],
+            labels=[
+                AnnotationLabel(lbl)
+                for lbl in p.labels
+                if lbl in AnnotationLabel.__members__.values()
+            ],
             obligations=p.obligations,
             entities=p.entities,
         )

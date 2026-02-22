@@ -193,22 +193,28 @@ async def assess_impact(
     # Build affected files list from mapping data
     affected_files = []
     for file_path in mapping.affected_files or []:
-        affected_files.append(AffectedFile(
-            path=file_path,
-            change_type="modify",
-            lines_added=0,
-            lines_removed=0,
-            complexity_change=0,
-        ))
+        affected_files.append(
+            AffectedFile(
+                path=file_path,
+                change_type="modify",
+                lines_added=0,
+                lines_removed=0,
+                complexity_change=0,
+            )
+        )
 
     # Calculate risk factors based on gaps
     risk_factors = []
     if mapping.critical_gaps > 0:
-        risk_factors.append(f"{mapping.critical_gaps} critical compliance gap(s) requiring immediate attention")
+        risk_factors.append(
+            f"{mapping.critical_gaps} critical compliance gap(s) requiring immediate attention"
+        )
     if mapping.major_gaps > 0:
         risk_factors.append(f"{mapping.major_gaps} major gap(s) affecting core functionality")
     if mapping.minor_gaps > 0:
-        risk_factors.append(f"{mapping.minor_gaps} minor gap(s) for documentation or non-critical areas")
+        risk_factors.append(
+            f"{mapping.minor_gaps} minor gap(s) for documentation or non-critical areas"
+        )
     if mapping.mapping_confidence < 0.7:
         risk_factors.append("Low AI confidence - manual review strongly recommended")
 
@@ -242,7 +248,9 @@ async def assess_impact(
     elif mapping.compliance_status == ComplianceStatus.NON_COMPLIANT:
         summary_parts.append(f"Found {mapping.gap_count} compliance gaps requiring remediation.")
     elif mapping.compliance_status == ComplianceStatus.PARTIAL:
-        summary_parts.append("Partial compliance detected. Some implementations exist but gaps remain.")
+        summary_parts.append(
+            "Partial compliance detected. Some implementations exist but gaps remain."
+        )
     else:
         summary_parts.append("Compliance status pending review.")
 
@@ -255,7 +263,8 @@ async def assess_impact(
         total_files_affected=len(mapping.affected_files or []),
         total_lines_affected=sum(f.lines_added + f.lines_removed for f in affected_files),
         estimated_effort_hours=mapping.estimated_effort_hours or (mapping.gap_count * 4.0),
-        estimated_effort_description=mapping.estimated_effort_description or f"Estimated {mapping.gap_count} gap(s) to address",
+        estimated_effort_description=mapping.estimated_effort_description
+        or f"Estimated {mapping.gap_count} gap(s) to address",
         risk_level=mapping.risk_level or ("high" if mapping.critical_gaps > 0 else "medium"),
         risk_factors=risk_factors,
         dependencies=dependencies,
@@ -276,7 +285,7 @@ async def generate_compliant_code(
     copilot: CopilotDep,
 ) -> CodeGenerationResponse:
     """Generate compliant code for a mapping using AI.
-    
+
     This endpoint uses the GitHub Copilot integration to analyze compliance
     gaps and generate code that addresses regulatory requirements.
     """
@@ -307,24 +316,34 @@ async def generate_compliant_code(
         "title": mapping.requirement.title,
         "description": mapping.requirement.description,
         "reference_id": mapping.requirement.reference_id,
-        "regulation_name": mapping.requirement.regulation.name if mapping.requirement.regulation else "Unknown",
-        "framework": mapping.requirement.regulation.framework.value if mapping.requirement.regulation else None,
+        "regulation_name": mapping.requirement.regulation.name
+        if mapping.requirement.regulation
+        else "Unknown",
+        "framework": mapping.requirement.regulation.framework.value
+        if mapping.requirement.regulation
+        else None,
     }
 
     # Identify compliance gaps from the mapping
     gaps = []
     if mapping.compliance_status != ComplianceStatus.COMPLIANT:
-        gaps.append({
-            "severity": "high" if mapping.compliance_status == ComplianceStatus.NON_COMPLIANT else "medium",
-            "description": f"Code at {mapping.code_location} needs to address {mapping.requirement.title}",
-            "location": mapping.code_location,
-        })
+        gaps.append(
+            {
+                "severity": "high"
+                if mapping.compliance_status == ComplianceStatus.NON_COMPLIANT
+                else "medium",
+                "description": f"Code at {mapping.code_location} needs to address {mapping.requirement.title}",
+                "location": mapping.code_location,
+            }
+        )
         if mapping.gap_analysis:
             for gap in mapping.gap_analysis.get("gaps", []):
-                gaps.append({
-                    "severity": gap.get("severity", "medium"),
-                    "description": gap.get("description", "Compliance gap identified"),
-                })
+                gaps.append(
+                    {
+                        "severity": gap.get("severity", "medium"),
+                        "description": gap.get("description", "Compliance gap identified"),
+                    }
+                )
 
     # Get existing code context
     existing_code = {}
@@ -381,7 +400,10 @@ async def generate_compliant_code(
             tests=tests,
             documentation=ai_result.get("documentation"),
             pr_title=ai_result.get("pr_title", f"Compliance: {mapping.requirement.title}"),
-            pr_body=ai_result.get("pr_body", f"This PR addresses compliance requirement {mapping.requirement.reference_id}"),
+            pr_body=ai_result.get(
+                "pr_body",
+                f"This PR addresses compliance requirement {mapping.requirement.reference_id}",
+            ),
             compliance_comments=ai_result.get("compliance_comments", []),
             confidence=ai_result.get("confidence", 0.0),
             warnings=ai_result.get("warnings", []),
@@ -403,7 +425,7 @@ async def generate_compliant_code(
             pr_title=f"Compliance: {mapping.requirement.title}",
             pr_body=f"This PR addresses compliance requirement {mapping.requirement.reference_id}",
             confidence=0.0,
-            warnings=[f"Code generation failed: {str(e)}"],
+            warnings=[f"Code generation failed: {e!s}"],
             generated_at=datetime.now(UTC),
         )
 

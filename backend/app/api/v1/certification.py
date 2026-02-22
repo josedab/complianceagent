@@ -19,8 +19,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class QuestionSchema(BaseModel):
     """Quiz question (without correct answer)."""
+
     id: str
     type: str
     question_text: str
@@ -31,6 +33,7 @@ class QuestionSchema(BaseModel):
 
 class ModuleSchema(BaseModel):
     """Course module summary."""
+
     id: str
     title: str
     type: str
@@ -42,6 +45,7 @@ class ModuleSchema(BaseModel):
 
 class CourseSummarySchema(BaseModel):
     """Course listing summary."""
+
     id: str
     title: str
     description: str
@@ -57,6 +61,7 @@ class CourseSummarySchema(BaseModel):
 
 class CourseDetailSchema(CourseSummarySchema):
     """Full course details."""
+
     modules: list[ModuleSchema]
     prerequisites: list[str]
     learning_objectives: list[str]
@@ -64,6 +69,7 @@ class CourseDetailSchema(CourseSummarySchema):
 
 class EnrollmentSchema(BaseModel):
     """Enrollment response."""
+
     id: str
     course_id: str
     started_at: str
@@ -76,6 +82,7 @@ class EnrollmentSchema(BaseModel):
 
 class CertificateSchema(BaseModel):
     """Certificate response."""
+
     id: str
     course_id: str
     certificate_number: str
@@ -89,12 +96,14 @@ class CertificateSchema(BaseModel):
 
 class TutorQuestionRequest(BaseModel):
     """Request to ask the AI tutor."""
+
     module_id: str
     question: str = Field(..., description="Question for the AI tutor")
 
 
 class TutorResponseSchema(BaseModel):
     """AI tutor response."""
+
     id: str
     question: str
     answer: str
@@ -104,21 +113,25 @@ class TutorResponseSchema(BaseModel):
 
 class QuizSubmitRequest(BaseModel):
     """Request to submit quiz answers."""
+
     answers: list[dict] = Field(..., description="List of {question_id, answer}")
 
 
 class ExamSubmitRequest(BaseModel):
     """Request to submit final exam answers."""
+
     answers: list[dict] = Field(..., description="List of {question_id, answer}")
 
 
 class ModuleCompleteRequest(BaseModel):
     """Request to complete a module."""
+
     answers: dict = Field(default_factory=dict, description="Optional answers for the module")
 
 
 class LearningPathSchema(BaseModel):
     """Learning path response."""
+
     id: str
     title: str
     description: str
@@ -129,6 +142,7 @@ class LearningPathSchema(BaseModel):
 
 class CourseProgressSchema(BaseModel):
     """Course progress response."""
+
     modules_completed: int
     total_modules: int
     avg_quiz_score: float
@@ -137,6 +151,7 @@ class CourseProgressSchema(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 def _course_to_summary(course) -> CourseSummarySchema:
     return CourseSummarySchema(
@@ -194,6 +209,7 @@ def _cert_to_schema(cert) -> CertificateSchema:
 
 
 # --- Course Endpoints ---
+
 
 @router.get(
     "/courses",
@@ -254,6 +270,7 @@ async def get_course(
 
 # --- Enrollment Endpoints ---
 
+
 @router.post(
     "/courses/{course_id}/enroll",
     response_model=EnrollmentSchema,
@@ -275,7 +292,7 @@ async def enroll_in_course(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
     return _enrollment_to_schema(enrollment)
 
@@ -298,6 +315,7 @@ async def list_enrollments(
 
 
 # --- Module Endpoints ---
+
 
 @router.post(
     "/courses/{course_id}/modules/{module_id}/complete",
@@ -326,7 +344,7 @@ async def complete_module(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     return result
 
@@ -358,12 +376,13 @@ async def submit_quiz(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     return result
 
 
 # --- AI Tutor Endpoints ---
+
 
 @router.post(
     "/courses/{course_id}/tutor",
@@ -392,7 +411,7 @@ async def ask_tutor(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     return TutorResponseSchema(
         id=str(conversation.id),
@@ -404,6 +423,7 @@ async def ask_tutor(
 
 
 # --- Exam Endpoints ---
+
 
 @router.post(
     "/courses/{course_id}/exam",
@@ -430,12 +450,13 @@ async def take_final_exam(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     return result
 
 
 # --- Certificate Endpoints ---
+
 
 @router.get(
     "/certificates",
@@ -482,6 +503,7 @@ async def verify_certificate(
 
 # --- Learning Path Endpoints ---
 
+
 @router.get(
     "/learning-paths",
     response_model=list[LearningPathSchema],
@@ -510,6 +532,7 @@ async def list_learning_paths(
 
 
 # --- Progress Endpoints ---
+
 
 @router.get(
     "/progress/{course_id}",

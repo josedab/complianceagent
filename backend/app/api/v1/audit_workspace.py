@@ -26,7 +26,9 @@ class CreateWorkspaceRequest(BaseModel):
 async def create_workspace(request: CreateWorkspaceRequest, db: DB) -> dict:
     """Create a new audit preparation workspace."""
     svc = AuditWorkspaceService(db)
-    target = datetime.fromisoformat(request.target_audit_date) if request.target_audit_date else None
+    target = (
+        datetime.fromisoformat(request.target_audit_date) if request.target_audit_date else None
+    )
     fw = AuditFramework(request.framework)
     workspace = await svc.create_workspace(request.org_id, fw, target)
     return {
@@ -55,7 +57,9 @@ async def get_workspace(workspace_id: UUID, db: DB) -> dict:
             "total_controls": w.gap_analysis.total_controls,
             "readiness_pct": w.gap_analysis.readiness_pct,
             "gaps_found": w.gap_analysis.gaps_found,
-        } if w.gap_analysis else None,
+        }
+        if w.gap_analysis
+        else None,
     }
 
 

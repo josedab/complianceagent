@@ -270,7 +270,7 @@ async def create_sandbox(
             scenario_id=request.scenario_id,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return _sandbox_to_schema(sandbox)
 
 
@@ -284,7 +284,9 @@ async def list_user_sandboxes(
     organization: CurrentOrganization,
     member: OrgMember,
     db: DB,
-    sandbox_status: SandboxStatus | None = Query(None, alias="status", description="Filter by sandbox status"),
+    sandbox_status: SandboxStatus | None = Query(
+        None, alias="status", description="Filter by sandbox status"
+    ),
 ) -> list[SandboxEnvironmentSchema]:
     service = ComplianceSandboxService(db=db)
     sandboxes = await service.list_user_sandboxes(user_id=member.user_id, status=sandbox_status)
@@ -332,7 +334,7 @@ async def check_violation(
             submitted_code=request.submitted_code,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return CheckViolationResultSchema(**result)
 
 
@@ -352,7 +354,7 @@ async def submit_solution(
     try:
         result = await service.submit_solution(sandbox_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return SandboxResultSchema(
         id=str(result.id),
         sandbox_id=str(result.sandbox_id),
@@ -385,7 +387,7 @@ async def get_hint(
     try:
         hint = await service.get_hint(sandbox_id, violation_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     return HintResponseSchema(violation_id=violation_id, hint=hint)
 
 
@@ -495,9 +497,13 @@ async def list_whatif_scenarios(
     scenarios = await service.list_whatif_scenarios()
     return [
         WhatIfScenarioSchema(
-            id=s.id, title=s.title, description=s.description,
-            change_type=s.change_type, jurisdiction=s.jurisdiction,
-            regulation=s.regulation, effective_date=s.effective_date,
+            id=s.id,
+            title=s.title,
+            description=s.description,
+            change_type=s.change_type,
+            jurisdiction=s.jurisdiction,
+            regulation=s.regulation,
+            effective_date=s.effective_date,
             probability=s.probability,
         )
         for s in scenarios
@@ -519,10 +525,11 @@ async def run_whatif_simulation(
     service = ComplianceSandboxService(db=db)
     try:
         impact = await service.run_whatif_simulation(
-            scenario_id=request.scenario_id, repo=request.repo,
+            scenario_id=request.scenario_id,
+            repo=request.repo,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return WhatIfImpactSchema(
         scenario_id=impact.scenario_id,
         overall_risk_score=impact.overall_risk_score,

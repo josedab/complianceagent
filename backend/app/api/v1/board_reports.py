@@ -28,7 +28,10 @@ async def get_executive_summary(
         "overall_score": summary.overall_score,
         "overall_status": summary.overall_status,
         "narrative": summary.narrative,
-        "highlights": [{"category": h.category, "score": h.score, "status": h.status, "trend": h.trend} for h in summary.highlights],
+        "highlights": [
+            {"category": h.category, "score": h.score, "status": h.status, "trend": h.trend}
+            for h in summary.highlights
+        ],
         "top_risks": summary.top_risks,
         "action_items": summary.action_items,
     }

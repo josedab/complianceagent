@@ -1,6 +1,5 @@
 """API endpoints for Compliance Drift Detection."""
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -9,16 +8,14 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
-
 from app.services.drift_detection import (
     AlertChannel,
     AlertConfig,
-    CICDGateDecision,
-    CICDGateResult,
     DriftDetectionService,
     DriftSeverity,
     DriftType,
 )
+
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -105,7 +102,9 @@ class CICDGateRequest(BaseModel):
     current_score: float = Field(default=100.0, ge=0, le=100)
     current_findings: list[dict[str, Any]] = Field(default_factory=list)
     threshold_score: float = Field(default=80.0, ge=0, le=100)
-    block_on_critical: bool = Field(default=True, description="Block pipeline on critical violations")
+    block_on_critical: bool = Field(
+        default=True, description="Block pipeline on critical violations"
+    )
 
 
 class CICDGateSchema(BaseModel):
@@ -177,11 +176,16 @@ async def capture_baseline(
     """Capture current compliance state as baseline."""
     service = DriftDetectionService(db=db)
     baseline = await service.capture_baseline(
-        repo=request.repo, branch=request.branch, commit_sha=request.commit_sha,
+        repo=request.repo,
+        branch=request.branch,
+        commit_sha=request.commit_sha,
     )
     return BaselineSchema(
-        id=str(baseline.id), repo=baseline.repo, branch=baseline.branch,
-        commit_sha=baseline.commit_sha, score=baseline.score,
+        id=str(baseline.id),
+        repo=baseline.repo,
+        branch=baseline.branch,
+        commit_sha=baseline.commit_sha,
+        score=baseline.score,
         findings_count=baseline.findings_count,
         captured_at=baseline.captured_at.isoformat() if baseline.captured_at else None,
     )
@@ -199,16 +203,25 @@ async def detect_drift(
     """Detect compliance drift against baseline."""
     service = DriftDetectionService(db=db)
     events = await service.detect_drift(
-        repo=request.repo, branch=request.branch, commit_sha=request.commit_sha,
-        current_findings=request.current_findings, current_score=request.current_score,
+        repo=request.repo,
+        branch=request.branch,
+        commit_sha=request.commit_sha,
+        current_findings=request.current_findings,
+        current_score=request.current_score,
     )
     return [
         DriftEventSchema(
-            id=str(e.id), repo=e.repo, branch=e.branch,
-            drift_type=e.drift_type.value, severity=e.severity.value,
-            regulation=e.regulation, description=e.description,
-            file_path=e.file_path, commit_sha=e.commit_sha,
-            previous_score=e.previous_score, current_score=e.current_score,
+            id=str(e.id),
+            repo=e.repo,
+            branch=e.branch,
+            drift_type=e.drift_type.value,
+            severity=e.severity.value,
+            regulation=e.regulation,
+            description=e.description,
+            file_path=e.file_path,
+            commit_sha=e.commit_sha,
+            previous_score=e.previous_score,
+            current_score=e.current_score,
             detected_at=e.detected_at.isoformat() if e.detected_at else None,
             resolved_at=e.resolved_at.isoformat() if e.resolved_at else None,
         )
@@ -235,11 +248,17 @@ async def list_events(
     events = await service.list_events(repo=repo, severity=s, drift_type=dt, limit=limit)
     return [
         DriftEventSchema(
-            id=str(e.id), repo=e.repo, branch=e.branch,
-            drift_type=e.drift_type.value, severity=e.severity.value,
-            regulation=e.regulation, description=e.description,
-            file_path=e.file_path, commit_sha=e.commit_sha,
-            previous_score=e.previous_score, current_score=e.current_score,
+            id=str(e.id),
+            repo=e.repo,
+            branch=e.branch,
+            drift_type=e.drift_type.value,
+            severity=e.severity.value,
+            regulation=e.regulation,
+            description=e.description,
+            file_path=e.file_path,
+            commit_sha=e.commit_sha,
+            previous_score=e.previous_score,
+            current_score=e.current_score,
             detected_at=e.detected_at.isoformat() if e.detected_at else None,
             resolved_at=e.resolved_at.isoformat() if e.resolved_at else None,
         )
@@ -289,7 +308,8 @@ async def get_report(repo: str, db: DB) -> DriftReportSchema:
     service = DriftDetectionService(db=db)
     report = await service.get_report(repo=repo)
     return DriftReportSchema(
-        repo=report.repo, total_events=report.total_events,
+        repo=report.repo,
+        total_events=report.total_events,
         events_by_severity=report.events_by_severity,
         events_by_type=report.events_by_type,
         top_drifting_files=report.top_drifting_files,
@@ -312,7 +332,8 @@ async def check_cicd_gate(
     """
     service = DriftDetectionService(db=db)
     result = await service.check_cicd_gate(
-        repo=request.repo, branch=request.branch,
+        repo=request.repo,
+        branch=request.branch,
         commit_sha=request.commit_sha,
         current_score=request.current_score,
         current_findings=request.current_findings,
@@ -320,9 +341,13 @@ async def check_cicd_gate(
         block_on_critical=request.block_on_critical,
     )
     return CICDGateSchema(
-        id=str(result.id), repo=result.repo, branch=result.branch,
-        commit_sha=result.commit_sha, decision=result.decision.value,
-        current_score=result.current_score, threshold_score=result.threshold_score,
+        id=str(result.id),
+        repo=result.repo,
+        branch=result.branch,
+        commit_sha=result.commit_sha,
+        decision=result.decision.value,
+        current_score=result.current_score,
+        threshold_score=result.threshold_score,
         violations_found=result.violations_found,
         critical_violations=result.critical_violations,
         blocking_findings=result.blocking_findings,

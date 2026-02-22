@@ -6,10 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.digital_twin import (
-    ComplianceSimulator,
     ScenarioType,
-    SnapshotManager,
     get_compliance_simulator,
     get_snapshot_manager,
 )
@@ -21,7 +20,7 @@ router = APIRouter(prefix="/digital-twin", tags=["digital-twin"])
 # Request/Response Models
 class CreateSnapshotRequest(BaseModel):
     """Request to create a compliance snapshot."""
-    
+
     organization_id: UUID
     repository_id: UUID | None = None
     name: str | None = None
@@ -32,7 +31,7 @@ class CreateSnapshotRequest(BaseModel):
 
 class SnapshotResponse(BaseModel):
     """Compliance snapshot response."""
-    
+
     id: UUID
     organization_id: UUID
     repository_id: UUID | None
@@ -47,10 +46,13 @@ class SnapshotResponse(BaseModel):
 
 class CreateScenarioRequest(BaseModel):
     """Request to create a simulation scenario."""
-    
+
     organization_id: UUID
     name: str
-    scenario_type: str = Field(..., description="Type: code_change, architecture_change, vendor_change, regulation_adoption, data_flow_change, infrastructure_change")
+    scenario_type: str = Field(
+        ...,
+        description="Type: code_change, architecture_change, vendor_change, regulation_adoption, data_flow_change, infrastructure_change",
+    )
     parameters: dict[str, Any]
     description: str = ""
     created_by: str | None = None
@@ -58,7 +60,7 @@ class CreateScenarioRequest(BaseModel):
 
 class ScenarioResponse(BaseModel):
     """Simulation scenario response."""
-    
+
     id: UUID
     organization_id: UUID
     name: str
@@ -69,14 +71,14 @@ class ScenarioResponse(BaseModel):
 
 class RunSimulationRequest(BaseModel):
     """Request to run a simulation."""
-    
+
     scenario_id: UUID
     baseline_snapshot_id: UUID | None = None
 
 
 class SimulationResultResponse(BaseModel):
     """Simulation result response."""
-    
+
     id: UUID
     scenario_id: UUID
     baseline_snapshot_id: UUID
@@ -94,7 +96,7 @@ class SimulationResultResponse(BaseModel):
 
 class CompareSnapshotsRequest(BaseModel):
     """Request to compare two snapshots."""
-    
+
     snapshot1_id: UUID
     snapshot2_id: UUID
 
@@ -103,12 +105,12 @@ class CompareSnapshotsRequest(BaseModel):
 @router.post("/snapshots", response_model=SnapshotResponse)
 async def create_snapshot(request: CreateSnapshotRequest):
     """Create a new compliance snapshot.
-    
+
     Creates a point-in-time capture of the compliance state for an organization
     or repository. This serves as the baseline for what-if simulations.
     """
     manager = get_snapshot_manager()
-    
+
     snapshot = await manager.create_snapshot(
         organization_id=request.organization_id,
         repository_id=request.repository_id,
@@ -117,7 +119,7 @@ async def create_snapshot(request: CreateSnapshotRequest):
         branch=request.branch,
         compliance_data=request.compliance_data,
     )
-    
+
     return SnapshotResponse(
         id=snapshot.id,
         organization_id=snapshot.organization_id,
@@ -147,10 +149,10 @@ async def get_snapshot(snapshot_id: UUID):
     """Get a compliance snapshot by ID."""
     manager = get_snapshot_manager()
     snapshot = await manager.get_snapshot(snapshot_id)
-    
+
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
-    
+
     return SnapshotResponse(
         id=snapshot.id,
         organization_id=snapshot.organization_id,
@@ -178,10 +180,10 @@ async def get_snapshot_issues(snapshot_id: UUID, limit: int = 100):
     """Get issues from a compliance snapshot."""
     manager = get_snapshot_manager()
     snapshot = await manager.get_snapshot(snapshot_id)
-    
+
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
-    
+
     return {
         "snapshot_id": str(snapshot_id),
         "total_issues": len(snapshot.issues),
@@ -205,7 +207,7 @@ async def list_snapshots(organization_id: UUID, limit: int = 50):
     """List snapshots for an organization."""
     manager = get_snapshot_manager()
     snapshots = await manager.list_snapshots(organization_id, limit=limit)
-    
+
     return {
         "organization_id": str(organization_id),
         "count": len(snapshots),
@@ -227,10 +229,10 @@ async def get_latest_snapshot(organization_id: UUID, repository_id: UUID | None 
     """Get the latest snapshot for an organization."""
     manager = get_snapshot_manager()
     snapshot = await manager.get_latest_snapshot(organization_id, repository_id)
-    
+
     if not snapshot:
         raise HTTPException(status_code=404, detail="No snapshots found")
-    
+
     return SnapshotResponse(
         id=snapshot.id,
         organization_id=snapshot.organization_id,
@@ -255,12 +257,12 @@ async def get_latest_snapshot(organization_id: UUID, repository_id: UUID | None 
 @router.post("/snapshots/compare")
 async def compare_snapshots(request: CompareSnapshotsRequest):
     """Compare two compliance snapshots.
-    
+
     Useful for comparing compliance state before and after changes,
     or tracking compliance drift over time.
     """
     manager = get_snapshot_manager()
-    
+
     try:
         comparison = await manager.compare_snapshots(
             request.snapshot1_id,
@@ -268,7 +270,7 @@ async def compare_snapshots(request: CompareSnapshotsRequest):
         )
         return comparison
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.delete("/snapshots/{snapshot_id}")
@@ -276,10 +278,10 @@ async def delete_snapshot(snapshot_id: UUID):
     """Delete a compliance snapshot."""
     manager = get_snapshot_manager()
     deleted = manager.delete_snapshot(snapshot_id)
-    
+
     if not deleted:
         raise HTTPException(status_code=404, detail="Snapshot not found")
-    
+
     return {"deleted": True, "snapshot_id": str(snapshot_id)}
 
 
@@ -287,7 +289,7 @@ async def delete_snapshot(snapshot_id: UUID):
 @router.post("/scenarios", response_model=ScenarioResponse)
 async def create_scenario(request: CreateScenarioRequest):
     """Create a simulation scenario.
-    
+
     Scenarios define hypothetical changes to test against the compliance baseline.
     Supported types:
     - code_change: Test impact of code modifications
@@ -298,15 +300,15 @@ async def create_scenario(request: CreateScenarioRequest):
     - infrastructure_change: Test infrastructure modifications
     """
     simulator = get_compliance_simulator()
-    
+
     try:
         scenario_type = ScenarioType(request.scenario_type)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid scenario_type. Must be one of: {[t.value for t in ScenarioType]}",
-        )
-    
+        ) from exc
+
     scenario = await simulator.create_scenario(
         organization_id=request.organization_id,
         name=request.name,
@@ -315,7 +317,7 @@ async def create_scenario(request: CreateScenarioRequest):
         description=request.description,
         created_by=request.created_by,
     )
-    
+
     return ScenarioResponse(
         id=scenario.id,
         organization_id=scenario.organization_id,
@@ -331,10 +333,10 @@ async def get_scenario(scenario_id: UUID):
     """Get a simulation scenario by ID."""
     simulator = get_compliance_simulator()
     scenario = await simulator.get_scenario(scenario_id)
-    
+
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    
+
     return {
         "id": str(scenario.id),
         "organization_id": str(scenario.organization_id),
@@ -351,20 +353,20 @@ async def get_scenario(scenario_id: UUID):
 @router.post("/simulate", response_model=SimulationResultResponse)
 async def run_simulation(request: RunSimulationRequest):
     """Run a what-if compliance simulation.
-    
+
     Simulates the compliance impact of a scenario against a baseline snapshot.
     Returns predicted compliance score changes, new issues, and recommendations.
     """
     simulator = get_compliance_simulator()
-    
+
     try:
         result = await simulator.run_simulation(
             scenario_id=request.scenario_id,
             baseline_snapshot_id=request.baseline_snapshot_id,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
     return SimulationResultResponse(
         id=result.id,
         scenario_id=result.scenario_id,
@@ -387,10 +389,10 @@ async def get_simulation_result(result_id: UUID):
     """Get a simulation result by ID."""
     simulator = get_compliance_simulator()
     result = await simulator.get_result(result_id)
-    
+
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
-    
+
     return {
         "id": str(result.id),
         "scenario_id": str(result.scenario_id),
@@ -432,10 +434,10 @@ async def get_simulation_issues(result_id: UUID):
     """Get detailed issue information from a simulation result."""
     simulator = get_compliance_simulator()
     result = await simulator.get_result(result_id)
-    
+
     if not result:
         raise HTTPException(status_code=404, detail="Result not found")
-    
+
     return {
         "result_id": str(result_id),
         "new_issues": [
@@ -465,7 +467,7 @@ async def get_simulation_issues(result_id: UUID):
 # Migration Planning Endpoints
 class GenerateMigrationPlanRequest(BaseModel):
     """Request to generate a migration plan."""
-    
+
     simulation_result_id: UUID
     organization_id: UUID | None = None
     target_score: float = 0.95
@@ -474,25 +476,25 @@ class GenerateMigrationPlanRequest(BaseModel):
 
 class UpdateTaskStatusRequest(BaseModel):
     """Request to update task status."""
-    
+
     status: str
 
 
 @router.post("/migration-plans")
 async def generate_migration_plan(request: GenerateMigrationPlanRequest):
     """Generate a migration plan from simulation results.
-    
+
     Creates a comprehensive plan with tasks, milestones, and suggested PRs
     based on compliance gaps identified in the simulation.
     """
-    from app.services.digital_twin import get_migration_planner, get_compliance_simulator
-    
+    from app.services.digital_twin import get_compliance_simulator, get_migration_planner
+
     simulator = get_compliance_simulator()
     result = await simulator.get_result(request.simulation_result_id)
-    
+
     if not result:
         raise HTTPException(status_code=404, detail="Simulation result not found")
-    
+
     planner = get_migration_planner()
     plan = await planner.generate_plan(
         simulation_result=result,
@@ -500,7 +502,7 @@ async def generate_migration_plan(request: GenerateMigrationPlanRequest):
         target_score=request.target_score,
         timeline_days=request.timeline_days,
     )
-    
+
     return {
         "id": str(plan.id),
         "name": plan.name,
@@ -535,13 +537,13 @@ async def generate_migration_plan(request: GenerateMigrationPlanRequest):
 async def get_migration_plan(plan_id: UUID):
     """Get a migration plan by ID."""
     from app.services.digital_twin import get_migration_planner
-    
+
     planner = get_migration_planner()
     plan = await planner.get_plan(plan_id)
-    
+
     if not plan:
         raise HTTPException(status_code=404, detail="Migration plan not found")
-    
+
     return {
         "id": str(plan.id),
         "name": plan.name,
@@ -569,17 +571,17 @@ async def get_migration_plan(plan_id: UUID):
 async def get_migration_plan_tasks(plan_id: UUID, phase: str | None = None):
     """Get tasks for a migration plan."""
     from app.services.digital_twin import get_migration_planner
-    
+
     planner = get_migration_planner()
     plan = await planner.get_plan(plan_id)
-    
+
     if not plan:
         raise HTTPException(status_code=404, detail="Migration plan not found")
-    
+
     tasks = plan.tasks
     if phase:
         tasks = [t for t in tasks if t.phase.value == phase]
-    
+
     return {
         "plan_id": str(plan_id),
         "total": len(tasks),
@@ -610,23 +612,23 @@ async def update_migration_task(
     request: UpdateTaskStatusRequest,
 ):
     """Update the status of a migration task."""
-    from app.services.digital_twin import get_migration_planner, TaskStatus
-    
+    from app.services.digital_twin import TaskStatus, get_migration_planner
+
     planner = get_migration_planner()
-    
+
     try:
         status = TaskStatus(request.status)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid status. Must be one of: {[s.value for s in TaskStatus]}",
-        )
-    
+        ) from exc
+
     task = await planner.update_task_status(plan_id, task_id, status)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     return {
         "id": str(task.id),
         "title": task.title,
@@ -638,24 +640,24 @@ async def update_migration_task(
 @router.get("/migration-plans/{plan_id}/export")
 async def export_migration_plan(plan_id: UUID, format: str = "json"):
     """Export migration plan in various formats.
-    
+
     Supported formats: json, markdown, jira
     """
     from app.services.digital_twin import get_migration_planner
-    
+
     planner = get_migration_planner()
-    
+
     try:
         export = await planner.export_plan(plan_id, format=format)
         return export
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 # Codebase Graph Endpoints
 class BuildCodebaseGraphRequest(BaseModel):
     """Request to build a codebase graph."""
-    
+
     repository_id: UUID
     organization_id: UUID
     files: dict[str, str]
@@ -665,12 +667,12 @@ class BuildCodebaseGraphRequest(BaseModel):
 @router.post("/codebase-graphs")
 async def build_codebase_graph(request: BuildCodebaseGraphRequest):
     """Build a codebase graph for compliance analysis.
-    
+
     Analyzes source files to create a graph of code dependencies,
     data flows, and identifies compliance-sensitive areas.
     """
     from app.services.digital_twin import get_codebase_graph_builder
-    
+
     builder = get_codebase_graph_builder()
     graph = await builder.build_graph(
         repository_id=request.repository_id,
@@ -678,7 +680,7 @@ async def build_codebase_graph(request: BuildCodebaseGraphRequest):
         files=request.files,
         commit_sha=request.commit_sha,
     )
-    
+
     return {
         "id": str(graph.id),
         "name": graph.name,
@@ -698,13 +700,13 @@ async def build_codebase_graph(request: BuildCodebaseGraphRequest):
 async def get_codebase_graph(graph_id: UUID):
     """Get codebase graph metadata."""
     from app.services.digital_twin import get_codebase_graph_builder
-    
+
     builder = get_codebase_graph_builder()
     graph = await builder.get_graph(graph_id)
-    
+
     if not graph:
         raise HTTPException(status_code=404, detail="Codebase graph not found")
-    
+
     return {
         "id": str(graph.id),
         "name": graph.name,
@@ -725,46 +727,46 @@ async def get_codebase_graph(graph_id: UUID):
 @router.get("/codebase-graphs/{graph_id}/visualization")
 async def export_codebase_graph_visualization(graph_id: UUID):
     """Export codebase graph for visualization.
-    
+
     Returns graph data in a format suitable for rendering with
     visualization libraries like D3.js, Cytoscape, or vis.js.
     """
     from app.services.digital_twin import get_codebase_graph_builder
-    
+
     builder = get_codebase_graph_builder()
-    
+
     try:
         return await builder.export_for_visualization(graph_id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.get("/codebase-graphs/{graph_id}/data-flows")
 async def get_data_flows(graph_id: UUID, sensitivity: str | None = None):
     """Get data flows from a codebase graph.
-    
+
     Optionally filter by data sensitivity level.
     """
-    from app.services.digital_twin import get_codebase_graph_builder, DataSensitivity
-    
+    from app.services.digital_twin import DataSensitivity, get_codebase_graph_builder
+
     builder = get_codebase_graph_builder()
     graph = await builder.get_graph(graph_id)
-    
+
     if not graph:
         raise HTTPException(status_code=404, detail="Codebase graph not found")
-    
+
     flows = graph.data_flows
-    
+
     if sensitivity:
         try:
             sens = DataSensitivity(sensitivity)
             flows = [f for f in flows if sens in f.data_sensitivity]
-        except ValueError:
+        except ValueError as exc:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid sensitivity. Must be one of: {[s.value for s in DataSensitivity]}",
-            )
-    
+            ) from exc
+
     return {
         "graph_id": str(graph_id),
         "total": len(flows),
@@ -789,15 +791,15 @@ async def get_data_flows(graph_id: UUID, sensitivity: str | None = None):
 async def get_sensitive_nodes(graph_id: UUID):
     """Get nodes handling sensitive data."""
     from app.services.digital_twin import get_codebase_graph_builder
-    
+
     builder = get_codebase_graph_builder()
     graph = await builder.get_graph(graph_id)
-    
+
     if not graph:
         raise HTTPException(status_code=404, detail="Codebase graph not found")
-    
+
     sensitive = graph.sensitive_data_nodes
-    
+
     return {
         "graph_id": str(graph_id),
         "total": len(sensitive),
@@ -815,3 +817,222 @@ async def get_sensitive_nodes(graph_id: UUID):
             for n in sensitive
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# v2: Live Posture Tracking, Time-Travel & Blast Radius
+# ---------------------------------------------------------------------------
+
+
+class TwinEventSchema(BaseModel):
+    """A compliance posture event."""
+
+    id: str
+    event_type: str
+    source: str
+    description: str
+    timestamp: str
+    snapshot_id: str | None = None
+
+
+class BlastRadiusItemSchema(BaseModel):
+    """A single affected component in a blast radius analysis."""
+
+    component: str
+    regulation: str
+    impact_severity: str
+    remediation_effort_hours: float
+    description: str
+
+
+class BlastRadiusSchema(BaseModel):
+    """Blast radius analysis for a regulatory change."""
+
+    id: str
+    regulation: str
+    scenario_description: str
+    total_affected_components: int
+    critical_count: int
+    high_count: int
+    medium_count: int
+    low_count: int
+    total_remediation_hours: float
+    affected_items: list[BlastRadiusItemSchema]
+    recommendations: list[str]
+
+
+class PostureTimelineSchema(BaseModel):
+    """Compliance posture timeline."""
+
+    organization_id: str
+    start_time: str
+    end_time: str
+    score_trend: list[dict]
+    events: list[dict]
+    snapshots: list[dict]
+
+
+class TimeTravelRequest(BaseModel):
+    """Request to view posture at a specific point in time."""
+
+    target_time: str = Field(..., description="ISO 8601 timestamp")
+
+
+class RecordEventRequest(BaseModel):
+    """Request to record a compliance event."""
+
+    event_type: str = Field(
+        ..., description="Event type: regulation_change, code_deploy, scan_complete, etc."
+    )
+    source: str = Field(..., description="Source system")
+    description: str = Field(..., description="Event description")
+    auto_snapshot: bool = Field(True, description="Automatically capture snapshot")
+
+
+@router.post("/live/events", response_model=TwinEventSchema, summary="Record compliance event")
+async def record_twin_event(
+    request: RecordEventRequest,
+    organization: CurrentOrganization,
+    db: DB,
+) -> TwinEventSchema:
+    """Record a compliance-relevant event and optionally capture a snapshot."""
+    from app.services.digital_twin.live_tracker import LivePostureTracker, TwinEventType
+
+    tracker = LivePostureTracker(db=db)
+    event = await tracker.record_event(
+        event_type=TwinEventType(request.event_type),
+        source=request.source,
+        description=request.description,
+        organization_id=organization.id,
+        auto_snapshot=request.auto_snapshot,
+    )
+    return TwinEventSchema(
+        id=str(event.id),
+        event_type=event.event_type.value,
+        source=event.source,
+        description=event.description,
+        timestamp=event.timestamp.isoformat(),
+        snapshot_id=str(event.snapshot_id) if event.snapshot_id else None,
+    )
+
+
+@router.get("/live/events", response_model=list[TwinEventSchema], summary="List compliance events")
+async def list_twin_events(
+    organization: CurrentOrganization,
+    db: DB,
+    event_type: str | None = None,
+    limit: int = 50,
+) -> list[TwinEventSchema]:
+    """List tracked compliance events."""
+    from app.services.digital_twin.live_tracker import LivePostureTracker, TwinEventType
+
+    tracker = LivePostureTracker(db=db)
+    et = TwinEventType(event_type) if event_type else None
+    events = await tracker.list_events(organization_id=organization.id, event_type=et, limit=limit)
+    return [
+        TwinEventSchema(
+            id=str(e.id),
+            event_type=e.event_type.value,
+            source=e.source,
+            description=e.description,
+            timestamp=e.timestamp.isoformat(),
+            snapshot_id=str(e.snapshot_id) if e.snapshot_id else None,
+        )
+        for e in events
+    ]
+
+
+@router.post("/live/time-travel", summary="Time-travel to a specific posture state")
+async def time_travel_query(
+    request: TimeTravelRequest,
+    organization: CurrentOrganization,
+    db: DB,
+) -> dict:
+    """View the compliance posture at a specific point in time."""
+    from datetime import datetime
+
+    from app.services.digital_twin.live_tracker import LivePostureTracker
+
+    tracker = LivePostureTracker(db=db)
+    target = datetime.fromisoformat(request.target_time)
+    snapshot = await tracker.time_travel(organization_id=organization.id, target_time=target)
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="No snapshot found at that time")
+    return {
+        "id": str(snapshot.id),
+        "captured_at": snapshot.captured_at.isoformat() if snapshot.captured_at else None,
+        "overall_score": snapshot.overall_score,
+        "status": snapshot.status.value if snapshot.status else "unknown",
+        "issues_count": len(snapshot.issues),
+    }
+
+
+@router.get("/live/timeline", response_model=PostureTimelineSchema, summary="Posture timeline")
+async def get_posture_timeline(
+    organization: CurrentOrganization,
+    db: DB,
+    days: int = 30,
+) -> PostureTimelineSchema:
+    """Get compliance posture trend over a time period."""
+    from datetime import UTC, datetime, timedelta
+
+    from app.services.digital_twin.live_tracker import LivePostureTracker
+
+    tracker = LivePostureTracker(db=db)
+    end = datetime.now(UTC)
+    start = end - timedelta(days=days)
+    timeline = await tracker.get_posture_timeline(
+        organization_id=organization.id,
+        start_time=start,
+        end_time=end,
+    )
+    return PostureTimelineSchema(
+        organization_id=timeline.organization_id,
+        start_time=timeline.start_time,
+        end_time=timeline.end_time,
+        score_trend=timeline.score_trend,
+        events=timeline.events,
+        snapshots=timeline.snapshots,
+    )
+
+
+@router.post(
+    "/live/blast-radius", response_model=BlastRadiusSchema, summary="Blast radius analysis"
+)
+async def calculate_blast_radius(
+    organization: CurrentOrganization,
+    db: DB,
+    regulation: str = "gdpr",
+    scenario_description: str = "",
+) -> BlastRadiusSchema:
+    """Calculate the blast radius of a new or changed regulation."""
+    from app.services.digital_twin.live_tracker import LivePostureTracker
+
+    tracker = LivePostureTracker(db=db)
+    report = await tracker.calculate_blast_radius(
+        organization_id=organization.id,
+        regulation=regulation,
+        scenario_description=scenario_description,
+    )
+    return BlastRadiusSchema(
+        id=str(report.id),
+        regulation=report.regulation,
+        scenario_description=report.scenario_description,
+        total_affected_components=report.total_affected_components,
+        critical_count=report.critical_count,
+        high_count=report.high_count,
+        medium_count=report.medium_count,
+        low_count=report.low_count,
+        total_remediation_hours=report.total_remediation_hours,
+        affected_items=[
+            BlastRadiusItemSchema(
+                component=i.component,
+                regulation=i.regulation,
+                impact_severity=i.impact_severity.value,
+                remediation_effort_hours=i.remediation_effort_hours,
+                description=i.description,
+            )
+            for i in report.affected_items
+        ],
+        recommendations=report.recommendations,
+    )

@@ -13,17 +13,27 @@ from app.services.dao_governance import (
     VoteChoice,
 )
 
+
 logger = structlog.get_logger()
 router = APIRouter()
 
 
 # --- Request Models ---
 
+
 class CreateProposalRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=500, description="Proposal title")
-    description: str = Field(..., min_length=1, max_length=5000, description="Detailed description of the proposal")
-    proposal_type: str = Field(..., min_length=1, description="Type: policy_change, framework_addition, threshold_update, member_admission, budget_allocation, emergency_action")
-    affected_frameworks: list[str] = Field(default_factory=list, description="Affected compliance frameworks")
+    description: str = Field(
+        ..., min_length=1, max_length=5000, description="Detailed description of the proposal"
+    )
+    proposal_type: str = Field(
+        ...,
+        min_length=1,
+        description="Type: policy_change, framework_addition, threshold_update, member_admission, budget_allocation, emergency_action",
+    )
+    affected_frameworks: list[str] = Field(
+        default_factory=list, description="Affected compliance frameworks"
+    )
     changes_summary: str = Field("", description="Summary of proposed changes")
 
 
@@ -34,6 +44,7 @@ class CastVoteRequest(BaseModel):
 
 
 # --- Response Models ---
+
 
 class VoteSchema(BaseModel):
     id: str
@@ -89,6 +100,7 @@ class GovernanceStatsSchema(BaseModel):
 
 # --- Endpoints ---
 
+
 @router.get("/proposals", response_model=list[ProposalSchema])
 async def list_proposals(
     status_filter: str | None = Query(None, alias="status"),
@@ -98,19 +110,28 @@ async def list_proposals(
     if status_filter:
         try:
             ps = ProposalStatus(status_filter)
-        except ValueError:
-            raise HTTPException(status_code=422, detail=f"Invalid status: {status_filter}")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid status: {status_filter}") from exc
     proposals = await svc.list_proposals(status=ps)
     return [
         {
-            "id": str(p.id), "title": p.title, "description": p.description,
-            "proposal_type": p.proposal_type.value, "status": p.status.value,
-            "proposer_org": p.proposer_org, "affected_frameworks": p.affected_frameworks,
-            "changes_summary": p.changes_summary, "votes_for": p.votes_for,
-            "votes_against": p.votes_against, "votes_abstain": p.votes_abstain,
-            "total_voters": p.total_voters, "quorum_required": p.quorum_required,
-            "approval_threshold": p.approval_threshold, "voting_period_hours": p.voting_period_hours,
-            "created_at": p.created_at.isoformat(), "voting_ends_at": p.voting_ends_at.isoformat() if p.voting_ends_at else None,
+            "id": str(p.id),
+            "title": p.title,
+            "description": p.description,
+            "proposal_type": p.proposal_type.value,
+            "status": p.status.value,
+            "proposer_org": p.proposer_org,
+            "affected_frameworks": p.affected_frameworks,
+            "changes_summary": p.changes_summary,
+            "votes_for": p.votes_for,
+            "votes_against": p.votes_against,
+            "votes_abstain": p.votes_abstain,
+            "total_voters": p.total_voters,
+            "quorum_required": p.quorum_required,
+            "approval_threshold": p.approval_threshold,
+            "voting_period_hours": p.voting_period_hours,
+            "created_at": p.created_at.isoformat(),
+            "voting_ends_at": p.voting_ends_at.isoformat() if p.voting_ends_at else None,
             "execution_hash": p.execution_hash,
         }
         for p in proposals
@@ -122,23 +143,35 @@ async def create_proposal(req: CreateProposalRequest) -> dict:
     svc = DAOGovernanceService()
     try:
         proposal_type = ProposalType(req.proposal_type)
-    except ValueError:
-        raise HTTPException(status_code=422, detail=f"Invalid proposal_type: {req.proposal_type}")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail=f"Invalid proposal_type: {req.proposal_type}"
+        ) from exc
     p = await svc.create_proposal(
-        title=req.title, description=req.description,
+        title=req.title,
+        description=req.description,
         proposal_type=proposal_type,
         affected_frameworks=req.affected_frameworks,
         changes_summary=req.changes_summary,
     )
     return {
-        "id": str(p.id), "title": p.title, "description": p.description,
-        "proposal_type": p.proposal_type.value, "status": p.status.value,
-        "proposer_org": p.proposer_org, "affected_frameworks": p.affected_frameworks,
-        "changes_summary": p.changes_summary, "votes_for": p.votes_for,
-        "votes_against": p.votes_against, "votes_abstain": p.votes_abstain,
-        "total_voters": p.total_voters, "quorum_required": p.quorum_required,
-        "approval_threshold": p.approval_threshold, "voting_period_hours": p.voting_period_hours,
-        "created_at": p.created_at.isoformat(), "voting_ends_at": p.voting_ends_at.isoformat() if p.voting_ends_at else None,
+        "id": str(p.id),
+        "title": p.title,
+        "description": p.description,
+        "proposal_type": p.proposal_type.value,
+        "status": p.status.value,
+        "proposer_org": p.proposer_org,
+        "affected_frameworks": p.affected_frameworks,
+        "changes_summary": p.changes_summary,
+        "votes_for": p.votes_for,
+        "votes_against": p.votes_against,
+        "votes_abstain": p.votes_abstain,
+        "total_voters": p.total_voters,
+        "quorum_required": p.quorum_required,
+        "approval_threshold": p.approval_threshold,
+        "voting_period_hours": p.voting_period_hours,
+        "created_at": p.created_at.isoformat(),
+        "voting_ends_at": p.voting_ends_at.isoformat() if p.voting_ends_at else None,
         "execution_hash": p.execution_hash,
     }
 
@@ -148,19 +181,24 @@ async def cast_vote(proposal_id: UUID, req: CastVoteRequest) -> dict:
     svc = DAOGovernanceService()
     try:
         choice = VoteChoice(req.choice)
-    except ValueError:
-        raise HTTPException(status_code=422, detail=f"Invalid vote choice: {req.choice}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid vote choice: {req.choice}") from exc
     try:
         v = await svc.cast_vote(
-            proposal_id=proposal_id, member_id=UUID(req.member_id),
-            choice=choice, rationale=req.rationale,
+            proposal_id=proposal_id,
+            member_id=UUID(req.member_id),
+            choice=choice,
+            rationale=req.rationale,
         )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     return {
-        "id": str(v.id), "proposal_id": str(v.proposal_id),
-        "member_id": str(v.member_id), "choice": v.choice.value,
-        "voting_power": v.voting_power, "rationale": v.rationale,
+        "id": str(v.id),
+        "proposal_id": str(v.proposal_id),
+        "member_id": str(v.member_id),
+        "choice": v.choice.value,
+        "voting_power": v.voting_power,
+        "rationale": v.rationale,
         "cast_at": v.cast_at.isoformat(),
     }
 
@@ -170,9 +208,15 @@ async def list_members() -> list[dict]:
     svc = DAOGovernanceService()
     members = await svc.get_members()
     return [
-        {"id": str(m.id), "organization": m.organization, "display_name": m.display_name,
-         "voting_power": m.voting_power, "reputation_score": m.reputation_score,
-         "proposals_created": m.proposals_created, "votes_cast": m.votes_cast}
+        {
+            "id": str(m.id),
+            "organization": m.organization,
+            "display_name": m.display_name,
+            "voting_power": m.voting_power,
+            "reputation_score": m.reputation_score,
+            "proposals_created": m.proposals_created,
+            "votes_cast": m.votes_cast,
+        }
         for m in members
     ]
 
@@ -182,9 +226,12 @@ async def get_stats() -> dict:
     svc = DAOGovernanceService()
     s = await svc.get_stats()
     return {
-        "total_proposals": s.total_proposals, "active_proposals": s.active_proposals,
-        "passed_proposals": s.passed_proposals, "rejected_proposals": s.rejected_proposals,
-        "total_members": s.total_members, "total_votes_cast": s.total_votes_cast,
+        "total_proposals": s.total_proposals,
+        "active_proposals": s.active_proposals,
+        "passed_proposals": s.passed_proposals,
+        "rejected_proposals": s.rejected_proposals,
+        "total_members": s.total_members,
+        "total_votes_cast": s.total_votes_cast,
         "average_participation_rate": s.average_participation_rate,
         "average_approval_rate": s.average_approval_rate,
     }

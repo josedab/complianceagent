@@ -6,11 +6,13 @@ from pydantic import BaseModel, Field
 
 from app.services.compliance_cloning import ComplianceCloningService
 
+
 logger = structlog.get_logger()
 router = APIRouter()
 
 
 # --- Request/Response Models ---
+
 
 class ReferenceRepoSchema(BaseModel):
     id: str
@@ -65,6 +67,7 @@ class GeneratePlanRequest(BaseModel):
 
 # --- Endpoints ---
 
+
 @router.get("/reference-repos", response_model=list[ReferenceRepoSchema])
 async def list_reference_repos(
     industry: str | None = Query(None),
@@ -73,10 +76,18 @@ async def list_reference_repos(
     svc = ComplianceCloningService()
     repos = await svc.list_reference_repos(industry=industry, language=language)
     return [
-        {"id": r.id, "name": r.name, "url": r.url, "description": r.description,
-         "languages": r.languages, "frameworks": r.frameworks,
-         "compliance_score": r.compliance_score, "patterns_count": r.patterns_count,
-         "industry": r.industry, "verified": r.verified}
+        {
+            "id": r.id,
+            "name": r.name,
+            "url": r.url,
+            "description": r.description,
+            "languages": r.languages,
+            "frameworks": r.frameworks,
+            "compliance_score": r.compliance_score,
+            "patterns_count": r.patterns_count,
+            "industry": r.industry,
+            "verified": r.verified,
+        }
         for r in repos
     ]
 
@@ -86,8 +97,11 @@ async def fingerprint_repo(repo_url: str = Query(...)) -> dict:
     svc = ComplianceCloningService()
     fp = await svc.fingerprint_repo(repo_url)
     return {
-        "repo_url": fp.repo_url, "languages": fp.languages, "frameworks": fp.frameworks,
-        "cloud_providers": fp.cloud_providers, "compliance_patterns": fp.compliance_patterns,
+        "repo_url": fp.repo_url,
+        "languages": fp.languages,
+        "frameworks": fp.frameworks,
+        "cloud_providers": fp.cloud_providers,
+        "compliance_patterns": fp.compliance_patterns,
         "compliance_score": fp.compliance_score,
     }
 
@@ -97,10 +111,18 @@ async def find_similar_repos(repo_url: str = Query(...)) -> list[dict]:
     svc = ComplianceCloningService()
     repos = await svc.find_similar_repos(repo_url)
     return [
-        {"id": r.id, "name": r.name, "url": r.url, "description": r.description,
-         "languages": r.languages, "frameworks": r.frameworks,
-         "compliance_score": r.compliance_score, "patterns_count": r.patterns_count,
-         "industry": r.industry, "verified": r.verified}
+        {
+            "id": r.id,
+            "name": r.name,
+            "url": r.url,
+            "description": r.description,
+            "languages": r.languages,
+            "frameworks": r.frameworks,
+            "compliance_score": r.compliance_score,
+            "patterns_count": r.patterns_count,
+            "industry": r.industry,
+            "verified": r.verified,
+        }
         for r in repos
     ]
 
@@ -111,18 +133,28 @@ async def generate_migration_plan(req: GeneratePlanRequest) -> dict:
     try:
         plan = await svc.generate_migration_plan(req.source_repo_id, req.target_repo_url)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {
-        "id": str(plan.id), "source_repo": plan.source_repo, "target_repo": plan.target_repo,
-        "status": plan.status.value, "total_gaps": plan.total_gaps,
-        "gaps_resolved": plan.gaps_resolved, "estimated_total_hours": plan.estimated_total_hours,
+        "id": str(plan.id),
+        "source_repo": plan.source_repo,
+        "target_repo": plan.target_repo,
+        "status": plan.status.value,
+        "total_gaps": plan.total_gaps,
+        "gaps_resolved": plan.gaps_resolved,
+        "estimated_total_hours": plan.estimated_total_hours,
         "compliance_score_before": plan.compliance_score_before,
         "compliance_score_after": plan.compliance_score_after,
         "gaps": [
-            {"id": g.id, "category": g.category.value, "description": g.description,
-             "severity": g.severity, "reference_implementation": g.reference_implementation,
-             "suggested_fix": g.suggested_fix, "estimated_effort_hours": g.estimated_effort_hours,
-             "files_affected": g.files_affected}
+            {
+                "id": g.id,
+                "category": g.category.value,
+                "description": g.description,
+                "severity": g.severity,
+                "reference_implementation": g.reference_implementation,
+                "suggested_fix": g.suggested_fix,
+                "estimated_effort_hours": g.estimated_effort_hours,
+                "files_affected": g.files_affected,
+            }
             for g in plan.gaps
         ],
     }

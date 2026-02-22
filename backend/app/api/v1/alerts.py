@@ -1,7 +1,7 @@
 """Regulatory diff alerts API endpoints."""
 
-from datetime import datetime
-from typing import Any
+import contextlib
+from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CopilotDep, CurrentOrganization, OrgMember
 from app.services.diff_alerts import (
-    AlertAcknowledgment,
     AlertStatus,
     RegulatoryDiffService,
 )
@@ -24,8 +23,10 @@ router = APIRouter()
 
 # --- Schemas ---
 
+
 class DiffChangeSchema(BaseModel):
     """A single change in a diff."""
+
     change_type: str
     line_number_old: int | None = None
     line_number_new: int | None = None
@@ -35,6 +36,7 @@ class DiffChangeSchema(BaseModel):
 
 class TextDiffSchema(BaseModel):
     """Diff between two text versions."""
+
     old_version_preview: str = Field(..., description="Preview of old version (truncated)")
     new_version_preview: str = Field(..., description="Preview of new version (truncated)")
     old_version_date: datetime | None = None
@@ -47,6 +49,7 @@ class TextDiffSchema(BaseModel):
 
 class ImpactAnalysisSchema(BaseModel):
     """AI analysis of regulatory change impact."""
+
     summary: str
     key_changes: list[str]
     affected_areas: list[str]
@@ -59,6 +62,7 @@ class ImpactAnalysisSchema(BaseModel):
 
 class AlertResponseSchema(BaseModel):
     """Regulatory alert response."""
+
     id: UUID
     regulation_id: UUID | None = None
     regulation_name: str
@@ -75,6 +79,7 @@ class AlertResponseSchema(BaseModel):
 
 class DetectChangesRequest(BaseModel):
     """Request to detect changes in regulation."""
+
     regulation_id: UUID
     new_text: str = Field(..., description="New version of regulatory text")
     old_text: str | None = Field(None, description="Previous version (optional)")
@@ -82,12 +87,14 @@ class DetectChangesRequest(BaseModel):
 
 class AcknowledgeAlertRequest(BaseModel):
     """Request to acknowledge an alert."""
+
     notes: str | None = Field(None, description="Optional notes about acknowledgment")
     action_taken: str | None = Field(None, description="Description of action taken")
 
 
 class NotificationConfigRequest(BaseModel):
     """Configuration for alert notifications."""
+
     slack_webhook_url: str | None = None
     slack_channel: str | None = None
     teams_webhook_url: str | None = None
@@ -97,6 +104,7 @@ class NotificationConfigRequest(BaseModel):
 
 class AlertListResponse(BaseModel):
     """List of alerts."""
+
     alerts: list[AlertResponseSchema]
     total: int
     pending_count: int
@@ -104,6 +112,7 @@ class AlertListResponse(BaseModel):
 
 
 # --- Helper Functions ---
+
 
 def _alert_to_schema(alert) -> AlertResponseSchema:
     """Convert RegulatoryAlert to response schema."""
@@ -121,13 +130,14 @@ def _alert_to_schema(alert) -> AlertResponseSchema:
                     line_number_new=c.line_number_new,
                     old_text=c.old_text,
                     new_text=c.new_text,
-                ) for c in alert.diff.changes[:50]  # Limit changes
+                )
+                for c in alert.diff.changes[:50]  # Limit changes
             ],
             additions_count=alert.diff.additions_count,
             deletions_count=alert.diff.deletions_count,
             similarity_ratio=alert.diff.similarity_ratio,
         )
-    
+
     impact_schema = None
     if alert.impact_analysis:
         impact_schema = ImpactAnalysisSchema(
@@ -140,7 +150,7 @@ def _alert_to_schema(alert) -> AlertResponseSchema:
             affected_frameworks=alert.impact_analysis.affected_frameworks,
             confidence=alert.impact_analysis.confidence,
         )
-    
+
     return AlertResponseSchema(
         id=alert.id,
         regulation_id=alert.regulation_id,
@@ -159,6 +169,7 @@ def _alert_to_schema(alert) -> AlertResponseSchema:
 
 # --- Endpoints ---
 
+
 @router.post(
     "/detect",
     response_model=AlertResponseSchema | None,
@@ -174,7 +185,7 @@ async def detect_changes(
 ) -> AlertResponseSchema | None:
     """
     Detect changes in regulatory text and generate an alert if changes found.
-    
+
     Uses AI to analyze the impact of detected changes and determine severity.
     """
     try:
@@ -184,23 +195,23 @@ async def detect_changes(
             new_text=request.new_text,
             old_text=request.old_text,
         )
-        
+
         if alert is None:
             return None
-        
+
         return _alert_to_schema(alert)
-        
+
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
     except Exception as e:
         logger.exception("Change detection failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Change detection failed",
-        )
+        ) from e
 
 
 @router.get(
@@ -221,31 +232,29 @@ async def list_alerts(
 ) -> AlertListResponse:
     """
     List regulatory change alerts for the organization.
-    
+
     Alerts can be filtered by status, severity, and framework.
     """
     service = RegulatoryDiffService(db=db)
-    
+
     # Get alerts (in production, this would query from DB with filters)
     severity_enum = None
     if severity:
-        try:
+        with contextlib.suppress(ValueError):
             severity_enum = AlertSeverity(severity.lower())
-        except ValueError:
-            pass
-    
+
     alerts = await service.get_pending_alerts(
         organization_id=organization.id,
         severity=severity_enum,
         limit=limit,
     )
-    
+
     alert_schemas = [_alert_to_schema(a) for a in alerts]
-    
+
     # Count metrics
     pending_count = sum(1 for a in alerts if a.status == AlertStatus.PENDING)
     critical_count = sum(1 for a in alerts if a.severity == AlertSeverity.CRITICAL)
-    
+
     return AlertListResponse(
         alerts=alert_schemas,
         total=len(alert_schemas),
@@ -268,28 +277,28 @@ async def acknowledge_alert(
 ) -> dict:
     """
     Acknowledge a regulatory alert.
-    
+
     Acknowledging indicates the organization is aware of the change
     and has begun reviewing its impact.
     """
     service = RegulatoryDiffService(db=db)
-    
+
     success = await service.acknowledge_alert(
         alert_id=alert_id,
         user_id=member.user_id,
         notes=request.notes,
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Alert not found",
         )
-    
+
     return {
         "success": True,
         "alert_id": str(alert_id),
-        "acknowledged_at": datetime.utcnow().isoformat(),
+        "acknowledged_at": datetime.now(UTC).isoformat(),
         "acknowledged_by": str(member.user_id),
     }
 
@@ -306,7 +315,7 @@ async def configure_notifications(
 ) -> dict:
     """
     Configure notification channels for regulatory alerts.
-    
+
     Supports Slack webhooks, Microsoft Teams webhooks, and email.
     """
     # In production, save to database
@@ -314,7 +323,7 @@ async def configure_notifications(
         min_severity = AlertSeverity(request.min_severity.lower())
     except ValueError:
         min_severity = AlertSeverity.LOW
-    
+
     config = NotificationConfig(
         slack_webhook_url=request.slack_webhook_url,
         slack_channel=request.slack_channel,
@@ -323,7 +332,7 @@ async def configure_notifications(
         min_severity=min_severity,
         enabled=True,
     )
-    
+
     # Validate webhook URLs by checking format
     channels_configured = []
     if config.slack_webhook_url:
@@ -332,7 +341,7 @@ async def configure_notifications(
         channels_configured.append("teams")
     if config.email_recipients:
         channels_configured.append("email")
-    
+
     return {
         "success": True,
         "organization_id": str(organization.id),
@@ -355,9 +364,10 @@ async def test_notification(
     """
     Send a test notification to verify the configuration works.
     """
-    from app.services.diff_alerts.models import RegulatoryAlert
     from uuid import uuid4
-    
+
+    from app.services.diff_alerts.models import RegulatoryAlert
+
     # Create test alert
     test_alert = RegulatoryAlert(
         id=uuid4(),
@@ -367,19 +377,19 @@ async def test_notification(
         severity=AlertSeverity.LOW,
         status=AlertStatus.PENDING,
     )
-    
+
     config = NotificationConfig()
     if channel == "slack" and webhook_url:
         config.slack_webhook_url = webhook_url
     elif channel == "teams" and webhook_url:
         config.teams_webhook_url = webhook_url
-    
+
     notifier = AlertNotifier(config)
-    
+
     try:
         results = await notifier.send_alert(test_alert)
         success = results.get(channel, False)
-        
+
         return {
             "success": success,
             "channel": channel,

@@ -2,15 +2,15 @@
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB, CurrentOrganization, CurrentUser, OrgMember
-from app.services.chat import get_compliance_assistant, ActionType
+from app.api.v1.deps import DB, CurrentOrganization, OrgMember
+from app.services.chat import get_compliance_assistant
+
 
 logger = structlog.get_logger()
 
@@ -20,33 +20,33 @@ router = APIRouter()
 # Request/Response Models
 class ChatMessageRequest(BaseModel):
     """Chat message request."""
-    
+
     message: str = Field(..., description="The user's message")
     conversation_id: str | None = Field(None, description="Existing conversation ID to continue")
-    
+
     # Context
     repository: str | None = Field(None, description="Repository context (owner/repo)")
     file_path: str | None = Field(None, description="File path being discussed")
     regulations: list[str] | None = Field(None, description="Specific regulations to focus on")
-    
+
     # Attachments
     code_snippet: str | None = Field(None, description="Code snippet to analyze")
     file_content: str | None = Field(None, description="Full file content to analyze")
-    
+
     # Options
     stream: bool = Field(False, description="Whether to stream the response")
 
 
 class ChatActionRequest(BaseModel):
     """Request to execute a chat action."""
-    
+
     action_type: str = Field(..., description="Type of action to execute")
     parameters: dict[str, Any] = Field(default_factory=dict, description="Action parameters")
 
 
 class ChatCitationResponse(BaseModel):
     """A citation in the chat response."""
-    
+
     source: str
     title: str
     excerpt: str
@@ -56,7 +56,7 @@ class ChatCitationResponse(BaseModel):
 
 class ChatActionResponse(BaseModel):
     """A suggested action in the chat response."""
-    
+
     id: str
     type: str
     label: str
@@ -66,18 +66,18 @@ class ChatActionResponse(BaseModel):
 
 class ChatMessageResponse(BaseModel):
     """Chat message response."""
-    
+
     id: str
     conversation_id: str
     content: str
-    
+
     # Context
     citations: list[ChatCitationResponse] = Field(default_factory=list)
     context_used: list[str] = Field(default_factory=list)
-    
+
     # Actions
     actions: list[ChatActionResponse] = Field(default_factory=list)
-    
+
     # Metadata
     model: str = ""
     input_tokens: int = 0
@@ -88,7 +88,7 @@ class ChatMessageResponse(BaseModel):
 
 class ConversationSummary(BaseModel):
     """Summary of a conversation."""
-    
+
     id: str
     created_at: datetime
     updated_at: datetime
@@ -100,7 +100,7 @@ class ConversationSummary(BaseModel):
 
 class QuickActionResponse(BaseModel):
     """Quick action suggestion."""
-    
+
     label: str
     query: str
     icon: str
@@ -108,7 +108,7 @@ class QuickActionResponse(BaseModel):
 
 class FollowUpSuggestion(BaseModel):
     """Suggested follow-up question."""
-    
+
     question: str
 
 
@@ -121,14 +121,14 @@ async def send_message(
     db: DB,
 ) -> ChatMessageResponse:
     """Send a message to the compliance assistant.
-    
+
     Returns a non-streaming response with the full assistant reply,
     citations, and suggested follow-up actions.
     """
     from app.services.chat import ChatMessage
-    
+
     assistant = get_compliance_assistant()
-    
+
     chat_message = ChatMessage(
         role="user",
         content=request.message,
@@ -139,7 +139,7 @@ async def send_message(
         code_snippet=request.code_snippet,
         file_content=request.file_content,
     )
-    
+
     try:
         response = await assistant.chat(
             message=chat_message,
@@ -150,9 +150,9 @@ async def send_message(
         logger.error("Chat error", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Chat failed: {str(e)}",
-        )
-    
+            detail=f"Chat failed: {e!s}",
+        ) from e
+
     return ChatMessageResponse(
         id=str(response.id),
         conversation_id=response.conversation_id,
@@ -194,14 +194,15 @@ async def send_message_stream(
     db: DB,
 ):
     """Send a message with streaming response.
-    
+
     Returns Server-Sent Events (SSE) with incremental response chunks.
     """
-    from app.services.chat import ChatMessage
     import json
-    
+
+    from app.services.chat import ChatMessage
+
     assistant = get_compliance_assistant()
-    
+
     chat_message = ChatMessage(
         role="user",
         content=request.message,
@@ -212,7 +213,7 @@ async def send_message_stream(
         code_snippet=request.code_snippet,
         file_content=request.file_content,
     )
-    
+
     async def generate():
         try:
             async for chunk in assistant.chat_stream(
@@ -226,7 +227,7 @@ async def send_message_stream(
                     "content": chunk.content,
                     "is_complete": chunk.is_complete,
                 }
-                
+
                 if chunk.is_complete:
                     data["citations"] = chunk.citations
                     data["context_used"] = chunk.context_used
@@ -235,15 +236,15 @@ async def send_message_stream(
                     data["input_tokens"] = chunk.input_tokens
                     data["output_tokens"] = chunk.output_tokens
                     data["latency_ms"] = chunk.latency_ms
-                
+
                 yield f"data: {json.dumps(data)}\n\n"
-            
+
             yield "data: [DONE]\n\n"
-            
+
         except Exception as e:
             logger.error("Stream error", error=str(e))
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
-    
+
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
@@ -265,7 +266,7 @@ async def execute_action(
 ) -> dict[str, Any]:
     """Execute a suggested action from a chat response."""
     assistant = get_compliance_assistant()
-    
+
     try:
         result = await assistant.execute_action(
             conversation_id=conversation_id,
@@ -278,13 +279,13 @@ async def execute_action(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
     except Exception as e:
         logger.error("Action execution error", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Action failed: {str(e)}",
-        )
+            detail=f"Action failed: {e!s}",
+        ) from e
 
 
 @router.get("/conversations", response_model=list[ConversationSummary])
@@ -297,14 +298,14 @@ async def list_conversations(
 ) -> list[ConversationSummary]:
     """List user's chat conversations."""
     assistant = get_compliance_assistant()
-    
+
     conversations = await assistant.conversation_manager.list_conversations(
         organization_id=organization.id,
         user_id=member.user_id,
         limit=limit,
         offset=offset,
     )
-    
+
     return [
         ConversationSummary(
             id=str(c.id),
@@ -328,18 +329,18 @@ async def delete_conversation(
 ) -> dict[str, str]:
     """Delete a conversation."""
     assistant = get_compliance_assistant()
-    
+
     success = await assistant.conversation_manager.delete(
         conversation_id=conversation_id,
         organization_id=organization.id,
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
-    
+
     return {"status": "deleted"}
 
 
@@ -351,12 +352,12 @@ async def get_quick_actions(
 ) -> list[QuickActionResponse]:
     """Get quick action suggestions for the chat UI."""
     assistant = get_compliance_assistant()
-    
+
     actions = await assistant.get_quick_actions(
         organization_id=organization.id,
         repository=repository,
     )
-    
+
     return [
         QuickActionResponse(
             label=a["label"],
@@ -375,12 +376,12 @@ async def get_follow_up_suggestions(
 ) -> list[FollowUpSuggestion]:
     """Get suggested follow-up questions for a conversation."""
     assistant = get_compliance_assistant()
-    
+
     suggestions = await assistant.suggest_questions(
         conversation_id=conversation_id,
         organization_id=organization.id,
     )
-    
+
     return [FollowUpSuggestion(question=q) for q in suggestions]
 
 
@@ -395,19 +396,19 @@ async def analyze_code(
     regulations: list[str] | None = Query(None),
 ) -> dict[str, Any]:
     """Analyze a code snippet for compliance issues.
-    
+
     This is a specialized endpoint for code analysis that returns
     structured compliance findings without requiring a conversation.
     """
     from app.services.chat import ChatMessage
-    
+
     assistant = get_compliance_assistant()
-    
+
     prompt = f"Analyze this {language} code for compliance issues"
     if regulations:
         prompt += f" with focus on {', '.join(regulations)}"
     prompt += ". Return specific violations with line numbers, severity, and fix suggestions."
-    
+
     chat_message = ChatMessage(
         role="user",
         content=prompt,
@@ -415,13 +416,13 @@ async def analyze_code(
         file_path=file_path,
         regulations=regulations,
     )
-    
+
     response = await assistant.chat(
         message=chat_message,
         organization_id=organization.id,
         user_id=member.user_id,
     )
-    
+
     return {
         "analysis": response.content,
         "conversation_id": response.conversation_id,
@@ -440,35 +441,135 @@ async def explain_regulation(
     context: str | None = None,
 ) -> dict[str, Any]:
     """Get an explanation of a specific regulation or article.
-    
+
     This endpoint provides developer-friendly explanations of regulatory
     requirements without needing a full conversation.
     """
     from app.services.chat import ChatMessage
-    
+
     assistant = get_compliance_assistant()
-    
+
     prompt = f"Explain {regulation}"
     if article:
         prompt += f" Article {article}"
     if context:
         prompt += f" in the context of: {context}"
     prompt += ". Focus on practical implementation requirements for developers."
-    
+
     chat_message = ChatMessage(
         role="user",
         content=prompt,
         regulations=[regulation],
     )
-    
+
     response = await assistant.chat(
         message=chat_message,
         organization_id=organization.id,
         user_id=member.user_id,
     )
-    
+
     return {
         "explanation": response.content,
         "conversation_id": response.conversation_id,
         "citations": response.citations,
     }
+
+
+# ---------------------------------------------------------------------------
+# v2: RAG Pipeline Diagnostics & Guardrail Configuration
+# ---------------------------------------------------------------------------
+
+
+class RAGDiagnosticsResponse(BaseModel):
+    """Diagnostics for the RAG pipeline."""
+
+    query_expanded: str
+    original_query: str
+    intent_detected: str | None = None
+    entities_detected: list[dict] = Field(default_factory=list)
+    documents_retrieved: int = 0
+    reranking_method: str = "reciprocal_rank_fusion"
+    guardrails_applied: list[str] = Field(default_factory=list)
+
+
+class GuardrailCheckRequest(BaseModel):
+    """Request to check guardrails on content."""
+
+    content: str = Field(..., description="Content to check against guardrails")
+    add_disclaimer: bool = Field(True, description="Whether to add legal disclaimer")
+
+
+class GuardrailCheckResponse(BaseModel):
+    """Result of guardrail check."""
+
+    original_length: int
+    output_length: int
+    blocked: bool
+    block_reason: str | None = None
+    disclaimers_added: list[str] = Field(default_factory=list)
+    content: str
+
+
+@router.post("/rag/diagnose", response_model=RAGDiagnosticsResponse)
+async def diagnose_rag_query(
+    organization: CurrentOrganization,
+    member: OrgMember,
+    query: str = "What are the GDPR consent requirements?",
+) -> RAGDiagnosticsResponse:
+    """Diagnose RAG pipeline behavior for a given query.
+
+    Shows query expansion, intent detection, entity extraction,
+    and document retrieval count without calling the LLM.
+    """
+    from app.services.chat.reranker import expand_query
+
+    expanded = expand_query(query)
+
+    assistant = get_compliance_assistant()
+    rag = assistant.rag_pipeline
+    intent = None
+    entities: list[dict] = []
+    doc_count = 0
+
+    if rag:
+        intent = rag._detect_intent(query)
+        entities = rag._extract_entities(query)
+        ctx = await rag.retrieve(
+            query=query,
+            organization_id=organization.id,
+        )
+        doc_count = len(ctx.documents)
+
+    return RAGDiagnosticsResponse(
+        query_expanded=expanded,
+        original_query=query,
+        intent_detected=intent,
+        entities_detected=entities,
+        documents_retrieved=doc_count,
+    )
+
+
+@router.post("/guardrails/check", response_model=GuardrailCheckResponse)
+async def check_guardrails(
+    request: GuardrailCheckRequest,
+    organization: CurrentOrganization,
+    member: OrgMember,
+) -> GuardrailCheckResponse:
+    """Check content against compliance chat guardrails.
+
+    Tests whether content would be blocked or have disclaimers added.
+    """
+    from app.services.chat.reranker import apply_guardrails
+
+    result = apply_guardrails(
+        content=request.content,
+        add_disclaimer=request.add_disclaimer,
+    )
+    return GuardrailCheckResponse(
+        original_length=len(request.content),
+        output_length=len(result.content),
+        blocked=result.blocked,
+        block_reason=result.block_reason,
+        disclaimers_added=result.disclaimers_added,
+        content=result.content,
+    )

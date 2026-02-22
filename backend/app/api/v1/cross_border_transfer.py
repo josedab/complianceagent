@@ -10,8 +10,6 @@ from pydantic import BaseModel, Field
 from app.api.v1.deps import DB, CopilotDep
 from app.services.cross_border_transfer import (
     CrossBorderTransferService,
-    TransferMechanism,
-    TransferRisk,
 )
 
 

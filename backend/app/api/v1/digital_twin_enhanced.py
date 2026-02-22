@@ -2,14 +2,12 @@
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
 from app.services.digital_twin.enhanced import (
-    EnhancedDigitalTwin,
     BreachScenario,
     get_enhanced_digital_twin,
 )
@@ -64,6 +62,7 @@ class BreachImpactResponse(BaseModel):
 # TIME TRAVEL ENDPOINTS
 # =====================
 
+
 @router.get("/timeline")
 async def get_compliance_timeline(
     start_date: str | None = None,
@@ -74,16 +73,16 @@ async def get_compliance_timeline(
 ) -> dict[str, Any]:
     """Get compliance timeline showing score evolution over time."""
     twin = get_enhanced_digital_twin()
-    
+
     start = datetime.fromisoformat(start_date) if start_date else None
     end = datetime.fromisoformat(end_date) if end_date else None
-    
+
     timeline = await twin.get_compliance_timeline(
         organization_id=organization.id,
         start_date=start,
         end_date=end,
     )
-    
+
     return {
         "organization_id": str(organization.id),
         "start_date": start.isoformat() if start else None,
@@ -110,16 +109,16 @@ async def get_compliance_at_time(
 ) -> dict[str, Any]:
     """Get compliance state at a specific point in time (time travel)."""
     twin = get_enhanced_digital_twin()
-    
+
     target = datetime.fromisoformat(target_time)
     snapshot = await twin.get_compliance_at_point_in_time(
         organization_id=organization.id,
         target_time=target,
     )
-    
+
     if not snapshot:
         raise HTTPException(status_code=404, detail="No snapshot found for target time")
-    
+
     return {
         "target_time": target.isoformat(),
         "snapshot_time": snapshot.created_at.isoformat(),
@@ -150,7 +149,7 @@ async def compare_time_periods(
 ) -> dict[str, Any]:
     """Compare compliance between two time periods."""
     twin = get_enhanced_digital_twin()
-    
+
     comparison = await twin.compare_time_periods(
         organization_id=organization.id,
         period1_start=datetime.fromisoformat(period1_start),
@@ -158,13 +157,14 @@ async def compare_time_periods(
         period2_start=datetime.fromisoformat(period2_start),
         period2_end=datetime.fromisoformat(period2_end),
     )
-    
+
     return comparison
 
 
 # =====================
 # DRIFT DETECTION ENDPOINTS
 # =====================
+
 
 @router.post("/drift/detect")
 async def detect_compliance_drift(
@@ -175,12 +175,12 @@ async def detect_compliance_drift(
 ) -> dict[str, Any]:
     """Detect compliance drift by comparing recent snapshots."""
     twin = get_enhanced_digital_twin()
-    
+
     drift_events = await twin.detect_drift(
         organization_id=organization.id,
         threshold=threshold,
     )
-    
+
     return {
         "organization_id": str(organization.id),
         "drift_detected": len(drift_events) > 0,
@@ -209,12 +209,12 @@ async def get_drift_history(
 ) -> dict[str, Any]:
     """Get drift event history."""
     twin = get_enhanced_digital_twin()
-    
+
     events = await twin.get_drift_history(
         organization_id=organization.id,
         limit=limit,
     )
-    
+
     return {
         "organization_id": str(organization.id),
         "total_events": len(events),
@@ -242,12 +242,12 @@ async def configure_auto_remediation(
 ) -> dict[str, Any]:
     """Enable or disable automatic drift remediation."""
     twin = get_enhanced_digital_twin()
-    
+
     result = await twin.enable_auto_remediation(
         organization_id=organization.id,
         enabled=enabled,
     )
-    
+
     return {
         "organization_id": str(organization.id),
         "auto_remediation_enabled": result,
@@ -258,6 +258,7 @@ async def configure_auto_remediation(
 # BREACH SIMULATION ENDPOINTS
 # =====================
 
+
 @router.post("/breach/simulate", response_model=BreachImpactResponse)
 async def simulate_breach(
     request: BreachSimulationRequest,
@@ -267,21 +268,21 @@ async def simulate_breach(
 ) -> BreachImpactResponse:
     """Simulate a breach scenario and assess compliance impact."""
     twin = get_enhanced_digital_twin()
-    
+
     try:
         scenario = BreachScenario(request.scenario)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid scenario. Valid options: {[s.value for s in BreachScenario]}",
-        )
-    
+        ) from exc
+
     impact = await twin.simulate_breach(
         organization_id=organization.id,
         scenario=scenario,
         parameters=request.parameters,
     )
-    
+
     return BreachImpactResponse(
         id=str(impact.id),
         scenario=impact.scenario.value,
@@ -342,7 +343,7 @@ async def list_breach_scenarios(
             "parameters": ["records"],
         },
     ]
-    
+
     return {"scenarios": scenarios}
 
 
@@ -355,9 +356,9 @@ async def list_breach_simulations(
 ) -> dict[str, Any]:
     """List recent breach simulations."""
     twin = get_enhanced_digital_twin()
-    
+
     simulations = await twin.list_breach_simulations(limit=limit)
-    
+
     return {
         "total": len(simulations),
         "simulations": [

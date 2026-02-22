@@ -2,21 +2,19 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB, CurrentOrganization, OrgMember
+from app.api.v1.deps import CurrentOrganization, OrgMember
 from app.services.monitoring.ai_safety_sources import (
-    AIRiskClassifier,
-    AIRiskLevel,
-    AISystemClassification,
-    NIST_AI_RMF_FUNCTIONS,
     AI_SYSTEM_DETECTION_PATTERNS,
+    NIST_AI_RMF_FUNCTIONS,
+    AIRiskClassifier,
 )
 from app.services.monitoring.source_registry import (
-    get_framework_statistics,
-    get_ai_regulation_source_definitions,
     FRAMEWORK_CATEGORIES,
+    get_ai_regulation_source_definitions,
+    get_framework_statistics,
 )
 
 
@@ -26,6 +24,7 @@ router = APIRouter()
 # Request/Response schemas
 class AIClassificationRequest(BaseModel):
     """Request for AI system risk classification."""
+
     code_content: str = Field(
         default="",
         description="Code content to analyze for AI/ML patterns",
@@ -50,6 +49,7 @@ class AIClassificationRequest(BaseModel):
 
 class AIClassificationResponse(BaseModel):
     """Response with AI system risk classification."""
+
     risk_level: str = Field(description="Risk level: unacceptable, high, limited, or minimal")
     confidence: float = Field(description="Confidence score (0-1)")
     reasons: list[str] = Field(description="Reasons for the classification")
@@ -61,6 +61,7 @@ class AIClassificationResponse(BaseModel):
 
 class FrameworkStatisticsResponse(BaseModel):
     """Response with framework statistics."""
+
     total_sources: int
     total_frameworks: int
     total_categories: int
@@ -72,12 +73,14 @@ class FrameworkStatisticsResponse(BaseModel):
 
 class NISTAIRMFResponse(BaseModel):
     """Response with NIST AI RMF framework details."""
+
     functions: dict[str, Any]
     total_categories: int
 
 
 class AIDetectionPatternsResponse(BaseModel):
     """Response with AI detection patterns."""
+
     ml_libraries: list[str]
     ml_file_patterns: list[str]
     ml_code_patterns: list[str]
@@ -94,28 +97,30 @@ async def classify_ai_system(
 ) -> AIClassificationResponse:
     """
     Classify an AI system's risk level according to the EU AI Act.
-    
+
     Analyzes provided code content, file names, and system description to determine:
     - Risk level (Unacceptable, High, Limited, or Minimal)
     - Applicable EU AI Act requirements
     - Recommended compliance actions
-    
+
     The classification considers:
     - Presence of ML/AI libraries and code patterns
     - High-risk use cases (biometrics, employment, healthcare, etc.)
     - Prohibited practices (social scoring, subliminal manipulation, etc.)
     """
     classifier = AIRiskClassifier()
-    
+
     # Combine description and use case for analysis
-    full_description = f"{request.system_description} {request.use_case} {' '.join(request.data_types)}"
-    
+    full_description = (
+        f"{request.system_description} {request.use_case} {' '.join(request.data_types)}"
+    )
+
     result = classifier.classify_from_code(
         code_content=request.code_content,
         file_names=request.file_names,
         description=full_description,
     )
-    
+
     return AIClassificationResponse(
         risk_level=result.risk_level.value,
         confidence=result.confidence,
@@ -134,7 +139,7 @@ async def get_regulatory_framework_statistics(
 ) -> FrameworkStatisticsResponse:
     """
     Get statistics about all available regulatory frameworks and sources.
-    
+
     Returns counts of sources by:
     - Jurisdiction (EU, US, Singapore, India, Japan, etc.)
     - Framework (GDPR, CCPA, PDPA, CSRD, EU AI Act, etc.)
@@ -151,7 +156,7 @@ async def get_framework_categories(
 ) -> dict[str, Any]:
     """
     Get framework category definitions.
-    
+
     Categories include:
     - privacy_data_protection: GDPR, CCPA, PDPA, DPDP, APPI, PIPA, PIPL
     - security_compliance: PCI-DSS, SOX, NIS2, SOC 2, ISO 27001
@@ -168,7 +173,7 @@ async def get_nist_ai_rmf_framework(
 ) -> NISTAIRMFResponse:
     """
     Get NIST AI Risk Management Framework details.
-    
+
     Returns the four core functions:
     - GOVERN: Policies, accountability, workforce, culture
     - MAP: Context, categorization, capabilities, risks, impacts
@@ -176,10 +181,9 @@ async def get_nist_ai_rmf_framework(
     - MANAGE: Prioritization, strategies, treatments, communication
     """
     total_categories = sum(
-        len(func_data.get("categories", []))
-        for func_data in NIST_AI_RMF_FUNCTIONS.values()
+        len(func_data.get("categories", [])) for func_data in NIST_AI_RMF_FUNCTIONS.values()
     )
-    
+
     return NISTAIRMFResponse(
         functions=NIST_AI_RMF_FUNCTIONS,
         total_categories=total_categories,
@@ -193,7 +197,7 @@ async def get_ai_detection_patterns(
 ) -> AIDetectionPatternsResponse:
     """
     Get AI/ML detection patterns used for classification.
-    
+
     Useful for understanding what patterns trigger different risk classifications
     and for validating that your codebase analysis is complete.
     """
@@ -213,7 +217,7 @@ async def get_ai_regulation_sources(
 ) -> list[dict[str, Any]]:
     """
     Get all AI regulation source definitions.
-    
+
     Includes sources for:
     - EU AI Act
     - NIST AI RMF
@@ -222,15 +226,19 @@ async def get_ai_regulation_sources(
     - UK AI Framework
     """
     sources = get_ai_regulation_source_definitions()
-    
+
     # Convert enum values to strings for JSON serialization
     return [
         {
             "name": s["name"],
             "description": s.get("description", ""),
             "url": s["url"],
-            "jurisdiction": s["jurisdiction"].value if hasattr(s["jurisdiction"], "value") else str(s["jurisdiction"]),
-            "framework": s["framework"].value if hasattr(s.get("framework"), "value") else str(s.get("framework", "")),
+            "jurisdiction": s["jurisdiction"].value
+            if hasattr(s["jurisdiction"], "value")
+            else str(s["jurisdiction"]),
+            "framework": s["framework"].value
+            if hasattr(s.get("framework"), "value")
+            else str(s.get("framework", "")),
             "parser_type": s.get("parser_type", "html"),
         }
         for s in sources

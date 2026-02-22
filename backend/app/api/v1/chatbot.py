@@ -78,11 +78,11 @@ async def send_chat_message(
 
     try:
         session_uuid = UUID(session_id)
-    except ValueError:
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid session ID",
-        )
+        ) from exc
 
     try:
         response = await chatbot.chat(
@@ -94,7 +94,7 @@ async def send_chat_message(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
     return ChatResponse(
         id=str(response.id),

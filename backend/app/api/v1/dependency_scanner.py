@@ -15,7 +15,9 @@ router = APIRouter()
 class ScanRequest(BaseModel):
     dependencies: list[dict] = Field(..., description="List of {name, version, license} dicts")
     ecosystem: str = Field("pip", description="Package ecosystem: pip, npm, maven, go")
-    proprietary_project: bool = Field(True, description="True if project is proprietary (flags copyleft)")
+    proprietary_project: bool = Field(
+        True, description="True if project is proprietary (flags copyleft)"
+    )
 
 
 @router.post("/scan")
