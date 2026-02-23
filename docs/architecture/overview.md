@@ -499,3 +499,64 @@ OpenTelemetry integration for distributed tracing across:
 2. **GraphQL API**: For flexible frontend queries
 3. **Plugin system**: Custom regulatory framework support
 4. **ML model fine-tuning**: Improve extraction accuracy over time
+
+---
+
+## Extended Architecture (v3–v9 Services)
+
+> Added: 2026-02-21. Covers the 70 services built across implementation rounds v3–v9.
+
+### Service Interaction Diagram
+
+```mermaid
+graph TD
+    subgraph "Ingestion"
+        MON[Monitoring] --> STREAM[Change Stream]
+    end
+
+    subgraph "Intelligence"
+        PARSE[Parsing<br/>Copilot SDK + Multi-LLM] --> KF[Knowledge Fabric<br/>RAG Search]
+        GNN[Compliance GNN<br/>Violation Prediction] --> MAP[Mapping]
+        PREDICT[Reg Prediction<br/>ML Forecasting] --> MAP
+    end
+
+    subgraph "Action"
+        GEN[Code Generation] --> HEAL[Self-Healing Mesh]
+        HEAL --> PR[Multi-SCM PR]
+        SWARM[Agent Swarm<br/>5 Roles] --> GEN
+        REMEDIATE[Auto-Remediation] --> PR
+    end
+
+    subgraph "Certification"
+        EVIDENCE[Evidence Gen<br/>SOC2/ISO27001] --> CERT[Cert Pipeline]
+        CERT --> TRUST[Trust Network<br/>Merkle Proofs]
+        TRUST --> PASSPORT[Digital Passport]
+    end
+
+    subgraph "Platform"
+        MCP[MCP Server<br/>7 Tools] --> MARKETPLACE[Agent Marketplace]
+        GATEWAY[API Gateway<br/>OAuth2] --> SDK[Client SDK<br/>Python/TS/Go]
+        PLUGINS[Plugin Ecosystem] --> MCP
+    end
+
+    STREAM --> PARSE
+    PARSE --> MAP
+    MAP --> GEN
+    PR --> AUDIT[Audit Trail]
+    AUDIT --> EVIDENCE
+```
+
+### Service Count by Category
+
+| Category | v3 | v4 | v5 | v6 | v7 | v8 | v9 | Total |
+|----------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:-----:|
+| **Pipeline & Autonomous** | 2 | 1 | 2 | 1 | 1 | 1 | 1 | **9** |
+| **AI & Intelligence** | 2 | 4 | 3 | 2 | 1 | 2 | 2 | **16** |
+| **Developer Tools** | 2 | 1 | 2 | 2 | 2 | 1 | 1 | **11** |
+| **Certification & Legal** | 1 | 1 | 1 | 2 | 2 | 1 | 2 | **10** |
+| **Enterprise Platform** | 2 | 1 | 2 | 1 | 2 | 2 | 2 | **12** |
+| **Analytics & Engagement** | 1 | 2 | — | 2 | 1 | 2 | 2 | **10** |
+| **Infrastructure** | — | — | — | 2 | 1 | 2 | — | **5** |
+| **Total** | **10** | **10** | **10** | **10** | **10** | **10** | **10** | **70** |
+
+### All v3–v9 services use in-memory state. See [STATUS.md](../../backend/app/services/STATUS.md) for migration priorities.

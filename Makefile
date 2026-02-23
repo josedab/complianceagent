@@ -285,3 +285,39 @@ export-openapi: ## Export OpenAPI spec to docs/api/openapi.json
 		> ../docs/api/openapi.json
 	@echo "$(GREEN)✓ OpenAPI spec exported to docs/api/openapi.json$(RESET)"
 	@echo "$(BLUE)Import into Postman: File → Import → docs/api/openapi.json$(RESET)"
+
+##@ Quality Validation
+
+validate-exports: ## Validate service __init__.py exports match models
+@python3 scripts/validate_service_exports.py
+
+lint-services: ## Lint all v3-v9 service code
+@cd backend && source .venv/bin/activate && ruff check \
+app/services/mcp_server/ app/services/github_app/ app/services/reg_change_stream/ \
+app/services/compliance_sdk/ app/services/compliance_copilot/ app/services/auto_remediation/ \
+app/services/multi_scm/ app/services/compliance_badge/ app/services/regulation_diff_viz/ \
+app/services/compliance_export/ app/services/agents_marketplace/ app/services/saas_onboarding/ \
+app/services/code_review_agent/ app/services/reg_prediction/ app/services/compliance_observability/ \
+app/services/nl_compliance_query/ app/services/twin_simulation/ app/services/cross_org_benchmark/ \
+app/services/evidence_generation/ app/services/cost_benefit_analyzer/ app/services/knowledge_fabric/ \
+app/services/self_healing_mesh/ app/services/ide_extension/ app/services/compliance_data_lake/ \
+app/services/policy_dsl/ app/services/realtime_feed/ app/services/compliance_gnn/ \
+app/services/cert_pipeline/ app/services/api_gateway/ app/services/workflow_automation/ \
+&& echo "$(GREEN)✓ All v3-v9 services lint clean$(RESET)"
+
+test-smoke: ## Run E2E smoke tests (no server needed)
+@cd backend && source .venv/bin/activate && python -m pytest tests/e2e/test_smoke.py -v
+
+test-nextgen: ## Run all v3-v9 service tests
+@cd backend && source .venv/bin/activate && python -m pytest \
+tests/services/test_nextgen_v3.py tests/services/test_nextgen_v4.py \
+tests/services/test_nextgen_v5.py tests/services/test_nextgen_v6.py \
+tests/services/test_nextgen_v7.py tests/services/test_nextgen_v8.py \
+tests/services/test_nextgen_v9.py -v
+
+health-check: ## Check platform health via API
+@cd backend && source .venv/bin/activate && python -c \
+"from app.main import app; import json; \
+ from app.api.v1.status import health_check; \
+ import asyncio; r = asyncio.run(health_check()); \
+ print(json.dumps(r.model_dump(), indent=2))"
