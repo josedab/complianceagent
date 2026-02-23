@@ -9,8 +9,8 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.risk_quantification.models import (
-    OrganizationRiskDashboard,
     REGULATION_FINES,
+    OrganizationRiskDashboard,
     RepositoryRiskProfile,
     RiskCategory,
     RiskReport,
@@ -96,7 +96,9 @@ class RiskQuantificationService:
         # Calculate base exposure
         if fine_structure:
             # Calculate maximum potential fine
-            revenue_based_fine = self._org_context["annual_revenue"] * fine_structure.max_fine_percent_revenue
+            revenue_based_fine = (
+                self._org_context["annual_revenue"] * fine_structure.max_fine_percent_revenue
+            )
             max_fine = max(fine_structure.max_fine_absolute, revenue_based_fine)
 
             # Per-record calculations if applicable
@@ -194,7 +196,11 @@ class RiskQuantificationService:
 
         if "breach" in rule_lower or "leak" in rule_lower:
             return RiskCategory.DATA_BREACH
-        if "pii" in rule_lower or "privacy" in rule_lower or regulation in ["GDPR", "CCPA", "HIPAA"]:
+        if (
+            "pii" in rule_lower
+            or "privacy" in rule_lower
+            or regulation in ["GDPR", "CCPA", "HIPAA"]
+        ):
             return RiskCategory.REGULATORY_FINE
         if "vendor" in rule_lower or "third" in rule_lower:
             return RiskCategory.THIRD_PARTY
@@ -284,15 +290,11 @@ class RiskQuantificationService:
 
         # Calculate sub-scores
         privacy_regs = ["GDPR", "CCPA", "HIPAA"]
-        privacy_exposure = sum(
-            profile.exposure_by_regulation.get(r, 0) for r in privacy_regs
-        )
+        privacy_exposure = sum(profile.exposure_by_regulation.get(r, 0) for r in privacy_regs)
         profile.data_privacy_score = 100 - min(100, (privacy_exposure / 100_000) * 10)
 
         security_cats = [RiskCategory.DATA_BREACH.value, RiskCategory.OPERATIONAL.value]
-        security_exposure = sum(
-            profile.exposure_by_category.get(c, 0) for c in security_cats
-        )
+        security_exposure = sum(profile.exposure_by_category.get(c, 0) for c in security_cats)
         profile.security_score = 100 - min(100, (security_exposure / 100_000) * 10)
 
         profile.compliance_score = 100 - min(100, (profile.total_violations * 5))
@@ -348,7 +350,9 @@ class RiskQuantificationService:
             dashboard.total_expected_exposure += profile.total_expected_exposure
 
             # By repository
-            dashboard.exposure_by_repository[profile.repository_name] = profile.total_expected_exposure
+            dashboard.exposure_by_repository[profile.repository_name] = (
+                profile.total_expected_exposure
+            )
 
             # By regulation (merge)
             for reg, exp in profile.exposure_by_regulation.items():
@@ -358,16 +362,14 @@ class RiskQuantificationService:
 
             # By severity
             dashboard.exposure_by_severity["critical"] = (
-                dashboard.exposure_by_severity.get("critical", 0) +
-                profile.critical_violations * 50_000  # Rough estimate
+                dashboard.exposure_by_severity.get("critical", 0)
+                + profile.critical_violations * 50_000  # Rough estimate
             )
             dashboard.exposure_by_severity["high"] = (
-                dashboard.exposure_by_severity.get("high", 0) +
-                profile.high_violations * 20_000
+                dashboard.exposure_by_severity.get("high", 0) + profile.high_violations * 20_000
             )
             dashboard.exposure_by_severity["medium"] = (
-                dashboard.exposure_by_severity.get("medium", 0) +
-                profile.medium_violations * 5_000
+                dashboard.exposure_by_severity.get("medium", 0) + profile.medium_violations * 5_000
             )
 
         # Calculate overall risk score
@@ -445,12 +447,14 @@ class RiskQuantificationService:
 
         # Critical violations
         if critical_count > 0:
-            recommendations.append({
-                "priority": "critical",
-                "action": f"Address {critical_count} critical violations immediately",
-                "impact": "Could reduce exposure by up to 50%",
-                "estimated_reduction": total_exposure * 0.5,
-            })
+            recommendations.append(
+                {
+                    "priority": "critical",
+                    "action": f"Address {critical_count} critical violations immediately",
+                    "impact": "Could reduce exposure by up to 50%",
+                    "estimated_reduction": total_exposure * 0.5,
+                }
+            )
 
         # Top regulation exposure
         sorted_regs = sorted(
@@ -461,12 +465,14 @@ class RiskQuantificationService:
 
         for reg, exposure in sorted_regs[:3]:
             exp_value = exposure.get("expected", 0)
-            recommendations.append({
-                "priority": "high",
-                "action": f"Focus on {reg} compliance - highest exposure",
-                "impact": f"${exp_value:,.0f} potential exposure",
-                "estimated_reduction": exp_value * 0.7,
-            })
+            recommendations.append(
+                {
+                    "priority": "high",
+                    "action": f"Focus on {reg} compliance - highest exposure",
+                    "impact": f"${exp_value:,.0f} potential exposure",
+                    "estimated_reduction": exp_value * 0.7,
+                }
+            )
 
         return recommendations
 
@@ -495,8 +501,7 @@ class RiskQuantificationService:
             # What if we fix specific violations?
             fix_ids = parameters.get("violation_ids", [])
             fixed_exposure = sum(
-                r.expected_exposure for r in current_risks
-                if str(r.id) not in fix_ids
+                r.expected_exposure for r in current_risks if str(r.id) not in fix_ids
             )
             scenario.scenario_exposure = fixed_exposure
             scenario.affected_violations = [UUID(v) for v in fix_ids if v]
@@ -550,9 +555,7 @@ class RiskQuantificationService:
         # Calculate delta
         scenario.exposure_delta = scenario.scenario_exposure - baseline_exposure
         if baseline_exposure > 0:
-            scenario.exposure_delta_percent = (
-                (scenario.exposure_delta / baseline_exposure) * 100
-            )
+            scenario.exposure_delta_percent = (scenario.exposure_delta / baseline_exposure) * 100
 
         return scenario
 
@@ -598,9 +601,7 @@ class RiskQuantificationService:
             report.key_findings.append("WARNING: Risk exposure is increasing")
 
         # Key recommendations
-        report.key_recommendations = [
-            r["action"] for r in dashboard.recommended_actions[:5]
-        ]
+        report.key_recommendations = [r["action"] for r in dashboard.recommended_actions[:5]]
 
         # Historical data
         report.historical_exposure = self._historical_exposure[-12:]  # Last 12 periods
@@ -609,9 +610,7 @@ class RiskQuantificationService:
         report.remediation_roadmap = self._generate_remediation_roadmap(dashboard)
 
         # Calculate projected exposure after remediation
-        total_reduction = sum(
-            r.get("estimated_reduction", 0) for r in report.remediation_roadmap
-        )
+        total_reduction = sum(r.get("estimated_reduction", 0) for r in report.remediation_roadmap)
         report.projected_exposure_after_remediation = max(
             0, dashboard.total_expected_exposure - total_reduction
         )
@@ -621,7 +620,9 @@ class RiskQuantificationService:
             "industry_average": dashboard.industry_benchmark,
             "your_exposure": dashboard.total_expected_exposure,
             "percentile_rank": dashboard.percentile_rank,
-            "comparison": "below" if dashboard.total_expected_exposure < (dashboard.industry_benchmark or 0) else "above",
+            "comparison": "below"
+            if dashboard.total_expected_exposure < (dashboard.industry_benchmark or 0)
+            else "above",
         }
 
         return report
@@ -643,12 +644,12 @@ class RiskQuantificationService:
 Your organization's compliance risk exposure is estimated at ${dashboard.total_expected_exposure:,.0f}
 (range: ${dashboard.total_min_exposure:,.0f} - ${dashboard.total_max_exposure:,.0f}).
 
-Overall risk grade: {dashboard.risk_grade} - {grade_descriptions.get(dashboard.risk_grade, '')}
+Overall risk grade: {dashboard.risk_grade} - {grade_descriptions.get(dashboard.risk_grade, "")}
 
 Risk trend: {dashboard.risk_trend.value.capitalize()}
 
 Key areas of concern:
-{chr(10).join(f"- {k}: ${v.get('expected', 0):,.0f}" for k, v in sorted(dashboard.exposure_by_regulation.items(), key=lambda x: x[1].get('expected', 0), reverse=True)[:3])}
+{chr(10).join(f"- {k}: ${v.get('expected', 0):,.0f}" for k, v in sorted(dashboard.exposure_by_regulation.items(), key=lambda x: x[1].get("expected", 0), reverse=True)[:3])}
 """.strip()
 
         return summary
@@ -670,18 +671,20 @@ Key areas of concern:
         priority = 1
         for reg, exposure in sorted_regs[:5]:
             exp_value = exposure.get("expected", 0)
-            roadmap.append({
-                "priority": priority,
-                "area": reg,
-                "current_exposure": exp_value,
-                "estimated_reduction": exp_value * 0.6,  # 60% reduction target
-                "actions": [
-                    f"Review all {reg} violations",
-                    f"Implement automated compliance checks for {reg}",
-                    f"Update data handling procedures for {reg}",
-                ],
-                "estimated_effort": "medium" if exp_value < 100000 else "high",
-            })
+            roadmap.append(
+                {
+                    "priority": priority,
+                    "area": reg,
+                    "current_exposure": exp_value,
+                    "estimated_reduction": exp_value * 0.6,  # 60% reduction target
+                    "actions": [
+                        f"Review all {reg} violations",
+                        f"Implement automated compliance checks for {reg}",
+                        f"Update data handling procedures for {reg}",
+                    ],
+                    "estimated_effort": "medium" if exp_value < 100000 else "high",
+                }
+            )
             priority += 1
 
         return roadmap

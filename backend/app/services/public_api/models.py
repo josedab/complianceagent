@@ -104,8 +104,28 @@ class SDKInfo:
 
 # Default rate limits per tier
 RATE_LIMITS: dict[RateLimitTier, RateLimitConfig] = {
-    RateLimitTier.FREE: RateLimitConfig(tier=RateLimitTier.FREE, requests_per_minute=10, requests_per_hour=100, requests_per_day=1000),
-    RateLimitTier.STANDARD: RateLimitConfig(tier=RateLimitTier.STANDARD, requests_per_minute=60, requests_per_hour=1000, requests_per_day=10000),
-    RateLimitTier.PROFESSIONAL: RateLimitConfig(tier=RateLimitTier.PROFESSIONAL, requests_per_minute=120, requests_per_hour=5000, requests_per_day=50000),
-    RateLimitTier.ENTERPRISE: RateLimitConfig(tier=RateLimitTier.ENTERPRISE, requests_per_minute=600, requests_per_hour=30000, requests_per_day=500000),
+    RateLimitTier.FREE: RateLimitConfig(
+        tier=RateLimitTier.FREE,
+        requests_per_minute=10,
+        requests_per_hour=100,
+        requests_per_day=1000,
+    ),
+    RateLimitTier.STANDARD: RateLimitConfig(
+        tier=RateLimitTier.STANDARD,
+        requests_per_minute=60,
+        requests_per_hour=1000,
+        requests_per_day=10000,
+    ),
+    RateLimitTier.PROFESSIONAL: RateLimitConfig(
+        tier=RateLimitTier.PROFESSIONAL,
+        requests_per_minute=120,
+        requests_per_hour=5000,
+        requests_per_day=50000,
+    ),
+    RateLimitTier.ENTERPRISE: RateLimitConfig(
+        tier=RateLimitTier.ENTERPRISE,
+        requests_per_minute=600,
+        requests_per_hour=30000,
+        requests_per_day=500000,
+    ),
 }

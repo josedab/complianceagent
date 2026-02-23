@@ -34,7 +34,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "EU AI Act Final Implementing Rules Published",
         "summary": "The European Commission has published the final implementing rules for the EU AI Act, "
-                   "establishing detailed requirements for high-risk AI systems effective Q1 2026.",
+        "establishing detailed requirements for high-risk AI systems effective Q1 2026.",
         "category": NewsCategory.NEW_REGULATION,
         "severity": NewsSeverity.CRITICAL,
         "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689",
@@ -49,7 +49,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "SEC Adopts New Cybersecurity Disclosure Rules",
         "summary": "The SEC has finalized rules requiring public companies to disclose material cybersecurity "
-                   "incidents within four business days and provide annual cybersecurity risk management disclosures.",
+        "incidents within four business days and provide annual cybersecurity risk management disclosures.",
         "category": NewsCategory.NEW_REGULATION,
         "severity": NewsSeverity.HIGH,
         "source_url": "https://www.sec.gov/rules/final/2023/33-11216.pdf",
@@ -64,7 +64,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "GDPR Enforcement: €1.2B Fine Against Meta for Data Transfers",
         "summary": "The Irish Data Protection Commission imposed a record €1.2 billion fine on Meta for "
-                   "unlawful transfers of EU personal data to the United States.",
+        "unlawful transfers of EU personal data to the United States.",
         "category": NewsCategory.ENFORCEMENT_ACTION,
         "severity": NewsSeverity.HIGH,
         "source_url": "https://edpb.europa.eu/news/news/2023/",
@@ -79,7 +79,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "NIST Releases Updated Cybersecurity Framework 2.0",
         "summary": "NIST has published CSF 2.0, expanding scope to all organizations and adding a new "
-                   "Govern function for cybersecurity risk management governance.",
+        "Govern function for cybersecurity risk management governance.",
         "category": NewsCategory.GUIDANCE,
         "severity": NewsSeverity.MEDIUM,
         "source_url": "https://www.nist.gov/cyberframework",
@@ -94,7 +94,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "PCI DSS v4.0.1 Compliance Deadline Approaching",
         "summary": "Organizations handling payment card data must fully comply with PCI DSS v4.0.1 by "
-                   "March 31, 2025. Several new requirements become mandatory.",
+        "March 31, 2025. Several new requirements become mandatory.",
         "category": NewsCategory.DEADLINE,
         "severity": NewsSeverity.CRITICAL,
         "source_url": "https://www.pcisecuritystandards.org/",
@@ -109,7 +109,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "California Amends CCPA with New AI Provisions",
         "summary": "California has amended the CCPA/CPRA to include specific provisions for automated "
-                   "decision-making technology and AI-driven profiling of consumers.",
+        "decision-making technology and AI-driven profiling of consumers.",
         "category": NewsCategory.AMENDMENT,
         "severity": NewsSeverity.HIGH,
         "source_url": "https://oag.ca.gov/privacy/ccpa",
@@ -124,7 +124,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "UK FCA Issues Updated Operational Resilience Guidance",
         "summary": "The UK Financial Conduct Authority published updated guidance on operational resilience "
-                   "for financial services firms, emphasizing third-party risk management.",
+        "for financial services firms, emphasizing third-party risk management.",
         "category": NewsCategory.GUIDANCE,
         "severity": NewsSeverity.MEDIUM,
         "source_url": "https://www.fca.org.uk/publications",
@@ -139,7 +139,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "Court Rules HIPAA Applies to Health App Data Sharing",
         "summary": "A federal court ruled that health applications sharing user data with third parties "
-                   "are subject to HIPAA requirements when acting as business associates.",
+        "are subject to HIPAA requirements when acting as business associates.",
         "category": NewsCategory.COURT_RULING,
         "severity": NewsSeverity.MEDIUM,
         "source_url": "https://www.hhs.gov/hipaa/",
@@ -154,7 +154,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "Singapore PDPA Amendments Strengthen Cross-Border Transfer Rules",
         "summary": "Singapore's Personal Data Protection Commission has enacted amendments requiring "
-                   "enhanced safeguards for international data transfers, effective January 2025.",
+        "enhanced safeguards for international data transfers, effective January 2025.",
         "category": NewsCategory.AMENDMENT,
         "severity": NewsSeverity.MEDIUM,
         "source_url": "https://www.pdpc.gov.sg/",
@@ -169,7 +169,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "SOC 2 Trust Services Criteria Updated for Cloud-Native Environments",
         "summary": "AICPA has released updated guidance on applying SOC 2 Trust Services Criteria to "
-                   "cloud-native and containerized environments, including Kubernetes workloads.",
+        "cloud-native and containerized environments, including Kubernetes workloads.",
         "category": NewsCategory.GUIDANCE,
         "severity": NewsSeverity.LOW,
         "source_url": "https://www.aicpa.org/",
@@ -184,7 +184,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "Brazil LGPD: National Authority Issues First Major Enforcement Decision",
         "summary": "Brazil's ANPD has issued its first significant enforcement decision, fining a telecom "
-                   "provider for inadequate consent mechanisms and data processing transparency.",
+        "provider for inadequate consent mechanisms and data processing transparency.",
         "category": NewsCategory.ENFORCEMENT_ACTION,
         "severity": NewsSeverity.INFORMATIONAL,
         "source_url": "https://www.gov.br/anpd/",
@@ -199,7 +199,7 @@ _SAMPLE_NEWS: list[dict] = [
     {
         "title": "DORA Regulation: EU Digital Operational Resilience Act Takes Effect",
         "summary": "The EU's Digital Operational Resilience Act (DORA) is now in effect, mandating ICT "
-                   "risk management frameworks for financial entities and their critical ICT providers.",
+        "risk management frameworks for financial entities and their critical ICT providers.",
         "category": NewsCategory.NEW_REGULATION,
         "severity": NewsSeverity.HIGH,
         "source_url": "https://eur-lex.europa.eu/",
@@ -272,7 +272,7 @@ class NewsTickerService:
 
         total = len(items)
         items = sorted(items, key=lambda x: _SEVERITY_ORDER.get(x.severity, 4))
-        items = items[offset:offset + limit]
+        items = items[offset : offset + limit]
 
         logger.info("News feed retrieved", org_id=str(org_id), total=total, filters=filters)
         return NewsFeed(items=items, total=total, unread_count=total, filters_applied=filters)
@@ -283,8 +283,10 @@ class NewsTickerService:
         """Get breaking news from the last N hours."""
         cutoff = datetime.now(UTC) - timedelta(hours=since_hours)
         breaking = [
-            i for i in self._items
-            if i.published_at and i.published_at >= cutoff
+            i
+            for i in self._items
+            if i.published_at
+            and i.published_at >= cutoff
             and _SEVERITY_ORDER.get(i.severity, 4) <= _SEVERITY_ORDER[NewsSeverity.HIGH]
         ]
         logger.info("Breaking news retrieved", org_id=str(org_id), count=len(breaking))
@@ -305,9 +307,17 @@ class NewsTickerService:
         existing = self._preferences.get(key)
 
         if existing:
-            for attr in ["channel", "enabled", "min_severity", "jurisdictions",
-                         "regulations", "industries", "max_per_day",
-                         "quiet_hours_start", "quiet_hours_end"]:
+            for attr in [
+                "channel",
+                "enabled",
+                "min_severity",
+                "jurisdictions",
+                "regulations",
+                "industries",
+                "max_per_day",
+                "quiet_hours_start",
+                "quiet_hours_end",
+            ]:
                 if attr in prefs:
                     val = prefs[attr]
                     if attr == "channel":
@@ -315,7 +325,9 @@ class NewsTickerService:
                     elif attr == "min_severity":
                         val = NewsSeverity(val)
                     setattr(existing, attr, val)
-            logger.info("Notification preferences updated", org_id=str(org_id), user_id=str(user_id))
+            logger.info(
+                "Notification preferences updated", org_id=str(org_id), user_id=str(user_id)
+            )
             return existing
 
         pref = NotificationPreference(
@@ -389,16 +401,11 @@ class NewsTickerService:
         )
         return True
 
-    async def generate_digest(
-        self, org_id: UUID, period: str = "daily"
-    ) -> NewsDigest:
+    async def generate_digest(self, org_id: UUID, period: str = "daily") -> NewsDigest:
         """Generate a news digest for the specified period."""
         hours = {"daily": 24, "weekly": 168, "monthly": 720}.get(period, 24)
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
-        items = [
-            i for i in self._items
-            if i.published_at and i.published_at >= cutoff
-        ]
+        items = [i for i in self._items if i.published_at and i.published_at >= cutoff]
         items = sorted(items, key=lambda x: _SEVERITY_ORDER.get(x.severity, 4))
 
         critical_count = sum(1 for i in items if i.severity == NewsSeverity.CRITICAL)
@@ -429,9 +436,7 @@ class NewsTickerService:
         logger.info("News item marked as read", item_id=str(item_id), user_id=uid)
         return True
 
-    async def dismiss_news(
-        self, item_id: UUID, user_id: UUID, feedback: str | None = None
-    ) -> bool:
+    async def dismiss_news(self, item_id: UUID, user_id: UUID, feedback: str | None = None) -> bool:
         """Dismiss a news item with optional feedback."""
         uid = str(user_id)
         if uid not in self._dismissed_items:
@@ -445,9 +450,7 @@ class NewsTickerService:
         )
         return True
 
-    async def submit_relevance_feedback(
-        self, item_id: UUID, user_id: UUID, relevant: bool
-    ) -> None:
+    async def submit_relevance_feedback(self, item_id: UUID, user_id: UUID, relevant: bool) -> None:
         """Submit relevance feedback for a news item."""
         for item in self._items:
             if item.id == item_id:
@@ -461,9 +464,7 @@ class NewsTickerService:
             relevant=relevant,
         )
 
-    def _compute_relevance_score(
-        self, item: RegulatoryNewsItem, org_profile: dict
-    ) -> float:
+    def _compute_relevance_score(self, item: RegulatoryNewsItem, org_profile: dict) -> float:
         """Compute a relevance score based on the organization's profile."""
         score = 0.5
 
@@ -559,9 +560,15 @@ class NewsTickerService:
                     "activityTitle": f"{emoji} {item.title}",
                     "facts": [
                         {"name": "Severity", "value": item.severity.value.upper()},
-                        {"name": "Category", "value": item.category.value.replace("_", " ").title()},
+                        {
+                            "name": "Category",
+                            "value": item.category.value.replace("_", " ").title(),
+                        },
                         {"name": "Jurisdictions", "value": ", ".join(item.jurisdictions)},
-                        {"name": "Action Required", "value": "Yes" if item.action_required else "No"},
+                        {
+                            "name": "Action Required",
+                            "value": "Yes" if item.action_required else "No",
+                        },
                     ],
                     "text": f"{item.summary}\n\n**Impact:** {item.impact_summary}",
                 }

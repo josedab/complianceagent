@@ -1,6 +1,5 @@
 """Regulation-to-Test-Case Generator."""
 
-from app.services.regulation_test_gen.service import RegulationTestGenService
 from app.services.regulation_test_gen.models import (
     CoverageStatus,
     RegulationCoverage,
@@ -9,12 +8,14 @@ from app.services.regulation_test_gen.models import (
     TestRunResult,
     TestSuite,
 )
+from app.services.regulation_test_gen.service import RegulationTestGenService
+
 
 __all__ = [
-    "RegulationTestGenService",
     "CoverageStatus",
     "RegulationCoverage",
     "RegulationTestCase",
+    "RegulationTestGenService",
     "TestFramework",
     "TestRunResult",
     "TestSuite",

@@ -35,6 +35,7 @@ class ApprovalType(str, Enum):
 @dataclass
 class RemediationFix:
     """A generated code fix for a compliance violation."""
+
     id: UUID = field(default_factory=uuid4)
     file_path: str = ""
     original_code: str = ""
@@ -47,6 +48,7 @@ class RemediationFix:
 @dataclass
 class RemediationWorkflow:
     """An end-to-end remediation workflow instance."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     description: str = ""
@@ -69,17 +71,22 @@ class RemediationWorkflow:
     history: list[dict] = field(default_factory=list)
 
     def transition(self, new_state: WorkflowState, actor: str = "system") -> None:
-        self.history.append({
-            "from": self.state.value, "to": new_state.value,
-            "actor": actor, "timestamp": datetime.now().isoformat(),
-        })
+        self.history.append(
+            {
+                "from": self.state.value,
+                "to": new_state.value,
+                "actor": actor,
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+        )
         self.state = new_state
-        self.updated_at = datetime.now()
+        self.updated_at = datetime.now(UTC)
 
 
 @dataclass
 class WorkflowConfig:
     """Configuration for remediation workflows."""
+
     auto_merge_low_risk: bool = False
     require_ci_pass: bool = True
     require_review: bool = True
@@ -90,6 +97,7 @@ class WorkflowConfig:
 
 class ApprovalStatus(str, Enum):
     """Status of an approval in the chain."""
+
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -99,6 +107,7 @@ class ApprovalStatus(str, Enum):
 @dataclass
 class ApprovalStep:
     """A step in the approval chain."""
+
     id: UUID = field(default_factory=uuid4)
     approver_role: str = ""
     approver_name: str = ""
@@ -122,6 +131,7 @@ class ApprovalStep:
 @dataclass
 class ApprovalChain:
     """Multi-level approval chain for a remediation workflow."""
+
     id: UUID = field(default_factory=uuid4)
     workflow_id: UUID | None = None
     steps: list[ApprovalStep] = field(default_factory=list)
@@ -143,6 +153,7 @@ class ApprovalChain:
 @dataclass
 class RollbackRecord:
     """Record of a workflow rollback."""
+
     id: UUID = field(default_factory=uuid4)
     workflow_id: UUID | None = None
     reason: str = ""
@@ -168,6 +179,7 @@ class RollbackRecord:
 @dataclass
 class RemediationAnalytics:
     """Analytics for remediation workflows."""
+
     total_workflows: int = 0
     completed_workflows: int = 0
     in_progress_workflows: int = 0

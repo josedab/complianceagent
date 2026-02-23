@@ -17,6 +17,7 @@ from app.services.saas_platform.models import (
     UsageSummary,
 )
 
+
 logger = structlog.get_logger()
 
 
@@ -104,9 +105,7 @@ class SaaSPlatformService:
 
     async def get_tenant(self, tenant_id: UUID) -> SaasTenant | None:
         """Get a tenant by ID."""
-        result = await self.db.execute(
-            select(SaasTenant).where(SaasTenant.id == tenant_id)
-        )
+        result = await self.db.execute(select(SaasTenant).where(SaasTenant.id == tenant_id))
         return result.scalar_one_or_none()
 
     async def update_tenant_plan(self, tenant_id: UUID, plan: TenantPlan) -> SaasTenant:
@@ -166,17 +165,13 @@ class SaaSPlatformService:
                     description=s["description"],
                     status=s.get("status", "pending"),
                     completed_at=(
-                        datetime.fromisoformat(s["completed_at"])
-                        if s.get("completed_at")
-                        else None
+                        datetime.fromisoformat(s["completed_at"]) if s.get("completed_at") else None
                     ),
                 )
             )
         return steps
 
-    async def complete_onboarding_step(
-        self, tenant_id: UUID, step_id: str
-    ) -> OnboardingStep:
+    async def complete_onboarding_step(self, tenant_id: UUID, step_id: str) -> OnboardingStep:
         """Mark an onboarding step as completed."""
         tenant = await self.get_tenant(tenant_id)
         if not tenant:
@@ -207,9 +202,7 @@ class SaaSPlatformService:
         tenant.settings = tenant_settings
 
         # Check if all steps are completed
-        all_completed = all(
-            s.get("status") in ("completed", "skipped") for s in steps_data
-        )
+        all_completed = all(s.get("status") in ("completed", "skipped") for s in steps_data)
         if all_completed:
             tenant.onboarding_completed_at = datetime.now(UTC)
 
@@ -223,9 +216,7 @@ class SaaSPlatformService:
 
         return completed_step
 
-    async def record_usage(
-        self, tenant_id: UUID, metric: str, value: float
-    ) -> None:
+    async def record_usage(self, tenant_id: UUID, metric: str, value: float) -> None:
         """Record a usage metric for a tenant."""
         now = datetime.now(UTC)
         record = TenantUsageRecord(
@@ -233,7 +224,10 @@ class SaaSPlatformService:
             metric=metric,
             value=value,
             period_start=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0),
-            period_end=(now.replace(day=1, hour=0, minute=0, second=0, microsecond=0) + timedelta(days=32)).replace(day=1) - timedelta(seconds=1),
+            period_end=(
+                now.replace(day=1, hour=0, minute=0, second=0, microsecond=0) + timedelta(days=32)
+            ).replace(day=1)
+            - timedelta(seconds=1),
             record_metadata={},
         )
         self.db.add(record)
@@ -274,9 +268,7 @@ class SaaSPlatformService:
 
         return summary
 
-    async def check_resource_limits(
-        self, tenant_id: UUID, resource: str
-    ) -> bool:
+    async def check_resource_limits(self, tenant_id: UUID, resource: str) -> bool:
         """Check if a tenant is within resource limits. Returns True if within limits."""
         tenant = await self.get_tenant(tenant_id)
         if not tenant:

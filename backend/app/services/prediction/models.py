@@ -64,30 +64,30 @@ class PredictedRegulation:
     description: str = ""
     jurisdiction: str = ""
     regulatory_body: str = ""
-    
+
     # Prediction details
     predicted_effective_date: date | None = None
     effective_date_range: tuple[date, date] | None = None
     confidence: PredictionConfidence = PredictionConfidence.MEDIUM
     confidence_score: float = 0.5
-    
+
     # Impact assessment
     impact_summary: str = ""
     impact_areas: list[str] = field(default_factory=list)
     affected_frameworks: list[str] = field(default_factory=list)
     estimated_compliance_effort: str = ""
     risk_level: str = "medium"
-    
+
     # Supporting evidence
     supporting_signals: list[RegulatorySignal] = field(default_factory=list)
     source_documents: list[str] = field(default_factory=list)
     key_milestones: list[dict[str, Any]] = field(default_factory=list)
-    
+
     # Code impact
     likely_code_changes: list[str] = field(default_factory=list)
     affected_categories: list[str] = field(default_factory=list)
     preparation_recommendations: list[str] = field(default_factory=list)
-    
+
     # Metadata
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)

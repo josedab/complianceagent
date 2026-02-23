@@ -15,6 +15,7 @@ logger = structlog.get_logger()
 
 class NotificationType(str, Enum):
     """Types of notifications."""
+
     REGULATION_DETECTED = "regulation_detected"
     REQUIREMENT_EXTRACTED = "requirement_extracted"
     ACTION_REQUIRED = "action_required"
@@ -26,6 +27,7 @@ class NotificationType(str, Enum):
 
 class NotificationPriority(str, Enum):
     """Notification priority levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -35,6 +37,7 @@ class NotificationPriority(str, Enum):
 @dataclass
 class Notification:
     """Notification data structure."""
+
     type: NotificationType
     title: str
     message: str
@@ -236,16 +239,40 @@ class SlackChannel(NotificationChannel):
         channel = config.get("channel", "#compliance")
 
         blocks = [
-            {"type": "header", "text": {"type": "plain_text", "text": f"{emoji} {notification.title}", "emoji": True}},
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"{emoji} {notification.title}",
+                    "emoji": True,
+                },
+            },
             {"type": "section", "text": {"type": "mrkdwn", "text": notification.message}},
-            {"type": "context", "elements": [{"type": "mrkdwn", "text": f"*Priority:* {notification.priority.value.upper()} | *Type:* {notification.type.value}"}]},
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Priority:* {notification.priority.value.upper()} | *Type:* {notification.type.value}",
+                    }
+                ],
+            },
         ]
 
         if notification.action_url:
-            blocks.append({
-                "type": "actions",
-                "elements": [{"type": "button", "text": {"type": "plain_text", "text": "View Details"}, "url": notification.action_url, "style": "primary"}],
-            })
+            blocks.append(
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {"type": "plain_text", "text": "View Details"},
+                            "url": notification.action_url,
+                            "style": "primary",
+                        }
+                    ],
+                }
+            )
 
         return {"channel": channel, "attachments": [{"color": color, "blocks": blocks}]}
 
@@ -262,7 +289,9 @@ class InAppChannel(NotificationChannel):
 
     async def send(self, notification: Notification, config: dict[str, str]) -> bool:
         """Store notification in database for in-app display."""
-        logger.info("In-app notification created", title=notification.title, type=notification.type.value)
+        logger.info(
+            "In-app notification created", title=notification.title, type=notification.type.value
+        )
         return True
 
     def validate_config(self, config: dict[str, str]) -> bool:
@@ -308,7 +337,9 @@ class NotificationService:
 
         if tasks:
             task_results = await asyncio.gather(*tasks, return_exceptions=True)
-            for channel_name, result in zip([c for c in channels if c in self.channels], task_results, strict=False):
+            for channel_name, result in zip(
+                [c for c in channels if c in self.channels], task_results, strict=False
+            ):
                 results[channel_name] = not isinstance(result, Exception) and result
 
         return results
@@ -341,7 +372,9 @@ class NotificationService:
             message=f"A new regulation has been detected in {jurisdiction}. {'Effective date: ' + effective_date if effective_date else 'Effective date pending.'}",
             priority=NotificationPriority.HIGH,
         )
-        return await self.send_notification(notification, channels=["email", "slack", "in_app"], channel_configs=channel_configs)
+        return await self.send_notification(
+            notification, channels=["email", "slack", "in_app"], channel_configs=channel_configs
+        )
 
     async def send_deadline_approaching(
         self,
@@ -351,7 +384,13 @@ class NotificationService:
         channel_configs: dict[str, dict[str, str]] | None = None,
     ) -> dict[str, bool]:
         """Send notification for approaching deadline."""
-        priority = NotificationPriority.CRITICAL if days_remaining <= 7 else NotificationPriority.HIGH if days_remaining <= 30 else NotificationPriority.MEDIUM
+        priority = (
+            NotificationPriority.CRITICAL
+            if days_remaining <= 7
+            else NotificationPriority.HIGH
+            if days_remaining <= 30
+            else NotificationPriority.MEDIUM
+        )
         notification = Notification(
             type=NotificationType.DEADLINE_APPROACHING,
             title=f"Deadline Approaching: {regulation_name}",
@@ -359,7 +398,9 @@ class NotificationService:
             priority=priority,
             action_url=action_url,
         )
-        return await self.send_notification(notification, channels=["email", "slack", "in_app"], channel_configs=channel_configs)
+        return await self.send_notification(
+            notification, channels=["email", "slack", "in_app"], channel_configs=channel_configs
+        )
 
     async def send_action_required(
         self,
@@ -377,7 +418,9 @@ class NotificationService:
             priority=priority,
             action_url=action_url,
         )
-        return await self.send_notification(notification, channels=["email", "slack", "in_app"], channel_configs=channel_configs)
+        return await self.send_notification(
+            notification, channels=["email", "slack", "in_app"], channel_configs=channel_configs
+        )
 
 
 def create_notification_service(

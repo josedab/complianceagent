@@ -141,7 +141,9 @@ class LegalParserService:
         """Create a Requirement model from extracted data."""
         return Requirement(
             regulation_id=regulation.id,
-            reference_id=extracted.get("reference_id", f"REQ-{regulation.framework.value}-{datetime.now(UTC).timestamp()}"),
+            reference_id=extracted.get(
+                "reference_id", f"REQ-{regulation.framework.value}-{datetime.now(UTC).timestamp()}"
+            ),
             title=extracted.get("title", "Untitled Requirement"),
             description=extracted.get("description", ""),
             obligation_type=ObligationType(extracted.get("obligation_type", "must").lower()),

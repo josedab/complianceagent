@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class PolicyLanguage(str, Enum):
     """Supported policy languages."""
-    
+
     REGO = "rego"
     CEL = "cel"  # Common Expression Language
     YAML = "yaml"  # Simple declarative
@@ -19,7 +19,7 @@ class PolicyLanguage(str, Enum):
 
 class PolicyFormat(str, Enum):
     """Output format options."""
-    
+
     OPA_BUNDLE = "opa-bundle"
     CONFTEST = "conftest"
     GATEKEEPER = "gatekeeper"
@@ -29,7 +29,7 @@ class PolicyFormat(str, Enum):
 
 class PolicySeverity(str, Enum):
     """Policy violation severity."""
-    
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -39,7 +39,7 @@ class PolicySeverity(str, Enum):
 
 class PolicyCategory(str, Enum):
     """Policy category."""
-    
+
     DATA_PROTECTION = "data_protection"
     ACCESS_CONTROL = "access_control"
     ENCRYPTION = "encryption"
@@ -54,7 +54,7 @@ class PolicyCategory(str, Enum):
 
 class PolicyRule(BaseModel):
     """A single policy rule."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     name: str
     description: str
@@ -63,27 +63,27 @@ class PolicyRule(BaseModel):
     article: str | None = None
     category: PolicyCategory
     severity: PolicySeverity
-    
+
     # Rule logic
     condition: str = Field(description="Human-readable condition")
     rego_code: str | None = None
     cel_expression: str | None = None
-    
+
     # Metadata
     tags: list[str] = Field(default_factory=list)
     references: list[str] = Field(default_factory=list)
     remediation: str | None = None
-    
+
     # Testing
     test_cases: list["PolicyTestCase"] = Field(default_factory=list)
-    
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class PolicyTestCase(BaseModel):
     """Test case for a policy rule."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     name: str
     description: str | None = None
@@ -94,7 +94,7 @@ class PolicyTestCase(BaseModel):
 
 class PolicyTestResult(BaseModel):
     """Result of running a policy test."""
-    
+
     test_case_id: UUID
     test_name: str
     passed: bool
@@ -106,30 +106,30 @@ class PolicyTestResult(BaseModel):
 
 class PolicyPackage(BaseModel):
     """A collection of related policy rules."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     name: str
     namespace: str
     description: str
     version: str = "1.0.0"
-    
+
     regulations: list[str] = Field(default_factory=list)
     rules: list[PolicyRule] = Field(default_factory=list)
-    
+
     # Generated code
     rego_package: str | None = None
     cel_rules: list[str] | None = None
-    
+
     # Metadata
     author: str | None = None
     organization_id: UUID | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     @property
     def total_rules(self) -> int:
         return len(self.rules)
-    
+
     @property
     def critical_rules(self) -> int:
         return len([r for r in self.rules if r.severity == PolicySeverity.CRITICAL])
@@ -137,49 +137,49 @@ class PolicyPackage(BaseModel):
 
 class PolicyValidationResult(BaseModel):
     """Result of validating a policy."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     policy_id: UUID
     valid: bool
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
-    
+
     # Syntax check
     syntax_valid: bool = True
     syntax_errors: list[str] = Field(default_factory=list)
-    
+
     # Semantic check
     semantic_valid: bool = True
     semantic_errors: list[str] = Field(default_factory=list)
-    
+
     # Test results
     tests_run: int = 0
     tests_passed: int = 0
     test_results: list[PolicyTestResult] = Field(default_factory=list)
-    
+
     validated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class CompliancePolicyTemplate(BaseModel):
     """Pre-built compliance policy template."""
-    
+
     id: str
     name: str
     description: str
     regulation: str
     version: str
-    
+
     # Template content
     rules: list[PolicyRule]
-    
+
     # Customization
     parameters: dict[str, Any] = Field(default_factory=dict)
     parameter_descriptions: dict[str, str] = Field(default_factory=dict)
-    
+
     # Usage
     use_cases: list[str] = Field(default_factory=list)
     industries: list[str] = Field(default_factory=list)
-    
+
     # Metadata
     maintainer: str = "ComplianceAgent"
     last_updated: datetime = Field(default_factory=datetime.utcnow)

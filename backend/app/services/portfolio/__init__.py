@@ -1,17 +1,22 @@
 """Portfolio management service."""
 
-from app.services.portfolio.service import PortfolioService
 from app.services.portfolio.models import (
     Portfolio,
     PortfolioSummary,
-    RepositoryRiskProfile,
     PortfolioTrend,
+    RepositoryRiskProfile,
 )
+from app.services.portfolio.service import PortfolioService
+
 
 __all__ = [
-    "PortfolioService",
+    "CrossRepoAnalysis",
+    "FrameworkAggregation",
     "Portfolio",
+    "PortfolioService",
     "PortfolioSummary",
-    "RepositoryRiskProfile",
     "PortfolioTrend",
+    "RepositoryRiskProfile",
+    "RiskLevel",
+    "TrendDirection",
 ]

@@ -166,9 +166,7 @@ class VendorRiskAssessor:
 
         # Check jurisdiction risk
         high_risk_jurisdictions = ["CN", "RU"]
-        jurisdiction_risk = RiskLevel.LOW
         if any(j in jurisdictions for j in high_risk_jurisdictions):
-            jurisdiction_risk = RiskLevel.HIGH
             findings.append(f"Vendor operates in high-risk jurisdictions: {jurisdictions}")
             risk_scores.append(90)
         else:
@@ -221,14 +219,16 @@ class VendorRiskAssessor:
         for pkg_name, pkg_version in packages:
             if pkg_name in COMPLIANCE_FLAGGED_PACKAGES:
                 flag = COMPLIANCE_FLAGGED_PACKAGES[pkg_name]
-                vulnerabilities.append(DependencyVulnerability(
-                    package_name=pkg_name,
-                    package_version=pkg_version,
-                    vulnerability_id=f"COMPLIANCE-{pkg_name.upper()}",
-                    severity=flag["severity"],
-                    description=flag["reason"],
-                    compliance_impact=flag["compliance"],
-                ))
+                vulnerabilities.append(
+                    DependencyVulnerability(
+                        package_name=pkg_name,
+                        package_version=pkg_version,
+                        vulnerability_id=f"COMPLIANCE-{pkg_name.upper()}",
+                        severity=flag["severity"],
+                        description=flag["reason"],
+                        compliance_impact=flag["compliance"],
+                    )
+                )
 
         # Calculate risk score
         critical_count = sum(1 for v in vulnerabilities if v.severity == "critical")

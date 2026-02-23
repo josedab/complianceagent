@@ -29,30 +29,38 @@ logger = structlog.get_logger()
 
 _OFFLINE_BUNDLES: list[OfflineBundle] = [
     OfflineBundle(
-        name="Core Regulations Bundle", version="2026.1",
+        name="Core Regulations Bundle",
+        version="2026.1",
         frameworks=["gdpr", "hipaa", "pci_dss", "soc2"],
-        regulation_count=45, size_mb=128.5,
+        regulation_count=45,
+        size_mb=128.5,
         checksum=hashlib.sha256(b"core-bundle-2026.1").hexdigest(),
         created_at=datetime.now(UTC),
     ),
     OfflineBundle(
-        name="EU Regulations Bundle", version="2026.1",
+        name="EU Regulations Bundle",
+        version="2026.1",
         frameworks=["gdpr", "eu_ai_act", "dora", "nis2"],
-        regulation_count=30, size_mb=95.2,
+        regulation_count=30,
+        size_mb=95.2,
         checksum=hashlib.sha256(b"eu-bundle-2026.1").hexdigest(),
         created_at=datetime.now(UTC),
     ),
     OfflineBundle(
-        name="US Healthcare Bundle", version="2026.1",
+        name="US Healthcare Bundle",
+        version="2026.1",
         frameworks=["hipaa", "hitech"],
-        regulation_count=18, size_mb=42.0,
+        regulation_count=18,
+        size_mb=42.0,
         checksum=hashlib.sha256(b"us-health-2026.1").hexdigest(),
         created_at=datetime.now(UTC),
     ),
     OfflineBundle(
-        name="Financial Services Bundle", version="2026.1",
+        name="Financial Services Bundle",
+        version="2026.1",
         frameworks=["pci_dss", "sox", "dora", "glba"],
-        regulation_count=35, size_mb=88.7,
+        regulation_count=35,
+        size_mb=88.7,
         checksum=hashlib.sha256(b"finance-2026.1").hexdigest(),
         created_at=datetime.now(UTC),
     ),
@@ -82,18 +90,46 @@ class SelfHostedService:
 
         features_map: dict[LicenseType, list[str]] = {
             LicenseType.TRIAL: ["core_scanning", "basic_reporting", "5_frameworks"],
-            LicenseType.STANDARD: ["core_scanning", "reporting", "api_access", "all_frameworks", "ci_cd"],
-            LicenseType.ENTERPRISE: ["core_scanning", "reporting", "api_access", "all_frameworks",
-                                     "ci_cd", "sso", "audit_portal", "custom_policies", "priority_support"],
-            LicenseType.GOVERNMENT: ["core_scanning", "reporting", "api_access", "all_frameworks",
-                                     "ci_cd", "sso", "audit_portal", "custom_policies",
-                                     "air_gap", "fips_140", "fedramp", "priority_support"],
+            LicenseType.STANDARD: [
+                "core_scanning",
+                "reporting",
+                "api_access",
+                "all_frameworks",
+                "ci_cd",
+            ],
+            LicenseType.ENTERPRISE: [
+                "core_scanning",
+                "reporting",
+                "api_access",
+                "all_frameworks",
+                "ci_cd",
+                "sso",
+                "audit_portal",
+                "custom_policies",
+                "priority_support",
+            ],
+            LicenseType.GOVERNMENT: [
+                "core_scanning",
+                "reporting",
+                "api_access",
+                "all_frameworks",
+                "ci_cd",
+                "sso",
+                "audit_portal",
+                "custom_policies",
+                "air_gap",
+                "fips_140",
+                "fedramp",
+                "priority_support",
+            ],
         }
 
         license = License(
             license_key=key,
             license_type=license_type,
-            status=LicenseStatus.ACTIVE if license_type != LicenseType.TRIAL else LicenseStatus.TRIAL,
+            status=LicenseStatus.ACTIVE
+            if license_type != LicenseType.TRIAL
+            else LicenseStatus.TRIAL,
             organization=organization,
             max_users=max_users,
             max_repositories=max_repositories,
@@ -198,34 +234,59 @@ class SelfHostedService:
         }
 
     async def calculate_k8s_resources(
-        self, cluster_size: ClusterSize = ClusterSize.MEDIUM,
+        self,
+        cluster_size: ClusterSize = ClusterSize.MEDIUM,
     ) -> K8sResourceEstimate:
         """Calculate recommended K8s resources for a given cluster size."""
         sizing = {
             ClusterSize.SMALL: {
-                "cpu_cores": 2, "memory_gi": 4, "storage_gi": 50,
-                "node_count": 2, "cost": 150.0,
+                "cpu_cores": 2,
+                "memory_gi": 4,
+                "storage_gi": 50,
+                "node_count": 2,
+                "cost": 150.0,
             },
             ClusterSize.MEDIUM: {
-                "cpu_cores": 4, "memory_gi": 8, "storage_gi": 100,
-                "node_count": 3, "cost": 400.0,
+                "cpu_cores": 4,
+                "memory_gi": 8,
+                "storage_gi": 100,
+                "node_count": 3,
+                "cost": 400.0,
             },
             ClusterSize.LARGE: {
-                "cpu_cores": 8, "memory_gi": 16, "storage_gi": 250,
-                "node_count": 5, "cost": 900.0,
+                "cpu_cores": 8,
+                "memory_gi": 16,
+                "storage_gi": 250,
+                "node_count": 5,
+                "cost": 900.0,
             },
         }
         spec = sizing[cluster_size]
 
         components = [
-            {"name": "api-server", "replicas": spec["node_count"] - 1, "cpu": "500m", "memory": "512Mi"},
+            {
+                "name": "api-server",
+                "replicas": spec["node_count"] - 1,
+                "cpu": "500m",
+                "memory": "512Mi",
+            },
             {"name": "worker", "replicas": spec["node_count"] - 1, "cpu": "500m", "memory": "1Gi"},
             {"name": "frontend", "replicas": 2, "cpu": "200m", "memory": "256Mi"},
-            {"name": "postgresql", "replicas": 1, "cpu": "500m", "memory": "1Gi",
-             "storage": f"{spec['storage_gi'] // 2}Gi"},
+            {
+                "name": "postgresql",
+                "replicas": 1,
+                "cpu": "500m",
+                "memory": "1Gi",
+                "storage": f"{spec['storage_gi'] // 2}Gi",
+            },
             {"name": "redis", "replicas": 1, "cpu": "200m", "memory": "256Mi"},
-            {"name": "elasticsearch", "replicas": 1 if cluster_size == ClusterSize.SMALL else 3,
-             "cpu": "1000m", "memory": "2Gi", "storage": f"{spec['storage_gi'] // 4}Gi"},
+            {
+                "name": "elasticsearch",
+                "replicas": 1 if cluster_size == ClusterSize.SMALL else 3,
+                "cpu": "1000m",
+                "memory": "2Gi",
+                "storage": f"{spec['storage_gi'] // 4}Gi",
+            },
         ]
 
         return K8sResourceEstimate(
@@ -243,27 +304,39 @@ class SelfHostedService:
         version = self._config.version if self._config else "3.0.0"
         return [
             ContainerImage(
-                name="ghcr.io/complianceagent/server", tag=version,
-                size_mb=245.0, digest=hashlib.sha256(f"server-{version}".encode()).hexdigest()[:16],
+                name="ghcr.io/complianceagent/server",
+                tag=version,
+                size_mb=245.0,
+                digest=hashlib.sha256(f"server-{version}".encode()).hexdigest()[:16],
             ),
             ContainerImage(
-                name="ghcr.io/complianceagent/worker", tag=version,
-                size_mb=210.0, digest=hashlib.sha256(f"worker-{version}".encode()).hexdigest()[:16],
+                name="ghcr.io/complianceagent/worker",
+                tag=version,
+                size_mb=210.0,
+                digest=hashlib.sha256(f"worker-{version}".encode()).hexdigest()[:16],
             ),
             ContainerImage(
-                name="ghcr.io/complianceagent/frontend", tag=version,
-                size_mb=85.0, digest=hashlib.sha256(f"frontend-{version}".encode()).hexdigest()[:16],
+                name="ghcr.io/complianceagent/frontend",
+                tag=version,
+                size_mb=85.0,
+                digest=hashlib.sha256(f"frontend-{version}".encode()).hexdigest()[:16],
             ),
             ContainerImage(
-                name="postgres", tag="16-alpine", size_mb=115.0,
+                name="postgres",
+                tag="16-alpine",
+                size_mb=115.0,
                 digest=hashlib.sha256(b"postgres-16").hexdigest()[:16],
             ),
             ContainerImage(
-                name="redis", tag="7-alpine", size_mb=30.0,
+                name="redis",
+                tag="7-alpine",
+                size_mb=30.0,
                 digest=hashlib.sha256(b"redis-7").hexdigest()[:16],
             ),
             ContainerImage(
-                name="elasticsearch", tag="8.12.0", size_mb=850.0,
+                name="elasticsearch",
+                tag="8.12.0",
+                size_mb=850.0,
                 digest=hashlib.sha256(b"es-8.12").hexdigest()[:16],
             ),
         ]
@@ -294,8 +367,14 @@ class SelfHostedService:
             header, payload, signature = parts
 
             # Verify HMAC signature
-            expected_sig = hmac.new(SECRET, f"{header}.{payload}".encode(), hashlib.sha256).hexdigest()[:32]
-            sig_valid = hmac.compare_digest(signature[:32], expected_sig[:32]) if len(signature) >= 32 else False
+            expected_sig = hmac.new(
+                SECRET, f"{header}.{payload}".encode(), hashlib.sha256
+            ).hexdigest()[:32]
+            sig_valid = (
+                hmac.compare_digest(signature[:32], expected_sig[:32])
+                if len(signature) >= 32
+                else False
+            )
 
             if not sig_valid:
                 errors.append("Invalid signature: license key may be tampered with")
@@ -326,7 +405,15 @@ class SelfHostedService:
             features_map = {
                 "standard": ["scanning", "reporting"],
                 "professional": ["scanning", "reporting", "ide_integration", "ci_cd"],
-                "enterprise": ["scanning", "reporting", "ide_integration", "ci_cd", "air_gapped", "sso", "api_access"],
+                "enterprise": [
+                    "scanning",
+                    "reporting",
+                    "ide_integration",
+                    "ci_cd",
+                    "air_gapped",
+                    "sso",
+                    "api_access",
+                ],
             }
 
             return CryptoLicenseKey(

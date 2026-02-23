@@ -11,8 +11,8 @@ from app.services.stress_testing.models import (
 )
 from app.services.stress_testing.service import StressTestingService
 
+
 __all__ = [
-    "StressTestingService",
     "RiskExposure",
     "RiskTier",
     "ScenarioType",
@@ -20,4 +20,5 @@ __all__ = [
     "SimulationRun",
     "StressScenario",
     "StressTestReport",
+    "StressTestingService",
 ]

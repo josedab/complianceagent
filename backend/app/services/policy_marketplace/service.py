@@ -209,7 +209,11 @@ SAMPLE_BUNDLES: list[PolicyBundle] = [
         id=UUID("d1000000-0000-0000-0000-000000000001"),
         name="Enterprise Compliance Starter",
         description="Essential policy packs for enterprise compliance: GDPR, SOC 2, and ISO 27001.",
-        packs=["b1000000-0000-0000-0000-000000000001", "b4000000-0000-0000-0000-000000000004", "b6000000-0000-0000-0000-000000000006"],
+        packs=[
+            "b1000000-0000-0000-0000-000000000001",
+            "b4000000-0000-0000-0000-000000000004",
+            "b6000000-0000-0000-0000-000000000006",
+        ],
         bundle_price_usd=129.99,
         savings_pct=19.0,
     ),
@@ -267,12 +271,20 @@ class PolicyMarketplaceService:
             return {"error": "policy_not_found"}
 
         reviews = policy.setdefault("reviews", [])
-        reviews.append({"rating": rating, "reviewer": reviewer, "at": datetime.now(UTC).isoformat()})
+        reviews.append(
+            {"rating": rating, "reviewer": reviewer, "at": datetime.now(UTC).isoformat()}
+        )
         policy["rating"] = sum(r["rating"] for r in reviews) / len(reviews)
         logger.info("policy_rated", policy_id=policy_id, rating=rating, avg=policy["rating"])
-        return {"policy_id": policy_id, "new_rating": policy["rating"], "total_reviews": len(reviews)}
+        return {
+            "policy_id": policy_id,
+            "new_rating": policy["rating"],
+            "total_reviews": len(reviews),
+        }
 
-    async def search_policies(self, query: str = "", framework: str = "", limit: int = 20) -> list[dict]:
+    async def search_policies(
+        self, query: str = "", framework: str = "", limit: int = 20
+    ) -> list[dict]:
         """Search marketplace policies by name, description, or framework."""
         results = []
         for policy in self._published_policies.values():
@@ -334,7 +346,9 @@ class PolicyMarketplaceService:
         logger.info("getting_policy_pack", pack_id=str(pack_id))
         return self._packs.get(pack_id)
 
-    async def search_packs(self, query: str, filters: dict[str, Any] | None = None) -> list[PolicyPack]:
+    async def search_packs(
+        self, query: str, filters: dict[str, Any] | None = None
+    ) -> list[PolicyPack]:
         """Search policy packs by text query."""
         logger.info("searching_policy_packs", query=query)
         q = query.lower()
@@ -351,7 +365,11 @@ class PolicyMarketplaceService:
         ]
         if filters:
             if filters.get("regulation"):
-                results = [p for p in results if filters["regulation"].upper() in [r.upper() for r in p.regulations]]
+                results = [
+                    p
+                    for p in results
+                    if filters["regulation"].upper() in [r.upper() for r in p.regulations]
+                ]
             if filters.get("pricing"):
                 try:
                     pm = PricingModel(filters["pricing"].lower())
@@ -411,7 +429,7 @@ class PolicyMarketplaceService:
         if pack.status not in (PolicyPackStatus.DRAFT, PolicyPackStatus.UNDER_REVIEW):
             raise ValueError(f"Pack {pack_id} cannot be published from status {pack.status}")
         pack.status = PolicyPackStatus.PUBLISHED
-        pack.updated_at = datetime.utcnow()
+        pack.updated_at = datetime.now(UTC)
         return pack
 
     async def purchase_pack(self, user_id: UUID, pack_id: UUID) -> Purchase:
@@ -550,14 +568,16 @@ class PolicyMarketplaceService:
             payout = sum(p.creator_payout_usd for p in purchases)
             total_revenue += revenue
             total_payout += payout
-            pack_earnings.append({
-                "pack_id": str(pack.id),
-                "title": pack.title,
-                "total_revenue_usd": round(revenue, 2),
-                "creator_payout_usd": round(payout, 2),
-                "purchases": len(purchases),
-                "downloads": pack.downloads,
-            })
+            pack_earnings.append(
+                {
+                    "pack_id": str(pack.id),
+                    "title": pack.title,
+                    "total_revenue_usd": round(revenue, 2),
+                    "creator_payout_usd": round(payout, 2),
+                    "purchases": len(purchases),
+                    "downloads": pack.downloads,
+                }
+            )
 
         return {
             "creator_id": str(creator_id),
@@ -627,7 +647,9 @@ class PolicyMarketplaceService:
             if "package" not in content:
                 errors.append("Rego policy must declare a package")
             if "deny" not in content and "allow" not in content and "violation" not in content:
-                warnings.append("Policy does not contain standard rule names (allow, deny, violation)")
+                warnings.append(
+                    "Policy does not contain standard rule names (allow, deny, violation)"
+                )
         elif lang == PolicyLanguage.YAML:
             if not content.strip().startswith(("---", "apiVersion", "kind", "rules", "policies")):
                 warnings.append("YAML policy should start with a recognized document header")
@@ -668,9 +690,21 @@ class PolicyMarketplaceService:
         # Default test scenarios if none provided
         scenarios = test_scenarios or [
             {"name": "Empty input", "input": {}, "expected": "deny"},
-            {"name": "Valid data subject request", "input": {"action": "access", "user_role": "data_subject"}, "expected": "allow"},
-            {"name": "Unauthorized access", "input": {"action": "delete", "user_role": "anonymous"}, "expected": "deny"},
-            {"name": "Admin override", "input": {"action": "export", "user_role": "admin", "consent": True}, "expected": "allow"},
+            {
+                "name": "Valid data subject request",
+                "input": {"action": "access", "user_role": "data_subject"},
+                "expected": "allow",
+            },
+            {
+                "name": "Unauthorized access",
+                "input": {"action": "delete", "user_role": "anonymous"},
+                "expected": "deny",
+            },
+            {
+                "name": "Admin override",
+                "input": {"action": "export", "user_role": "admin", "consent": True},
+                "expected": "allow",
+            },
         ]
 
         results = []
@@ -691,13 +725,15 @@ class PolicyMarketplaceService:
                 actual = "deny"
 
             expected = scenario.get("expected", "deny")
-            results.append({
-                "scenario": scenario["name"],
-                "input": scenario.get("input", {}),
-                "expected": expected,
-                "actual": actual,
-                "passed": actual == expected,
-            })
+            results.append(
+                {
+                    "scenario": scenario["name"],
+                    "input": scenario.get("input", {}),
+                    "expected": expected,
+                    "actual": actual,
+                    "passed": actual == expected,
+                }
+            )
 
         passed_count = sum(1 for r in results if r["passed"])
         total = len(results)

@@ -9,23 +9,25 @@ import structlog
 
 from app.services.github.client import GitHubClient
 
+
 logger = structlog.get_logger()
 
 
 class ComplianceLabel(str, Enum):
     """Standard compliance labels for PRs."""
+
     # Status labels
     COMPLIANT = "compliance:passed"
     NON_COMPLIANT = "compliance:failed"
     NEEDS_REVIEW = "compliance:needs-review"
     IN_PROGRESS = "compliance:in-progress"
-    
+
     # Severity labels
     CRITICAL_ISSUES = "compliance:critical"
     HIGH_ISSUES = "compliance:high"
     MEDIUM_ISSUES = "compliance:medium"
     LOW_ISSUES = "compliance:low"
-    
+
     # Regulation labels
     GDPR = "regulation:gdpr"
     HIPAA = "regulation:hipaa"
@@ -33,7 +35,7 @@ class ComplianceLabel(str, Enum):
     EU_AI_ACT = "regulation:eu-ai-act"
     SOX = "regulation:sox"
     CCPA = "regulation:ccpa"
-    
+
     # Action labels
     AUTO_FIX_AVAILABLE = "compliance:auto-fix-available"
     MANUAL_REVIEW_REQUIRED = "compliance:manual-review-required"
@@ -43,6 +45,7 @@ class ComplianceLabel(str, Enum):
 @dataclass
 class LabelDefinition:
     """Definition of a label with color and description."""
+
     name: str
     color: str
     description: str
@@ -152,26 +155,25 @@ class LabelService:
     ) -> None:
         """Ensure all compliance labels exist in the repository."""
         client = self.github or GitHubClient(access_token=access_token)
-        
+
         async with client:
             # Get existing labels
             response = await client._client.get(
                 f"/repos/{owner}/{repo}/labels",
                 params={"per_page": 100},
             )
-            
+
             if response.status_code != 200:
                 logger.warning("Failed to fetch labels", status_code=response.status_code)
                 return
-            
+
             existing = {label["name"] for label in response.json()}
-            
+
             # Create missing labels
             for label_def in LABEL_DEFINITIONS.values():
                 if label_def.name not in existing:
                     await self._create_label(
-                        client, owner, repo,
-                        label_def.name, label_def.color, label_def.description
+                        client, owner, repo, label_def.name, label_def.color, label_def.description
                     )
 
     async def _create_label(
@@ -192,16 +194,15 @@ class LabelService:
                 "description": description[:100],  # GitHub limits description
             },
         )
-        
+
         if response.status_code in (200, 201):
             logger.info(f"Created label: {name}")
             return True
-        elif response.status_code == 422:
+        if response.status_code == 422:
             # Already exists
             return True
-        else:
-            logger.warning(f"Failed to create label {name}: {response.status_code}")
-            return False
+        logger.warning(f"Failed to create label {name}: {response.status_code}")
+        return False
 
     def determine_labels(
         self,
@@ -210,19 +211,19 @@ class LabelService:
     ) -> list[str]:
         """Determine which labels to apply based on analysis results."""
         labels: list[str] = []
-        
+
         if not violations:
             labels.append(ComplianceLabel.COMPLIANT.value)
             return labels
-        
+
         # Add status label
         labels.append(ComplianceLabel.NON_COMPLIANT.value)
-        
+
         # Count by severity
         critical_count = sum(1 for v in violations if v.get("severity") == "critical")
         high_count = sum(1 for v in violations if v.get("severity") == "high")
         medium_count = sum(1 for v in violations if v.get("severity") == "medium")
-        
+
         # Add severity labels
         if critical_count > 0:
             labels.append(ComplianceLabel.CRITICAL_ISSUES.value)
@@ -231,14 +232,14 @@ class LabelService:
             labels.append(ComplianceLabel.HIGH_ISSUES.value)
         if medium_count > 0 and critical_count == 0 and high_count == 0:
             labels.append(ComplianceLabel.MEDIUM_ISSUES.value)
-        
+
         # Add regulation labels
         regulations_found: set[str] = set()
         for v in violations:
             reg = v.get("regulation")
             if reg:
                 regulations_found.add(reg.upper())
-        
+
         regulation_label_map = {
             "GDPR": ComplianceLabel.GDPR.value,
             "HIPAA": ComplianceLabel.HIPAA.value,
@@ -247,18 +248,18 @@ class LabelService:
             "SOX": ComplianceLabel.SOX.value,
             "CCPA": ComplianceLabel.CCPA.value,
         }
-        
+
         for reg in regulations_found:
             if reg in regulation_label_map:
                 labels.append(regulation_label_map[reg])
-        
+
         # Add action labels
         if has_auto_fixes:
             labels.append(ComplianceLabel.AUTO_FIX_AVAILABLE.value)
-        
+
         if critical_count > 0 or high_count > 0:
             labels.append(ComplianceLabel.MANUAL_REVIEW_REQUIRED.value)
-        
+
         return labels
 
     async def apply_labels(
@@ -272,14 +273,14 @@ class LabelService:
     ) -> bool:
         """Apply labels to a PR."""
         client = self.github or GitHubClient(access_token=access_token)
-        
+
         async with client:
             if remove_existing_compliance_labels:
                 # Get current labels
                 response = await client._client.get(
                     f"/repos/{owner}/{repo}/issues/{pr_number}/labels",
                 )
-                
+
                 if response.status_code == 200:
                     current_labels = response.json()
                     # Remove existing compliance labels
@@ -289,14 +290,14 @@ class LabelService:
                             await client._client.delete(
                                 f"/repos/{owner}/{repo}/issues/{pr_number}/labels/{label_name}",
                             )
-            
+
             # Apply new labels
             if labels:
                 response = await client._client.post(
                     f"/repos/{owner}/{repo}/issues/{pr_number}/labels",
                     json={"labels": labels},
                 )
-                
+
                 if response.status_code in (200, 201):
                     logger.info(
                         "Labels applied to PR",
@@ -304,12 +305,12 @@ class LabelService:
                         labels=labels,
                     )
                     return True
-                
+
                 logger.error(
                     "Failed to apply labels",
                     status_code=response.status_code,
                 )
-            
+
             return False
 
     async def add_in_progress_label(
@@ -338,16 +339,16 @@ class LabelService:
     ) -> bool:
         """Remove in-progress label when analysis completes."""
         client = self.github or GitHubClient(access_token=access_token)
-        
+
         async with client:
             response = await client._client.delete(
                 f"/repos/{owner}/{repo}/issues/{pr_number}/labels/{ComplianceLabel.IN_PROGRESS.value}",
             )
             return response.status_code in (200, 204)
 
-    async def apply_labels_via_api(self, repo_owner: str, repo_name: str,
-                                   issue_number: int, labels: list[str],
-                                   token: str = "") -> dict:
+    async def apply_labels_via_api(
+        self, repo_owner: str, repo_name: str, issue_number: int, labels: list[str], token: str = ""
+    ) -> dict:
         """Apply labels to a PR/issue."""
         url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/issues/{issue_number}/labels"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}

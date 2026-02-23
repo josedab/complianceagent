@@ -10,6 +10,7 @@ from app.services.prediction_market.models import (
 )
 from app.services.prediction_market.service import PredictionMarketService
 
+
 __all__ = [
     "MarketPosition",
     "MarketStats",

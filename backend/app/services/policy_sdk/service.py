@@ -15,6 +15,7 @@ from app.services.policy_sdk.models import (
     PolicyValidationResult,
 )
 
+
 logger = structlog.get_logger()
 
 _BUILTIN_POLICIES: list[PolicyDefinition] = [
@@ -107,10 +108,16 @@ class PolicySDKService:
         author: str = "",
     ) -> PolicyDefinition:
         policy = PolicyDefinition(
-            name=name, description=description, source_code=source_code,
-            language=language, category=category, severity=severity,
-            frameworks=frameworks or [], author=author,
-            created_at=datetime.now(UTC), updated_at=datetime.now(UTC),
+            name=name,
+            description=description,
+            source_code=source_code,
+            language=language,
+            category=category,
+            severity=severity,
+            frameworks=frameworks or [],
+            author=author,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         self._policies[policy.id] = policy
         logger.info("Policy created", name=name, category=category.value)
@@ -137,7 +144,9 @@ class PolicySDKService:
         test_results = []
         if policy.test_cases:
             for i, tc in enumerate(policy.test_cases):
-                test_results.append({"test": i + 1, "status": "passed", "name": tc.get("name", f"test_{i+1}")})
+                test_results.append(
+                    {"test": i + 1, "status": "passed", "name": tc.get("name", f"test_{i + 1}")}
+                )
 
         return PolicyValidationResult(
             policy_id=policy.id,
@@ -148,7 +157,9 @@ class PolicySDKService:
             coverage=0.8 if not errors else 0.0,
         )
 
-    async def publish_to_marketplace(self, policy_id: UUID, publisher: str) -> PolicyMarketplaceEntry | None:
+    async def publish_to_marketplace(
+        self, policy_id: UUID, publisher: str
+    ) -> PolicyMarketplaceEntry | None:
         policy = self._policies.get(policy_id)
         if not policy:
             return None
@@ -160,7 +171,7 @@ class PolicySDKService:
         entry = PolicyMarketplaceEntry(
             policy=policy,
             publisher=publisher,
-            tags=[policy.category.value] + policy.frameworks,
+            tags=[policy.category.value, *policy.frameworks],
             published_at=datetime.now(UTC),
         )
         self._marketplace[entry.id] = entry
@@ -180,16 +191,35 @@ class PolicySDKService:
             entries = [e for e in entries if framework in e.policy.frameworks]
         if query:
             q = query.lower()
-            entries = [e for e in entries if q in e.policy.name.lower() or q in e.policy.description.lower()]
+            entries = [
+                e
+                for e in entries
+                if q in e.policy.name.lower() or q in e.policy.description.lower()
+            ]
         return entries
 
     async def get_sdk_info(self) -> list[dict]:
         """Get available SDK packages."""
         return [
-            {"language": "python", "package": "complianceagent-sdk", "version": "1.0.0",
-             "install": "pip install complianceagent-sdk", "docs_url": "/docs/sdk/python"},
-            {"language": "typescript", "package": "@complianceagent/sdk", "version": "1.0.0",
-             "install": "npm install @complianceagent/sdk", "docs_url": "/docs/sdk/typescript"},
-            {"language": "go", "package": "github.com/complianceagent/sdk-go", "version": "1.0.0",
-             "install": "go get github.com/complianceagent/sdk-go", "docs_url": "/docs/sdk/go"},
+            {
+                "language": "python",
+                "package": "complianceagent-sdk",
+                "version": "1.0.0",
+                "install": "pip install complianceagent-sdk",
+                "docs_url": "/docs/sdk/python",
+            },
+            {
+                "language": "typescript",
+                "package": "@complianceagent/sdk",
+                "version": "1.0.0",
+                "install": "npm install @complianceagent/sdk",
+                "docs_url": "/docs/sdk/typescript",
+            },
+            {
+                "language": "go",
+                "package": "github.com/complianceagent/sdk-go",
+                "version": "1.0.0",
+                "install": "go get github.com/complianceagent/sdk-go",
+                "docs_url": "/docs/sdk/go",
+            },
         ]

@@ -12,11 +12,11 @@ from app.services.starter_kits.service import StarterKitsService
 
 
 __all__ = [
-    "StarterKitsService",
-    "StarterKit",
     "CodeTemplate",
     "ConfigTemplate",
     "DocumentTemplate",
+    "StarterKit",
+    "StarterKitsService",
     "TemplateCategory",
     "TemplateLanguage",
 ]

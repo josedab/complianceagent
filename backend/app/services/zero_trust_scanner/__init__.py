@@ -12,8 +12,8 @@ from app.services.zero_trust_scanner.models import (
 )
 from app.services.zero_trust_scanner.service import ZeroTrustScannerService
 
+
 __all__ = [
-    "ZeroTrustScannerService",
     "ComplianceFramework",
     "InfraResource",
     "RemediationPlan",
@@ -21,5 +21,6 @@ __all__ = [
     "ScanResult",
     "ViolationStatus",
     "ZeroTrustPolicy",
+    "ZeroTrustScannerService",
     "ZeroTrustViolation",
 ]

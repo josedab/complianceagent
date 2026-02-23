@@ -36,6 +36,7 @@ class UpdateChannel(str, Enum):
 @dataclass
 class License:
     """Deployment license information."""
+
     id: UUID = field(default_factory=uuid4)
     license_key: str = ""
     license_type: LicenseType = LicenseType.TRIAL
@@ -51,14 +52,13 @@ class License:
     def is_valid(self) -> bool:
         if self.status in (LicenseStatus.EXPIRED, LicenseStatus.REVOKED):
             return False
-        if self.expires_at and datetime.now(self.expires_at.tzinfo) > self.expires_at:
-            return False
-        return True
+        return not (self.expires_at and datetime.now(self.expires_at.tzinfo) > self.expires_at)
 
 
 @dataclass
 class DeploymentConfig:
     """Self-hosted deployment configuration."""
+
     id: UUID = field(default_factory=uuid4)
     mode: DeploymentMode = DeploymentMode.SELF_HOSTED
     version: str = ""
@@ -76,6 +76,7 @@ class DeploymentConfig:
 @dataclass
 class OfflineBundle:
     """An offline regulation bundle for air-gapped deployments."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     version: str = ""
@@ -89,6 +90,7 @@ class OfflineBundle:
 @dataclass
 class SystemHealth:
     """Self-hosted system health check."""
+
     status: str = "healthy"
     version: str = ""
     uptime_seconds: int = 0
@@ -110,6 +112,7 @@ class ClusterSize(str, Enum):
 @dataclass
 class K8sResourceEstimate:
     """Kubernetes resource requirements estimate."""
+
     cluster_size: ClusterSize = ClusterSize.MEDIUM
     cpu_cores: int = 4
     memory_gi: int = 8
@@ -122,6 +125,7 @@ class K8sResourceEstimate:
 @dataclass
 class ContainerImage:
     """Container image for air-gapped deployment."""
+
     name: str = ""
     tag: str = ""
     size_mb: float = 0.0
@@ -132,6 +136,7 @@ class ContainerImage:
 @dataclass
 class CryptoLicenseKey:
     """Cryptographically validated license key."""
+
     id: UUID = field(default_factory=uuid4)
     key_hash: str = ""
     organization: str = ""
@@ -164,6 +169,7 @@ class CryptoLicenseKey:
 @dataclass
 class OfflineRegulationBundle:
     """An offline regulation bundle for air-gapped deployments."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     version: str = "1.0.0"
@@ -193,6 +199,7 @@ class OfflineRegulationBundle:
 @dataclass
 class AirGapStatus:
     """Status of air-gapped deployment."""
+
     is_air_gapped: bool = False
     local_llm_available: bool = False
     local_llm_model: str = ""

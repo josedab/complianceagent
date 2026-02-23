@@ -8,6 +8,7 @@ from typing import Any
 
 class ComplianceGrade(str, Enum):
     """Letter grade for compliance score."""
+
     A = "A"  # 90-100%
     B = "B"  # 80-89%
     C = "C"  # 70-79%
@@ -19,11 +20,11 @@ class ComplianceGrade(str, Enum):
         """Convert numeric score to letter grade."""
         if score >= 90:
             return cls.A
-        elif score >= 80:
+        if score >= 80:
             return cls.B
-        elif score >= 70:
+        if score >= 70:
             return cls.C
-        elif score >= 60:
+        if score >= 60:
             return cls.D
         return cls.F
 
@@ -31,6 +32,7 @@ class ComplianceGrade(str, Enum):
 @dataclass
 class GapDetail:
     """Details of a compliance gap."""
+
     framework: str
     requirement_id: str
     title: str
@@ -43,6 +45,7 @@ class GapDetail:
 @dataclass
 class FrameworkScore:
     """Score for a single regulatory framework."""
+
     framework: str
     score: float
     grade: ComplianceGrade
@@ -57,6 +60,7 @@ class FrameworkScore:
 @dataclass
 class ScoringResult:
     """Complete scoring result for a codebase."""
+
     overall_score: float
     overall_grade: ComplianceGrade
     framework_scores: list[FrameworkScore]

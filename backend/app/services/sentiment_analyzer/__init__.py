@@ -1,6 +1,5 @@
 """Regulatory Change Sentiment Analyzer."""
 
-from app.services.sentiment_analyzer.service import SentimentAnalyzerService
 from app.services.sentiment_analyzer.models import (
     EnforcementAction,
     EnforcementTrend,
@@ -10,14 +9,16 @@ from app.services.sentiment_analyzer.models import (
     SentimentReport,
     SentimentScore,
 )
+from app.services.sentiment_analyzer.service import SentimentAnalyzerService
+
 
 __all__ = [
-    "SentimentAnalyzerService",
     "EnforcementAction",
     "EnforcementTrend",
     "PrioritizationRecommendation",
     "RegulatorySentiment",
     "RiskHeatmapCell",
+    "SentimentAnalyzerService",
     "SentimentReport",
     "SentimentScore",
 ]

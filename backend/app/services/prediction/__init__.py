@@ -17,11 +17,14 @@ from app.services.prediction.sources import DraftLegislationMonitor, SignalAggre
 
 __all__ = [
     "DraftLegislationMonitor",
-    "SignalAggregator",
     "PredictedRegulation",
+    "PredictionAnalysis",
     "PredictionConfidence",
+    "RegulationTimeline",
     "RegulatoryPredictionEngine",
     "RegulatorySignal",
+    "SignalAggregator",
     "SignalType",
+    "TimelineEvent",
     "get_prediction_engine",
 ]

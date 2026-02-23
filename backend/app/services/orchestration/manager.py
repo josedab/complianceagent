@@ -1,16 +1,16 @@
 """Orchestration Manager - Multi-repository compliance management."""
 
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 import structlog
 
 from app.services.orchestration.models import (
+    DEFAULT_POLICY_TEMPLATES,
     BatchScanResult,
     CompliancePolicy,
-    DEFAULT_POLICY_TEMPLATES,
     InheritedPolicy,
     ManagedRepository,
     OrganizationDashboard,
@@ -53,23 +53,23 @@ class OrchestrationManager:
             default_branch=default_branch,
             tracked_regulations=tracked_regulations or [],
         )
-        
+
         self._repositories[repo.id] = repo
-        
+
         if organization_id not in self._by_org:
             self._by_org[organization_id] = []
         self._by_org[organization_id].append(repo.id)
-        
+
         # Apply organization policies
         await self._apply_policies_to_repo(repo)
-        
+
         logger.info(
             "Added repository for compliance tracking",
             repo_id=str(repo.id),
             full_name=full_name,
             organization_id=str(organization_id),
         )
-        
+
         return repo
 
     async def get_repository(self, repo_id: UUID) -> ManagedRepository | None:
@@ -84,10 +84,10 @@ class OrchestrationManager:
         """List repositories for an organization."""
         repo_ids = self._by_org.get(organization_id, [])
         repos = [self._repositories[rid] for rid in repo_ids if rid in self._repositories]
-        
+
         if status:
             repos = [r for r in repos if r.status == status]
-        
+
         return repos
 
     async def update_repository_status(
@@ -101,13 +101,13 @@ class OrchestrationManager:
         repo = self._repositories.get(repo_id)
         if not repo:
             return None
-        
+
         repo.compliance_score = compliance_score
         repo.open_issues = open_issues
         repo.critical_issues = critical_issues
-        repo.last_scan_at = datetime.utcnow()
-        repo.updated_at = datetime.utcnow()
-        
+        repo.last_scan_at = datetime.now(UTC)
+        repo.updated_at = datetime.now(UTC)
+
         # Determine status
         if compliance_score >= 0.9 and critical_issues == 0:
             repo.status = RepositoryStatus.COMPLIANT
@@ -115,10 +115,10 @@ class OrchestrationManager:
             repo.status = RepositoryStatus.NON_COMPLIANT
         else:
             repo.status = RepositoryStatus.NEEDS_REVIEW
-        
+
         # Check policy violations
         await self._check_policy_violations(repo)
-        
+
         return repo
 
     # Policy Management
@@ -144,22 +144,22 @@ class OrchestrationManager:
             applies_to=applies_to or ["*"],
             created_by=created_by,
         )
-        
+
         self._policies[policy.id] = policy
-        
+
         # Apply to existing repos
         repos = await self.list_repositories(organization_id)
         for repo in repos:
             if self._policy_applies_to_repo(policy, repo):
                 repo.applied_policies.append(policy.id)
-        
+
         logger.info(
             "Created compliance policy",
             policy_id=str(policy.id),
             name=name,
             type=policy_type.value,
         )
-        
+
         return policy
 
     async def create_policy_from_template(
@@ -172,18 +172,22 @@ class OrchestrationManager:
         template = DEFAULT_POLICY_TEMPLATES.get(template_name)
         if not template:
             raise ValueError(f"Unknown template: {template_name}")
-        
+
         config = dict(template.get("config", {}))
         if overrides:
             config.update(overrides.get("config", {}))
-        
+
         return await self.create_policy(
             organization_id=organization_id,
             name=overrides.get("name", template["name"]) if overrides else template["name"],
             policy_type=template["policy_type"],
             config=config,
             description=template.get("description", ""),
-            on_violation=overrides.get("on_violation", template.get("on_violation", PolicyAction.WARN)) if overrides else template.get("on_violation", PolicyAction.WARN),
+            on_violation=overrides.get(
+                "on_violation", template.get("on_violation", PolicyAction.WARN)
+            )
+            if overrides
+            else template.get("on_violation", PolicyAction.WARN),
         )
 
     async def get_policy(self, policy_id: UUID) -> CompliancePolicy | None:
@@ -197,20 +201,21 @@ class OrchestrationManager:
     ) -> list[CompliancePolicy]:
         """List policies for an organization."""
         policies = [
-            p for p in self._policies.values()
+            p
+            for p in self._policies.values()
             if p.organization_id == organization_id and p.is_active
         ]
-        
+
         if policy_type:
             policies = [p for p in policies if p.policy_type == policy_type]
-        
+
         return policies
 
     async def _apply_policies_to_repo(self, repo: ManagedRepository) -> None:
         """Apply organization policies to a repository."""
         if not repo.organization_id:
             return
-        
+
         policies = await self.list_policies(repo.organization_id)
         for policy in policies:
             if self._policy_applies_to_repo(policy, repo):
@@ -226,14 +231,14 @@ class OrchestrationManager:
         for pattern in policy.excludes:
             if self._matches_pattern(repo.full_name, pattern):
                 return False
-        
+
         # Check applies_to
         for pattern in policy.applies_to:
-            if pattern == "*" or pattern == "all":
+            if pattern in {"*", "all"}:
                 return True
             if self._matches_pattern(repo.full_name, pattern):
                 return True
-        
+
         return False
 
     def _matches_pattern(self, name: str, pattern: str) -> bool:
@@ -249,21 +254,23 @@ class OrchestrationManager:
     async def _check_policy_violations(self, repo: ManagedRepository) -> None:
         """Check for policy violations."""
         repo.policy_violations = []
-        
+
         for policy_id in repo.applied_policies:
             policy = self._policies.get(policy_id)
             if not policy:
                 continue
-            
+
             violation = await self._evaluate_policy(policy, repo)
             if violation:
                 self._violations[violation.id] = violation
-                repo.policy_violations.append({
-                    "violation_id": str(violation.id),
-                    "policy_name": violation.policy_name,
-                    "message": violation.message,
-                    "severity": violation.severity,
-                })
+                repo.policy_violations.append(
+                    {
+                        "violation_id": str(violation.id),
+                        "policy_name": violation.policy_name,
+                        "message": violation.message,
+                        "severity": violation.severity,
+                    }
+                )
 
     async def _evaluate_policy(
         self,
@@ -283,11 +290,11 @@ class OrchestrationManager:
                     severity="high" if repo.compliance_score < threshold - 0.2 else "medium",
                     details={"score": repo.compliance_score, "threshold": threshold},
                 )
-        
+
         elif policy.policy_type == PolicyType.SCAN_FREQUENCY:
             interval_days = policy.config.get("interval_days", 7)
             if repo.last_scan_at:
-                days_since_scan = (datetime.utcnow() - repo.last_scan_at).days
+                days_since_scan = (datetime.now(UTC) - repo.last_scan_at).days
                 if days_since_scan > interval_days:
                     return PolicyViolation(
                         policy_id=policy.id,
@@ -306,7 +313,7 @@ class OrchestrationManager:
                     message="Repository has never been scanned",
                     severity="high",
                 )
-        
+
         return None
 
     # Organization Dashboard
@@ -317,9 +324,9 @@ class OrchestrationManager:
         """Get organization compliance dashboard."""
         repos = await self.list_repositories(organization_id)
         policies = await self.list_policies(organization_id)
-        
+
         dashboard = OrganizationDashboard(organization_id=organization_id)
-        
+
         # Repository stats
         dashboard.total_repositories = len(repos)
         dashboard.compliant_repositories = sum(
@@ -328,22 +335,22 @@ class OrchestrationManager:
         dashboard.non_compliant_repositories = sum(
             1 for r in repos if r.status == RepositoryStatus.NON_COMPLIANT
         )
-        
+
         # Score stats
         if repos:
             scores = [r.compliance_score for r in repos]
             dashboard.average_score = sum(scores) / len(scores)
             dashboard.lowest_score = min(scores)
             dashboard.highest_score = max(scores)
-        
+
         # Issue stats
         dashboard.total_issues = sum(r.open_issues for r in repos)
         dashboard.critical_issues = sum(r.critical_issues for r in repos)
-        
+
         # Policy stats
         dashboard.active_policies = len(policies)
         dashboard.policy_violations = sum(len(r.policy_violations) for r in repos)
-        
+
         # By regulation
         for repo in repos:
             for reg in repo.tracked_regulations:
@@ -355,11 +362,11 @@ class OrchestrationManager:
                     }
                 dashboard.by_regulation[reg]["repositories"] += 1
                 dashboard.by_regulation[reg]["total_score"] += repo.compliance_score
-        
+
         for reg, data in dashboard.by_regulation.items():
             if data["repositories"] > 0:
                 data["average_score"] = data["total_score"] / data["repositories"]
-        
+
         # Top repositories by risk
         dashboard.top_repositories_by_risk = sorted(
             [
@@ -374,7 +381,7 @@ class OrchestrationManager:
             key=lambda x: (x["critical_issues"], -x["score"]),
             reverse=True,
         )[:10]
-        
+
         return dashboard
 
     # Batch Operations
@@ -385,36 +392,40 @@ class OrchestrationManager:
     ) -> BatchScanResult:
         """Trigger compliance scans for multiple repositories."""
         start_time = time.perf_counter()
-        
+
         result = BatchScanResult(organization_id=organization_id)
-        
+
         repos = await self.list_repositories(organization_id)
         if repository_ids:
             repos = [r for r in repos if r.id in repository_ids]
-        
+
         for repo in repos:
             try:
                 # In production, would trigger actual scan
                 # For now, simulate update
                 repo.status = RepositoryStatus.SCANNING
                 result.repositories_scanned += 1
-                result.results.append({
-                    "repository_id": str(repo.id),
-                    "name": repo.full_name,
-                    "status": "queued",
-                })
+                result.results.append(
+                    {
+                        "repository_id": str(repo.id),
+                        "name": repo.full_name,
+                        "status": "queued",
+                    }
+                )
             except Exception as e:
                 result.repositories_failed += 1
-                result.results.append({
-                    "repository_id": str(repo.id),
-                    "name": repo.full_name,
-                    "status": "failed",
-                    "error": str(e),
-                })
-        
-        result.completed_at = datetime.utcnow()
+                result.results.append(
+                    {
+                        "repository_id": str(repo.id),
+                        "name": repo.full_name,
+                        "status": "failed",
+                        "error": str(e),
+                    }
+                )
+
+        result.completed_at = datetime.now(UTC)
         result.duration_seconds = time.perf_counter() - start_time
-        
+
         return result
 
     # Policy Templates

@@ -117,7 +117,7 @@ class PHIHandler:
             action="store",
             patient_id=patient_id,
             user_id=user_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         # Store with minimum necessary principle
@@ -136,7 +136,7 @@ class PHIHandler:
             patient_id=patient_id,
             user_id=user_id,
             purpose=purpose,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
         # Retrieve and decrypt
@@ -299,7 +299,7 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
             old_state=old_state,
             new_state=record.to_dict(),
             changed_by=user.id,
-            changed_at=datetime.utcnow(),
+            changed_at=datetime.now(UTC),
             hash=compute_hash(old_state, record.to_dict()),
         )
 
@@ -340,16 +340,14 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
         offset: int = 0,
     ) -> tuple[list[CompliancePattern], int]:
         """Search and filter patterns in the marketplace."""
-        patterns = [
-            p for p in self._patterns.values()
-            if p.status == PublishStatus.PUBLISHED
-        ]
+        patterns = [p for p in self._patterns.values() if p.status == PublishStatus.PUBLISHED]
 
         # Apply filters
         if query:
             query_lower = query.lower()
             patterns = [
-                p for p in patterns
+                p
+                for p in patterns
                 if query_lower in p.name.lower()
                 or query_lower in p.description.lower()
                 or any(query_lower in tag for tag in p.tags)
@@ -362,16 +360,10 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
             patterns = [p for p in patterns if p.pattern_type == pattern_type]
 
         if regulations:
-            patterns = [
-                p for p in patterns
-                if any(r in p.regulations for r in regulations)
-            ]
+            patterns = [p for p in patterns if any(r in p.regulations for r in regulations)]
 
         if languages:
-            patterns = [
-                p for p in patterns
-                if any(lang in p.languages for lang in languages)
-            ]
+            patterns = [p for p in patterns if any(lang in p.languages for lang in languages)]
 
         if license_types:
             patterns = [p for p in patterns if p.license_type in license_types]
@@ -390,7 +382,7 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
             patterns.sort(key=lambda p: p.published_at or p.created_at, reverse=True)
 
         # Paginate
-        patterns = patterns[offset:offset + limit]
+        patterns = patterns[offset : offset + limit]
 
         return patterns, total
 
@@ -408,7 +400,8 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
     def get_featured_patterns(self, limit: int = 10) -> list[CompliancePattern]:
         """Get featured/trending patterns."""
         patterns = [
-            p for p in self._patterns.values()
+            p
+            for p in self._patterns.values()
             if p.status == PublishStatus.PUBLISHED and p.publisher_verified
         ]
         # Sort by a combination of downloads and rating
@@ -418,7 +411,8 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
     def get_patterns_by_regulation(self, regulation: str) -> list[CompliancePattern]:
         """Get all patterns for a specific regulation."""
         return [
-            p for p in self._patterns.values()
+            p
+            for p in self._patterns.values()
             if p.status == PublishStatus.PUBLISHED and regulation in p.regulations
         ]
 
@@ -459,11 +453,13 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
         )
 
         # Add initial version
-        pattern.versions.append(PatternVersion(
-            version="1.0.0",
-            changelog="Initial version",
-            content=content,
-        ))
+        pattern.versions.append(
+            PatternVersion(
+                version="1.0.0",
+                changelog="Initial version",
+                content=content,
+            )
+        )
 
         self._patterns[pattern.id] = pattern
 
@@ -536,11 +532,13 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
         if not pattern or pattern.publisher_org_id != self.organization_id:
             return None
 
-        pattern.versions.append(PatternVersion(
-            version=version,
-            changelog=changelog,
-            content=content,
-        ))
+        pattern.versions.append(
+            PatternVersion(
+                version=version,
+                changelog=changelog,
+                content=content,
+            )
+        )
         pattern.current_version = version
         pattern.content = content
         pattern.updated_at = datetime.now(UTC)
@@ -577,9 +575,9 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
 
     def _generate_slug(self, name: str) -> str:
         """Generate a URL-safe slug from name."""
-        slug = re.sub(r'[^a-zA-Z0-9\s-]', '', name.lower())
-        slug = re.sub(r'[\s_]+', '-', slug)
-        slug = re.sub(r'-+', '-', slug).strip('-')
+        slug = re.sub(r"[^a-zA-Z0-9\s-]", "", name.lower())
+        slug = re.sub(r"[\s_]+", "-", slug)
+        slug = re.sub(r"-+", "-", slug).strip("-")
 
         # Ensure uniqueness
         base_slug = slug
@@ -763,10 +761,7 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
 
     def get_purchases(self) -> list[PatternPurchase]:
         """Get all purchases by the organization."""
-        return [
-            p for p in self._purchases.values()
-            if p.organization_id == self.organization_id
-        ]
+        return [p for p in self._purchases.values() if p.organization_id == self.organization_id]
 
     # ========================================================================
     # Publisher Management
@@ -800,10 +795,7 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
 
     def get_publisher_patterns(self) -> list[CompliancePattern]:
         """Get all patterns published by the organization."""
-        return [
-            p for p in self._patterns.values()
-            if p.publisher_org_id == self.organization_id
-        ]
+        return [p for p in self._patterns.values() if p.publisher_org_id == self.organization_id]
 
     def get_publisher_earnings(self) -> dict[str, Any]:
         """Get earnings summary for the publisher."""
@@ -818,11 +810,13 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
                 # Calculate publisher share (70% default)
                 earnings = purchase.price_paid * 0.7
                 total_earnings += earnings
-                purchases.append({
-                    "pattern_id": str(purchase.pattern_id),
-                    "amount": earnings,
-                    "date": purchase.purchased_at.isoformat(),
-                })
+                purchases.append(
+                    {
+                        "pattern_id": str(purchase.pattern_id),
+                        "amount": earnings,
+                        "date": purchase.purchased_at.isoformat(),
+                    }
+                )
 
         return {
             "total_earnings": total_earnings,
@@ -850,7 +844,9 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
         for pattern in published:
             cat = pattern.category.value
             stats.patterns_by_category[cat] = stats.patterns_by_category.get(cat, 0) + 1
-            stats.downloads_by_category[cat] = stats.downloads_by_category.get(cat, 0) + pattern.downloads
+            stats.downloads_by_category[cat] = (
+                stats.downloads_by_category.get(cat, 0) + pattern.downloads
+            )
 
         # By regulation
         for pattern in published:
@@ -864,7 +860,7 @@ def modify_financial_record(record_id: str, changes: dict, user: User) -> Record
         # Trending (recent + downloads)
         trending = sorted(
             published,
-            key=lambda p: p.downloads * (1.0 if not p.published_at else 1.0),
+            key=lambda p: p.downloads,
             reverse=True,
         )[:5]
         stats.trending_patterns = [{"name": p.name, "downloads": p.downloads} for p in trending]

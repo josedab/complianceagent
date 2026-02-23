@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 class TechStack(str, Enum):
     """Technology stacks."""
-    
+
     PYTHON = "python"
     JAVASCRIPT = "javascript"
     TYPESCRIPT = "typescript"
@@ -23,7 +23,7 @@ class TechStack(str, Enum):
 
 class Framework(str, Enum):
     """Web frameworks."""
-    
+
     FASTAPI = "fastapi"
     DJANGO = "django"
     FLASK = "flask"
@@ -37,7 +37,7 @@ class Framework(str, Enum):
 
 class CloudProvider(str, Enum):
     """Cloud providers."""
-    
+
     AWS = "aws"
     GCP = "gcp"
     AZURE = "azure"
@@ -48,7 +48,7 @@ class CloudProvider(str, Enum):
 
 class PlaybookCategory(str, Enum):
     """Playbook categories."""
-    
+
     DATA_PROTECTION = "data_protection"
     ACCESS_CONTROL = "access_control"
     LOGGING_MONITORING = "logging_monitoring"
@@ -63,7 +63,7 @@ class PlaybookCategory(str, Enum):
 
 class StepDifficulty(str, Enum):
     """Step difficulty level."""
-    
+
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
@@ -72,25 +72,25 @@ class StepDifficulty(str, Enum):
 @dataclass
 class PlaybookStep:
     """A step in a compliance playbook."""
-    
+
     step_number: int = 0
     title: str = ""
     description: str = ""
-    
+
     # Implementation
     code_snippet: str = ""
     commands: list[str] = field(default_factory=list)
     file_changes: list[dict[str, str]] = field(default_factory=list)
-    
+
     # Requirements
     prerequisites: list[str] = field(default_factory=list)
     required_tools: list[str] = field(default_factory=list)
-    
+
     # Metadata
     difficulty: StepDifficulty = StepDifficulty.MEDIUM
     estimated_minutes: int = 15
     responsible_role: str = ""  # developer, devops, security
-    
+
     # Validation
     verification_steps: list[str] = field(default_factory=list)
     expected_outcome: str = ""
@@ -99,38 +99,38 @@ class PlaybookStep:
 @dataclass
 class Playbook:
     """A compliance implementation playbook."""
-    
+
     id: UUID = field(default_factory=uuid4)
-    
+
     # Identity
     name: str = ""
     slug: str = ""
     description: str = ""
     category: PlaybookCategory = PlaybookCategory.DATA_PROTECTION
-    
+
     # Target
     regulations: list[str] = field(default_factory=list)
     controls: list[str] = field(default_factory=list)
-    
+
     # Tech context
     tech_stacks: list[TechStack] = field(default_factory=list)
     frameworks: list[Framework] = field(default_factory=list)
     cloud_providers: list[CloudProvider] = field(default_factory=list)
-    
+
     # Content
     overview: str = ""
     prerequisites: list[str] = field(default_factory=list)
     steps: list[PlaybookStep] = field(default_factory=list)
-    
+
     # Summary
     total_steps: int = 0
     estimated_hours: float = 0.0
     difficulty: StepDifficulty = StepDifficulty.MEDIUM
-    
+
     # Evidence
     evidence_generated: list[str] = field(default_factory=list)
     artifacts: list[str] = field(default_factory=list)
-    
+
     # Metadata
     version: str = "1.0.0"
     author: str = "system"
@@ -142,25 +142,25 @@ class Playbook:
 @dataclass
 class PlaybookExecution:
     """Execution tracking for a playbook."""
-    
+
     id: UUID = field(default_factory=uuid4)
     playbook_id: UUID | None = None
     organization_id: UUID | None = None
-    
+
     # Progress
     current_step: int = 0
     completed_steps: list[int] = field(default_factory=list)
     skipped_steps: list[int] = field(default_factory=list)
-    
+
     # Status
     status: str = "not_started"  # not_started, in_progress, completed, paused
     started_at: datetime | None = None
     completed_at: datetime | None = None
-    
+
     # Notes
     step_notes: dict[int, str] = field(default_factory=dict)
     blockers: list[str] = field(default_factory=list)
-    
+
     # Evidence collected
     evidence_items: list[dict[str, Any]] = field(default_factory=dict)
 
@@ -168,17 +168,17 @@ class PlaybookExecution:
 @dataclass
 class StackProfile:
     """Technology stack profile for playbook customization."""
-    
+
     tech_stack: TechStack
     framework: Framework | None = None
     cloud_provider: CloudProvider | None = None
-    
+
     # Additional context
     uses_containers: bool = False
     uses_kubernetes: bool = False
     database_type: str = ""
     ci_cd_platform: str = ""
-    
+
     # Preferences
     prefer_managed_services: bool = True
     security_level: str = "standard"  # basic, standard, high

@@ -1,8 +1,7 @@
 """Regulatory Compliance Stress Testing Service."""
 
-import random
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +15,19 @@ from app.services.stress_testing.models import (
     StressScenario,
     StressTestReport,
 )
+
+
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
 
 
 logger = structlog.get_logger()
@@ -44,8 +56,8 @@ class StressTestingService:
             scenario_type=scenario_type,
             description=description,
             parameters=parameters or {},
-            probability=random.uniform(0.01, 0.3),
-            severity=random.choice(list(RiskTier)),
+            probability=_deterministic_float("seed_1", 0.01, 0.3),
+            severity=list(RiskTier[0]),
         )
         self._scenarios.append(scenario)
         logger.info("Scenario created", name=name, scenario_type=scenario_type.value)
@@ -83,7 +95,7 @@ class StressTestingService:
             "compliance_recovery_days",
         ]
         for metric in metrics:
-            values = [random.gauss(100, 30) for _ in range(iterations)]
+            values = [100 + (i * 7 % 30) - 15 for i in range(iterations)]
             values.sort()
             result = SimulationResult(
                 run_id=run.id,
@@ -129,7 +141,7 @@ class StressTestingService:
         total_exposure = sum(
             r.p95 for sim in completed for r in sim.results if r.metric == "financial_impact_usd"
         )
-        probability = random.uniform(0.05, 0.4)
+        probability = _deterministic_float("seed_2", 0.05, 0.4)
         expected_loss = total_exposure * probability
 
         tier_thresholds = [

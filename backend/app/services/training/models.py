@@ -1,14 +1,14 @@
 """Training mode data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any
 from uuid import UUID, uuid4
 
 
 class QuestionType(str, Enum):
     """Types of quiz questions."""
+
     MULTIPLE_CHOICE = "multiple_choice"
     TRUE_FALSE = "true_false"
     MULTI_SELECT = "multi_select"
@@ -18,6 +18,7 @@ class QuestionType(str, Enum):
 
 class CertificateStatus(str, Enum):
     """Certificate status."""
+
     ACTIVE = "active"
     EXPIRED = "expired"
     REVOKED = "revoked"
@@ -26,6 +27,7 @@ class CertificateStatus(str, Enum):
 @dataclass
 class Question:
     """Quiz question."""
+
     id: UUID = field(default_factory=uuid4)
     question_type: QuestionType = QuestionType.MULTIPLE_CHOICE
     text: str = ""
@@ -43,6 +45,7 @@ class Question:
 @dataclass
 class Quiz:
     """Training quiz."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     description: str = ""
@@ -59,6 +62,7 @@ class Quiz:
 @dataclass
 class QuizAttempt:
     """Record of a quiz attempt."""
+
     id: UUID = field(default_factory=uuid4)
     quiz_id: UUID | None = None
     user_id: UUID | None = None
@@ -74,28 +78,29 @@ class QuizAttempt:
 @dataclass
 class TrainingModule:
     """Training module with content and quizzes."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     description: str = ""
     framework: str = ""
     difficulty: str = "beginner"
     estimated_minutes: int = 30
-    
+
     # Content sections
     sections: list[dict] = field(default_factory=list)
-    
+
     # Associated quizzes
     quizzes: list[Quiz] = field(default_factory=list)
-    
+
     # Prerequisites
     prerequisites: list[UUID] = field(default_factory=list)
-    
+
     # Learning objectives
     learning_objectives: list[str] = field(default_factory=list)
-    
+
     # Requirements covered
     requirements_covered: list[str] = field(default_factory=list)
-    
+
     # Metadata
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
@@ -105,6 +110,7 @@ class TrainingModule:
 @dataclass
 class TrainingProgress:
     """User's progress in a training module."""
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID | None = None
     module_id: UUID | None = None
@@ -121,6 +127,7 @@ class TrainingProgress:
 @dataclass
 class Certificate:
     """Training completion certificate."""
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID | None = None
     organization_id: UUID | None = None
@@ -128,7 +135,7 @@ class Certificate:
     framework: str = ""
     title: str = ""
     issued_at: datetime = field(default_factory=datetime.utcnow)
-    expires_at: datetime = field(default_factory=lambda: datetime.utcnow() + timedelta(days=365))
+    expires_at: datetime = field(default_factory=lambda: datetime.now(UTC) + timedelta(days=365))
     status: CertificateStatus = CertificateStatus.ACTIVE
     score: float = 0.0
     verification_code: str = ""
@@ -138,6 +145,7 @@ class Certificate:
 @dataclass
 class UserTrainingProfile:
     """User's overall training profile."""
+
     user_id: UUID | None = None
     organization_id: UUID | None = None
     total_modules_completed: int = 0

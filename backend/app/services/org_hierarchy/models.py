@@ -32,6 +32,7 @@ class PolicyInheritance(str, Enum):
 @dataclass
 class OrgNode:
     """A node in the organization hierarchy."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     slug: str = ""
@@ -47,6 +48,7 @@ class OrgNode:
 @dataclass
 class OrgMembership:
     """A user's membership in an org node."""
+
     id: UUID = field(default_factory=uuid4)
     user_id: UUID = field(default_factory=uuid4)
     user_email: str = ""
@@ -59,6 +61,7 @@ class OrgMembership:
 @dataclass
 class OrgTree:
     """Flattened organization tree for display."""
+
     root: OrgNode | None = None
     nodes: list[OrgNode] = field(default_factory=list)
     total_members: int = 0
@@ -69,6 +72,7 @@ class OrgTree:
 @dataclass
 class AggregatedCompliance:
     """Aggregated compliance stats across org nodes."""
+
     org_node_id: UUID = field(default_factory=uuid4)
     org_node_name: str = ""
     overall_score: float = 0.0

@@ -47,15 +47,15 @@ class ComplianceTemplate:
     category: TemplateCategory = TemplateCategory.CONSENT
     regulations: list[str] = field(default_factory=list)
     languages: list[str] = field(default_factory=list)
-    
+
     # Template content
     code: dict[str, str] = field(default_factory=dict)  # language -> code
     tests: dict[str, str] = field(default_factory=dict)  # language -> test code
     documentation: str = ""
-    
+
     # Parameters for customization
     parameters: list[TemplateParameter] = field(default_factory=list)
-    
+
     # Metadata
     version: str = "1.0.0"
     author: str = "ComplianceAgent"

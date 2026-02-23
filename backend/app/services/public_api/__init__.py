@@ -14,12 +14,12 @@ from app.services.public_api.service import PublicAPIService
 
 
 __all__ = [
-    "PublicAPIService",
     "APIKey",
     "APIKeyScope",
     "APIKeyStatus",
     "APIUsageRecord",
     "APIUsageSummary",
+    "PublicAPIService",
     "RateLimitConfig",
     "RateLimitTier",
     "SDKInfo",

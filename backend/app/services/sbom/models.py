@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class SBOMFormat(str, Enum):
     """Supported SBOM output formats."""
-    
+
     SPDX_JSON = "spdx-json"
     SPDX_XML = "spdx-xml"
     CYCLONEDX_JSON = "cyclonedx-json"
@@ -20,7 +20,7 @@ class SBOMFormat(str, Enum):
 
 class LicenseRisk(str, Enum):
     """License compliance risk levels."""
-    
+
     LOW = "low"  # Permissive (MIT, Apache, BSD)
     MEDIUM = "medium"  # Weak copyleft (LGPL, MPL)
     HIGH = "high"  # Strong copyleft (GPL, AGPL)
@@ -30,7 +30,7 @@ class LicenseRisk(str, Enum):
 
 class ComplianceImpact(str, Enum):
     """Impact level for compliance violations."""
-    
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -40,7 +40,7 @@ class ComplianceImpact(str, Enum):
 
 class VulnerabilitySeverity(str, Enum):
     """CVE severity levels."""
-    
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -50,7 +50,7 @@ class VulnerabilitySeverity(str, Enum):
 
 class SBOMComponent(BaseModel):
     """A single component in the SBOM."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     name: str
     version: str
@@ -77,7 +77,7 @@ class SBOMComponent(BaseModel):
 
 class ComponentVulnerability(BaseModel):
     """Vulnerability affecting a component."""
-    
+
     id: str  # CVE-XXXX-XXXXX
     severity: VulnerabilitySeverity
     cvss_score: float | None = None
@@ -93,7 +93,7 @@ class ComponentVulnerability(BaseModel):
 
 class VulnerabilityComplianceMapping(BaseModel):
     """Maps a vulnerability to regulatory compliance requirements."""
-    
+
     vulnerability_id: str
     regulation: str
     requirement: str
@@ -106,7 +106,7 @@ class VulnerabilityComplianceMapping(BaseModel):
 
 class ComponentComplianceIssue(BaseModel):
     """Compliance issue for a component."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     issue_type: str  # license, vulnerability, supply_chain, certification
     regulation: str
@@ -120,7 +120,7 @@ class ComponentComplianceIssue(BaseModel):
 
 class SBOMDocument(BaseModel):
     """Complete SBOM document with compliance metadata."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     organization_id: UUID | None = None
     repository_id: UUID | None = None
@@ -132,36 +132,36 @@ class SBOMDocument(BaseModel):
     created_by: str | None = None
     tool_name: str = "ComplianceAgent"
     tool_version: str = "0.4.0"
-    
+
     # Components
     components: list[SBOMComponent] = Field(default_factory=list)
     total_components: int = 0
     direct_dependencies: int = 0
     transitive_dependencies: int = 0
-    
+
     # Vulnerability summary
     total_vulnerabilities: int = 0
     critical_vulnerabilities: int = 0
     high_vulnerabilities: int = 0
     medium_vulnerabilities: int = 0
     low_vulnerabilities: int = 0
-    
+
     # Compliance summary
     compliance_score: float = 100.0
     total_compliance_issues: int = 0
     critical_compliance_issues: int = 0
-    
+
     # License summary
     license_types: dict[str, int] = Field(default_factory=dict)
     high_risk_licenses: int = 0
     unknown_licenses: int = 0
-    
+
     # Metadata
     source_files: list[str] = Field(default_factory=list)
     generation_time_ms: float | None = None
     signature: str | None = None  # Digital signature for authenticity
     metadata: dict[str, Any] = Field(default_factory=dict)
-    
+
     def to_spdx(self) -> dict[str, Any]:
         """Convert to SPDX format."""
         return {
@@ -174,7 +174,9 @@ class SBOMDocument(BaseModel):
                 "created": self.created_at.isoformat(),
                 "creators": [
                     f"Tool: {self.tool_name}-{self.tool_version}",
-                    f"Organization: {self.organization_id}" if self.organization_id else "Organization: Unknown",
+                    f"Organization: {self.organization_id}"
+                    if self.organization_id
+                    else "Organization: Unknown",
                 ],
             },
             "packages": [
@@ -185,9 +187,9 @@ class SBOMDocument(BaseModel):
                     "downloadLocation": c.download_url or "NOASSERTION",
                     "licenseConcluded": c.license or "NOASSERTION",
                     "supplier": f"Organization: {c.supplier}" if c.supplier else "NOASSERTION",
-                    "checksums": [
-                        {"algorithm": "SHA256", "checksumValue": c.hash_sha256}
-                    ] if c.hash_sha256 else [],
+                    "checksums": [{"algorithm": "SHA256", "checksumValue": c.hash_sha256}]
+                    if c.hash_sha256
+                    else [],
                 }
                 for c in self.components
             ],
@@ -200,7 +202,7 @@ class SBOMDocument(BaseModel):
                 for c in self.components
             ],
         }
-    
+
     def to_cyclonedx(self) -> dict[str, Any]:
         """Convert to CycloneDX format."""
         return {
@@ -231,9 +233,9 @@ class SBOMDocument(BaseModel):
                     "version": c.version,
                     "purl": c.purl,
                     "licenses": [{"license": {"id": c.license}}] if c.license else [],
-                    "hashes": [
-                        {"alg": "SHA-256", "content": c.hash_sha256}
-                    ] if c.hash_sha256 else [],
+                    "hashes": [{"alg": "SHA-256", "content": c.hash_sha256}]
+                    if c.hash_sha256
+                    else [],
                     "supplier": {"name": c.supplier} if c.supplier else None,
                 }
                 for c in self.components
@@ -248,9 +250,13 @@ class SBOMDocument(BaseModel):
                             "score": v.cvss_score,
                             "vector": v.cvss_vector,
                         }
-                    ] if v.cvss_score else [],
+                    ]
+                    if v.cvss_score
+                    else [],
                     "description": v.description,
-                    "recommendation": f"Upgrade to {v.fixed_in_version}" if v.fixed_in_version else "Review and mitigate",
+                    "recommendation": f"Upgrade to {v.fixed_in_version}"
+                    if v.fixed_in_version
+                    else "Review and mitigate",
                 }
                 for c in self.components
                 for v in c.vulnerabilities
@@ -260,34 +266,34 @@ class SBOMDocument(BaseModel):
 
 class SBOMComplianceReport(BaseModel):
     """Compliance report for an SBOM."""
-    
+
     id: UUID = Field(default_factory=uuid4)
     sbom_id: UUID
     organization_id: UUID | None = None
     generated_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     # Overall scores
     overall_compliance_score: float
     vulnerability_score: float
     license_score: float
     supply_chain_score: float
-    
+
     # Regulation-specific compliance
     regulation_compliance: dict[str, float] = Field(default_factory=dict)
-    
+
     # Issues by regulation
     issues_by_regulation: dict[str, list[ComponentComplianceIssue]] = Field(default_factory=dict)
-    
+
     # Vulnerability to compliance mappings
     vulnerability_mappings: list[VulnerabilityComplianceMapping] = Field(default_factory=list)
-    
+
     # Risk summary
     critical_risks: list[str] = Field(default_factory=list)
     high_risks: list[str] = Field(default_factory=list)
-    
+
     # Recommendations
     recommendations: list[str] = Field(default_factory=list)
-    
+
     # Timeline requirements
     immediate_actions: list[str] = Field(default_factory=list)
     short_term_actions: list[str] = Field(default_factory=list)  # 30 days
@@ -303,7 +309,11 @@ VULNERABILITY_REGULATION_MAPPINGS = {
             "article": "6.3.3",
             "rationale": "Critical vulnerabilities in software components must be addressed within 30 days",
             "deadline_days": 30,
-            "evidence": ["Vulnerability scan results", "Patch installation proof", "Testing evidence"],
+            "evidence": [
+                "Vulnerability scan results",
+                "Patch installation proof",
+                "Testing evidence",
+            ],
         },
         "high": {
             "requirement": "Requirement 6.3.3",
@@ -365,7 +375,12 @@ VULNERABILITY_REGULATION_MAPPINGS = {
 # License compliance mappings
 LICENSE_COMPLIANCE_INFO = {
     "MIT": {"risk": LicenseRisk.LOW, "copyleft": False, "attribution_required": True},
-    "Apache-2.0": {"risk": LicenseRisk.LOW, "copyleft": False, "attribution_required": True, "patent_grant": True},
+    "Apache-2.0": {
+        "risk": LicenseRisk.LOW,
+        "copyleft": False,
+        "attribution_required": True,
+        "patent_grant": True,
+    },
     "BSD-2-Clause": {"risk": LicenseRisk.LOW, "copyleft": False, "attribution_required": True},
     "BSD-3-Clause": {"risk": LicenseRisk.LOW, "copyleft": False, "attribution_required": True},
     "ISC": {"risk": LicenseRisk.LOW, "copyleft": False, "attribution_required": True},

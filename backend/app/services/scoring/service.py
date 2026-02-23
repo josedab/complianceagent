@@ -21,6 +21,7 @@ from app.services.scoring.models import (
     ScoringResult,
 )
 
+
 logger = structlog.get_logger()
 
 
@@ -44,38 +45,34 @@ class ComplianceScoringService:
     ) -> ScoringResult:
         """
         Score a repository's compliance status.
-        
+
         Args:
             repository_id: UUID of the repository to score
             frameworks: Optional list of framework names to filter
             include_gaps: Whether to include detailed gap information
             max_gaps: Maximum number of gaps to include in response
-            
+
         Returns:
             ScoringResult with grades and gap analysis
         """
         start_time = time.perf_counter()
-        
+
         # Get repository with mappings
         repo_result = await self.db.execute(
-            select(Repository)
-            .where(Repository.id == repository_id)
+            select(Repository).where(Repository.id == repository_id)
         )
         repository = repo_result.scalar_one_or_none()
-        
+
         if not repository:
             raise ValueError(f"Repository {repository_id} not found")
 
         # Get all mappings for this repository
         mappings_query = (
             select(CodebaseMapping)
-            .options(
-                selectinload(CodebaseMapping.requirement)
-                .selectinload(Requirement.regulation)
-            )
+            .options(selectinload(CodebaseMapping.requirement).selectinload(Requirement.regulation))
             .where(CodebaseMapping.repository_id == repository_id)
         )
-        
+
         mappings_result = await self.db.execute(mappings_query)
         mappings = list(mappings_result.scalars().all())
 
@@ -86,9 +83,9 @@ class ComplianceScoringService:
         for mapping in mappings:
             if not mapping.requirement or not mapping.requirement.regulation:
                 continue
-                
+
             fw_name = mapping.requirement.regulation.framework.value
-            
+
             # Filter by requested frameworks
             if frameworks and fw_name not in frameworks:
                 continue
@@ -116,12 +113,15 @@ class ComplianceScoringService:
 
                 if include_gaps:
                     # Create gap detail
-                    severity = "critical" if mapping.critical_gaps else (
-                        "major" if mapping.major_gaps else "minor"
+                    severity = (
+                        "critical"
+                        if mapping.critical_gaps
+                        else ("major" if mapping.major_gaps else "minor")
                     )
                     gap = GapDetail(
                         framework=fw_name,
-                        requirement_id=mapping.requirement.reference_id or str(mapping.requirement_id),
+                        requirement_id=mapping.requirement.reference_id
+                        or str(mapping.requirement_id),
                         title=mapping.requirement.title,
                         severity=severity,
                         description=mapping.requirement.description or "Compliance gap identified",
@@ -142,7 +142,7 @@ class ComplianceScoringService:
         for fw_name, stats in framework_stats.items():
             score = (stats["compliant"] / stats["total"] * 100) if stats["total"] > 0 else 0
             grade = ComplianceGrade.from_score(score)
-            
+
             fw_score = FrameworkScore(
                 framework=fw_name,
                 score=round(score, 2),
@@ -155,7 +155,7 @@ class ComplianceScoringService:
                 gaps=stats["gaps"][:max_gaps] if include_gaps else [],
             )
             framework_scores.append(fw_score)
-            
+
             total_reqs += stats["total"]
             compliant_reqs += stats["compliant"]
             total_critical += stats["critical"]
@@ -181,7 +181,9 @@ class ComplianceScoringService:
 
         # Generate badge URL
         badge_url = self._generate_badge_url(str(repository_id), overall_grade)
-        badge_markdown = f"[![Compliance Score]({badge_url})](https://complianceagent.ai/score/{repository_id})"
+        badge_markdown = (
+            f"[![Compliance Score]({badge_url})](https://complianceagent.ai/score/{repository_id})"
+        )
 
         return ScoringResult(
             overall_score=round(overall_score, 2),
@@ -212,39 +214,41 @@ class ComplianceScoringService:
     ) -> ScoringResult:
         """
         Quick score for external repositories (stateless analysis).
-        
+
         This method performs a lightweight analysis without persisting results.
         Used for API scoring requests.
         """
         start_time = time.perf_counter()
-        
+
         # For quick scoring, we simulate based on common patterns
         # In production, this would clone and analyze the repository
         logger.info("Quick scoring repository", url=repository_url)
-        
+
         # Generate deterministic but varied scores based on URL hash
         url_hash = hashlib.md5(repository_url.encode()).hexdigest()
-        base_score = int(url_hash[:2], 16) / 255 * 40 + 60  # 60-100 range
-        
+        int(url_hash[:2], 16) / 255 * 40 + 60  # 60-100 range
+
         framework_scores = []
         requested_frameworks = frameworks or ["GDPR", "HIPAA", "SOC2"]
-        
+
         for i, fw in enumerate(requested_frameworks):
             # Vary score per framework
             fw_hash = hashlib.md5(f"{repository_url}{fw}".encode()).hexdigest()
             fw_score = int(fw_hash[:2], 16) / 255 * 30 + 65  # 65-95 range
-            
-            framework_scores.append(FrameworkScore(
-                framework=fw,
-                score=round(fw_score, 2),
-                grade=ComplianceGrade.from_score(fw_score),
-                total_requirements=10 + i * 2,
-                compliant_requirements=int((10 + i * 2) * fw_score / 100),
-                critical_gaps=1 if fw_score < 70 else 0,
-                major_gaps=2 if fw_score < 80 else 1,
-                minor_gaps=3,
-                gaps=[],
-            ))
+
+            framework_scores.append(
+                FrameworkScore(
+                    framework=fw,
+                    score=round(fw_score, 2),
+                    grade=ComplianceGrade.from_score(fw_score),
+                    total_requirements=10 + i * 2,
+                    compliant_requirements=int((10 + i * 2) * fw_score / 100),
+                    critical_gaps=1 if fw_score < 70 else 0,
+                    major_gaps=2 if fw_score < 80 else 1,
+                    minor_gaps=3,
+                    gaps=[],
+                )
+            )
 
         overall_score = sum(fs.score for fs in framework_scores) / len(framework_scores)
         duration = time.perf_counter() - start_time
@@ -255,7 +259,9 @@ class ComplianceScoringService:
             framework_scores=framework_scores,
             total_requirements=sum(fs.total_requirements for fs in framework_scores),
             compliant_requirements=sum(fs.compliant_requirements for fs in framework_scores),
-            total_gaps=sum(fs.critical_gaps + fs.major_gaps + fs.minor_gaps for fs in framework_scores),
+            total_gaps=sum(
+                fs.critical_gaps + fs.major_gaps + fs.minor_gaps for fs in framework_scores
+            ),
             critical_gaps=sum(fs.critical_gaps for fs in framework_scores),
             major_gaps=sum(fs.major_gaps for fs in framework_scores),
             minor_gaps=sum(fs.minor_gaps for fs in framework_scores),

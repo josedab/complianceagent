@@ -161,7 +161,12 @@ class PRAnalyzer:
     ):
         self.github_client = github_client
         self.enabled_regulations = enabled_regulations or [
-            "GDPR", "CCPA", "HIPAA", "PCI-DSS", "EU AI Act", "SOX"
+            "GDPR",
+            "CCPA",
+            "HIPAA",
+            "PCI-DSS",
+            "EU AI Act",
+            "SOX",
         ]
         self.custom_patterns = custom_patterns or {}
         self._compiled_patterns: dict[str, tuple[re.Pattern, dict]] = {}
@@ -187,41 +192,41 @@ class PRAnalyzer:
         access_token: str | None = None,
     ) -> PRAnalysisResult:
         """Analyze a PR for compliance violations.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             pr_number: PR number
             access_token: GitHub access token
-            
+
         Returns:
             PRAnalysisResult with all violations found
         """
         start_time = time.perf_counter()
-        
+
         async with GitHubClient(access_token=access_token) as client:
             # Get PR details
             pr_data = await self._get_pr_details(client, owner, repo, pr_number)
             files = await self._get_pr_files(client, owner, repo, pr_number)
-            
+
             violations: list[ComplianceViolation] = []
             file_diffs: list[FileDiff] = []
             total_additions = 0
             total_deletions = 0
-            
+
             for file_data in files:
                 file_diff = self._parse_file_diff(file_data)
                 file_diffs.append(file_diff)
                 total_additions += file_diff.additions
                 total_deletions += file_diff.deletions
-                
+
                 # Analyze file if it has a patch (changes)
                 if file_diff.patch:
                     file_violations = self._analyze_diff(file_diff)
                     violations.extend(file_violations)
-            
+
             analysis_time = (time.perf_counter() - start_time) * 1000
-            
+
             return PRAnalysisResult(
                 id=uuid4(),
                 pr_number=pr_number,
@@ -244,7 +249,7 @@ class PRAnalyzer:
         file_path: str = "unknown",
     ) -> list[ComplianceViolation]:
         """Analyze raw diff content for compliance violations.
-        
+
         Useful for webhook-based analysis without full GitHub API access.
         """
         file_diff = FileDiff(
@@ -328,21 +333,21 @@ class PRAnalyzer:
     def _analyze_diff(self, file_diff: FileDiff) -> list[ComplianceViolation]:
         """Analyze a file diff for compliance violations."""
         violations: list[ComplianceViolation] = []
-        
+
         if not file_diff.patch:
             return violations
-            
+
         # Parse the patch to extract added/modified lines with their positions
         lines_info = self._parse_patch(file_diff.patch)
-        
+
         for line_info in lines_info:
             line_content = line_info["content"]
             line_number = line_info["new_line"]
-            
+
             # Only analyze added lines (marked with +)
             if not line_info["is_addition"]:
                 continue
-                
+
             # Check against all patterns
             for pattern_name, (compiled_pattern, config) in self._compiled_patterns.items():
                 matches = list(compiled_pattern.finditer(line_content))
@@ -368,12 +373,12 @@ class PRAnalyzer:
                         },
                     )
                     violations.append(violation)
-        
+
         return violations
 
     def _parse_patch(self, patch: str) -> list[dict[str, Any]]:
         """Parse a unified diff patch into line information.
-        
+
         Returns list of dicts with:
             - content: Line content (without +/- prefix)
             - old_line: Line number in old file (None for additions)
@@ -385,7 +390,7 @@ class PRAnalyzer:
         lines_info = []
         old_line = 0
         new_line = 0
-        
+
         for line in patch.split("\n"):
             # Parse hunk header: @@ -start,count +start,count @@
             hunk_match = re.match(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
@@ -393,39 +398,45 @@ class PRAnalyzer:
                 old_line = int(hunk_match.group(1))
                 new_line = int(hunk_match.group(2))
                 continue
-            
+
             if line.startswith("+") and not line.startswith("+++"):
-                lines_info.append({
-                    "content": line[1:],
-                    "old_line": None,
-                    "new_line": new_line,
-                    "is_addition": True,
-                    "is_deletion": False,
-                    "is_context": False,
-                })
+                lines_info.append(
+                    {
+                        "content": line[1:],
+                        "old_line": None,
+                        "new_line": new_line,
+                        "is_addition": True,
+                        "is_deletion": False,
+                        "is_context": False,
+                    }
+                )
                 new_line += 1
             elif line.startswith("-") and not line.startswith("---"):
-                lines_info.append({
-                    "content": line[1:],
-                    "old_line": old_line,
-                    "new_line": None,
-                    "is_addition": False,
-                    "is_deletion": True,
-                    "is_context": False,
-                })
+                lines_info.append(
+                    {
+                        "content": line[1:],
+                        "old_line": old_line,
+                        "new_line": None,
+                        "is_addition": False,
+                        "is_deletion": True,
+                        "is_context": False,
+                    }
+                )
                 old_line += 1
             elif not line.startswith("\\"):  # Ignore "\ No newline at end of file"
-                lines_info.append({
-                    "content": line[1:] if line.startswith(" ") else line,
-                    "old_line": old_line,
-                    "new_line": new_line,
-                    "is_addition": False,
-                    "is_deletion": False,
-                    "is_context": True,
-                })
+                lines_info.append(
+                    {
+                        "content": line.removeprefix(" "),
+                        "old_line": old_line,
+                        "new_line": new_line,
+                        "is_addition": False,
+                        "is_deletion": False,
+                        "is_context": True,
+                    }
+                )
                 old_line += 1
                 new_line += 1
-        
+
         return lines_info
 
     def add_custom_pattern(

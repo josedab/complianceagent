@@ -1,4 +1,5 @@
 """Regulatory News Ticker with Slack/Teams Alerts."""
+
 from app.services.news_ticker.models import (
     NewsCategory,
     NewsDigest,

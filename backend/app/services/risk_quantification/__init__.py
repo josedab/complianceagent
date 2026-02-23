@@ -1,8 +1,8 @@
 """Compliance Risk Quantification (CRQ) module."""
 
 from app.services.risk_quantification.models import (
-    OrganizationRiskDashboard,
     REGULATION_FINES,
+    OrganizationRiskDashboard,
     RegulationFineStructure,
     RepositoryRiskProfile,
     RiskCategory,
@@ -17,17 +17,18 @@ from app.services.risk_quantification.service import (
     get_risk_quantification_service,
 )
 
+
 __all__ = [
-    "RiskQuantificationService",
-    "get_risk_quantification_service",
-    "OrganizationRiskDashboard",
     "REGULATION_FINES",
+    "OrganizationRiskDashboard",
     "RegulationFineStructure",
     "RepositoryRiskProfile",
     "RiskCategory",
+    "RiskQuantificationService",
     "RiskReport",
     "RiskSeverity",
     "RiskTrend",
     "ViolationRisk",
     "WhatIfScenario",
+    "get_risk_quantification_service",
 ]

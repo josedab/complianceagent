@@ -2,7 +2,7 @@
 
 import json
 import zipfile
-from datetime import datetime
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any
 from uuid import UUID
@@ -25,12 +25,12 @@ logger = structlog.get_logger()
 
 class StarterKitsService:
     """Service for managing regulation-specific starter kits."""
-    
+
     def __init__(self, db: AsyncSession, copilot: Any = None):
         self.db = db
         self.copilot = copilot
         self._kits = self._initialize_kits()
-    
+
     def _initialize_kits(self) -> dict[str, StarterKit]:
         """Initialize built-in starter kits."""
         return {
@@ -39,7 +39,7 @@ class StarterKitsService:
             "PCI_DSS": self._create_pci_kit(),
             "SOC2": self._create_soc2_kit(),
         }
-    
+
     async def list_kits(
         self,
         framework: str | None = None,
@@ -47,19 +47,19 @@ class StarterKitsService:
     ) -> list[StarterKit]:
         """List available starter kits."""
         kits = list(self._kits.values())
-        
+
         if framework:
             kits = [k for k in kits if k.framework == framework]
-        
+
         if language:
             kits = [k for k in kits if language in k.supported_languages]
-        
+
         return kits
-    
+
     async def get_kit(self, framework: str) -> StarterKit | None:
         """Get a starter kit by framework."""
         return self._kits.get(framework)
-    
+
     async def get_template(
         self,
         framework: str,
@@ -69,21 +69,21 @@ class StarterKitsService:
         kit = self._kits.get(framework)
         if not kit:
             return None
-        
+
         for template in kit.code_templates:
             if template.id == template_id:
                 return template
-        
+
         for template in kit.config_templates:
             if template.id == template_id:
                 return template
-        
+
         for template in kit.document_templates:
             if template.id == template_id:
                 return template
-        
+
         return None
-    
+
     async def generate_kit_archive(
         self,
         framework: str,
@@ -94,58 +94,57 @@ class StarterKitsService:
         kit = self._kits.get(framework)
         if not kit:
             raise ValueError(f"Starter kit not found: {framework}")
-        
+
         buffer = BytesIO()
-        
-        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
             # Add README
             readme = self._generate_readme(kit)
             zf.writestr(f"{framework.lower()}_starter_kit/README.md", readme)
-            
+
             # Add code templates
             for template in kit.code_templates:
                 if template.language == language:
                     content = self._apply_customizations(template.content, customizations or {})
                     path = f"{framework.lower()}_starter_kit/src/{template.file_name}"
                     zf.writestr(path, content)
-            
+
             # Add config templates
             for template in kit.config_templates:
                 content = self._apply_customizations(template.content, customizations or {})
                 path = f"{framework.lower()}_starter_kit/config/{template.file_name}"
                 zf.writestr(path, content)
-            
+
             # Add document templates
             for template in kit.document_templates:
                 content = self._apply_customizations(template.content, customizations or {})
                 path = f"{framework.lower()}_starter_kit/docs/{template.file_name}"
                 zf.writestr(path, content)
-            
+
             # Add manifest
             manifest = {
                 "framework": kit.framework,
                 "version": kit.version,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
                 "language": language.value,
                 "requirements_covered": kit.requirements_covered,
             }
             zf.writestr(
-                f"{framework.lower()}_starter_kit/manifest.json",
-                json.dumps(manifest, indent=2)
+                f"{framework.lower()}_starter_kit/manifest.json", json.dumps(manifest, indent=2)
             )
-        
+
         kit.download_count += 1
-        
+
         buffer.seek(0)
         return buffer.getvalue()
-    
+
     def _apply_customizations(self, content: str, customizations: dict) -> str:
         """Apply customizations to template content."""
         for key, value in customizations.items():
             placeholder = f"{{{{ {key} }}}}"
             content = content.replace(placeholder, str(value))
         return content
-    
+
     def _generate_readme(self, kit: StarterKit) -> str:
         """Generate README for the kit."""
         return f"""# {kit.name}
@@ -158,24 +157,24 @@ class StarterKitsService:
 
 ## Prerequisites
 
-{chr(10).join(f'- {p}' for p in kit.prerequisites)}
+{chr(10).join(f"- {p}" for p in kit.prerequisites)}
 
 ## What's Included
 
 ### Code Templates
-{chr(10).join(f'- `{t.file_name}`: {t.description}' for t in kit.code_templates)}
+{chr(10).join(f"- `{t.file_name}`: {t.description}" for t in kit.code_templates)}
 
 ### Configuration Files
-{chr(10).join(f'- `{t.file_name}`: {t.description}' for t in kit.config_templates)}
+{chr(10).join(f"- `{t.file_name}`: {t.description}" for t in kit.config_templates)}
 
 ### Documentation
-{chr(10).join(f'- `{t.name}`: {t.description}' for t in kit.document_templates)}
+{chr(10).join(f"- `{t.name}`: {t.description}" for t in kit.document_templates)}
 
 ## Requirements Covered
 
 This starter kit addresses the following compliance requirements:
 
-{chr(10).join(f'- {r}' for r in kit.requirements_covered)}
+{chr(10).join(f"- {r}" for r in kit.requirements_covered)}
 
 ## Version
 
@@ -184,9 +183,9 @@ This starter kit addresses the following compliance requirements:
 ---
 Generated by ComplianceAgent
 """
-    
+
     # --- Kit Definitions ---
-    
+
     def _create_gdpr_kit(self) -> StarterKit:
         """Create GDPR starter kit."""
         kit = StarterKit(
@@ -222,7 +221,7 @@ Generated by ComplianceAgent
 5. Start using the compliance modules in your code
 """,
         )
-        
+
         # Add code templates
         kit.code_templates = [
             CodeTemplate(
@@ -266,7 +265,7 @@ Generated by ComplianceAgent
                 requirement_ids=["Art30"],
             ),
         ]
-        
+
         # Add config templates
         kit.config_templates = [
             ConfigTemplate(
@@ -284,7 +283,7 @@ Generated by ComplianceAgent
                 frameworks=["GDPR"],
             ),
         ]
-        
+
         # Add document templates
         kit.document_templates = [
             DocumentTemplate(
@@ -302,9 +301,9 @@ Generated by ComplianceAgent
                 frameworks=["GDPR"],
             ),
         ]
-        
+
         return kit
-    
+
     def _create_hipaa_kit(self) -> StarterKit:
         """Create HIPAA starter kit."""
         kit = StarterKit(
@@ -337,7 +336,7 @@ Generated by ComplianceAgent
 5. Review and customize PHI handling code
 """,
         )
-        
+
         kit.code_templates = [
             CodeTemplate(
                 name="PHI Access Controller",
@@ -370,7 +369,7 @@ Generated by ComplianceAgent
                 requirement_ids=["164.312(b)"],
             ),
         ]
-        
+
         kit.config_templates = [
             ConfigTemplate(
                 name="HIPAA Security Configuration",
@@ -380,7 +379,7 @@ Generated by ComplianceAgent
                 frameworks=["HIPAA"],
             ),
         ]
-        
+
         kit.document_templates = [
             DocumentTemplate(
                 name="BAA Template",
@@ -390,9 +389,9 @@ Generated by ComplianceAgent
                 frameworks=["HIPAA"],
             ),
         ]
-        
+
         return kit
-    
+
     def _create_pci_kit(self) -> StarterKit:
         """Create PCI-DSS starter kit."""
         kit = StarterKit(
@@ -424,7 +423,7 @@ Generated by ComplianceAgent
 5. Implement tokenization
 """,
         )
-        
+
         kit.code_templates = [
             CodeTemplate(
                 name="Card Data Tokenizer",
@@ -447,7 +446,7 @@ Generated by ComplianceAgent
                 requirement_ids=["3.3"],
             ),
         ]
-        
+
         kit.config_templates = [
             ConfigTemplate(
                 name="PCI Security Configuration",
@@ -457,9 +456,9 @@ Generated by ComplianceAgent
                 frameworks=["PCI_DSS"],
             ),
         ]
-        
+
         return kit
-    
+
     def _create_soc2_kit(self) -> StarterKit:
         """Create SOC2 starter kit."""
         kit = StarterKit(
@@ -491,7 +490,7 @@ Generated by ComplianceAgent
 4. Enable vulnerability scanning
 """,
         )
-        
+
         kit.code_templates = [
             CodeTemplate(
                 name="MFA Authentication",
@@ -514,11 +513,11 @@ Generated by ComplianceAgent
                 requirement_ids=["CC6.1"],
             ),
         ]
-        
+
         return kit
-    
+
     # --- Template Content ---
-    
+
     def _gdpr_consent_template(self) -> str:
         return '''"""
 GDPR-Compliant Consent Management System
@@ -651,7 +650,7 @@ class ConsentManager:
             user_id=user_id,
             purpose=purpose,
             status=ConsentStatus.WITHDRAWN,
-            withdrawal_timestamp=datetime.utcnow(),
+            withdrawal_timestamp=datetime.now(UTC),
         )
         
         await self.storage.save_consent_record(record)
@@ -687,7 +686,7 @@ class ConsentManager:
         """Get full consent history for a user (for DSAR compliance)."""
         return await self.storage.get_all_consent_records(user_id)
 '''
-    
+
     def _gdpr_dsar_template(self) -> str:
         return '''"""
 Data Subject Access Request (DSAR) Handler
@@ -728,7 +727,7 @@ class DSAR:
     request_type: DSARType = DSARType.ACCESS
     status: DSARStatus = DSARStatus.RECEIVED
     received_at: datetime = field(default_factory=datetime.utcnow)
-    deadline: datetime = field(default_factory=lambda: datetime.utcnow() + timedelta(days=30))
+    deadline: datetime = field(default_factory=lambda: datetime.now(UTC) + timedelta(days=30))
     completed_at: Optional[datetime] = None
     response_data: Optional[dict] = None
     notes: str = ""
@@ -805,7 +804,7 @@ class DSARHandler:
         
         request.response_data = data
         request.status = DSARStatus.COMPLETED
-        request.completed_at = datetime.utcnow()
+        request.completed_at = datetime.now(UTC)
         
         return data
     
@@ -833,7 +832,7 @@ class DSARHandler:
         await self.data_store.delete_user_data(request.user_id)
         
         request.status = DSARStatus.COMPLETED
-        request.completed_at = datetime.utcnow()
+        request.completed_at = datetime.now(UTC)
         
         return True
     
@@ -851,11 +850,11 @@ class DSARHandler:
         data = await self.data_store.export_user_data_portable(request.user_id)
         
         request.status = DSARStatus.COMPLETED
-        request.completed_at = datetime.utcnow()
+        request.completed_at = datetime.now(UTC)
         
         return data
 '''
-    
+
     def _encryption_template(self) -> str:
         return '''"""
 Personal Data Encryption Service
@@ -943,7 +942,7 @@ class PersonalDataEncryption:
         """Generate a secure random key."""
         return secrets.token_bytes(32)
 '''
-    
+
     def _audit_logger_template(self) -> str:
         return '''"""
 Compliance Audit Logger
@@ -1072,9 +1071,9 @@ class AuditLogger:
         entries = await self.storage.get_entries_by_date_range(start_date, end_date)
         return [asdict(e) for e in entries]
 '''
-    
+
     def _retention_config_template(self) -> str:
-        return '''# Data Retention Policy Configuration
+        return """# Data Retention Policy Configuration
 # GDPR Article 5(1)(e) - Storage Limitation
 
 retention_policies:
@@ -1120,10 +1119,10 @@ anonymization:
     - name
     - ip_address
   method: "pseudonymization"
-'''
-    
+"""
+
     def _privacy_config_template(self) -> str:
-        return '''# Privacy Configuration
+        return """# Privacy Configuration
 # GDPR Privacy by Design Settings
 
 privacy:
@@ -1162,10 +1161,10 @@ access_control:
   default_deny: true
   require_purpose: true
   audit_access: true
-'''
-    
+"""
+
     def _privacy_policy_template(self) -> str:
-        return '''# Privacy Policy
+        return """# Privacy Policy
 
 **Last Updated:** {{ effective_date }}
 
@@ -1223,10 +1222,10 @@ If we transfer data outside the EEA, we ensure appropriate safeguards are in pla
 ## Contact Us
 
 For privacy inquiries: privacy@{{ company_domain }}
-'''
-    
+"""
+
     def _dpa_template(self) -> str:
-        return '''# Data Processing Agreement
+        return """# Data Processing Agreement
 
 This Data Processing Agreement ("DPA") is entered into between:
 
@@ -1287,8 +1286,8 @@ The Processor shall notify the Controller within 72 hours of becoming aware of a
 
 Controller: ___________________ Date: ___________
 Processor: ___________________ Date: ___________
-'''
-    
+"""
+
     def _hipaa_access_control_template(self) -> str:
         return '''"""
 HIPAA-Compliant PHI Access Control
@@ -1431,7 +1430,7 @@ class PHIAccessController:
         # Grant temporary elevated access
         return True
 '''
-    
+
     def _hipaa_encryption_template(self) -> str:
         return '''"""
 HIPAA PHI Encryption Service
@@ -1506,7 +1505,7 @@ class PHIEncryption:
         decrypted = self.decrypt_phi(encrypted, f"field:{field_name}")
         return decrypted.decode()
 '''
-    
+
     def _hipaa_audit_template(self) -> str:
         return '''"""
 HIPAA Audit Trail Implementation
@@ -1635,9 +1634,9 @@ class HIPAAAuditLogger:
             end_date=end_date,
         )
 '''
-    
+
     def _hipaa_security_config(self) -> str:
-        return '''# HIPAA Security Configuration
+        return """# HIPAA Security Configuration
 # Based on HIPAA Security Rule Requirements
 
 security:
@@ -1678,10 +1677,10 @@ minimum_necessary:
   enabled: true
   role_based_access: true
   field_level_access: true
-'''
-    
+"""
+
     def _baa_template(self) -> str:
-        return '''# Business Associate Agreement
+        return """# Business Associate Agreement
 
 This Business Associate Agreement ("Agreement") is entered into by:
 
@@ -1728,8 +1727,8 @@ This Agreement terminates when the service agreement terminates or upon material
 
 Covered Entity: ___________________ Date: ___________
 Business Associate: ___________________ Date: ___________
-'''
-    
+"""
+
     def _pci_tokenizer_template(self) -> str:
         return '''"""
 PCI-DSS Card Data Tokenization
@@ -1801,7 +1800,7 @@ class CardTokenizer:
             card_type=self._detect_card_type(card_number),
             expiry_month=expiry_month,
             expiry_year=expiry_year,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
     
     def _generate_token(self) -> str:
@@ -1832,7 +1831,7 @@ class CardTokenizer:
             return "discover"
         return "unknown"
 '''
-    
+
     def _pan_masking_template(self) -> str:
         return '''"""
 PAN Masking Utility
@@ -1903,9 +1902,9 @@ class PANMasker:
         pan = re.sub(r"[\\s-]", "", pan)
         return pan[-4:]
 '''
-    
+
     def _pci_config_template(self) -> str:
-        return '''# PCI-DSS Security Configuration
+        return """# PCI-DSS Security Configuration
 
 pci_dss:
   version: "4.0"
@@ -1955,8 +1954,8 @@ pci_dss:
   tokenization:
     enabled: true
     vault_provider: "{{ vault_provider }}"
-'''
-    
+"""
+
     def _soc2_mfa_template(self) -> str:
         return '''"""
 Multi-Factor Authentication Implementation

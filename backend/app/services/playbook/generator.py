@@ -1,21 +1,20 @@
 """Playbook Generator - Creates customized compliance implementation guides."""
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 import structlog
 
 from app.services.playbook.models import (
+    PLAYBOOK_TEMPLATES,
     CloudProvider,
-    Framework,
     Playbook,
     PlaybookCategory,
     PlaybookExecution,
     PlaybookStep,
-    PLAYBOOK_TEMPLATES,
     StackProfile,
     StepDifficulty,
-    TechStack,
 )
 
 
@@ -36,7 +35,7 @@ STEP_TEMPLATES: dict[str, dict[str, list[dict[str, Any]]]] = {
             {
                 "title": "Configure encryption key management",
                 "description": "Set up secure key storage using environment variables or a secrets manager",
-                "code_snippet": '''import os
+                "code_snippet": """import os
 from cryptography.fernet import Fernet
 
 # Load encryption key from environment
@@ -44,7 +43,7 @@ ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 if not ENCRYPTION_KEY:
     raise ValueError("ENCRYPTION_KEY environment variable not set")
 
-cipher = Fernet(ENCRYPTION_KEY.encode())''',
+cipher = Fernet(ENCRYPTION_KEY.encode())""",
                 "difficulty": StepDifficulty.MEDIUM,
                 "estimated_minutes": 20,
             },
@@ -89,7 +88,7 @@ def decrypt_data(encrypted: bytes) -> str:
             },
             {
                 "title": "Set up encryption configuration",
-                "code_snippet": '''import CryptoJS from 'crypto-js';
+                "code_snippet": """import CryptoJS from 'crypto-js';
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 if (!ENCRYPTION_KEY) {
@@ -103,7 +102,7 @@ export function encrypt(data: string): string {
 export function decrypt(encrypted: string): string {
   const bytes = CryptoJS.AES.decrypt(encrypted, ENCRYPTION_KEY);
   return bytes.toString(CryptoJS.enc.Utf8);
-}''',
+}""",
                 "difficulty": StepDifficulty.MEDIUM,
                 "estimated_minutes": 25,
             },
@@ -170,7 +169,7 @@ def verify_totp(secret: str, code: str) -> bool:
             {
                 "title": "Configure audit logger",
                 "code_snippet": '''import structlog
-from datetime import datetime
+from datetime import datetime, UTC
 
 structlog.configure(
     processors=[
@@ -198,7 +197,7 @@ def log_audit_event(
         resource=resource,
         action=action,
         outcome=outcome,
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         **kwargs
     )''',
                 "difficulty": StepDifficulty.MEDIUM,
@@ -277,19 +276,19 @@ class PlaybookGenerator:
         organization_id: UUID | None = None,
     ) -> Playbook:
         """Generate a customized playbook from a template.
-        
+
         Args:
             template_slug: Template to use
             stack_profile: Technology stack profile
             organization_id: Organization context
-            
+
         Returns:
             Customized Playbook
         """
         template = PLAYBOOK_TEMPLATES.get(template_slug)
         if not template:
             raise ValueError(f"Unknown template: {template_slug}")
-        
+
         playbook = Playbook(
             name=template["name"],
             slug=template_slug,
@@ -300,31 +299,29 @@ class PlaybookGenerator:
             estimated_hours=template.get("estimated_hours", 4),
             tech_stacks=[stack_profile.tech_stack],
         )
-        
+
         if stack_profile.framework:
             playbook.frameworks = [stack_profile.framework]
         if stack_profile.cloud_provider:
             playbook.cloud_providers = [stack_profile.cloud_provider]
-        
+
         # Generate steps
-        playbook.steps = await self._generate_steps(
-            template_slug, stack_profile
-        )
+        playbook.steps = await self._generate_steps(template_slug, stack_profile)
         playbook.total_steps = len(playbook.steps)
-        
+
         # Add cloud-specific context
         if stack_profile.cloud_provider:
             await self._add_cloud_context(playbook, stack_profile.cloud_provider)
-        
+
         # Generate overview
         playbook.overview = self._generate_overview(playbook)
-        
+
         # Generate prerequisites
         playbook.prerequisites = self._generate_prerequisites(playbook, stack_profile)
-        
+
         # Store
         self._playbooks[playbook.id] = playbook
-        
+
         logger.info(
             "Generated playbook",
             playbook_id=str(playbook.id),
@@ -332,7 +329,7 @@ class PlaybookGenerator:
             tech_stack=stack_profile.tech_stack.value,
             steps=playbook.total_steps,
         )
-        
+
         return playbook
 
     async def _generate_steps(
@@ -343,10 +340,10 @@ class PlaybookGenerator:
         """Generate implementation steps."""
         steps = []
         step_templates = STEP_TEMPLATES.get(template_slug, {})
-        
+
         # Get tech-specific steps
         tech_steps = step_templates.get(profile.tech_stack.value, [])
-        
+
         for i, step_data in enumerate(tech_steps, 1):
             step = PlaybookStep(
                 step_number=i,
@@ -361,11 +358,11 @@ class PlaybookGenerator:
                 verification_steps=step_data.get("verification_steps", []),
             )
             steps.append(step)
-        
+
         # If no tech-specific steps, add generic ones
         if not steps:
             steps = self._generate_generic_steps(template_slug)
-        
+
         return steps
 
     def _generate_generic_steps(self, template_slug: str) -> list[PlaybookStep]:
@@ -416,7 +413,7 @@ class PlaybookGenerator:
         """Add cloud-specific context to playbook."""
         cloud_config = CLOUD_CONFIGS.get(cloud_provider.value, {})
         category_config = cloud_config.get(playbook.slug, {})
-        
+
         if category_config:
             # Add cloud-specific step at the beginning
             cloud_step = PlaybookStep(
@@ -427,7 +424,7 @@ class PlaybookGenerator:
                 difficulty=StepDifficulty.MEDIUM,
                 estimated_minutes=30,
             )
-            
+
             # Insert at beginning and renumber
             playbook.steps.insert(0, cloud_step)
             for i, step in enumerate(playbook.steps, 1):
@@ -452,13 +449,13 @@ class PlaybookGenerator:
             "Access to version control system",
             "Ability to deploy changes to target environment",
         ]
-        
+
         if profile.cloud_provider:
             prereqs.append(f"Admin access to {profile.cloud_provider.value.upper()} account")
-        
+
         if playbook.category == PlaybookCategory.ENCRYPTION:
             prereqs.append("Understanding of cryptographic concepts")
-        
+
         return prereqs
 
     async def get_playbook(self, playbook_id: UUID) -> Playbook | None:
@@ -472,22 +469,24 @@ class PlaybookGenerator:
     ) -> list[dict[str, Any]]:
         """List available playbook templates."""
         templates = []
-        
+
         for slug, template in PLAYBOOK_TEMPLATES.items():
             if category and template.get("category") != category:
                 continue
             if regulation and regulation not in template.get("regulations", []):
                 continue
-            
-            templates.append({
-                "slug": slug,
-                "name": template["name"],
-                "category": template["category"].value,
-                "regulations": template.get("regulations", []),
-                "difficulty": template.get("difficulty", StepDifficulty.MEDIUM).value,
-                "estimated_hours": template.get("estimated_hours", 4),
-            })
-        
+
+            templates.append(
+                {
+                    "slug": slug,
+                    "name": template["name"],
+                    "category": template["category"].value,
+                    "regulations": template.get("regulations", []),
+                    "difficulty": template.get("difficulty", StepDifficulty.MEDIUM).value,
+                    "estimated_hours": template.get("estimated_hours", 4),
+                }
+            )
+
         return templates
 
     async def start_execution(
@@ -497,15 +496,15 @@ class PlaybookGenerator:
     ) -> PlaybookExecution:
         """Start executing a playbook."""
         from datetime import datetime
-        
+
         execution = PlaybookExecution(
             playbook_id=playbook_id,
             organization_id=organization_id,
             status="in_progress",
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             current_step=1,
         )
-        
+
         self._executions[execution.id] = execution
         return execution
 
@@ -520,28 +519,28 @@ class PlaybookGenerator:
         execution = self._executions.get(execution_id)
         if not execution:
             return None
-        
+
         if completed_step:
             if completed_step not in execution.completed_steps:
                 execution.completed_steps.append(completed_step)
             execution.current_step = completed_step + 1
-        
+
         if skipped_step:
             if skipped_step not in execution.skipped_steps:
                 execution.skipped_steps.append(skipped_step)
             execution.current_step = skipped_step + 1
-        
+
         if note:
             execution.step_notes[execution.current_step] = note
-        
+
         # Check if complete
         playbook = self._playbooks.get(execution.playbook_id)
         if playbook:
             total_handled = len(execution.completed_steps) + len(execution.skipped_steps)
             if total_handled >= playbook.total_steps:
                 execution.status = "completed"
-                execution.completed_at = datetime.utcnow()
-        
+                execution.completed_at = datetime.now(UTC)
+
         return execution
 
 

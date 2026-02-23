@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 class ViolationSeverity(str, Enum):
     """Severity levels for compliance violations."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -18,6 +19,7 @@ class ViolationSeverity(str, Enum):
 
 class ReviewStatus(str, Enum):
     """Status of a PR review."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -26,6 +28,7 @@ class ReviewStatus(str, Enum):
 
 class AutoFixStatus(str, Enum):
     """Status of an auto-fix."""
+
     GENERATED = "generated"
     APPLIED = "applied"
     REJECTED = "rejected"
@@ -35,6 +38,7 @@ class AutoFixStatus(str, Enum):
 @dataclass
 class FileDiff:
     """Represents a file diff from a PR."""
+
     path: str
     old_path: str | None
     status: str  # added, modified, deleted, renamed
@@ -48,6 +52,7 @@ class FileDiff:
 @dataclass
 class ComplianceViolation:
     """A compliance violation found in code."""
+
     id: UUID = field(default_factory=uuid4)
     file_path: str = ""
     line_start: int = 0
@@ -70,6 +75,7 @@ class ComplianceViolation:
 @dataclass
 class ReviewComment:
     """A review comment to be posted on a PR."""
+
     id: UUID = field(default_factory=uuid4)
     violation: ComplianceViolation | None = None
     file_path: str = ""
@@ -83,6 +89,7 @@ class ReviewComment:
 @dataclass
 class AutoFix:
     """An auto-generated fix for a compliance violation."""
+
     id: UUID = field(default_factory=uuid4)
     violation_id: UUID | None = None
     file_path: str = ""
@@ -101,6 +108,7 @@ class AutoFix:
 @dataclass
 class PRAnalysisResult:
     """Result of analyzing a PR for compliance issues."""
+
     id: UUID = field(default_factory=uuid4)
     pr_number: int = 0
     repository: str = ""
@@ -141,6 +149,7 @@ class PRAnalysisResult:
 @dataclass
 class PRReviewResult:
     """Result of a complete PR compliance review."""
+
     id: UUID = field(default_factory=uuid4)
     analysis: PRAnalysisResult | None = None
     comments: list[ReviewComment] = field(default_factory=list)

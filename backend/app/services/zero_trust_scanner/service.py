@@ -1,15 +1,13 @@
 """Zero-Trust Compliance Architecture Scanner Service."""
 
-import random
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.zero_trust_scanner.models import (
     ComplianceFramework,
-    InfraResource,
     RemediationPlan,
     ResourceType,
     ScanResult,
@@ -17,6 +15,19 @@ from app.services.zero_trust_scanner.models import (
     ZeroTrustPolicy,
     ZeroTrustViolation,
 )
+
+
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
 
 
 logger = structlog.get_logger()
@@ -90,16 +101,9 @@ class ZeroTrustScannerService:
         files: list[str] | None = None,
     ) -> ScanResult:
         """Scan infrastructure-as-code for zero-trust violations."""
-        iac_files = files or [
-            "terraform/main.tf",
-            "terraform/iam.tf",
-            "terraform/s3.tf",
-            "terraform/rds.tf",
-            "terraform/network.tf",
-        ]
 
         violations: list[ZeroTrustViolation] = []
-        resources_scanned = random.randint(15, 50)
+        resources_scanned = _deterministic_int("seed_1", 15, 50)
 
         # Generate realistic violations
         violation_templates = [
@@ -141,9 +145,8 @@ class ZeroTrustScannerService:
             },
         ]
 
-        selected = random.sample(
-            violation_templates, k=min(len(violation_templates), random.randint(1, 4))
-        )
+        k = min(len(violation_templates), _deterministic_int("seed_2", 1, 4))
+        selected = violation_templates[:k]
         for tmpl in selected:
             v = ZeroTrustViolation(
                 policy_id=tmpl["policy"].id,

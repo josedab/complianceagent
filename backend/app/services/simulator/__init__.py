@@ -1,19 +1,25 @@
 """Regulatory scenario simulator service."""
 
-from app.services.simulator.service import ScenarioSimulatorService
 from app.services.simulator.models import (
+    ComplianceDelta,
+    ImpactPrediction,
     Scenario,
     ScenarioType,
     SimulationResult,
-    ImpactPrediction,
-    ComplianceDelta,
 )
+from app.services.simulator.service import ScenarioSimulatorService
+
 
 __all__ = [
-    "ScenarioSimulatorService",
+    "ArchitectureChangeScenario",
+    "CodeChangeScenario",
+    "ComplianceDelta",
+    "ExpansionScenario",
+    "ImpactPrediction",
+    "RiskCategory",
     "Scenario",
+    "ScenarioSimulatorService",
     "ScenarioType",
     "SimulationResult",
-    "ImpactPrediction",
-    "ComplianceDelta",
+    "VendorChangeScenario",
 ]

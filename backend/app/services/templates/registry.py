@@ -8,12 +8,12 @@ from typing import Any
 
 import structlog
 
+from app.services.templates.audit_templates import AUDIT_TEMPLATES
 from app.services.templates.base import (
     ComplianceTemplate,
     TemplateCategory,
     TemplateParameter,
 )
-from app.services.templates.audit_templates import AUDIT_TEMPLATES
 from app.services.templates.consent_templates import CONSENT_TEMPLATES
 from app.services.templates.data_access_templates import DATA_ACCESS_TEMPLATES
 from app.services.templates.hipaa_templates import HIPAA_TEMPLATES
@@ -85,7 +85,8 @@ class TemplateRegistry:
         if search:
             search_lower = search.lower()
             templates = [
-                t for t in templates
+                t
+                for t in templates
                 if search_lower in t.name.lower()
                 or search_lower in t.description.lower()
                 or any(search_lower in tag for tag in t.tags)

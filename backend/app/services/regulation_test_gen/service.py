@@ -1,6 +1,5 @@
 """Regulation-to-Test-Case Generator Service."""
 
-import random
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -15,6 +14,19 @@ from app.services.regulation_test_gen.models import (
     TestRunResult,
     TestSuite,
 )
+
+
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
 
 
 logger = structlog.get_logger()
@@ -123,7 +135,7 @@ class RegulationTestGenService:
                         f"assert compliance with {article['ref']}",
                         "assert evidence exists",
                     ],
-                    confidence=round(random.uniform(0.75, 0.98), 2),
+                    confidence=round(_deterministic_float("seed_3", 0.75, 0.98), 2),
                     tags=[regulation.lower(), article["ref"].lower().replace(" ", "_")],
                 )
             )
@@ -194,19 +206,19 @@ class RegulationTestGenService:
             raise ValueError(f"Test suite not found: {suite_id}")
 
         total = suite.total_tests
-        passed = int(total * random.uniform(0.7, 1.0))
+        passed = int(total * _deterministic_float("seed_4", 0.7, 1.0))
         failed = total - passed
-        errors = random.randint(0, max(1, failed // 2))
+        errors = _deterministic_int("seed_1", 0, max(1, failed // 2))
 
         result = TestRunResult(
             suite_id=suite_id,
             passed=passed,
             failed=failed,
             errors=errors,
-            duration_ms=random.randint(500, 5000),
+            duration_ms=_deterministic_int("seed_2", 500, 5000),
             coverage_report={
-                "line_coverage": round(random.uniform(70, 95), 1),
-                "branch_coverage": round(random.uniform(60, 90), 1),
+                "line_coverage": round(_deterministic_float("seed_5", 70, 95), 1),
+                "branch_coverage": round(_deterministic_float("seed_6", 60, 90), 1),
                 "articles_covered": passed,
                 "articles_total": total,
             },
@@ -218,11 +230,10 @@ class RegulationTestGenService:
     async def list_coverages(self) -> list[RegulationCoverage]:
         """List coverage for all known regulations."""
         coverages: list[RegulationCoverage] = []
-        for reg in _REGULATION_ARTICLES:
+        for reg, articles in _REGULATION_ARTICLES.items():
             if reg in self._coverages:
                 coverages.append(self._coverages[reg])
             else:
-                articles = _REGULATION_ARTICLES[reg]
                 coverages.append(
                     RegulationCoverage(
                         regulation=reg,

@@ -1,6 +1,5 @@
 """Regulatory Change Sentiment Analyzer Service."""
 
-import random
 from datetime import UTC, datetime
 
 import structlog
@@ -15,6 +14,19 @@ from app.services.sentiment_analyzer.models import (
     SentimentReport,
     SentimentScore,
 )
+
+
+def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
+    """Generate a deterministic float from a seed string."""
+    import hashlib
+
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
+
+
+def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
+    """Generate a deterministic int from a seed string."""
+    return int(_deterministic_float(seed, min_val, max_val))
 
 
 logger = structlog.get_logger()
@@ -112,8 +124,8 @@ class SentimentAnalyzerService:
         jurisdiction: str | None = None,
     ) -> RegulatorySentiment:
         """Analyze enforcement sentiment for a regulation."""
-        jur = jurisdiction or random.choice(_JURISDICTIONS)
-        risk = random.uniform(0.2, 0.95)
+        jur = jurisdiction or _JURISDICTIONS[0]
+        risk = _deterministic_float("seed_2", 0.2, 0.95)
 
         if risk > 0.7:
             trend = EnforcementTrend.HEATING_UP
@@ -147,9 +159,9 @@ class SentimentAnalyzerService:
             trend=trend,
             sentiment=sentiment,
             enforcement_probability=round(risk, 2),
-            avg_fine_amount=round(random.uniform(100000, 50000000), 2),
-            enforcement_count_ytd=random.randint(1, 25),
-            key_topics=random.sample(topics_pool, min(4, len(topics_pool))),
+            avg_fine_amount=round(_deterministic_float("seed_3", 100000, 50000000), 2),
+            enforcement_count_ytd=_deterministic_int("seed_1", 1, 25),
+            key_topics=topics_pool[:4],
             analyzed_at=datetime.now(UTC),
         )
         key = f"{regulation}:{jur}"
@@ -194,7 +206,7 @@ class SentimentAnalyzerService:
         cells: list[RiskHeatmapCell] = []
         for reg in _REGULATIONS:
             for jur in _JURISDICTIONS[:4]:
-                score = round(random.uniform(0.1, 1.0), 2)
+                score = round(_deterministic_float("seed_4", 0.1, 1.0), 2)
                 if score > 0.7:
                     color = "red"
                     trend = EnforcementTrend.HEATING_UP
@@ -221,16 +233,20 @@ class SentimentAnalyzerService:
         recommendations: list[PrioritizationRecommendation] = []
         effort_options = ["low", "medium", "high", "very_high"]
 
-        for rank, reg in enumerate(sorted(_REGULATIONS, key=lambda _: random.random()), 1):
-            score = round(random.uniform(0.3, 0.95), 2)
+        for rank, reg in enumerate(
+            sorted(_REGULATIONS, key=lambda _: _deterministic_float("seed_7")), 1
+        ):
+            score = round(_deterministic_float("seed_5", 0.3, 0.95), 2)
             recommendations.append(
                 PrioritizationRecommendation(
                     regulation=reg,
                     priority_rank=rank,
                     risk_score=score,
-                    effort_estimate=random.choice(effort_options),
+                    effort_estimate=effort_options[0],
                     rationale=f"Enforcement activity for {reg} is {'increasing' if score > 0.6 else 'moderate'} — prioritize compliance gaps",
-                    enforcement_likelihood=round(score * random.uniform(0.8, 1.0), 2),
+                    enforcement_likelihood=round(
+                        score * _deterministic_float("seed_6", 0.8, 1.0), 2
+                    ),
                 )
             )
         return sorted(recommendations, key=lambda r: r.risk_score, reverse=True)

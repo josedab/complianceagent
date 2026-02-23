@@ -129,7 +129,7 @@ class ConsentManager:
             statuses[purpose] = await self.check_consent(user_id, purpose)
         return statuses
 ''',
-        "typescript": '''/**
+        "typescript": """/**
  * GDPR-compliant consent management module.
  * Implements consent collection per GDPR Article 7.
  */
@@ -199,7 +199,7 @@ export class ConsentManager {
     return false;
   }
 }
-''',
+""",
     },
     tests={
         "python": '''"""Tests for GDPR consent manager."""

@@ -1,7 +1,7 @@
 """Real-Time Compliance Telemetry Service."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,7 @@ from app.services.telemetry.models import (
     TelemetryMetric,
     TelemetrySnapshot,
 )
+
 
 logger = structlog.get_logger()
 
@@ -154,7 +155,9 @@ class TelemetryService:
             events = [e for e in events if e.severity == severity]
         if since:
             events = [e for e in events if e.timestamp and e.timestamp >= since]
-        return sorted(events, key=lambda e: e.timestamp or datetime.min, reverse=True)[:limit]
+        return sorted(
+            events, key=lambda e: e.timestamp or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     async def get_time_series(
         self,
@@ -169,7 +172,8 @@ class TelemetryService:
         cutoff = now - timedelta(hours=hours)
 
         points = [
-            m for m in self._metrics
+            m
+            for m in self._metrics
             if m.metric_type == metric_type
             and (framework is None or m.framework == framework)
             and m.timestamp
@@ -182,7 +186,9 @@ class TelemetryService:
 
         return MetricTimeSeries(
             metric_type=metric_type,
-            data_points=sorted(points, key=lambda p: p.timestamp or datetime.min),
+            data_points=sorted(
+                points, key=lambda p: p.timestamp or datetime.min.replace(tzinfo=UTC)
+            ),
             framework=framework,
             period=period,
         )
@@ -290,15 +296,24 @@ class TelemetryService:
 
     @staticmethod
     def _evaluate_threshold(value: float, operator: str, threshold: float) -> bool:
-        ops = {"lt": value < threshold, "gt": value > threshold, "eq": value == threshold,
-               "lte": value <= threshold, "gte": value >= threshold}
+        ops = {
+            "lt": value < threshold,
+            "gt": value > threshold,
+            "eq": value == threshold,
+            "lte": value <= threshold,
+            "gte": value >= threshold,
+        }
         return ops.get(operator, False)
 
     def _get_latest_metric(
         self, metric_type: MetricType, framework: str | None, repository: str | None
     ) -> TelemetryMetric | None:
         for m in reversed(self._metrics):
-            if m.metric_type == metric_type and m.framework == framework and m.repository == repository:
+            if (
+                m.metric_type == metric_type
+                and m.framework == framework
+                and m.repository == repository
+            ):
                 return m
         return None
 
@@ -309,13 +324,17 @@ class TelemetryService:
     def _count_recent_violations(self) -> int:
         cutoff = datetime.now(UTC) - timedelta(hours=24)
         return sum(
-            1 for e in self._events
+            1
+            for e in self._events
             if e.event_type == TelemetryEventType.VIOLATION_DETECTED
-            and e.timestamp and e.timestamp >= cutoff
+            and e.timestamp
+            and e.timestamp >= cutoff
         )
 
     def _compute_coverage(self) -> float:
-        scores = [m.value for m in self._metrics if m.metric_type == MetricType.REQUIREMENT_COVERAGE]
+        scores = [
+            m.value for m in self._metrics if m.metric_type == MetricType.REQUIREMENT_COVERAGE
+        ]
         return scores[-1] if scores else 78.5
 
     def _compute_drift(self) -> float:

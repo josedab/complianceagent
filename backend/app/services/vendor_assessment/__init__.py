@@ -14,13 +14,13 @@ from app.services.vendor_assessment.service import VendorAssessmentService
 
 
 __all__ = [
-    "VendorAssessmentService",
-    "Vendor",
-    "VendorStatus",
-    "VendorRiskLevel",
-    "VendorAssessment",
     "Dependency",
-    "DependencyRiskLevel",
     "DependencyRisk",
+    "DependencyRiskLevel",
     "DependencyScanResult",
+    "Vendor",
+    "VendorAssessment",
+    "VendorAssessmentService",
+    "VendorRiskLevel",
+    "VendorStatus",
 ]

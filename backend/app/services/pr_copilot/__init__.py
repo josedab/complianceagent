@@ -13,9 +13,9 @@ from app.services.pr_copilot.service import PRCopilotService
 
 
 __all__ = [
-    "PRCopilotService",
     "ComplianceFinding",
     "LearningStats",
+    "PRCopilotService",
     "PRReviewResult",
     "ReviewSeverity",
     "ReviewStatus",

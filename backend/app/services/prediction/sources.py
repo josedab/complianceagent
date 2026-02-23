@@ -184,8 +184,7 @@ class DraftLegislationMonitor:
 
         if signal_types:
             sources_to_check = [
-                s for s in sources_to_check
-                if any(st in s.signal_types for st in signal_types)
+                s for s in sources_to_check if any(st in s.signal_types for st in signal_types)
             ]
 
         for source in sources_to_check:
@@ -225,43 +224,47 @@ class DraftLegislationMonitor:
         signals = []
 
         if SignalType.DRAFT_LEGISLATION in source.signal_types:
-            signals.append(RegulatorySignal(
-                signal_type=SignalType.DRAFT_LEGISLATION,
-                title=f"[{source.jurisdiction}] Draft Data Protection Amendment",
-                description="Proposed amendments to strengthen data subject rights",
-                source_url=source.url,
-                source_name=source.name,
-                jurisdiction=source.jurisdiction,
-                relevance_score=0.85,
-                affected_regulations=["GDPR", "Data Protection"],
-                affected_industries=["Technology", "Finance", "Healthcare"],
-                affected_data_types=["Personal Data", "Biometric Data"],
-                key_requirements=[
-                    "Enhanced consent requirements",
-                    "Stricter data retention limits",
-                    "Expanded data subject rights",
-                ],
-                timeline_indicators=["Q2 2026 expected vote", "2027 effective date"],
-            ))
+            signals.append(
+                RegulatorySignal(
+                    signal_type=SignalType.DRAFT_LEGISLATION,
+                    title=f"[{source.jurisdiction}] Draft Data Protection Amendment",
+                    description="Proposed amendments to strengthen data subject rights",
+                    source_url=source.url,
+                    source_name=source.name,
+                    jurisdiction=source.jurisdiction,
+                    relevance_score=0.85,
+                    affected_regulations=["GDPR", "Data Protection"],
+                    affected_industries=["Technology", "Finance", "Healthcare"],
+                    affected_data_types=["Personal Data", "Biometric Data"],
+                    key_requirements=[
+                        "Enhanced consent requirements",
+                        "Stricter data retention limits",
+                        "Expanded data subject rights",
+                    ],
+                    timeline_indicators=["Q2 2026 expected vote", "2027 effective date"],
+                )
+            )
 
         if SignalType.PUBLIC_CONSULTATION in source.signal_types:
-            signals.append(RegulatorySignal(
-                signal_type=SignalType.PUBLIC_CONSULTATION,
-                title=f"[{source.jurisdiction}] Public Consultation on AI Regulation",
-                description="Stakeholder input requested on AI governance framework",
-                source_url=source.url,
-                source_name=source.name,
-                jurisdiction=source.jurisdiction,
-                relevance_score=0.75,
-                affected_regulations=["AI Act", "AI Governance"],
-                affected_industries=["Technology", "AI/ML"],
-                key_requirements=[
-                    "AI risk assessment requirements",
-                    "Algorithmic transparency",
-                    "Human oversight mechanisms",
-                ],
-                timeline_indicators=["Consultation closes March 2026"],
-            ))
+            signals.append(
+                RegulatorySignal(
+                    signal_type=SignalType.PUBLIC_CONSULTATION,
+                    title=f"[{source.jurisdiction}] Public Consultation on AI Regulation",
+                    description="Stakeholder input requested on AI governance framework",
+                    source_url=source.url,
+                    source_name=source.name,
+                    jurisdiction=source.jurisdiction,
+                    relevance_score=0.75,
+                    affected_regulations=["AI Act", "AI Governance"],
+                    affected_industries=["Technology", "AI/ML"],
+                    key_requirements=[
+                        "AI risk assessment requirements",
+                        "Algorithmic transparency",
+                        "Human oversight mechanisms",
+                    ],
+                    timeline_indicators=["Consultation closes March 2026"],
+                )
+            )
 
         return signals
 
@@ -303,8 +306,8 @@ Title: {signal.title}
 Description: {signal.description}
 Jurisdiction: {signal.jurisdiction}
 Type: {signal.signal_type.value}
-Key Requirements: {', '.join(signal.key_requirements)}
-Timeline: {', '.join(signal.timeline_indicators)}
+Key Requirements: {", ".join(signal.key_requirements)}
+Timeline: {", ".join(signal.timeline_indicators)}
 
 Return JSON only."""
 
@@ -316,11 +319,11 @@ Return JSON only."""
                 )
 
                 import json
+
                 content = response.content.strip()
                 if content.startswith("```"):
                     content = content.split("```")[1]
-                    if content.startswith("json"):
-                        content = content[4:]
+                    content = content.removeprefix("json")
                 content = content.rstrip("`")
                 result = json.loads(content)
 
@@ -341,15 +344,17 @@ Return JSON only."""
             last_check = self._last_check.get(source.name)
             cached_count = len(self._cached_signals.get(source.name, []))
 
-            status.append({
-                "name": source.name,
-                "jurisdiction": source.jurisdiction,
-                "enabled": source.enabled,
-                "signal_types": [st.value for st in source.signal_types],
-                "last_check": last_check.isoformat() if last_check else None,
-                "cached_signals": cached_count,
-                "update_frequency_hours": source.update_frequency_hours,
-            })
+            status.append(
+                {
+                    "name": source.name,
+                    "jurisdiction": source.jurisdiction,
+                    "enabled": source.enabled,
+                    "signal_types": [st.value for st in source.signal_types],
+                    "last_check": last_check.isoformat() if last_check else None,
+                    "cached_signals": cached_count,
+                    "update_frequency_hours": source.update_frequency_hours,
+                }
+            )
 
         return status
 
@@ -364,12 +369,14 @@ class SignalAggregator:
 
     def register_source(self, name: str, source_type: str, url: str = "") -> None:
         """Register a regulatory signal source."""
-        self._sources.append({
-            "name": name,
-            "source_type": source_type,
-            "url": url,
-            "registered_at": datetime.now(UTC).isoformat(),
-        })
+        self._sources.append(
+            {
+                "name": name,
+                "source_type": source_type,
+                "url": url,
+                "registered_at": datetime.now(UTC).isoformat(),
+            }
+        )
         self.logger.info("signal_source_registered", name=name, source_type=source_type)
 
     async def aggregate_signals(

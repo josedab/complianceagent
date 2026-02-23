@@ -52,9 +52,9 @@ class RemediationWorkflowService:
             violation_id=violation_id,
             framework=framework,
             repository=repository,
-            approval_type=ApprovalType.AUTO if (
-                self._config.auto_merge_low_risk and priority == RemediationPriority.LOW
-            ) else ApprovalType.MANUAL,
+            approval_type=ApprovalType.AUTO
+            if (self._config.auto_merge_low_risk and priority == RemediationPriority.LOW)
+            else ApprovalType.MANUAL,
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
         )
@@ -76,14 +76,16 @@ class RemediationWorkflowService:
                 result = await self.copilot.analyze_legal_text(
                     f"Generate fix for {wf.violation_id} in {wf.framework}"
                 )
-                fixes.append(RemediationFix(
-                    file_path=f"src/compliance/{wf.framework}.py",
-                    original_code="# Non-compliant code",
-                    fixed_code=str(result),
-                    description=f"AI-generated fix for {wf.violation_id}",
-                    violation_ref=wf.violation_id,
-                    confidence=0.85,
-                ))
+                fixes.append(
+                    RemediationFix(
+                        file_path=f"src/compliance/{wf.framework}.py",
+                        original_code="# Non-compliant code",
+                        fixed_code=str(result),
+                        description=f"AI-generated fix for {wf.violation_id}",
+                        violation_ref=wf.violation_id,
+                        confidence=0.85,
+                    )
+                )
             except Exception:
                 logger.exception("AI fix generation failed")
 
@@ -150,7 +152,9 @@ class RemediationWorkflowService:
             wfs = [w for w in wfs if w.state == state]
         if priority:
             wfs = [w for w in wfs if w.priority == priority]
-        return sorted(wfs, key=lambda w: w.created_at or datetime.min, reverse=True)
+        return sorted(
+            wfs, key=lambda w: w.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )
 
     async def get_config(self) -> WorkflowConfig:
         return self._config
@@ -290,9 +294,16 @@ class RemediationWorkflowService:
             )
 
         completed = sum(1 for w in workflows if w.state == WorkflowState.COMPLETED)
-        in_progress = sum(1 for w in workflows if w.state in (
-            WorkflowState.PLANNING, WorkflowState.GENERATING, WorkflowState.REVIEW,
-        ))
+        in_progress = sum(
+            1
+            for w in workflows
+            if w.state
+            in (
+                WorkflowState.PLANNING,
+                WorkflowState.GENERATING,
+                WorkflowState.REVIEW,
+            )
+        )
         failed = sum(1 for w in workflows if w.state == WorkflowState.FAILED)
         rolled_back = len(self._rollback_records) if hasattr(self, "_rollback_records") else 0
 
@@ -320,25 +331,43 @@ class RemediationWorkflowService:
         """Generate pattern-based fixes when AI is unavailable."""
         patterns: dict[str, list[dict]] = {
             "gdpr": [
-                {"file": "src/data/processor.py", "desc": "Add consent verification before data processing",
-                 "fix": "if not user.has_consent(purpose):\n    raise ConsentRequiredError()"},
-                {"file": "src/data/storage.py", "desc": "Add data minimization check",
-                 "fix": "data = minimize_fields(data, required_fields_only=True)"},
+                {
+                    "file": "src/data/processor.py",
+                    "desc": "Add consent verification before data processing",
+                    "fix": "if not user.has_consent(purpose):\n    raise ConsentRequiredError()",
+                },
+                {
+                    "file": "src/data/storage.py",
+                    "desc": "Add data minimization check",
+                    "fix": "data = minimize_fields(data, required_fields_only=True)",
+                },
             ],
             "hipaa": [
-                {"file": "src/health/phi.py", "desc": "Add PHI encryption wrapper",
-                 "fix": "phi_data = encrypt_phi(raw_data, key=get_encryption_key())"},
+                {
+                    "file": "src/health/phi.py",
+                    "desc": "Add PHI encryption wrapper",
+                    "fix": "phi_data = encrypt_phi(raw_data, key=get_encryption_key())",
+                },
             ],
             "pci_dss": [
-                {"file": "src/payments/card.py", "desc": "Tokenize card data before storage",
-                 "fix": "token = tokenize_card(card_number)\nstore_token(token)"},
+                {
+                    "file": "src/payments/card.py",
+                    "desc": "Tokenize card data before storage",
+                    "fix": "token = tokenize_card(card_number)\nstore_token(token)",
+                },
             ],
         }
 
-        fw_patterns = patterns.get(wf.framework.lower(), [
-            {"file": f"src/compliance/{wf.framework}.py", "desc": "Add compliance check",
-             "fix": f"# Compliance check for {wf.violation_id}\nassert_compliant(data)"},
-        ])
+        fw_patterns = patterns.get(
+            wf.framework.lower(),
+            [
+                {
+                    "file": f"src/compliance/{wf.framework}.py",
+                    "desc": "Add compliance check",
+                    "fix": f"# Compliance check for {wf.violation_id}\nassert_compliant(data)",
+                },
+            ],
+        )
 
         return [
             RemediationFix(

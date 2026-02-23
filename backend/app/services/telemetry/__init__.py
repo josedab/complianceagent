@@ -1,6 +1,5 @@
 """Real-time compliance telemetry service."""
 
-from app.services.telemetry.service import TelemetryService
 from app.services.telemetry.models import (
     AlertChannel,
     AlertSeverity,
@@ -12,9 +11,10 @@ from app.services.telemetry.models import (
     TelemetryMetric,
     TelemetrySnapshot,
 )
+from app.services.telemetry.service import TelemetryService
+
 
 __all__ = [
-    "TelemetryService",
     "AlertChannel",
     "AlertSeverity",
     "AlertThreshold",
@@ -23,5 +23,6 @@ __all__ = [
     "TelemetryEvent",
     "TelemetryEventType",
     "TelemetryMetric",
+    "TelemetryService",
     "TelemetrySnapshot",
 ]

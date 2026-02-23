@@ -2,4 +2,11 @@
 
 from app.services.residency_map.service import ResidencyMapService
 
-__all__ = ["ResidencyMapService"]
+
+__all__ = [
+    "DataFlow",
+    "Jurisdiction",
+    "ResidencyMapService",
+    "ResidencyReport",
+    "TransferStatus",
+]

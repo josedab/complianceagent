@@ -2,7 +2,7 @@
 
 import time
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,7 @@ from app.services.pr_copilot.models import (
     SuggestionAction,
     SuggestionFeedback,
 )
+
 
 logger = structlog.get_logger()
 
@@ -85,7 +86,9 @@ class PRCopilotService:
             results = [r for r in results if r.repo == repo]
         if status:
             results = [r for r in results if r.status == status]
-        return sorted(results, key=lambda r: r.analyzed_at or datetime.min, reverse=True)
+        return sorted(
+            results, key=lambda r: r.analyzed_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )
 
     async def submit_feedback(self, feedback: SuggestionFeedback) -> SuggestionFeedback:
         """Submit feedback on a compliance suggestion."""
@@ -187,7 +190,7 @@ class PRCopilotService:
         diff_lower = diff.lower()
         file_path = files_changed[0] if files_changed else "unknown"
 
-        for _pattern_name, config in patterns.items():
+        for config in patterns.values():
             for keyword in config["keywords"]:
                 if keyword in diff_lower:
                     findings.append(

@@ -1,11 +1,11 @@
 """Vendor Risk Compliance Graph service."""
 
 from app.services.vendor_risk.models import (
+    KNOWN_VENDORS,
     Certification,
     ComplianceInheritance,
     ComplianceTier,
     DependencyEdge,
-    KNOWN_VENDORS,
     RiskAssessment,
     RiskLevel,
     Vendor,
@@ -15,19 +15,20 @@ from app.services.vendor_risk.models import (
 from app.services.vendor_risk.scanner import DependencyScanner, get_dependency_scanner
 from app.services.vendor_risk.scorer import RiskScorer, get_risk_scorer
 
+
 __all__ = [
+    "KNOWN_VENDORS",
     "Certification",
     "ComplianceInheritance",
     "ComplianceTier",
     "DependencyEdge",
-    "KNOWN_VENDORS",
+    "DependencyScanner",
     "RiskAssessment",
     "RiskLevel",
+    "RiskScorer",
     "Vendor",
     "VendorGraph",
     "VendorType",
-    "DependencyScanner",
     "get_dependency_scanner",
-    "RiskScorer",
     "get_risk_scorer",
 ]

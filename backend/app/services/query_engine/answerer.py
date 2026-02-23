@@ -115,27 +115,25 @@ class AnswerGenerator:
         codebase_context: dict[str, Any] | None = None,
     ) -> QueryAnswer:
         """Generate an answer to a compliance query.
-        
+
         Args:
             query: Natural language question
             organization_id: Organization context
             repository_id: Repository context
             context_id: Conversation context for multi-turn
             codebase_context: Pre-loaded codebase information
-            
+
         Returns:
             QueryAnswer with response and sources
         """
         start_time = time.perf_counter()
-        
+
         # Parse the query
         parsed = self.parser.parse(query)
-        
+
         # Get or create conversation context
-        context = self._get_or_create_context(
-            context_id, organization_id, repository_id
-        )
-        
+        context = self._get_or_create_context(context_id, organization_id, repository_id)
+
         # Generate answer based on intent
         if parsed.intent == QueryIntent.REGULATION_INFO:
             answer = await self._answer_regulation_info(parsed, context)
@@ -157,17 +155,17 @@ class AnswerGenerator:
             answer = await self._answer_comparison(parsed, context)
         else:
             answer = await self._answer_unknown(parsed, context)
-        
+
         # Update context
         context.queries.append(parsed)
         context.answers.append(answer)
         context.mentioned_regulations.update(parsed.regulations)
-        
+
         # Set metadata
         answer.query_id = parsed.id
         answer.generated_at = answer.generated_at
         duration = (time.perf_counter() - start_time) * 1000
-        
+
         logger.info(
             "Generated answer",
             intent=parsed.intent.value,
@@ -175,7 +173,7 @@ class AnswerGenerator:
             sources=len(answer.sources),
             duration_ms=duration,
         )
-        
+
         return answer
 
     def _get_or_create_context(
@@ -187,7 +185,7 @@ class AnswerGenerator:
         """Get or create conversation context."""
         if context_id and context_id in self._contexts:
             return self._contexts[context_id]
-        
+
         context = ConversationContext(
             organization_id=organization_id,
             repository_id=repository_id,
@@ -202,7 +200,7 @@ class AnswerGenerator:
     ) -> QueryAnswer:
         """Answer questions about regulations."""
         answer = QueryAnswer(confidence=0.8)
-        
+
         if not parsed.regulations:
             # Use context or ask for clarification
             if context.mentioned_regulations:
@@ -216,36 +214,38 @@ class AnswerGenerator:
                     "What is SOC2 compliance?",
                 ]
                 return answer
-        
+
         # Build answer from knowledge base
         responses = []
         for reg in parsed.regulations[:2]:  # Limit to 2 regulations
             if reg in KNOWLEDGE_BASE:
                 kb = KNOWLEDGE_BASE[reg]
                 responses.append(f"**{reg}** ({kb.get('full_name', reg)})\n")
-                
-                if kb.get('jurisdiction'):
+
+                if kb.get("jurisdiction"):
                     responses.append(f"- Jurisdiction: {kb['jurisdiction']}\n")
-                
-                if kb.get('key_principles'):
+
+                if kb.get("key_principles"):
                     responses.append("- Key Principles:\n")
-                    for p in kb['key_principles'][:5]:
+                    for p in kb["key_principles"][:5]:
                         responses.append(f"  - {p}\n")
-                
-                answer.sources.append(SourceReference(
-                    source_type=SourceType.KNOWLEDGE_BASE,
-                    source_id=reg,
-                    title=f"{reg} Overview",
-                    relevance_score=0.95,
-                ))
-        
+
+                answer.sources.append(
+                    SourceReference(
+                        source_type=SourceType.KNOWLEDGE_BASE,
+                        source_id=reg,
+                        title=f"{reg} Overview",
+                        relevance_score=0.95,
+                    )
+                )
+
         if responses:
             answer.answer = "".join(responses)
             answer.summary = f"Overview of {', '.join(parsed.regulations)}"
         else:
             answer.answer = f"I don't have detailed information about {', '.join(parsed.regulations)}. Would you like me to explain a different regulation?"
             answer.confidence = 0.3
-        
+
         return answer
 
     async def _answer_compliance_status(
@@ -256,39 +256,41 @@ class AnswerGenerator:
     ) -> QueryAnswer:
         """Answer compliance status questions."""
         answer = QueryAnswer(confidence=0.7)
-        
+
         # If we have codebase context, use it
         if codebase_context:
             score = codebase_context.get("compliance_score", 0)
             issues = codebase_context.get("issues_count", 0)
-            
-            answer.answer = f"Based on the latest analysis:\n\n"
+
+            answer.answer = "Based on the latest analysis:\n\n"
             answer.answer += f"- **Compliance Score**: {score:.0%}\n"
             answer.answer += f"- **Open Issues**: {issues}\n"
-            
+
             if parsed.regulations:
                 answer.answer += f"\nFor {', '.join(parsed.regulations)}:\n"
                 for reg in parsed.regulations:
                     reg_score = codebase_context.get(f"{reg.lower()}_score", score)
                     answer.answer += f"- {reg}: {reg_score:.0%} compliant\n"
-            
-            answer.sources.append(SourceReference(
-                source_type=SourceType.ANALYSIS_RESULT,
-                source_id="latest_analysis",
-                title="Latest Compliance Analysis",
-                relevance_score=0.95,
-            ))
+
+            answer.sources.append(
+                SourceReference(
+                    source_type=SourceType.ANALYSIS_RESULT,
+                    source_id="latest_analysis",
+                    title="Latest Compliance Analysis",
+                    relevance_score=0.95,
+                )
+            )
         else:
             answer.answer = "I don't have current analysis data for your repository. Would you like me to run a compliance scan?"
             answer.action_items = ["Run compliance analysis"]
             answer.confidence = 0.4
-        
+
         answer.related_questions = [
             "What are the critical issues?",
             "How do I improve my compliance score?",
             "Show me the evidence gaps",
         ]
-        
+
         return answer
 
     async def _answer_remediation(
@@ -298,10 +300,10 @@ class AnswerGenerator:
     ) -> QueryAnswer:
         """Answer remediation guidance questions."""
         answer = QueryAnswer(confidence=0.75)
-        
+
         # Extract what needs to be fixed
         keywords = parsed.keywords or []
-        
+
         remediation_guides = {
             "encryption": [
                 "Enable TLS 1.2+ for all data in transit",
@@ -329,12 +331,12 @@ class AnswerGenerator:
                 "Establish data retention policies",
             ],
         }
-        
+
         matched_guides = []
         for kw in keywords:
             if kw in remediation_guides:
                 matched_guides.append((kw, remediation_guides[kw]))
-        
+
         if matched_guides:
             answer.answer = "Here's guidance for your remediation needs:\n\n"
             for topic, steps in matched_guides:
@@ -342,12 +344,12 @@ class AnswerGenerator:
                 for i, step in enumerate(steps, 1):
                     answer.answer += f"{i}. {step}\n"
                 answer.answer += "\n"
-            
+
             answer.action_items = [step for _, steps in matched_guides for step in steps[:2]]
         else:
             answer.answer = "I can help with remediation for encryption, authentication, logging, access control, and data protection. What specific area do you need guidance on?"
             answer.confidence = 0.5
-        
+
         return answer
 
     async def _answer_evidence_search(
@@ -357,7 +359,7 @@ class AnswerGenerator:
     ) -> QueryAnswer:
         """Answer evidence search questions."""
         answer = QueryAnswer(confidence=0.7)
-        
+
         # Simulated evidence locations
         answer.answer = "To find compliance evidence, check these locations:\n\n"
         answer.answer += "**Policies & Procedures**:\n"
@@ -367,15 +369,17 @@ class AnswerGenerator:
         answer.answer += "- Infrastructure configurations in `/terraform/` or `/infrastructure/`\n"
         answer.answer += "- CI/CD logs showing change management\n"
         answer.answer += "- Monitoring dashboards for availability metrics\n"
-        
-        answer.sources.append(SourceReference(
-            source_type=SourceType.CODEBASE,
-            source_id="docs",
-            title="Documentation Directory",
-            snippet="Policy and procedure documents",
-            relevance_score=0.85,
-        ))
-        
+
+        answer.sources.append(
+            SourceReference(
+                source_type=SourceType.CODEBASE,
+                source_id="docs",
+                title="Documentation Directory",
+                snippet="Policy and procedure documents",
+                relevance_score=0.85,
+            )
+        )
+
         return answer
 
     async def _answer_policy_lookup(
@@ -401,9 +405,9 @@ class AnswerGenerator:
     ) -> QueryAnswer:
         """Answer code review questions."""
         answer = QueryAnswer(confidence=0.6)
-        
+
         if parsed.file_patterns:
-            answer.answer = f"I can review these files for compliance issues:\n"
+            answer.answer = "I can review these files for compliance issues:\n"
             for pattern in parsed.file_patterns:
                 answer.answer += f"- `{pattern}`\n"
             answer.answer += "\nWould you like me to run a compliance scan on these files?"
@@ -415,7 +419,7 @@ class AnswerGenerator:
                 "Review the /src directory",
                 "Check configuration files",
             ]
-        
+
         return answer
 
     async def _answer_risk_assessment(
@@ -450,13 +454,13 @@ class AnswerGenerator:
         answer.answer += "4. ☐ Prepare system access for auditors\n"
         answer.answer += "5. ☐ Document compensating controls for any gaps\n"
         answer.answer += "6. ☐ Brief team on audit process\n"
-        
+
         answer.action_items = [
             "Generate evidence report",
             "Run gap analysis",
             "Review open issues",
         ]
-        
+
         return answer
 
     async def _answer_comparison(
@@ -466,19 +470,19 @@ class AnswerGenerator:
     ) -> QueryAnswer:
         """Answer comparison questions."""
         answer = QueryAnswer(confidence=0.7)
-        
+
         regs = parsed.regulations
         if len(regs) >= 2:
             r1, r2 = regs[0], regs[1]
             answer.answer = f"**{r1} vs {r2}**:\n\n"
-            
+
             if r1 in KNOWLEDGE_BASE and r2 in KNOWLEDGE_BASE:
                 kb1, kb2 = KNOWLEDGE_BASE[r1], KNOWLEDGE_BASE[r2]
                 answer.answer += f"- **Jurisdiction**: {kb1.get('jurisdiction', 'N/A')} vs {kb2.get('jurisdiction', 'N/A')}\n"
-                answer.answer += f"- **Focus**: Data protection vs Healthcare data (example)\n"
+                answer.answer += "- **Focus**: Data protection vs Healthcare data (example)\n"
         else:
             answer.answer = "I can compare compliance frameworks. Please mention two frameworks to compare, e.g., 'Compare GDPR and HIPAA'."
-        
+
         return answer
 
     async def _answer_unknown(
@@ -488,22 +492,22 @@ class AnswerGenerator:
     ) -> QueryAnswer:
         """Handle unknown queries."""
         answer = QueryAnswer(confidence=0.3)
-        
+
         clarifications = self.parser.suggest_clarifications(parsed)
-        
+
         answer.answer = "I'm not sure I understand your question. "
         if clarifications:
             answer.answer += clarifications[0]
         else:
             answer.answer += "I can help with compliance status, regulation explanations, code review, remediation guidance, and audit preparation."
-        
+
         answer.related_questions = [
             "What is my compliance status?",
             "Explain GDPR requirements",
             "How do I fix encryption issues?",
             "Prepare for SOC2 audit",
         ]
-        
+
         return answer
 
     def get_context(self, context_id: UUID) -> ConversationContext | None:

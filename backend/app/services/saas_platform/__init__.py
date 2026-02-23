@@ -12,12 +12,13 @@ from app.services.saas_platform.service import (
     get_saas_platform_service,
 )
 
+
 __all__ = [
-    "SaaSPlatformService",
-    "get_saas_platform_service",
     "OnboardingStep",
     "ResourceLimits",
+    "SaaSPlatformService",
     "TenantConfig",
     "TenantProvisionResult",
     "UsageSummary",
+    "get_saas_platform_service",
 ]

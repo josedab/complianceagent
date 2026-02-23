@@ -34,6 +34,7 @@ class NewsCategory(str, Enum):
 @dataclass
 class RegulatoryNewsItem:
     """A single regulatory news item."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     summary: str = ""
@@ -54,6 +55,7 @@ class RegulatoryNewsItem:
 @dataclass
 class NotificationPreference:
     """User notification preferences for regulatory news."""
+
     id: UUID = field(default_factory=uuid4)
     org_id: UUID | None = None
     user_id: UUID | None = None
@@ -71,6 +73,7 @@ class NotificationPreference:
 @dataclass
 class NotificationDelivery:
     """Record of a notification delivery."""
+
     id: UUID = field(default_factory=uuid4)
     news_item_id: UUID | None = None
     user_id: UUID | None = None
@@ -84,6 +87,7 @@ class NotificationDelivery:
 @dataclass
 class NewsFeed:
     """Paginated news feed response."""
+
     items: list[RegulatoryNewsItem] = field(default_factory=list)
     total: int = 0
     unread_count: int = 0
@@ -93,6 +97,7 @@ class NewsFeed:
 @dataclass
 class SlackWebhookConfig:
     """Slack webhook configuration."""
+
     webhook_url: str = ""
     channel: str = ""
     bot_name: str = "ComplianceAgent"
@@ -102,6 +107,7 @@ class SlackWebhookConfig:
 @dataclass
 class TeamsWebhookConfig:
     """Microsoft Teams webhook configuration."""
+
     webhook_url: str = ""
     channel_name: str = ""
 
@@ -109,6 +115,7 @@ class TeamsWebhookConfig:
 @dataclass
 class NewsDigest:
     """A periodic digest of regulatory news."""
+
     id: UUID = field(default_factory=uuid4)
     period: str = "daily"
     items: list[RegulatoryNewsItem] = field(default_factory=list)

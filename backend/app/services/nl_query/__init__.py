@@ -1,6 +1,5 @@
 """Natural Language Compliance Query Engine."""
 
-from app.services.nl_query.service import NLQueryService
 from app.services.nl_query.models import (
     CodeReference,
     QueryHistory,
@@ -9,10 +8,12 @@ from app.services.nl_query.models import (
     QuerySource,
     SourceType,
 )
+from app.services.nl_query.service import NLQueryService
+
 
 __all__ = [
-    "NLQueryService",
     "CodeReference",
+    "NLQueryService",
     "QueryHistory",
     "QueryIntent",
     "QueryResult",

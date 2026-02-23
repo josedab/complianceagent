@@ -1,7 +1,7 @@
 """Regulatory prediction engine using AI and signal analysis."""
 
+import contextlib
 import json
-from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -15,7 +15,6 @@ from app.services.prediction.models import (
     PredictionConfidence,
     RegulationTimeline,
     RegulatorySignal,
-    SignalType,
     TimelineEvent,
 )
 from app.services.prediction.sources import DraftLegislationMonitor
@@ -84,8 +83,7 @@ class RegulatoryPredictionEngine:
         # Filter by frameworks if specified
         if frameworks:
             predictions = [
-                p for p in predictions
-                if any(f in p.affected_frameworks for f in frameworks)
+                p for p in predictions if any(f in p.affected_frameworks for f in frameworks)
             ]
 
         # Sort by confidence and effective date
@@ -183,28 +181,23 @@ Return JSON only."""
                 content = response.content.strip()
                 if content.startswith("```"):
                     content = content.split("```")[1]
-                    if content.startswith("json"):
-                        content = content[4:]
+                    content = content.removeprefix("json")
                 content = content.rstrip("`")
                 result = json.loads(content)
 
                 # Parse dates
                 effective_date = None
                 if result.get("predicted_effective_date"):
-                    try:
+                    with contextlib.suppress(ValueError):
                         effective_date = date.fromisoformat(result["predicted_effective_date"])
-                    except ValueError:
-                        pass
 
                 date_range = None
                 if result.get("effective_date_earliest") and result.get("effective_date_latest"):
-                    try:
+                    with contextlib.suppress(ValueError):
                         date_range = (
                             date.fromisoformat(result["effective_date_earliest"]),
                             date.fromisoformat(result["effective_date_latest"]),
                         )
-                    except ValueError:
-                        pass
 
                 # Determine confidence level
                 score = result.get("confidence_score", 0.5)
@@ -231,7 +224,9 @@ Return JSON only."""
                     confidence_score=score,
                     impact_summary=result.get("impact_summary", ""),
                     impact_areas=result.get("impact_areas", []),
-                    affected_frameworks=result.get("affected_frameworks", primary_signal.affected_regulations),
+                    affected_frameworks=result.get(
+                        "affected_frameworks", primary_signal.affected_regulations
+                    ),
                     estimated_compliance_effort=result.get("estimated_compliance_effort", "medium"),
                     risk_level=result.get("risk_level", "medium"),
                     supporting_signals=signals,
@@ -271,23 +266,27 @@ Return JSON only."""
         for milestone in prediction.key_milestones:
             try:
                 event_date = date.fromisoformat(milestone.get("date", ""))
-                events.append(TimelineEvent(
-                    date=event_date,
-                    event_type="milestone",
-                    description=milestone.get("description", ""),
-                    confidence=prediction.confidence_score,
-                ))
+                events.append(
+                    TimelineEvent(
+                        date=event_date,
+                        event_type="milestone",
+                        description=milestone.get("description", ""),
+                        confidence=prediction.confidence_score,
+                    )
+                )
             except ValueError:
                 continue
 
         # Add predicted effective date
         if prediction.predicted_effective_date:
-            events.append(TimelineEvent(
-                date=prediction.predicted_effective_date,
-                event_type="effective",
-                description="Predicted effective date",
-                confidence=prediction.confidence_score,
-            ))
+            events.append(
+                TimelineEvent(
+                    date=prediction.predicted_effective_date,
+                    event_type="effective",
+                    description="Predicted effective date",
+                    confidence=prediction.confidence_score,
+                )
+            )
 
         # Sort by date
         events.sort(key=lambda e: e.date)
@@ -312,15 +311,11 @@ Return JSON only."""
             await self.analyze_regulatory_landscape()
 
         predictions = [
-            p for p in self._prediction_cache.values()
-            if framework in p.affected_frameworks
+            p for p in self._prediction_cache.values() if framework in p.affected_frameworks
         ]
 
         if not include_low_confidence:
-            predictions = [
-                p for p in predictions
-                if p.confidence_score >= 0.3
-            ]
+            predictions = [p for p in predictions if p.confidence_score >= 0.3]
 
         return sorted(predictions, key=lambda p: -p.confidence_score)
 
@@ -359,10 +354,10 @@ Return JSON with:
 - Effective Date: {prediction.predicted_effective_date}
 
 **Codebase Information**:
-- Languages: {codebase_info.get('languages', [])}
-- Frameworks: {codebase_info.get('frameworks', [])}
-- Data Types Handled: {codebase_info.get('data_types', [])}
-- Current Compliance: {codebase_info.get('current_compliance', [])}
+- Languages: {codebase_info.get("languages", [])}
+- Frameworks: {codebase_info.get("frameworks", [])}
+- Data Types Handled: {codebase_info.get("data_types", [])}
+- Current Compliance: {codebase_info.get("current_compliance", [])}
 
 Return JSON only."""
 
@@ -376,8 +371,7 @@ Return JSON only."""
                 content = response.content.strip()
                 if content.startswith("```"):
                     content = content.split("```")[1]
-                    if content.startswith("json"):
-                        content = content[4:]
+                    content = content.removeprefix("json")
                 return json.loads(content.rstrip("`"))
 
             except Exception as e:

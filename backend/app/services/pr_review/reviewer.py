@@ -34,7 +34,12 @@ class PRReviewer:
         self.copilot_client = copilot_client
         self.analyzer = analyzer or PRAnalyzer(enabled_regulations=enabled_regulations)
         self.enabled_regulations = enabled_regulations or [
-            "GDPR", "CCPA", "HIPAA", "PCI-DSS", "EU AI Act", "SOX"
+            "GDPR",
+            "CCPA",
+            "HIPAA",
+            "PCI-DSS",
+            "EU AI Act",
+            "SOX",
         ]
 
     async def review_pr(
@@ -46,35 +51,35 @@ class PRReviewer:
         deep_analysis: bool = True,
     ) -> PRReviewResult:
         """Perform a complete compliance review of a PR.
-        
+
         Args:
             owner: Repository owner
             repo: Repository name
             pr_number: PR number
             access_token: GitHub access token
             deep_analysis: Whether to use AI for deep analysis (slower but more accurate)
-            
+
         Returns:
             PRReviewResult with all findings, comments, and recommendations
         """
         start_time = time.perf_counter()
-        
+
         # Phase 1: Pattern-based analysis
         analysis = await self.analyzer.analyze_pr(owner, repo, pr_number, access_token)
-        
+
         # Phase 2: AI-enhanced analysis if enabled
         if deep_analysis and self.copilot_client and analysis.violations:
             analysis = await self._enhance_with_ai(analysis)
-        
+
         # Generate review comments
         comments = self._generate_review_comments(analysis)
-        
+
         # Generate summary and recommendation
         summary = self._generate_summary(analysis)
         recommendation = self._determine_recommendation(analysis)
-        
+
         review_time = (time.perf_counter() - start_time) * 1000
-        
+
         return PRReviewResult(
             id=uuid4(),
             analysis=analysis,
@@ -92,23 +97,23 @@ class PRReviewer:
         deep_analysis: bool = True,
     ) -> PRReviewResult:
         """Review a list of files directly (for webhook-based review).
-        
+
         Args:
             files: List of file dicts with 'path', 'content', 'patch'
             deep_analysis: Whether to use AI for deep analysis
-            
+
         Returns:
             PRReviewResult with findings
         """
         start_time = time.perf_counter()
-        
+
         all_violations: list[ComplianceViolation] = []
         file_diffs: list[FileDiff] = []
-        
+
         for file_data in files:
             path = file_data.get("path", "unknown")
             patch = file_data.get("patch", "")
-            
+
             file_diff = FileDiff(
                 path=path,
                 old_path=None,
@@ -118,26 +123,26 @@ class PRReviewer:
                 patch=patch,
             )
             file_diffs.append(file_diff)
-            
+
             violations = await self.analyzer.analyze_diff_content(patch, path)
             all_violations.extend(violations)
-        
+
         analysis = PRAnalysisResult(
             files_analyzed=len(files),
             violations=all_violations,
             files=file_diffs,
             regulations_checked=self.enabled_regulations,
         )
-        
+
         if deep_analysis and self.copilot_client and all_violations:
             analysis = await self._enhance_with_ai(analysis)
-        
+
         comments = self._generate_review_comments(analysis)
         summary = self._generate_summary(analysis)
         recommendation = self._determine_recommendation(analysis)
-        
+
         review_time = (time.perf_counter() - start_time) * 1000
-        
+
         return PRReviewResult(
             analysis=analysis,
             comments=comments,
@@ -151,14 +156,14 @@ class PRReviewer:
         """Enhance violation analysis using AI for better context and suggestions."""
         if not self.copilot_client:
             return analysis
-        
+
         enhanced_violations = []
-        
+
         # Group violations by file for context
         violations_by_file: dict[str, list[ComplianceViolation]] = {}
         for v in analysis.violations:
             violations_by_file.setdefault(v.file_path, []).append(v)
-        
+
         async with self.copilot_client:
             for file_path, file_violations in violations_by_file.items():
                 # Get file content from diff
@@ -166,13 +171,12 @@ class PRReviewer:
                 if not file_diff:
                     enhanced_violations.extend(file_violations)
                     continue
-                
+
                 # Prepare context for AI
                 violations_text = "\n".join(
-                    f"- Line {v.line_start}: [{v.code}] {v.message}"
-                    for v in file_violations
+                    f"- Line {v.line_start}: [{v.code}] {v.message}" for v in file_violations
                 )
-                
+
                 try:
                     enhanced = await self._ai_analyze_violations(
                         file_path=file_path,
@@ -180,7 +184,7 @@ class PRReviewer:
                         violations=violations_text,
                         regulations=self.enabled_regulations,
                     )
-                    
+
                     # Update violations with AI insights
                     for v in file_violations:
                         ai_info = enhanced.get(str(v.line_start), {})
@@ -189,11 +193,11 @@ class PRReviewer:
                             v.confidence = min(v.confidence + 0.1, 1.0)  # Boost confidence
                             v.metadata["ai_analysis"] = ai_info.get("analysis", "")
                         enhanced_violations.append(v)
-                        
+
                 except Exception as e:
                     logger.warning(f"AI enhancement failed: {e}")
                     enhanced_violations.extend(file_violations)
-        
+
         analysis.violations = enhanced_violations
         return analysis
 
@@ -205,7 +209,7 @@ class PRReviewer:
         regulations: list[str],
     ) -> dict[str, Any]:
         """Use AI to analyze violations and provide suggestions."""
-        system_prompt = """You are an expert compliance code reviewer. 
+        system_prompt = """You are an expert compliance code reviewer.
 Analyze the code violations and provide:
 1. Whether each violation is a true positive or false positive
 2. Specific fix suggestions with code examples
@@ -232,7 +236,7 @@ Return JSON with line numbers as keys:
 **Detected Violations:**
 {violations}
 
-**Regulations to check:** {', '.join(regulations)}
+**Regulations to check:** {", ".join(regulations)}
 
 Return JSON only."""
 
@@ -242,7 +246,7 @@ Return JSON only."""
             temperature=0.3,
             max_tokens=2048,
         )
-        
+
         try:
             return self.copilot_client._parse_json_response(response.content, "violation analysis")
         except Exception:
@@ -251,11 +255,11 @@ Return JSON only."""
     def _generate_review_comments(self, analysis: PRAnalysisResult) -> list[ReviewComment]:
         """Generate GitHub review comments from violations."""
         comments: list[ReviewComment] = []
-        
+
         for violation in analysis.violations:
             # Format the comment body with compliance details
             body = self._format_comment_body(violation)
-            
+
             comment = ReviewComment(
                 violation=violation,
                 file_path=violation.file_path,
@@ -263,7 +267,7 @@ Return JSON only."""
                 body=body,
             )
             comments.append(comment)
-        
+
         return comments
 
     def _format_comment_body(self, violation: ComplianceViolation) -> str:
@@ -275,55 +279,55 @@ Return JSON only."""
             ViolationSeverity.LOW: "🔵",
             ViolationSeverity.INFO: "⚪",
         }
-        
+
         emoji = severity_emoji.get(violation.severity, "⚪")
-        
+
         body = f"{emoji} **{violation.severity.value.upper()} - {violation.code}**\n\n"
         body += f"{violation.message}\n\n"
-        
+
         if violation.regulation:
             body += f"📋 **Regulation:** {violation.regulation}"
             if violation.article_reference:
                 body += f" ({violation.article_reference})"
             body += "\n\n"
-        
+
         if violation.suggestion:
             body += f"💡 **Suggestion:** {violation.suggestion}\n\n"
-        
+
         if violation.evidence:
             body += f"```\n{violation.evidence[:200]}\n```\n\n"
-        
+
         body += f"<sub>Confidence: {violation.confidence:.0%} | Category: {violation.category or 'general'}</sub>"
-        
+
         return body
 
     def _generate_summary(self, analysis: PRAnalysisResult) -> str:
         """Generate a summary of the compliance review."""
         if not analysis.violations:
             return "✅ No compliance issues detected in this PR."
-        
+
         summary = "## Compliance Review Summary\n\n"
         summary += f"Analyzed **{analysis.files_analyzed}** files with **{analysis.total_additions}** additions.\n\n"
-        
+
         # Violation counts
         summary += "### Issues Found\n"
         summary += f"- 🔴 Critical: **{analysis.critical_count}**\n"
         summary += f"- 🟠 High: **{analysis.high_count}**\n"
         summary += f"- 🟡 Medium: **{analysis.medium_count}**\n"
         summary += f"- 🔵 Low: **{analysis.low_count}**\n\n"
-        
+
         # Group by regulation
         by_regulation: dict[str, int] = {}
         for v in analysis.violations:
             reg = v.regulation or "Security"
             by_regulation[reg] = by_regulation.get(reg, 0) + 1
-        
+
         summary += "### By Regulation\n"
         for reg, count in sorted(by_regulation.items(), key=lambda x: -x[1]):
             summary += f"- {reg}: {count}\n"
-        
+
         summary += f"\n<sub>Analysis completed in {analysis.analysis_time_ms:.0f}ms</sub>"
-        
+
         return summary
 
     def _determine_recommendation(self, analysis: PRAnalysisResult) -> str:
@@ -347,21 +351,23 @@ Return JSON only."""
         access_token: str,
     ) -> int | None:
         """Post the review to GitHub as PR review comments.
-        
+
         Returns the GitHub review ID if successful.
         """
         from app.services.github.client import GitHubClient
-        
+
         async with GitHubClient(access_token=access_token) as client:
             # Prepare review comments for GitHub API
             gh_comments = []
             for comment in review.comments:
-                gh_comments.append({
-                    "path": comment.file_path,
-                    "line": comment.line,
-                    "body": comment.body,
-                })
-            
+                gh_comments.append(
+                    {
+                        "path": comment.file_path,
+                        "line": comment.line,
+                        "body": comment.body,
+                    }
+                )
+
             # Map recommendation to GitHub event
             event_map = {
                 "approve": "APPROVE",
@@ -369,7 +375,7 @@ Return JSON only."""
                 "comment": "COMMENT",
             }
             event = event_map.get(review.recommendation, "COMMENT")
-            
+
             # Create the review
             response = await client._client.post(
                 f"/repos/{owner}/{repo}/pulls/{pr_number}/reviews",
@@ -379,10 +385,10 @@ Return JSON only."""
                     "comments": gh_comments[:50],  # GitHub limits to 50 comments
                 },
             )
-            
+
             if response.status_code == 200:
                 data = response.json()
                 return data.get("id")
-            
+
             logger.error(f"Failed to post review: {response.status_code} - {response.text}")
             return None

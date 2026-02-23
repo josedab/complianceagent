@@ -52,7 +52,12 @@ _PATTERNS: list[ComplianceTestPattern] = [
         regulation="GDPR",
         description="Verify DSAR endpoint returns complete user data in portable format",
         test_template="response = await export_user_data(user_id)\nassert response.format in ['json', 'csv']\nassert 'personal_data' in response.content",
-        assertions=["export_complete", "portable_format", "timely_response", "includes_all_categories"],
+        assertions=[
+            "export_complete",
+            "portable_format",
+            "timely_response",
+            "includes_all_categories",
+        ],
         tags=["gdpr", "dsar", "art-15", "data-portability"],
     ),
     ComplianceTestPattern(
@@ -82,7 +87,12 @@ _PATTERNS: list[ComplianceTestPattern] = [
         regulation="HIPAA",
         description="Verify breach notification is triggered within 60-day requirement",
         test_template="report_breach(breach_event)\nnotification = get_pending_notifications()\nassert notification.deadline_days <= 60",
-        assertions=["notification_created", "within_60_days", "affected_individuals_counted", "hhs_notified"],
+        assertions=[
+            "notification_created",
+            "within_60_days",
+            "affected_individuals_counted",
+            "hhs_notified",
+        ],
         tags=["hipaa", "breach", "notification", "60-day-rule"],
     ),
     ComplianceTestPattern(
@@ -92,7 +102,12 @@ _PATTERNS: list[ComplianceTestPattern] = [
         regulation="PCI-DSS",
         description="Verify that card numbers are tokenized before storage",
         test_template="token = tokenize_card(card_number)\nassert not contains_pan(token)\nassert detokenize(token) == card_number",
-        assertions=["pan_not_stored", "token_irreversible_without_key", "token_format_valid", "no_plaintext_in_logs"],
+        assertions=[
+            "pan_not_stored",
+            "token_irreversible_without_key",
+            "token_format_valid",
+            "no_plaintext_in_logs",
+        ],
         tags=["pci-dss", "tokenization", "card-data", "req-3"],
     ),
     ComplianceTestPattern(
@@ -112,7 +127,12 @@ _PATTERNS: list[ComplianceTestPattern] = [
         regulation="EU_AI_ACT",
         description="Verify AI system provides transparency information to users",
         test_template="info = get_ai_system_info(model_id)\nassert info.risk_level is not None\nassert info.intended_purpose != ''\nassert info.limitations != ''",
-        assertions=["risk_level_classified", "purpose_documented", "limitations_disclosed", "human_oversight_described"],
+        assertions=[
+            "risk_level_classified",
+            "purpose_documented",
+            "limitations_disclosed",
+            "human_oversight_described",
+        ],
         tags=["eu-ai-act", "transparency", "art-13", "high-risk"],
     ),
     ComplianceTestPattern(
@@ -122,7 +142,12 @@ _PATTERNS: list[ComplianceTestPattern] = [
         regulation="EU_AI_ACT",
         description="Verify AI system has completed risk assessment with required elements",
         test_template="assessment = get_risk_assessment(system_id)\nassert assessment.risk_category in VALID_CATEGORIES\nassert len(assessment.mitigation_measures) > 0",
-        assertions=["risk_categorized", "mitigations_identified", "testing_documented", "monitoring_planned"],
+        assertions=[
+            "risk_categorized",
+            "mitigations_identified",
+            "testing_documented",
+            "monitoring_planned",
+        ],
         tags=["eu-ai-act", "risk-assessment", "art-9", "conformity"],
     ),
     ComplianceTestPattern(
@@ -132,7 +157,12 @@ _PATTERNS: list[ComplianceTestPattern] = [
         regulation="GDPR",
         description="Verify data is automatically purged after retention period expires",
         test_template="create_record_with_date(past_retention_date)\nrun_retention_job()\nassert get_record(record_id) is None",
-        assertions=["expired_data_purged", "retention_schedule_enforced", "audit_trail_kept", "exceptions_documented"],
+        assertions=[
+            "expired_data_purged",
+            "retention_schedule_enforced",
+            "audit_trail_kept",
+            "exceptions_documented",
+        ],
         tags=["gdpr", "retention", "art-5", "storage-limitation"],
     ),
     ComplianceTestPattern(
@@ -142,7 +172,12 @@ _PATTERNS: list[ComplianceTestPattern] = [
         regulation="HIPAA",
         description="Verify role-based access enforces minimum necessary principle for PHI",
         test_template="result = access_phi_as_role('receptionist', full_medical_record)\nassert result.access_denied or result.fields_redacted",
-        assertions=["role_enforced", "minimum_necessary", "unauthorized_denied", "access_scope_limited"],
+        assertions=[
+            "role_enforced",
+            "minimum_necessary",
+            "unauthorized_denied",
+            "access_scope_limited",
+        ],
         tags=["hipaa", "access-control", "minimum-necessary", "privacy-rule"],
     ),
 ]
@@ -271,7 +306,9 @@ class ComplianceTestingService:
             result.recommended_framework = TestFramework.PYTEST
             result.primary_language = "python"
 
-        logger.info("Framework detection complete", repo=repo, frameworks=len(result.detected_frameworks))
+        logger.info(
+            "Framework detection complete", repo=repo, frameworks=len(result.detected_frameworks)
+        )
         return result
 
     async def generate_test_suite(
@@ -303,7 +340,9 @@ class ComplianceTestingService:
         template = _FRAMEWORK_TEMPLATES.get(framework, _FRAMEWORK_TEMPLATES[TestFramework.PYTEST])
 
         for pattern in patterns:
-            test = await self._generate_test_from_pattern(pattern, template, framework, target_files)
+            test = await self._generate_test_from_pattern(
+                pattern, template, framework, target_files
+            )
             result.tests.append(test)
             result.patterns_used.append(pattern.id)
 
@@ -340,7 +379,9 @@ class ComplianceTestingService:
                         for t in result.tests
                     ]
                 },
-                execution_time_ms=int(result.generation_time_ms) if result.generation_time_ms else None,
+                execution_time_ms=int(result.generation_time_ms)
+                if result.generation_time_ms
+                else None,
                 status=result.status.value,
             )
             self.db.add(run)
@@ -485,9 +526,7 @@ class ComplianceTestingService:
         test_slug_readable = pattern.description.lower()
         regulation_lower = pattern.regulation.lower().replace("-", "_")
 
-        assertions_code = "\n        ".join(
-            f"# Assert: {a}" for a in pattern.assertions
-        )
+        assertions_code = "\n        ".join(f"# Assert: {a}" for a in pattern.assertions)
 
         test_code = template.format(
             description=pattern.description,

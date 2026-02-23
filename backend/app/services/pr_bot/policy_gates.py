@@ -31,6 +31,7 @@ class GateStatus(str, Enum):
 @dataclass
 class PolicyGate:
     """A configurable policy enforcement gate."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     description: str = ""
@@ -45,6 +46,7 @@ class PolicyGate:
 @dataclass
 class GateEvaluationResult:
     """Result of evaluating a PR against a policy gate."""
+
     gate_id: UUID = field(default_factory=uuid4)
     gate_name: str = ""
     status: GateStatus = GateStatus.PASSED
@@ -58,6 +60,7 @@ class GateEvaluationResult:
 @dataclass
 class PolicyEvaluationSummary:
     """Summary of all gate evaluations for a PR."""
+
     pr_number: int = 0
     repository: str = ""
     overall_status: GateStatus = GateStatus.PASSED
@@ -74,11 +77,25 @@ class PolicyEvaluationSummary:
 _CONDITION_MATCHERS: dict[str, dict[str, Any]] = {
     "touches_pii": {
         "file_patterns": ["**/models/user*", "**/auth/*", "**/profile*", "**/customer*"],
-        "content_patterns": ["email", "phone", "ssn", "social_security", "date_of_birth", "address"],
+        "content_patterns": [
+            "email",
+            "phone",
+            "ssn",
+            "social_security",
+            "date_of_birth",
+            "address",
+        ],
         "description": "Changes touch files containing PII",
     },
     "modifies_auth": {
-        "file_patterns": ["**/auth/*", "**/login*", "**/session*", "**/jwt*", "**/oauth*", "**/permission*"],
+        "file_patterns": [
+            "**/auth/*",
+            "**/login*",
+            "**/session*",
+            "**/jwt*",
+            "**/oauth*",
+            "**/permission*",
+        ],
         "content_patterns": ["password", "token", "secret", "api_key", "credential"],
         "description": "Changes modify authentication or authorization logic",
     },
@@ -108,12 +125,24 @@ _CONDITION_MATCHERS: dict[str, dict[str, Any]] = {
         "description": "Changes touch health/medical data handling",
     },
     "infrastructure_change": {
-        "file_patterns": ["**/terraform/*", "**/cloudformation/*", "**/k8s/*", "**/*.tf", "**/docker*"],
+        "file_patterns": [
+            "**/terraform/*",
+            "**/cloudformation/*",
+            "**/k8s/*",
+            "**/*.tf",
+            "**/docker*",
+        ],
         "content_patterns": ["aws_", "gcp_", "azure_", "resource", "provider"],
         "description": "Changes modify infrastructure configuration",
     },
     "third_party_dependency": {
-        "file_patterns": ["**/requirements*.txt", "**/package.json", "**/go.mod", "**/Cargo.toml", "**/pom.xml"],
+        "file_patterns": [
+            "**/requirements*.txt",
+            "**/package.json",
+            "**/go.mod",
+            "**/Cargo.toml",
+            "**/pom.xml",
+        ],
         "content_patterns": [],
         "description": "Changes add or modify third-party dependencies",
     },
@@ -136,30 +165,80 @@ class PolicyGateService:
     def _init_default_gates(self) -> None:
         """Initialize default policy gates."""
         defaults = [
-            PolicyGate(name="PII Protection Gate", description="Require privacy team approval for changes touching PII",
-                       regulation="GDPR", condition="touches_pii", action=GateAction.REQUIRE_APPROVAL,
-                       required_approvers=["privacy-team"]),
-            PolicyGate(name="Authentication Security Gate", description="Block merging if auth changes lack security review",
-                       regulation="SOC 2", condition="modifies_auth", action=GateAction.REQUIRE_APPROVAL,
-                       required_approvers=["security-team"]),
-            PolicyGate(name="Encryption Compliance Gate", description="Warn on encryption changes for HIPAA compliance",
-                       regulation="HIPAA", condition="modifies_encryption", action=GateAction.WARN),
-            PolicyGate(name="Cross-Border Data Gate", description="Block cross-border data transfers without legal review",
-                       regulation="GDPR", condition="cross_border_data", action=GateAction.BLOCK),
-            PolicyGate(name="Payment Data Gate", description="Require PCI-DSS review for payment code changes",
-                       regulation="PCI-DSS", condition="payment_processing", action=GateAction.REQUIRE_APPROVAL,
-                       required_approvers=["pci-compliance"]),
-            PolicyGate(name="Health Data Gate", description="Block health data changes without HIPAA review",
-                       regulation="HIPAA", condition="health_data", action=GateAction.BLOCK),
-            PolicyGate(name="Infrastructure Change Gate", description="Warn on infrastructure changes for SOC 2",
-                       regulation="SOC 2", condition="infrastructure_change", action=GateAction.WARN),
-            PolicyGate(name="Dependency Review Gate", description="Log third-party dependency changes for supply chain review",
-                       regulation="SOC 2", condition="third_party_dependency", action=GateAction.LOG_ONLY),
-            PolicyGate(name="Audit Trail Gate", description="Require approval for logging/audit changes",
-                       regulation="SOC 2", condition="modifies_logging", action=GateAction.REQUIRE_APPROVAL,
-                       required_approvers=["compliance-team"]),
-            PolicyGate(name="Data Retention Gate", description="Warn on data retention policy changes",
-                       regulation="GDPR", condition="data_retention", action=GateAction.WARN),
+            PolicyGate(
+                name="PII Protection Gate",
+                description="Require privacy team approval for changes touching PII",
+                regulation="GDPR",
+                condition="touches_pii",
+                action=GateAction.REQUIRE_APPROVAL,
+                required_approvers=["privacy-team"],
+            ),
+            PolicyGate(
+                name="Authentication Security Gate",
+                description="Block merging if auth changes lack security review",
+                regulation="SOC 2",
+                condition="modifies_auth",
+                action=GateAction.REQUIRE_APPROVAL,
+                required_approvers=["security-team"],
+            ),
+            PolicyGate(
+                name="Encryption Compliance Gate",
+                description="Warn on encryption changes for HIPAA compliance",
+                regulation="HIPAA",
+                condition="modifies_encryption",
+                action=GateAction.WARN,
+            ),
+            PolicyGate(
+                name="Cross-Border Data Gate",
+                description="Block cross-border data transfers without legal review",
+                regulation="GDPR",
+                condition="cross_border_data",
+                action=GateAction.BLOCK,
+            ),
+            PolicyGate(
+                name="Payment Data Gate",
+                description="Require PCI-DSS review for payment code changes",
+                regulation="PCI-DSS",
+                condition="payment_processing",
+                action=GateAction.REQUIRE_APPROVAL,
+                required_approvers=["pci-compliance"],
+            ),
+            PolicyGate(
+                name="Health Data Gate",
+                description="Block health data changes without HIPAA review",
+                regulation="HIPAA",
+                condition="health_data",
+                action=GateAction.BLOCK,
+            ),
+            PolicyGate(
+                name="Infrastructure Change Gate",
+                description="Warn on infrastructure changes for SOC 2",
+                regulation="SOC 2",
+                condition="infrastructure_change",
+                action=GateAction.WARN,
+            ),
+            PolicyGate(
+                name="Dependency Review Gate",
+                description="Log third-party dependency changes for supply chain review",
+                regulation="SOC 2",
+                condition="third_party_dependency",
+                action=GateAction.LOG_ONLY,
+            ),
+            PolicyGate(
+                name="Audit Trail Gate",
+                description="Require approval for logging/audit changes",
+                regulation="SOC 2",
+                condition="modifies_logging",
+                action=GateAction.REQUIRE_APPROVAL,
+                required_approvers=["compliance-team"],
+            ),
+            PolicyGate(
+                name="Data Retention Gate",
+                description="Warn on data retention policy changes",
+                regulation="GDPR",
+                condition="data_retention",
+                action=GateAction.WARN,
+            ),
         ]
         for gate in defaults:
             self._gates[gate.id] = gate
@@ -173,15 +252,24 @@ class PolicyGateService:
     async def get_gate(self, gate_id: UUID) -> PolicyGate | None:
         return self._gates.get(gate_id)
 
-    async def create_gate(self, name: str, description: str, regulation: str,
-                          condition: str, action: GateAction,
-                          required_approvers: list[str] | None = None) -> PolicyGate:
+    async def create_gate(
+        self,
+        name: str,
+        description: str,
+        regulation: str,
+        condition: str,
+        action: GateAction,
+        required_approvers: list[str] | None = None,
+    ) -> PolicyGate:
         if condition not in _CONDITION_MATCHERS:
             msg = f"Unknown condition: {condition}. Available: {', '.join(_CONDITION_MATCHERS.keys())}"
             raise ValueError(msg)
         gate = PolicyGate(
-            name=name, description=description, regulation=regulation,
-            condition=condition, action=action,
+            name=name,
+            description=description,
+            regulation=regulation,
+            condition=condition,
+            action=action,
             required_approvers=required_approvers or [],
         )
         self._gates[gate.id] = gate
@@ -205,8 +293,9 @@ class PolicyGateService:
             return True
         return False
 
-    async def evaluate_pr(self, pr_number: int, repository: str,
-                          changed_files: list[dict[str, Any]]) -> PolicyEvaluationSummary:
+    async def evaluate_pr(
+        self, pr_number: int, repository: str, changed_files: list[dict[str, Any]]
+    ) -> PolicyEvaluationSummary:
         """Evaluate a PR against all enabled policy gates."""
         import fnmatch
 
@@ -237,47 +326,80 @@ class PolicyGateService:
                             break
 
             if matched_files:
-                status = GateStatus.FAILED if gate.action == GateAction.BLOCK else (
-                    GateStatus.PENDING_APPROVAL if gate.action == GateAction.REQUIRE_APPROVAL else GateStatus.PASSED
+                status = (
+                    GateStatus.FAILED
+                    if gate.action == GateAction.BLOCK
+                    else (
+                        GateStatus.PENDING_APPROVAL
+                        if gate.action == GateAction.REQUIRE_APPROVAL
+                        else GateStatus.PASSED
+                    )
                 )
-                results.append(GateEvaluationResult(
-                    gate_id=gate.id, gate_name=gate.name, status=status,
-                    action=gate.action, reason=matcher.get("description", ""),
-                    matched_files=matched_files, required_approvers=gate.required_approvers,
-                ))
+                results.append(
+                    GateEvaluationResult(
+                        gate_id=gate.id,
+                        gate_name=gate.name,
+                        status=status,
+                        action=gate.action,
+                        reason=matcher.get("description", ""),
+                        matched_files=matched_files,
+                        required_approvers=gate.required_approvers,
+                    )
+                )
             else:
-                results.append(GateEvaluationResult(
-                    gate_id=gate.id, gate_name=gate.name, status=GateStatus.PASSED,
-                    action=gate.action, reason="No matching files",
-                ))
+                results.append(
+                    GateEvaluationResult(
+                        gate_id=gate.id,
+                        gate_name=gate.name,
+                        status=GateStatus.PASSED,
+                        action=gate.action,
+                        reason="No matching files",
+                    )
+                )
 
         gates_failed = sum(1 for r in results if r.status == GateStatus.FAILED)
         gates_pending = sum(1 for r in results if r.status == GateStatus.PENDING_APPROVAL)
         gates_passed = sum(1 for r in results if r.status == GateStatus.PASSED)
 
-        overall = GateStatus.FAILED if gates_failed > 0 else (
-            GateStatus.PENDING_APPROVAL if gates_pending > 0 else GateStatus.PASSED
+        overall = (
+            GateStatus.FAILED
+            if gates_failed > 0
+            else (GateStatus.PENDING_APPROVAL if gates_pending > 0 else GateStatus.PASSED)
         )
 
         summary = PolicyEvaluationSummary(
-            pr_number=pr_number, repository=repository, overall_status=overall,
-            gates_evaluated=len(results), gates_passed=gates_passed,
-            gates_failed=gates_failed, gates_pending=gates_pending,
-            results=results, can_merge=(gates_failed == 0),
+            pr_number=pr_number,
+            repository=repository,
+            overall_status=overall,
+            gates_evaluated=len(results),
+            gates_passed=gates_passed,
+            gates_failed=gates_failed,
+            gates_pending=gates_pending,
+            results=results,
+            can_merge=(gates_failed == 0),
         )
 
         eval_key = f"{repository}#{pr_number}"
         self._evaluations[eval_key] = summary
-        logger.info("policy_gate.evaluated", pr=pr_number, repo=repository,
-                     status=overall.value, can_merge=summary.can_merge)
+        logger.info(
+            "policy_gate.evaluated",
+            pr=pr_number,
+            repo=repository,
+            status=overall.value,
+            can_merge=summary.can_merge,
+        )
         return summary
 
-    async def get_evaluation(self, repository: str, pr_number: int) -> PolicyEvaluationSummary | None:
+    async def get_evaluation(
+        self, repository: str, pr_number: int
+    ) -> PolicyEvaluationSummary | None:
         return self._evaluations.get(f"{repository}#{pr_number}")
 
     async def get_available_conditions(self) -> dict[str, dict[str, Any]]:
-        return {k: {"description": v["description"], "file_patterns": v["file_patterns"]}
-                for k, v in _CONDITION_MATCHERS.items()}
+        return {
+            k: {"description": v["description"], "file_patterns": v["file_patterns"]}
+            for k, v in _CONDITION_MATCHERS.items()
+        }
 
 
 _policy_gate_service: PolicyGateService | None = None

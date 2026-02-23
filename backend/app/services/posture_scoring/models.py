@@ -38,6 +38,7 @@ class DimensionScore:
 @dataclass
 class PostureScore:
     """Comprehensive compliance posture score."""
+
     id: UUID = field(default_factory=uuid4)
     overall_score: float = 0.0
     grade: str = ""  # A+, A, B, C, D, F
@@ -54,6 +55,7 @@ class PostureScore:
 @dataclass
 class IndustryBenchmark:
     """Industry benchmark data."""
+
     industry: str = ""
     sample_size: int = 0
     average_score: float = 0.0
@@ -68,6 +70,7 @@ class IndustryBenchmark:
 @dataclass
 class PostureReport:
     """Executive compliance posture report."""
+
     id: UUID = field(default_factory=uuid4)
     title: str = ""
     posture: PostureScore = field(default_factory=PostureScore)
@@ -81,6 +84,7 @@ class PostureReport:
 @dataclass
 class DimensionDetail:
     """Detailed breakdown of a single scoring dimension."""
+
     dimension: str = ""
     score: float = 0.0
     max_score: float = 100.0
@@ -106,6 +110,7 @@ class DimensionDetail:
 @dataclass
 class DynamicPostureScore:
     """Complete compliance posture score with all dimensions."""
+
     overall_score: float = 0.0
     overall_grade: str = "C"
     dimensions: list[DimensionDetail] = field(default_factory=list)
@@ -127,6 +132,7 @@ class DynamicPostureScore:
 @dataclass
 class DynamicIndustryBenchmark:
     """Benchmark comparison against industry peers."""
+
     industry: str = ""
     your_score: float = 0.0
     industry_avg: float = 0.0
@@ -154,6 +160,7 @@ class DynamicIndustryBenchmark:
 @dataclass
 class ScoreHistory:
     """Historical posture scores for trend tracking."""
+
     repo: str = ""
     history: list[dict[str, Any]] = field(default_factory=list)
     trend: str = "stable"

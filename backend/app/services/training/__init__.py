@@ -15,14 +15,14 @@ from app.services.training.service import TrainingService
 
 
 __all__ = [
-    "TrainingService",
-    "TrainingModule",
-    "Quiz",
-    "Question",
-    "QuestionType",
-    "QuizAttempt",
-    "TrainingProgress",
     "Certificate",
     "CertificateStatus",
+    "Question",
+    "QuestionType",
+    "Quiz",
+    "QuizAttempt",
+    "TrainingModule",
+    "TrainingProgress",
+    "TrainingService",
     "UserTrainingProfile",
 ]

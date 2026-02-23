@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 class QueryIntent(str, Enum):
     """Detected intent of a compliance query."""
-    
+
     COMPLIANCE_STATUS = "compliance_status"
     REGULATION_INFO = "regulation_info"
     CODE_REVIEW = "code_review"
@@ -24,7 +24,7 @@ class QueryIntent(str, Enum):
 
 class SourceType(str, Enum):
     """Types of sources for answers."""
-    
+
     CODEBASE = "codebase"
     REGULATION = "regulation"
     EVIDENCE = "evidence"
@@ -36,7 +36,7 @@ class SourceType(str, Enum):
 @dataclass
 class QueryEntity:
     """An entity extracted from a query."""
-    
+
     entity_type: str  # regulation, framework, file, control, etc.
     value: str
     confidence: float = 1.0
@@ -46,25 +46,25 @@ class QueryEntity:
 @dataclass
 class ParsedQuery:
     """A parsed natural language query."""
-    
+
     id: UUID = field(default_factory=uuid4)
     original_query: str = ""
     normalized_query: str = ""
     intent: QueryIntent = QueryIntent.UNKNOWN
     confidence: float = 0.0
-    
+
     # Extracted entities
     entities: list[QueryEntity] = field(default_factory=list)
-    
+
     # Context
     regulations: list[str] = field(default_factory=list)
     frameworks: list[str] = field(default_factory=list)
     file_patterns: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
-    
+
     # Temporal context
     time_reference: str | None = None  # "last week", "since January", etc.
-    
+
     # Metadata
     parsed_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -72,7 +72,7 @@ class ParsedQuery:
 @dataclass
 class SourceReference:
     """A reference to a source used in an answer."""
-    
+
     source_type: SourceType
     source_id: str = ""
     title: str = ""
@@ -85,24 +85,24 @@ class SourceReference:
 @dataclass
 class QueryAnswer:
     """An answer to a compliance query."""
-    
+
     id: UUID = field(default_factory=uuid4)
     query_id: UUID | None = None
-    
+
     # Answer content
     answer: str = ""
     summary: str = ""
     confidence: float = 0.0
-    
+
     # Supporting information
     sources: list[SourceReference] = field(default_factory=list)
     related_questions: list[str] = field(default_factory=list)
     action_items: list[str] = field(default_factory=list)
-    
+
     # Context
     codebase_context: dict[str, Any] = field(default_factory=dict)
     regulation_context: dict[str, Any] = field(default_factory=dict)
-    
+
     # Metadata
     generated_at: datetime = field(default_factory=datetime.utcnow)
     model_used: str = ""
@@ -112,20 +112,20 @@ class QueryAnswer:
 @dataclass
 class ConversationContext:
     """Context for multi-turn conversations."""
-    
+
     id: UUID = field(default_factory=uuid4)
     organization_id: UUID | None = None
     repository_id: UUID | None = None
-    
+
     # History
     queries: list[ParsedQuery] = field(default_factory=list)
     answers: list[QueryAnswer] = field(default_factory=list)
-    
+
     # Accumulated context
     mentioned_regulations: set[str] = field(default_factory=set)
     mentioned_files: set[str] = field(default_factory=set)
     topic_focus: str | None = None
-    
+
     # Session
     created_at: datetime = field(default_factory=datetime.utcnow)
     last_activity: datetime = field(default_factory=datetime.utcnow)

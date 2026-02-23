@@ -2,16 +2,14 @@
 
 import json
 import re
-from pathlib import Path
-from typing import Any
 from uuid import UUID
 
 import structlog
 
 from app.services.vendor_risk.models import (
+    KNOWN_VENDORS,
     ComplianceTier,
     DependencyEdge,
-    KNOWN_VENDORS,
     RiskLevel,
     Vendor,
     VendorGraph,
@@ -46,12 +44,12 @@ class DependencyScanner:
         files: dict[str, str] | None = None,
     ) -> VendorGraph:
         """Scan repository for dependencies.
-        
+
         Args:
             organization_id: Organization ID
             repository_id: Repository ID
             files: Dict of filename -> content for dependency files
-            
+
         Returns:
             VendorGraph with all discovered dependencies
         """
@@ -59,43 +57,45 @@ class DependencyScanner:
             organization_id=organization_id,
             repository_id=repository_id,
         )
-        
+
         if not files:
             files = {}
-        
+
         # Parse each manifest file
         for filename, content in files.items():
             deps = await self._parse_manifest(filename, content)
             for dep in deps:
                 if dep.name not in graph.vendors:
                     graph.vendors[dep.name] = dep
-                    graph.edges.append(DependencyEdge(
-                        source="root",
-                        target=dep.name,
-                        is_direct=True,
-                    ))
-        
+                    graph.edges.append(
+                        DependencyEdge(
+                            source="root",
+                            target=dep.name,
+                            is_direct=True,
+                        )
+                    )
+
         # Enrich with known vendor data
         await self._enrich_vendors(graph)
-        
+
         # Calculate statistics
         graph.total_vendors = len(graph.vendors)
         graph.total_dependencies = len(graph.edges)
         graph.source = ", ".join(files.keys()) if files else "unknown"
-        
+
         # Summarize risks
         self._summarize_risks(graph)
-        
+
         # Store
         self._graphs[graph.id] = graph
-        
+
         logger.info(
             "Scanned repository for dependencies",
             organization_id=str(organization_id),
             vendors=graph.total_vendors,
             critical_risks=graph.critical_risks,
         )
-        
+
         return graph
 
     async def _parse_manifest(
@@ -105,13 +105,13 @@ class DependencyScanner:
     ) -> list[Vendor]:
         """Parse a dependency manifest file."""
         vendors = []
-        
+
         try:
             if filename.endswith("package.json"):
                 vendors = self._parse_package_json(content)
             elif filename.endswith("requirements.txt"):
                 vendors = self._parse_requirements_txt(content)
-            elif filename.endswith("Pipfile") or filename.endswith("Pipfile.lock"):
+            elif filename.endswith(("Pipfile", "Pipfile.lock")):
                 vendors = self._parse_pipfile(content)
             elif filename.endswith("pyproject.toml"):
                 vendors = self._parse_pyproject_toml(content)
@@ -125,25 +125,27 @@ class DependencyScanner:
                 vendors = self._parse_cargo_toml(content)
         except Exception as e:
             logger.warning(f"Failed to parse {filename}: {e}")
-        
+
         return vendors
 
     def _parse_package_json(self, content: str) -> list[Vendor]:
         """Parse npm package.json."""
         vendors = []
-        
+
         try:
             data = json.loads(content)
-            
+
             # Regular dependencies
             for name, version in data.get("dependencies", {}).items():
-                vendors.append(Vendor(
-                    name=name,
-                    vendor_type=VendorType.PACKAGE,
-                    version=self._clean_version(version),
-                    registry="npm",
-                ))
-            
+                vendors.append(
+                    Vendor(
+                        name=name,
+                        vendor_type=VendorType.PACKAGE,
+                        version=self._clean_version(version),
+                        registry="npm",
+                    )
+                )
+
             # Dev dependencies (optional)
             for name, version in data.get("devDependencies", {}).items():
                 v = Vendor(
@@ -156,152 +158,166 @@ class DependencyScanner:
                 vendors.append(v)
         except json.JSONDecodeError:
             pass
-        
+
         return vendors
 
     def _parse_requirements_txt(self, content: str) -> list[Vendor]:
         """Parse Python requirements.txt."""
         vendors = []
-        
+
         for line in content.strip().split("\n"):
             line = line.strip()
-            if not line or line.startswith("#") or line.startswith("-"):
+            if not line or line.startswith(("#", "-")):
                 continue
-            
+
             # Parse package==version or package>=version etc.
-            match = re.match(r'^([a-zA-Z0-9_-]+)([<>=!]+)?(.+)?$', line)
+            match = re.match(r"^([a-zA-Z0-9_-]+)([<>=!]+)?(.+)?$", line)
             if match:
                 name = match.group(1)
                 version = match.group(3) or ""
-                vendors.append(Vendor(
-                    name=name,
-                    vendor_type=VendorType.PACKAGE,
-                    version=version,
-                    registry="pypi",
-                ))
-        
+                vendors.append(
+                    Vendor(
+                        name=name,
+                        vendor_type=VendorType.PACKAGE,
+                        version=version,
+                        registry="pypi",
+                    )
+                )
+
         return vendors
 
     def _parse_pipfile(self, content: str) -> list[Vendor]:
         """Parse Pipfile (simplified)."""
         vendors = []
         in_packages = False
-        
+
         for line in content.split("\n"):
             line = line.strip()
             if line == "[packages]":
                 in_packages = True
                 continue
-            elif line.startswith("["):
+            if line.startswith("["):
                 in_packages = False
                 continue
-            
+
             if in_packages and "=" in line:
                 name = line.split("=")[0].strip().strip('"')
-                vendors.append(Vendor(
-                    name=name,
-                    vendor_type=VendorType.PACKAGE,
-                    registry="pypi",
-                ))
-        
+                vendors.append(
+                    Vendor(
+                        name=name,
+                        vendor_type=VendorType.PACKAGE,
+                        registry="pypi",
+                    )
+                )
+
         return vendors
 
     def _parse_pyproject_toml(self, content: str) -> list[Vendor]:
         """Parse pyproject.toml dependencies (simplified)."""
         vendors = []
         in_deps = False
-        
+
         for line in content.split("\n"):
             if "dependencies" in line and "=" in line:
                 in_deps = True
                 continue
-            elif line.startswith("[") and in_deps:
+            if line.startswith("[") and in_deps:
                 in_deps = False
                 continue
-            
+
             if in_deps:
                 # Try to extract package name
                 match = re.search(r'"([a-zA-Z0-9_-]+)', line)
                 if match:
-                    vendors.append(Vendor(
-                        name=match.group(1),
-                        vendor_type=VendorType.PACKAGE,
-                        registry="pypi",
-                    ))
-        
+                    vendors.append(
+                        Vendor(
+                            name=match.group(1),
+                            vendor_type=VendorType.PACKAGE,
+                            registry="pypi",
+                        )
+                    )
+
         return vendors
 
     def _parse_go_mod(self, content: str) -> list[Vendor]:
         """Parse Go go.mod."""
         vendors = []
-        
+
         for line in content.split("\n"):
             line = line.strip()
             if line.startswith("require ") or (line and not line.startswith("//") and "/" in line):
-                match = re.match(r'(?:require\s+)?([^\s]+)\s+([^\s]+)', line)
+                match = re.match(r"(?:require\s+)?([^\s]+)\s+([^\s]+)", line)
                 if match:
-                    vendors.append(Vendor(
-                        name=match.group(1),
-                        vendor_type=VendorType.PACKAGE,
-                        version=match.group(2),
-                        registry="go",
-                    ))
-        
+                    vendors.append(
+                        Vendor(
+                            name=match.group(1),
+                            vendor_type=VendorType.PACKAGE,
+                            version=match.group(2),
+                            registry="go",
+                        )
+                    )
+
         return vendors
 
     def _parse_gemfile(self, content: str) -> list[Vendor]:
         """Parse Ruby Gemfile."""
         vendors = []
-        
+
         for line in content.split("\n"):
             match = re.match(r"^\s*gem\s+['\"]([^'\"]+)['\"]", line)
             if match:
-                vendors.append(Vendor(
-                    name=match.group(1),
-                    vendor_type=VendorType.PACKAGE,
-                    registry="rubygems",
-                ))
-        
+                vendors.append(
+                    Vendor(
+                        name=match.group(1),
+                        vendor_type=VendorType.PACKAGE,
+                        registry="rubygems",
+                    )
+                )
+
         return vendors
 
     def _parse_pom_xml(self, content: str) -> list[Vendor]:
         """Parse Maven pom.xml (simplified)."""
         vendors = []
-        
+
         # Simple regex for artifactId extraction
-        matches = re.findall(r'<artifactId>([^<]+)</artifactId>', content)
+        matches = re.findall(r"<artifactId>([^<]+)</artifactId>", content)
         for name in matches:
             if name and not name.startswith("$"):
-                vendors.append(Vendor(
-                    name=name,
-                    vendor_type=VendorType.PACKAGE,
-                    registry="maven",
-                ))
-        
+                vendors.append(
+                    Vendor(
+                        name=name,
+                        vendor_type=VendorType.PACKAGE,
+                        registry="maven",
+                    )
+                )
+
         return vendors
 
     def _parse_cargo_toml(self, content: str) -> list[Vendor]:
         """Parse Rust Cargo.toml."""
         vendors = []
         in_deps = False
-        
+
         for line in content.split("\n"):
             if "[dependencies]" in line:
                 in_deps = True
                 continue
-            elif line.startswith("["):
+            if line.startswith("["):
                 in_deps = False
                 continue
-            
+
             if in_deps and "=" in line:
                 name = line.split("=")[0].strip()
                 if name:
-                    vendors.append(Vendor(
-                        name=name,
-                        vendor_type=VendorType.PACKAGE,
-                        registry="cargo",
-                    ))
-        
+                    vendors.append(
+                        Vendor(
+                            name=name,
+                            vendor_type=VendorType.PACKAGE,
+                            registry="cargo",
+                        )
+                    )
+
         return vendors
 
     def _clean_version(self, version: str) -> str:
@@ -312,7 +328,7 @@ class DependencyScanner:
         """Enrich vendors with known data."""
         for name, vendor in graph.vendors.items():
             name_lower = name.lower()
-            
+
             # Check known vendors
             if name_lower in KNOWN_VENDORS:
                 known = KNOWN_VENDORS[name_lower]
@@ -320,7 +336,7 @@ class DependencyScanner:
                 vendor.vendor_type = known.get("type", vendor.vendor_type)
                 vendor.risk_level = known.get("risk_level", RiskLevel.UNKNOWN)
                 vendor.data_processing = known.get("data_processing", [])
-                
+
                 certs = known.get("certifications", [])
                 if certs:
                     vendor.compliance_tier = ComplianceTier.FULLY_CERTIFIED
@@ -331,7 +347,7 @@ class DependencyScanner:
                 # Default to unknown
                 vendor.compliance_tier = ComplianceTier.UNKNOWN
                 graph.uncertified_vendors += 1
-                
+
                 # Infer some info from name
                 if any(kw in name_lower for kw in ["auth", "oauth", "jwt"]):
                     vendor.data_processing.append("credentials")
@@ -347,7 +363,7 @@ class DependencyScanner:
                 graph.high_risks += 1
             elif vendor.risk_level == RiskLevel.MEDIUM:
                 graph.medium_risks += 1
-        
+
         # Overall risk
         if graph.critical_risks > 0:
             graph.overall_risk = RiskLevel.CRITICAL

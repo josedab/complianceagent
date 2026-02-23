@@ -1,7 +1,7 @@
 """Data models for SaaS Platform service."""
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 

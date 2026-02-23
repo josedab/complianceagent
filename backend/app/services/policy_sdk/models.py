@@ -36,6 +36,7 @@ class PolicyCategory(str, Enum):
 @dataclass
 class PolicyDefinition:
     """A compliance policy defined as code."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     description: str = ""
@@ -57,6 +58,7 @@ class PolicyDefinition:
 @dataclass
 class PolicyValidationResult:
     """Result of validating a policy."""
+
     policy_id: UUID = field(default_factory=uuid4)
     is_valid: bool = True
     errors: list[str] = field(default_factory=list)
@@ -68,6 +70,7 @@ class PolicyValidationResult:
 @dataclass
 class PolicyMarketplaceEntry:
     """A policy in the community marketplace."""
+
     id: UUID = field(default_factory=uuid4)
     policy: PolicyDefinition = field(default_factory=PolicyDefinition)
     publisher: str = ""

@@ -1,7 +1,7 @@
 """Multi-Tenant Organization Hierarchy Service."""
 
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +15,7 @@ from app.services.org_hierarchy.models import (
     OrgTree,
     PolicyInheritance,
 )
+
 
 logger = structlog.get_logger()
 
@@ -67,7 +68,7 @@ class OrgHierarchyService:
         if root_id:
             root = self._nodes.get(root_id)
             children = self._get_descendants(root_id)
-            nodes = [root] + children if root else children
+            nodes = [root, *children] if root else children
         else:
             roots = [n for n in self._nodes.values() if n.parent_id is None]
             root = roots[0] if roots else None
@@ -103,7 +104,9 @@ class OrgHierarchyService:
         self._memberships.append(membership)
         return membership
 
-    async def get_members(self, org_node_id: UUID, include_inherited: bool = True) -> list[OrgMembership]:
+    async def get_members(
+        self, org_node_id: UUID, include_inherited: bool = True
+    ) -> list[OrgMembership]:
         """Get members of a node, optionally including inherited from parents."""
         direct = [m for m in self._memberships if m.org_node_id == org_node_id]
         if not include_inherited:
@@ -129,11 +132,8 @@ class OrgHierarchyService:
             if ancestor:
                 merged.update(ancestor.policies)
 
-        if node.policy_inheritance == PolicyInheritance.MERGE:
+        if node.policy_inheritance in (PolicyInheritance.MERGE, PolicyInheritance.INHERIT):
             merged.update(node.policies)
-        elif node.policy_inheritance == PolicyInheritance.INHERIT:
-            for k, v in node.policies.items():
-                merged[k] = v
 
         return merged
 
@@ -166,14 +166,22 @@ class OrgHierarchyService:
 
     async def check_permission(self, user_id: UUID, node_id: UUID, required_role: OrgRole) -> bool:
         """Check if a user has the required role in a node's hierarchy."""
-        role_hierarchy = [OrgRole.VIEWER, OrgRole.DEVELOPER, OrgRole.AUDITOR,
-                          OrgRole.COMPLIANCE_OFFICER, OrgRole.ADMIN, OrgRole.OWNER]
+        role_hierarchy = [
+            OrgRole.VIEWER,
+            OrgRole.DEVELOPER,
+            OrgRole.AUDITOR,
+            OrgRole.COMPLIANCE_OFFICER,
+            OrgRole.ADMIN,
+            OrgRole.OWNER,
+        ]
 
         members = await self.get_members(node_id, include_inherited=True)
         for m in members:
             if m.user_id == user_id:
                 user_level = role_hierarchy.index(m.role) if m.role in role_hierarchy else -1
-                required_level = role_hierarchy.index(required_role) if required_role in role_hierarchy else 99
+                required_level = (
+                    role_hierarchy.index(required_role) if required_role in role_hierarchy else 99
+                )
                 if user_level >= required_level:
                     return True
         return False

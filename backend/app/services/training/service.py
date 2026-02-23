@@ -2,7 +2,7 @@
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -27,7 +27,7 @@ logger = structlog.get_logger()
 
 class TrainingService:
     """Service for compliance training and certification."""
-    
+
     def __init__(self, db: AsyncSession, copilot: Any = None):
         self.db = db
         self.copilot = copilot
@@ -36,15 +36,15 @@ class TrainingService:
         self._certificates: dict[UUID, Certificate] = {}
         self._profiles: dict[UUID, UserTrainingProfile] = {}
         self._initialize_modules()
-    
+
     def _initialize_modules(self):
         """Initialize built-in training modules."""
         self._modules[uuid4()] = self._create_gdpr_module()
         self._modules[uuid4()] = self._create_hipaa_module()
         self._modules[uuid4()] = self._create_secure_coding_module()
-    
+
     # --- Module Management ---
-    
+
     async def list_modules(
         self,
         framework: str | None = None,
@@ -52,21 +52,21 @@ class TrainingService:
     ) -> list[TrainingModule]:
         """List available training modules."""
         modules = list(self._modules.values())
-        
+
         if framework:
             modules = [m for m in modules if m.framework == framework]
-        
+
         if difficulty:
             modules = [m for m in modules if m.difficulty == difficulty]
-        
+
         return modules
-    
+
     async def get_module(self, module_id: UUID) -> TrainingModule | None:
         """Get a training module by ID."""
         return self._modules.get(module_id)
-    
+
     # --- Progress Tracking ---
-    
+
     async def enroll(
         self,
         user_id: UUID,
@@ -76,27 +76,27 @@ class TrainingService:
         module = self._modules.get(module_id)
         if not module:
             raise ValueError(f"Module not found: {module_id}")
-        
+
         key = f"{user_id}:{module_id}"
-        
+
         if key in self._progress:
             return self._progress[key]
-        
+
         progress = TrainingProgress(
             user_id=user_id,
             module_id=module_id,
         )
-        
+
         self._progress[key] = progress
-        
+
         logger.info(
             "user_enrolled",
             user_id=str(user_id),
             module_id=str(module_id),
         )
-        
+
         return progress
-    
+
     async def get_progress(
         self,
         user_id: UUID,
@@ -105,7 +105,7 @@ class TrainingService:
         """Get user's progress in a module."""
         key = f"{user_id}:{module_id}"
         return self._progress.get(key)
-    
+
     async def update_progress(
         self,
         user_id: UUID,
@@ -115,28 +115,26 @@ class TrainingService:
         """Update user's progress after completing a section."""
         key = f"{user_id}:{module_id}"
         progress = self._progress.get(key)
-        
+
         if not progress:
             progress = await self.enroll(user_id, module_id)
-        
+
         module = self._modules.get(module_id)
         if not module:
             raise ValueError("Module not found")
-        
+
         if section_completed not in progress.sections_completed:
             progress.sections_completed.append(section_completed)
-        
+
         progress.current_section = section_completed + 1
-        
+
         # Calculate progress percentage
         total_sections = len(module.sections)
         if total_sections > 0:
-            progress.progress_percentage = (
-                len(progress.sections_completed) / total_sections * 100
-            )
-        
+            progress.progress_percentage = len(progress.sections_completed) / total_sections * 100
+
         return progress
-    
+
     async def get_user_profile(
         self,
         user_id: UUID,
@@ -148,24 +146,20 @@ class TrainingService:
                 user_id=user_id,
                 organization_id=organization_id,
             )
-        
+
         profile = self._profiles[user_id]
-        
+
         # Update with current progress
         profile.current_enrollments = [
-            p for p in self._progress.values()
-            if p.user_id == user_id and not p.is_complete
+            p for p in self._progress.values() if p.user_id == user_id and not p.is_complete
         ]
-        
-        profile.certificates = [
-            c for c in self._certificates.values()
-            if c.user_id == user_id
-        ]
-        
+
+        profile.certificates = [c for c in self._certificates.values() if c.user_id == user_id]
+
         return profile
-    
+
     # --- Quiz Management ---
-    
+
     async def start_quiz(
         self,
         user_id: UUID,
@@ -176,31 +170,30 @@ class TrainingService:
         module = self._modules.get(module_id)
         if not module:
             raise ValueError("Module not found")
-        
+
         if quiz_index >= len(module.quizzes):
             raise ValueError("Quiz not found")
-        
+
         quiz = module.quizzes[quiz_index]
-        
+
         # Check attempt limit
         key = f"{user_id}:{module_id}"
         progress = self._progress.get(key)
-        attempt_count = len([
-            a for a in (progress.quiz_attempts if progress else [])
-            if a.quiz_id == quiz.id
-        ])
-        
+        attempt_count = len(
+            [a for a in (progress.quiz_attempts if progress else []) if a.quiz_id == quiz.id]
+        )
+
         if attempt_count >= quiz.max_attempts:
             raise ValueError("Maximum attempts reached")
-        
+
         attempt = QuizAttempt(
             quiz_id=quiz.id,
             user_id=user_id,
             attempt_number=attempt_count + 1,
         )
-        
+
         return attempt
-    
+
     async def submit_quiz(
         self,
         user_id: UUID,
@@ -212,49 +205,48 @@ class TrainingService:
         module = self._modules.get(module_id)
         if not module:
             raise ValueError("Module not found")
-        
+
         quiz = module.quizzes[quiz_index]
-        
+
         # Score the quiz
         total_points = 0
         earned_points = 0
-        
+
         for question in quiz.questions:
             total_points += question.points
-            
+
             user_answers = answers.get(str(question.id), [])
             if sorted(user_answers) == sorted(question.correct_answers):
                 earned_points += question.points
-        
+
         score = (earned_points / total_points * 100) if total_points > 0 else 0
         passed = score >= quiz.passing_score
-        
+
         # Create attempt record
         attempt = QuizAttempt(
             quiz_id=quiz.id,
             user_id=user_id,
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(UTC),
             answers=answers,
             score=score,
             passed=passed,
         )
-        
+
         # Update progress
         key = f"{user_id}:{module_id}"
         progress = self._progress.get(key)
         if progress:
             progress.quiz_attempts.append(attempt)
-            if score > progress.best_quiz_score:
-                progress.best_quiz_score = score
-            
+            progress.best_quiz_score = max(progress.best_quiz_score, score)
+
             # Check if module is complete
             if passed and len(progress.sections_completed) >= len(module.sections):
                 progress.is_complete = True
-                progress.completed_at = datetime.utcnow()
-                
+                progress.completed_at = datetime.now(UTC)
+
                 # Issue certificate
                 await self._issue_certificate(user_id, module_id, score)
-        
+
         logger.info(
             "quiz_submitted",
             user_id=str(user_id),
@@ -262,9 +254,9 @@ class TrainingService:
             score=score,
             passed=passed,
         )
-        
+
         return attempt
-    
+
     async def get_quiz_results(
         self,
         user_id: UUID,
@@ -276,22 +268,22 @@ class TrainingService:
         module = self._modules.get(module_id)
         if not module:
             raise ValueError("Module not found")
-        
+
         quiz = module.quizzes[quiz_index]
-        
+
         key = f"{user_id}:{module_id}"
         progress = self._progress.get(key)
-        
+
         attempt = None
         if progress:
             for a in progress.quiz_attempts:
                 if a.id == attempt_id:
                     attempt = a
                     break
-        
+
         if not attempt:
             raise ValueError("Attempt not found")
-        
+
         # Build detailed results
         results = {
             "attempt_id": str(attempt.id),
@@ -299,11 +291,11 @@ class TrainingService:
             "passed": attempt.passed,
             "questions": [],
         }
-        
+
         for question in quiz.questions:
             user_answers = attempt.answers.get(str(question.id), [])
             correct = sorted(user_answers) == sorted(question.correct_answers)
-            
+
             result = {
                 "question_id": str(question.id),
                 "text": question.text,
@@ -312,17 +304,17 @@ class TrainingService:
                 "points_earned": question.points if correct else 0,
                 "points_possible": question.points,
             }
-            
+
             if quiz.show_correct_answers:
                 result["correct_answers"] = question.correct_answers
                 result["explanation"] = question.explanation
-            
+
             results["questions"].append(result)
-        
+
         return results
-    
+
     # --- Certificate Management ---
-    
+
     async def _issue_certificate(
         self,
         user_id: UUID,
@@ -333,9 +325,9 @@ class TrainingService:
         module = self._modules.get(module_id)
         if not module:
             raise ValueError("Module not found")
-        
+
         verification_code = self._generate_verification_code()
-        
+
         certificate = Certificate(
             user_id=user_id,
             module_id=module_id,
@@ -348,29 +340,29 @@ class TrainingService:
                 "requirements_covered": module.requirements_covered,
             },
         )
-        
+
         self._certificates[certificate.id] = certificate
-        
+
         # Update user profile
         if user_id in self._profiles:
             self._profiles[user_id].certificates.append(certificate)
             self._profiles[user_id].total_modules_completed += 1
             self._profiles[user_id].framework_scores[module.framework] = score
-        
+
         logger.info(
             "certificate_issued",
             user_id=str(user_id),
             certificate_id=str(certificate.id),
             framework=module.framework,
         )
-        
+
         return certificate
-    
+
     def _generate_verification_code(self) -> str:
         """Generate unique verification code."""
         random_bytes = secrets.token_bytes(16)
         return hashlib.sha256(random_bytes).hexdigest()[:12].upper()
-    
+
     async def verify_certificate(
         self,
         verification_code: str,
@@ -379,13 +371,12 @@ class TrainingService:
         for cert in self._certificates.values():
             if cert.verification_code == verification_code:
                 if cert.status == CertificateStatus.ACTIVE:
-                    if cert.expires_at > datetime.utcnow():
+                    if cert.expires_at > datetime.now(UTC):
                         return cert
-                    else:
-                        cert.status = CertificateStatus.EXPIRED
+                    cert.status = CertificateStatus.EXPIRED
                 return cert
         return None
-    
+
     async def list_certificates(
         self,
         user_id: UUID | None = None,
@@ -393,17 +384,17 @@ class TrainingService:
     ) -> list[Certificate]:
         """List certificates."""
         certs = list(self._certificates.values())
-        
+
         if user_id:
             certs = [c for c in certs if c.user_id == user_id]
-        
+
         if organization_id:
             certs = [c for c in certs if c.organization_id == organization_id]
-        
+
         return certs
-    
+
     # --- AI-Powered Quiz Generation ---
-    
+
     async def generate_quiz(
         self,
         framework: str,
@@ -415,10 +406,10 @@ class TrainingService:
         if not self.copilot:
             # Return static quiz if no AI available
             return self._create_static_quiz(framework, num_questions)
-        
+
         try:
-            prompt = f"""Generate {num_questions} {difficulty} difficulty multiple choice questions 
-            about {framework} compliance, covering these topics: {', '.join(topics)}.
+            prompt = f"""Generate {num_questions} {difficulty} difficulty multiple choice questions
+            about {framework} compliance, covering these topics: {", ".join(topics)}.
             
             For each question, provide:
             1. The question text
@@ -427,46 +418,46 @@ class TrainingService:
             4. A brief explanation
             
             Format as JSON array."""
-            
-            response = await self.copilot.chat.completions.create(
+
+            await self.copilot.chat.completions.create(
                 messages=[
                     {"role": "system", "content": "You are a compliance training expert."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 model="gpt-4o-mini",
             )
-            
+
             # Parse response and create Quiz
             # (In production, would parse JSON from response)
             return self._create_static_quiz(framework, num_questions)
-            
+
         except Exception as e:
             logger.error("quiz_generation_failed", error=str(e))
             return self._create_static_quiz(framework, num_questions)
-    
+
     def _create_static_quiz(self, framework: str, num_questions: int) -> Quiz:
         """Create a static quiz with predefined questions."""
         questions = self._get_framework_questions(framework)[:num_questions]
-        
+
         return Quiz(
             title=f"{framework} Knowledge Assessment",
             description=f"Test your knowledge of {framework} compliance requirements",
             framework=framework,
             questions=questions,
         )
-    
+
     def _get_framework_questions(self, framework: str) -> list[Question]:
         """Get predefined questions for a framework."""
         if framework == "GDPR":
             return self._gdpr_questions()
-        elif framework == "HIPAA":
+        if framework == "HIPAA":
             return self._hipaa_questions()
-        elif framework == "PCI_DSS":
+        if framework == "PCI_DSS":
             return self._pci_questions()
         return []
-    
+
     # --- Module Definitions ---
-    
+
     def _create_gdpr_module(self) -> TrainingModule:
         """Create GDPR training module."""
         return TrainingModule(
@@ -519,7 +510,7 @@ class TrainingService:
                 ),
             ],
         )
-    
+
     def _create_hipaa_module(self) -> TrainingModule:
         """Create HIPAA training module."""
         return TrainingModule(
@@ -570,7 +561,7 @@ class TrainingService:
                 ),
             ],
         )
-    
+
     def _create_secure_coding_module(self) -> TrainingModule:
         """Create secure coding training module."""
         return TrainingModule(
@@ -621,9 +612,9 @@ class TrainingService:
                 ),
             ],
         )
-    
+
     # --- Question Banks ---
-    
+
     def _gdpr_questions(self) -> list[Question]:
         """GDPR quiz questions."""
         return [
@@ -701,7 +692,7 @@ class TrainingService:
                 requirement_id="Art6",
             ),
         ]
-    
+
     def _hipaa_questions(self) -> list[Question]:
         """HIPAA quiz questions."""
         return [
@@ -760,7 +751,7 @@ class TrainingService:
                 requirement_id="164.530(j)",
             ),
         ]
-    
+
     def _pci_questions(self) -> list[Question]:
         """PCI-DSS quiz questions."""
         return [
@@ -791,7 +782,7 @@ class TrainingService:
                 requirement_id="3.3",
             ),
         ]
-    
+
     def _secure_coding_questions(self) -> list[Question]:
         """Secure coding quiz questions."""
         return [

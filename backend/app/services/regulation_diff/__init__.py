@@ -9,6 +9,7 @@ from app.services.regulation_diff.models import (
 )
 from app.services.regulation_diff.service import RegulationDiffService
 
+
 __all__ = [
     "ArticleChange",
     "ChangeSeverity",

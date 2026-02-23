@@ -3,22 +3,23 @@
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.public_api.models import (
+    RATE_LIMITS,
     APIKey,
     APIKeyScope,
     APIKeyStatus,
     APIUsageRecord,
     APIUsageSummary,
-    RATE_LIMITS,
     RateLimitConfig,
     RateLimitTier,
     SDKInfo,
 )
+
 
 logger = structlog.get_logger()
 
@@ -155,7 +156,8 @@ class PublicAPIService:
         now = datetime.now(UTC)
         minute_ago = now - timedelta(minutes=1)
         recent = [
-            r for r in self._usage
+            r
+            for r in self._usage
             if r.key_id == key_id and r.timestamp and r.timestamp > minute_ago
         ]
 
@@ -177,8 +179,7 @@ class PublicAPIService:
             cutoff = now - timedelta(days=30)
 
         records = [
-            r for r in self._usage
-            if r.key_id == key_id and r.timestamp and r.timestamp > cutoff
+            r for r in self._usage if r.key_id == key_id and r.timestamp and r.timestamp > cutoff
         ]
 
         total = len(records)

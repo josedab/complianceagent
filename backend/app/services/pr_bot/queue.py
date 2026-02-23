@@ -1,18 +1,20 @@
 """PR Analysis Queue - Manages async PR review tasks."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
 import structlog
 
+
 logger = structlog.get_logger()
 
 
 class PRTaskStatus(str, Enum):
     """Status of a PR analysis task."""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -22,6 +24,7 @@ class PRTaskStatus(str, Enum):
 
 class PRTaskPriority(int, Enum):
     """Priority levels for PR analysis tasks."""
+
     LOW = 0
     NORMAL = 1
     HIGH = 2
@@ -31,6 +34,7 @@ class PRTaskPriority(int, Enum):
 @dataclass
 class PRAnalysisTask:
     """A task to analyze a PR for compliance."""
+
     id: UUID = field(default_factory=uuid4)
     owner: str = ""
     repo: str = ""
@@ -38,21 +42,21 @@ class PRAnalysisTask:
     head_sha: str = ""
     base_sha: str = ""
     organization_id: UUID | None = None
-    
+
     # Task metadata
     status: PRTaskStatus = PRTaskStatus.PENDING
     priority: PRTaskPriority = PRTaskPriority.NORMAL
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     started_at: datetime | None = None
     completed_at: datetime | None = None
-    
+
     # Configuration
     deep_analysis: bool = True
     enabled_regulations: list[str] = field(default_factory=list)
     post_comments: bool = True
     create_check_run: bool = True
     auto_label: bool = True
-    
+
     # Results
     result: dict[str, Any] = field(default_factory=dict)
     error_message: str | None = None
@@ -98,9 +102,15 @@ class PRAnalysisTask:
             organization_id=UUID(data["organization_id"]) if data.get("organization_id") else None,
             status=PRTaskStatus(data.get("status", "pending")),
             priority=PRTaskPriority(data.get("priority", 1)),
-            created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.now(timezone.utc),
-            started_at=datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None,
-            completed_at=datetime.fromisoformat(data["completed_at"]) if data.get("completed_at") else None,
+            created_at=datetime.fromisoformat(data["created_at"])
+            if data.get("created_at")
+            else datetime.now(UTC),
+            started_at=datetime.fromisoformat(data["started_at"])
+            if data.get("started_at")
+            else None,
+            completed_at=datetime.fromisoformat(data["completed_at"])
+            if data.get("completed_at")
+            else None,
             deep_analysis=data.get("deep_analysis", True),
             enabled_regulations=data.get("enabled_regulations", []),
             post_comments=data.get("post_comments", True),
@@ -127,9 +137,10 @@ class PRAnalysisQueue:
     async def enqueue(self, task: PRAnalysisTask) -> str:
         """Add a task to the queue."""
         task_id = str(task.id)
-        
+
         if self.redis:
             import json
+
             # Store task data
             await self.redis.set(
                 f"{self.TASK_KEY_PREFIX}{task_id}",
@@ -141,7 +152,7 @@ class PRAnalysisQueue:
             await self.redis.zadd(self.QUEUE_KEY, {task_id: score})
         else:
             self._local_queue.append(task)
-        
+
         logger.info(
             "PR analysis task enqueued",
             task_id=task_id,
@@ -154,20 +165,21 @@ class PRAnalysisQueue:
         """Get the next task from the queue."""
         if self.redis:
             import json
+
             # Get highest priority task
             result = await self.redis.zpopmax(self.QUEUE_KEY)
             if not result:
                 return None
-            
+
             task_id = result[0][0]
             task_data = await self.redis.get(f"{self.TASK_KEY_PREFIX}{task_id}")
             if not task_data:
                 return None
-            
+
             task = PRAnalysisTask.from_dict(json.loads(task_data))
             task.status = PRTaskStatus.IN_PROGRESS
-            task.started_at = datetime.now(timezone.utc)
-            
+            task.started_at = datetime.now(UTC)
+
             # Mark as processing
             await self.redis.sadd(self.PROCESSING_SET, task_id)
             await self.redis.set(
@@ -175,24 +187,24 @@ class PRAnalysisQueue:
                 json.dumps(task.to_dict()),
             )
             return task
-        else:
-            if not self._local_queue:
-                return None
-            # Sort by priority
-            self._local_queue.sort(key=lambda t: t.priority.value, reverse=True)
-            task = self._local_queue.pop(0)
-            task.status = PRTaskStatus.IN_PROGRESS
-            task.started_at = datetime.now(timezone.utc)
-            return task
+        if not self._local_queue:
+            return None
+        # Sort by priority
+        self._local_queue.sort(key=lambda t: t.priority.value, reverse=True)
+        task = self._local_queue.pop(0)
+        task.status = PRTaskStatus.IN_PROGRESS
+        task.started_at = datetime.now(UTC)
+        return task
 
     async def complete(self, task: PRAnalysisTask, result: dict[str, Any]) -> None:
         """Mark a task as completed."""
         task.status = PRTaskStatus.COMPLETED
-        task.completed_at = datetime.now(timezone.utc)
+        task.completed_at = datetime.now(UTC)
         task.result = result
-        
+
         if self.redis:
             import json
+
             task_id = str(task.id)
             await self.redis.set(
                 f"{self.TASK_KEY_PREFIX}{task_id}",
@@ -200,7 +212,7 @@ class PRAnalysisQueue:
                 ex=86400,  # 1 day TTL for completed tasks
             )
             await self.redis.srem(self.PROCESSING_SET, task_id)
-        
+
         logger.info(
             "PR analysis task completed",
             task_id=str(task.id),
@@ -212,7 +224,7 @@ class PRAnalysisQueue:
         """Mark a task as failed. Returns True if should retry."""
         task.retry_count += 1
         task.error_message = error
-        
+
         if task.retry_count < task.max_retries:
             # Re-queue for retry with lower priority
             task.status = PRTaskStatus.PENDING
@@ -225,12 +237,13 @@ class PRAnalysisQueue:
                 error=error,
             )
             return True
-        
+
         task.status = PRTaskStatus.FAILED
-        task.completed_at = datetime.now(timezone.utc)
-        
+        task.completed_at = datetime.now(UTC)
+
         if self.redis:
             import json
+
             task_id = str(task.id)
             await self.redis.set(
                 f"{self.TASK_KEY_PREFIX}{task_id}",
@@ -238,7 +251,7 @@ class PRAnalysisQueue:
                 ex=86400 * 7,
             )
             await self.redis.srem(self.PROCESSING_SET, task_id)
-        
+
         logger.error(
             "PR analysis task failed permanently",
             task_id=str(task.id),
@@ -250,6 +263,7 @@ class PRAnalysisQueue:
         """Get a task by ID."""
         if self.redis:
             import json
+
             task_data = await self.redis.get(f"{self.TASK_KEY_PREFIX}{task_id}")
             if task_data:
                 return PRAnalysisTask.from_dict(json.loads(task_data))
@@ -270,6 +284,7 @@ class PRAnalysisQueue:
         cancelled = 0
         if self.redis:
             import json
+
             # Get all pending task IDs
             task_ids = await self.redis.zrange(self.QUEUE_KEY, 0, -1)
             for task_id in task_ids:
@@ -286,7 +301,8 @@ class PRAnalysisQueue:
                         cancelled += 1
         else:
             self._local_queue = [
-                t for t in self._local_queue
+                t
+                for t in self._local_queue
                 if not (t.owner == owner and t.repo == repo and t.pr_number == pr_number)
             ]
         return cancelled

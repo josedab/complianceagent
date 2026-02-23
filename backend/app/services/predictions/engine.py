@@ -5,7 +5,7 @@ impact assessments, and timeline projections backed by database queries
 against regulations, requirements, and compliance actions.
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -27,6 +27,7 @@ from .models import (
     TimelineProjection,
     UpdateType,
 )
+
 
 logger = structlog.get_logger(__name__)
 
@@ -83,7 +84,7 @@ class RegulatoryPredictionEngine:
         self.db = db
         self._predictions_cache: dict[str, list[RegulatoryPrediction]] = {}
         self._trends_cache: dict[str, list[ComplianceTrend]] = {}
-    
+
     async def get_regulatory_updates(
         self,
         domain: RegulatoryDomain | None = None,
@@ -109,7 +110,7 @@ class RegulatoryPredictionEngine:
             if regulation and regulation.lower() not in reg.name.lower():
                 continue
 
-            announced = reg.effective_date or reg.created_at or datetime.now(timezone.utc)
+            announced = reg.effective_date or reg.created_at or datetime.now(UTC)
             if since and announced < since:
                 continue
 
@@ -172,7 +173,7 @@ class RegulatoryPredictionEngine:
         if req_count >= 5:
             return ImpactLevel.MEDIUM
         return ImpactLevel.LOW
-    
+
     async def get_predictions(
         self,
         domain: RegulatoryDomain | None = None,
@@ -189,7 +190,7 @@ class RegulatoryPredictionEngine:
         result = await self.db.execute(stmt)
         db_regulations = result.scalars().all()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         horizon = now + timedelta(days=time_horizon_days)
         predictions: list[RegulatoryPrediction] = []
 
@@ -205,8 +206,10 @@ class RegulatoryPredictionEngine:
 
             # Filter by minimum confidence
             confidence_order = [
-                PredictionConfidence.VERY_LOW, PredictionConfidence.LOW,
-                PredictionConfidence.MEDIUM, PredictionConfidence.HIGH,
+                PredictionConfidence.VERY_LOW,
+                PredictionConfidence.LOW,
+                PredictionConfidence.MEDIUM,
+                PredictionConfidence.HIGH,
                 PredictionConfidence.VERY_HIGH,
             ]
             if confidence_order.index(confidence) < confidence_order.index(min_confidence):
@@ -257,7 +260,8 @@ class RegulatoryPredictionEngine:
 
     @staticmethod
     def _compute_confidence(
-        regulation: Regulation, req_count: int,
+        regulation: Regulation,
+        req_count: int,
     ) -> tuple[PredictionConfidence, float]:
         """Compute confidence based on data richness."""
         score = 0.3  # base
@@ -286,7 +290,7 @@ class RegulatoryPredictionEngine:
         else:
             level = PredictionConfidence.VERY_LOW
         return level, round(score, 2)
-    
+
     async def analyze_trends(
         self,
         domain: RegulatoryDomain | None = None,
@@ -302,7 +306,7 @@ class RegulatoryPredictionEngine:
         result = await self.db.execute(stmt)
         db_regulations = result.scalars().all()
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         trends: list[ComplianceTrend] = []
         seen_domains: set[RegulatoryDomain] = set()
 
@@ -337,11 +341,13 @@ class RegulatoryPredictionEngine:
             for i in range(6):
                 date = now + timedelta(days=i * 30)
                 projected = last_val + i * (3 if direction == "increasing" else 0)
-                projected_values.append({
-                    "date": date.isoformat(),
-                    "value": projected,
-                    "confidence_interval": [projected - 5, projected + 5],
-                })
+                projected_values.append(
+                    {
+                        "date": date.isoformat(),
+                        "value": projected,
+                        "confidence_interval": [projected - 5, projected + 5],
+                    }
+                )
 
             trend = ComplianceTrend(
                 name=f"{reg_domain.value.replace('_', ' ').title()} Regulatory Trend",
@@ -371,7 +377,7 @@ class RegulatoryPredictionEngine:
             domain=domain.value if domain else None,
         )
         return trends
-    
+
     async def forecast_risk(
         self,
         regulations: list[str],
@@ -386,9 +392,11 @@ class RegulatoryPredictionEngine:
         forecasts: list[RiskForecast] = []
 
         for regulation_name in regulations:
-            stmt = select(Regulation).options(
-                selectinload(Regulation.requirements)
-            ).filter(Regulation.name.ilike(f"%{regulation_name}%"))
+            stmt = (
+                select(Regulation)
+                .options(selectinload(Regulation.requirements))
+                .filter(Regulation.name.ilike(f"%{regulation_name}%"))
+            )
             result = await self.db.execute(stmt)
             reg = result.scalars().first()
 
@@ -420,10 +428,18 @@ class RegulatoryPredictionEngine:
                 risk_factors=[
                     {"factor": "Enforcement trend", "impact": enforcement_trend, "weight": 0.3},
                     {"factor": "Tracked requirements", "impact": req_count, "weight": 0.3},
-                    {"factor": "Current compliance gap", "impact": round((1 - current_score) * 100, 1), "weight": 0.4},
+                    {
+                        "factor": "Current compliance gap",
+                        "impact": round((1 - current_score) * 100, 1),
+                        "weight": 0.4,
+                    },
                 ],
                 mitigating_factors=[
-                    {"factor": "Existing compliance program", "impact": "reduces_risk", "weight": 0.2},
+                    {
+                        "factor": "Existing compliance program",
+                        "impact": "reduces_risk",
+                        "weight": 0.2,
+                    },
                     {"factor": "Recent audit completion", "impact": "reduces_risk", "weight": 0.1},
                 ],
                 mitigation_actions=[
@@ -432,7 +448,9 @@ class RegulatoryPredictionEngine:
                     "Schedule compliance audit",
                     "Train staff on recent updates",
                 ],
-                confidence=PredictionConfidence.HIGH if req_count >= 5 else PredictionConfidence.MEDIUM,
+                confidence=PredictionConfidence.HIGH
+                if req_count >= 5
+                else PredictionConfidence.MEDIUM,
             )
             forecasts.append(forecast)
 
@@ -442,7 +460,7 @@ class RegulatoryPredictionEngine:
             horizon_days=time_horizon_days,
         )
         return forecasts
-    
+
     async def assess_impact(
         self,
         regulation: str,
@@ -453,9 +471,11 @@ class RegulatoryPredictionEngine:
         Uses DB requirement counts and org context to compute impact
         scores deterministically.
         """
-        stmt = select(Regulation).options(
-            selectinload(Regulation.requirements)
-        ).filter(Regulation.name.ilike(f"%{regulation}%"))
+        stmt = (
+            select(Regulation)
+            .options(selectinload(Regulation.requirements))
+            .filter(Regulation.name.ilike(f"%{regulation}%"))
+        )
         result = await self.db.execute(stmt)
         reg = result.scalars().first()
 
@@ -502,9 +522,17 @@ class RegulatoryPredictionEngine:
             remediation_steps=[
                 {"step": 1, "description": "Gap assessment", "effort_hours": effort_hours * 0.1},
                 {"step": 2, "description": "Policy updates", "effort_hours": effort_hours * 0.2},
-                {"step": 3, "description": "Technical implementation", "effort_hours": effort_hours * 0.4},
+                {
+                    "step": 3,
+                    "description": "Technical implementation",
+                    "effort_hours": effort_hours * 0.4,
+                },
                 {"step": 4, "description": "Training", "effort_hours": effort_hours * 0.15},
-                {"step": 5, "description": "Audit and validation", "effort_hours": effort_hours * 0.15},
+                {
+                    "step": 5,
+                    "description": "Audit and validation",
+                    "effort_hours": effort_hours * 0.15,
+                },
             ],
         )
 
@@ -514,7 +542,7 @@ class RegulatoryPredictionEngine:
             overall_impact=assessment.overall_impact_score,
         )
         return assessment
-    
+
     async def project_timeline(
         self,
         regulation: str,
@@ -523,7 +551,7 @@ class RegulatoryPredictionEngine:
         milestones: list[dict[str, Any]] | None = None,
     ) -> TimelineProjection:
         """Project compliance timeline."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         days_remaining = (target_date - now).days
 
         if current_progress <= 0:
@@ -578,7 +606,9 @@ class RegulatoryPredictionEngine:
                 "Prioritize critical controls",
                 "Engage external consultants",
                 "Automate manual processes",
-            ] if not on_track else [],
+            ]
+            if not on_track
+            else [],
         )
 
         logger.info(
@@ -589,7 +619,7 @@ class RegulatoryPredictionEngine:
         return projection
 
 
-# Global singleton – requires a DB session at creation time
+# Global singleton - requires a DB session at creation time
 _prediction_engine: RegulatoryPredictionEngine | None = None
 
 

@@ -1,7 +1,6 @@
 """Comment Service - Generate and post inline PR review comments."""
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -11,11 +10,13 @@ import structlog
 
 from app.services.github.client import GitHubClient
 
+
 logger = structlog.get_logger()
 
 
 class CommentSeverity(str, Enum):
     """Severity level for comments."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -26,6 +27,7 @@ class CommentSeverity(str, Enum):
 @dataclass
 class InlineComment:
     """An inline PR review comment."""
+
     id: UUID
     file_path: str
     line: int
@@ -35,7 +37,7 @@ class InlineComment:
     article_reference: str | None = None
     suggestion: str | None = None
     confidence: float = 0.0
-    
+
     def to_github_comment(self) -> dict[str, Any]:
         """Convert to GitHub review comment format."""
         return {
@@ -66,33 +68,33 @@ class CommentService:
         """Create an inline comment from a compliance violation."""
         severity = CommentSeverity(violation.get("severity", "medium"))
         emoji = self.SEVERITY_EMOJI.get(severity, "⚪")
-        
+
         # Build comment body
         body = f"{emoji} **{severity.value.upper()}** - `{violation.get('code', 'COMPLIANCE')}`\n\n"
         body += f"{violation.get('message', 'Compliance issue detected')}\n\n"
-        
+
         if violation.get("regulation"):
             body += f"📋 **Regulation:** {violation.get('regulation')}"
             if violation.get("article_reference"):
                 body += f" ({violation.get('article_reference')})"
             body += "\n\n"
-        
+
         if violation.get("suggestion"):
             body += f"💡 **Suggestion:** {violation.get('suggestion')}\n\n"
-        
+
         # Add code suggestion if available
         if violation.get("fix_suggestion"):
             body += "```suggestion\n"
             body += violation.get("fix_suggestion", "")
             body += "\n```\n\n"
-        
+
         if violation.get("evidence"):
             body += f"<details><summary>Evidence</summary>\n\n```\n{violation.get('evidence')[:500]}\n```\n</details>\n\n"
-        
+
         body += f"<sub>Confidence: {violation.get('confidence', 0.85):.0%} | "
         body += f"Category: {violation.get('category', 'general')} | "
         body += f"[Learn more](https://complianceagent.ai/docs/{violation.get('code', 'general').lower()})</sub>"
-        
+
         return InlineComment(
             id=uuid4(),
             file_path=violation.get("file_path", ""),
@@ -128,7 +130,7 @@ class CommentService:
         """Remove duplicate comments on the same line/file."""
         seen: set[tuple[str, int]] = set()
         unique: list[InlineComment] = []
-        
+
         # Sort by severity (highest first) so we keep the most severe
         severity_order = {
             CommentSeverity.CRITICAL: 4,
@@ -142,13 +144,13 @@ class CommentService:
             key=lambda c: severity_order.get(c.severity, 0),
             reverse=True,
         )
-        
+
         for comment in sorted_comments:
             key = (comment.file_path, comment.line)
             if key not in seen:
                 seen.add(key)
                 unique.append(comment)
-        
+
         return unique
 
     def generate_summary_comment(
@@ -164,7 +166,7 @@ class CommentService:
         high_count = sum(1 for v in violations if v.get("severity") == "high")
         medium_count = sum(1 for v in violations if v.get("severity") == "medium")
         low_count = sum(1 for v in violations if v.get("severity") == "low")
-        
+
         if not violations:
             summary = "## ✅ Compliance Review Passed\n\n"
             summary += f"Analyzed **{files_analyzed}** files • No issues detected\n\n"
@@ -172,34 +174,34 @@ class CommentService:
             summary = "## ⚠️ Compliance Review Summary\n\n"
             summary += f"Analyzed **{files_analyzed}** files\n\n"
             summary += "### Issues Found\n"
-            summary += f"| Severity | Count |\n"
-            summary += f"|----------|-------|\n"
+            summary += "| Severity | Count |\n"
+            summary += "|----------|-------|\n"
             summary += f"| 🔴 Critical | {critical_count} |\n"
             summary += f"| 🟠 High | {high_count} |\n"
             summary += f"| 🟡 Medium | {medium_count} |\n"
             summary += f"| 🔵 Low | {low_count} |\n\n"
-        
+
         # Group by regulation
         if violations:
             by_regulation: dict[str, int] = {}
             for v in violations:
                 reg = v.get("regulation") or "Security"
                 by_regulation[reg] = by_regulation.get(reg, 0) + 1
-            
+
             summary += "### By Regulation\n"
             for reg, count in sorted(by_regulation.items(), key=lambda x: -x[1]):
                 summary += f"- **{reg}**: {count} issues\n"
             summary += "\n"
-        
+
         summary += f"**Regulations checked:** {', '.join(regulations_checked)}\n\n"
-        
+
         # Add action items
         if critical_count > 0 or high_count > 0:
             summary += "### 🚨 Action Required\n"
             summary += "This PR has **critical or high severity** compliance issues that must be resolved before merging.\n\n"
-        
+
         summary += f"<sub>Analysis completed in {analysis_time_ms:.0f}ms by [ComplianceAgent](https://complianceagent.ai)</sub>"
-        
+
         return summary
 
     async def post_review(
@@ -214,7 +216,7 @@ class CommentService:
     ) -> int | None:
         """Post a PR review with inline comments."""
         client = self.github or GitHubClient(access_token=access_token)
-        
+
         async with client:
             # Map recommendation to GitHub event
             event_map = {
@@ -223,21 +225,21 @@ class CommentService:
                 "comment": "COMMENT",
             }
             event = event_map.get(recommendation, "COMMENT")
-            
+
             # Prepare GitHub API payload
             gh_comments = [c.to_github_comment() for c in comments[:50]]  # GitHub limits to 50
-            
+
             payload = {
                 "body": summary,
                 "event": event,
                 "comments": gh_comments,
             }
-            
+
             response = await client._client.post(
                 f"/repos/{owner}/{repo}/pulls/{pr_number}/reviews",
                 json=payload,
             )
-            
+
             if response.status_code in (200, 201):
                 data = response.json()
                 logger.info(
@@ -247,7 +249,7 @@ class CommentService:
                     event=event,
                 )
                 return data.get("id")
-            
+
             logger.error(
                 "Failed to post PR review",
                 status_code=response.status_code,
@@ -266,7 +268,7 @@ class CommentService:
     ) -> int | None:
         """Post a single review comment."""
         client = self.github or GitHubClient(access_token=access_token)
-        
+
         async with client:
             payload = {
                 "body": comment.body,
@@ -274,15 +276,15 @@ class CommentService:
                 "path": comment.file_path,
                 "line": comment.line,
             }
-            
+
             response = await client._client.post(
                 f"/repos/{owner}/{repo}/pulls/{pr_number}/comments",
                 json=payload,
             )
-            
+
             if response.status_code in (200, 201):
                 return response.json().get("id")
-            
+
             logger.error(
                 "Failed to post comment",
                 status_code=response.status_code,
@@ -300,22 +302,22 @@ class CommentService:
         """Update existing bot comment or create new one."""
         client = self.github or GitHubClient(access_token=access_token)
         bot_marker = "<!-- ComplianceAgent Summary -->"
-        
+
         async with client:
             # Find existing comment
             response = await client._client.get(
                 f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
             )
-            
+
             existing_comment_id = None
             if response.status_code == 200:
                 for comment in response.json():
                     if bot_marker in comment.get("body", ""):
                         existing_comment_id = comment["id"]
                         break
-            
+
             comment_body = f"{bot_marker}\n{summary}"
-            
+
             if existing_comment_id:
                 # Update existing
                 response = await client._client.patch(
@@ -328,15 +330,22 @@ class CommentService:
                     f"/repos/{owner}/{repo}/issues/{issue_number}/comments",
                     json={"body": comment_body},
                 )
-            
+
             if response.status_code in (200, 201):
                 return response.json().get("id")
             return None
 
-    async def post_review_comment(self, repo_owner: str, repo_name: str,
-                                   pr_number: int, body: str, commit_id: str,
-                                   path: str, line: int,
-                                   token: str = "") -> dict:
+    async def post_review_comment(
+        self,
+        repo_owner: str,
+        repo_name: str,
+        pr_number: int,
+        body: str,
+        commit_id: str,
+        path: str,
+        line: int,
+        token: str = "",
+    ) -> dict:
         """Post an inline review comment on a PR."""
         url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/pulls/{pr_number}/comments"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github+json"}
