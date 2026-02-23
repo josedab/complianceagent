@@ -1,12 +1,40 @@
 # Backend Service Implementation Status
 
-> Last updated: 2026-02-20
+> Last updated: 2026-02-21
 > This document tracks the implementation status of all service modules.
 
 ## Summary
-- ✅ Implemented: 75 services
-- 🔨 Stub (synthetic data): 29 services
-- 📋 Planned: 4 services
+- ✅ Implemented (DB-backed): 85 core services
+- 🔨 Stub (deterministic data): 29 core services
+- 📋 Planned: 4 core services
+- 🆕 v2 Platform: 10 services
+- 🚀 v3 (MCP & Multi-SCM): 10 services — in-memory
+- 🚀 v4 (Intelligence & Prediction): 10 services — in-memory
+- 🚀 v5 (Autonomous & Policy DSL): 10 services — in-memory
+- 🚀 v6 (Marketplace & Testing): 10 services — in-memory
+- 🚀 v7 (Federation & PIA): 10 services — in-memory
+- 🚀 v8 (Trust Network & ESG): 10 services — in-memory
+- 🚀 v9 (Telemetry & Plugins): 10 services — in-memory
+- **Total: 195 service directories**
+
+> **Note:** v3–v9 services use in-memory state for rapid prototyping.
+> Production deployment requires migrating critical services to DB persistence.
+> See the "Migration Priority" section below.
+
+## New v2 Platform Services
+
+| Service | Status | LOC | Description |
+|---------|--------|-----|-------------|
+| auto_healing | ✅ Implemented | 204 | Auto-healing compliance pipeline with event-driven triggers, fix generation, approval chains |
+| realtime_posture | ✅ Implemented | 136 | Real-time compliance posture streaming with alert rules and event recording |
+| cross_repo_graph | ✅ Implemented | 212 | Cross-repository compliance graph with dependency tracking and hotspot detection |
+| cost_engine | ✅ Implemented | 136 | Compliance cost attribution with team/framework breakdown, ROI, and forecasting |
+| reg_simulator | ✅ Implemented | 189 | Regulatory change simulator with 5 built-in scenarios and preparation roadmaps |
+| cert_autopilot | ✅ Implemented | 333 | Certification autopilot for SOC 2/ISO 27001 with gap analysis and phase tracking |
+| iac_policy (extended) | ✅ Implemented | 729 | Multi-cloud IaC policy engine with 209 rules across AWS/Azure/GCP/K8s |
+| compliance_network | ✅ Implemented | 284 | Open compliance data network with benchmarks, threats, and industry matching |
+| ide_agent/semantic | ✅ Implemented | 349 | IDE semantic analysis with regulation tooltips, file posture scoring, compliance panel |
+| compliance_training/learning | ✅ Implemented | 393 | Compliance learning paths with quizzes, team progress, personalized content |
 
 ## Services
 
@@ -120,3 +148,125 @@
 | vendor_assessment | ✅ Implemented | 962 | Vendor compliance assessment, DB |
 | vendor_risk | 🔨 Stub (synthetic data) | 1055 | In-memory dependency scanning, no real lookups |
 | zero_trust_scanner | 🔨 Stub (synthetic data) | 418 | `import random`; synthetic scan findings |
+
+## v3 Services (MCP & Multi-SCM)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| mcp_server | 🚀 In-memory | MCP protocol server with 7 compliance tools for LLM agents |
+| github_app | 🚀 In-memory | GitHub App installation, webhook handling, marketplace plans |
+| reg_change_stream | 🚀 In-memory | Real-time regulatory change streaming with subscriber management |
+| compliance_sdk | 🚀 In-memory | SDK package management, API key generation, usage tracking |
+| compliance_copilot | 🚀 In-memory | AI compliance co-pilot with codebase analysis and fix proposals |
+| auto_remediation | 🚀 In-memory | Auto-detect regressions, generate fix PRs, approval pipelines |
+| multi_scm | 🚀 In-memory | Unified GitHub/GitLab/Bitbucket/Azure DevOps abstraction |
+| compliance_badge | 🚀 In-memory | SVG badge generation, public scorecards, embed snippets |
+| regulation_diff_viz | 🚀 In-memory | Side-by-side regulation version diffs with impact analysis |
+| compliance_export | 🚀 In-memory | CSV/JSON/Parquet export with BI connector integration |
+
+## v4 Services (Intelligence & Prediction)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| agents_marketplace | 🚀 In-memory | Third-party compliance agent marketplace with 5 seed agents |
+| saas_onboarding | 🚀 In-memory | Zero-config SaaS tenant provisioning and onboarding flow |
+| code_review_agent | 🚀 In-memory | PR diff analysis with compliance risk classification |
+| reg_prediction | 🚀 In-memory | ML-based regulatory prediction with 5 seed predictions |
+| compliance_observability | 🚀 In-memory | OTel-native compliance metrics pipeline |
+| nl_compliance_query | 🚀 In-memory | Natural language compliance query with intent classification |
+| twin_simulation | 🚀 In-memory | What-if compliance simulation for code/vendor changes |
+| cross_org_benchmark | 🚀 In-memory | Anonymous cross-org benchmarking with differential privacy |
+| evidence_generation | 🚀 In-memory | Automated SOC 2/ISO 27001 evidence (80%+ coverage) |
+| cost_benefit_analyzer | 🚀 In-memory | ROI quantification per compliance investment |
+
+## v5 Services (Autonomous & Policy DSL)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| knowledge_fabric | 🚀 In-memory | Unified RAG search across all compliance data |
+| self_healing_mesh | 🚀 In-memory | Event-driven auto-detect→fix→test→PR→merge pipeline |
+| ide_extension | 🚀 In-memory | Full IDE extension backend with diagnostics and quick fixes |
+| compliance_data_lake | 🚀 In-memory | Centralized time-series store for compliance events |
+| policy_dsl | 🚀 In-memory | Policy DSL compiler — Rego, Python, YAML, TypeScript output |
+| realtime_feed | 🚀 In-memory | Real-time regulatory feed with Slack/Teams cards |
+| compliance_gnn | 🚀 In-memory | GNN-based violation prediction from graph relationships |
+| cert_pipeline | 🚀 In-memory | End-to-end SOC 2/ISO 27001 certification pipeline |
+| api_gateway | 🚀 In-memory | OAuth2 API gateway with 4-tier rate limiting |
+| workflow_automation | 🚀 In-memory | Trigger→condition→action workflow engine with templates |
+
+## v6 Services (Marketplace & Testing)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| gh_marketplace_app | 🚀 In-memory | Production GitHub Marketplace App with check runs |
+| compliance_streaming | 🚀 In-memory | WebSocket/SSE compliance event streaming (7 channels) |
+| client_sdk | 🚀 In-memory | Auto-generated Python/TypeScript/Go client SDKs |
+| multi_llm_parser | 🚀 In-memory | Multi-LLM consensus parsing (Copilot/OpenAI/Anthropic) |
+| compliance_testing | 🚀 In-memory | Policy testing framework with property-based fuzzing |
+| arch_advisor | 🚀 In-memory | Generate architecture diagrams from regulatory requirements |
+| incident_war_room | 🚀 In-memory | Incident response with 72h GDPR deadline tracking |
+| compliance_debt | 🚀 In-memory | Compliance tech debt tracking with ROI prioritization |
+| draft_reg_simulator | 🚀 In-memory | Draft regulation impact simulation |
+| gamification_engine | 🚀 In-memory | Points, badges, leaderboards for compliance activities |
+
+## v7 Services (Federation & PIA)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| data_mesh_federation | 🚀 In-memory | Federated compliance data sharing with zero-knowledge proofs |
+| agent_swarm | 🚀 In-memory | Multi-agent swarm (scanner/fixer/reviewer/reporter/coordinator) |
+| compliance_editor | 🚀 In-memory | Web-based Monaco editor backend with compliance diagnostics |
+| graph_explorer | 🚀 In-memory | Interactive 3D knowledge graph visualization |
+| pipeline_builder | 🚀 In-memory | Visual CI/CD pipeline builder (generates YAML configs) |
+| pia_generator | 🚀 In-memory | GDPR Article 35 Privacy Impact Assessment generator |
+| contract_analyzer | 🚀 In-memory | Vendor contract/DPA obligation extraction and gap analysis |
+| mobile_backend | 🚀 In-memory | Mobile app backend with push notifications |
+| marketplace_revenue | 🚀 In-memory | Marketplace monetization with revenue share and payouts |
+| localization_engine | 🚀 In-memory | Multi-language support (7 languages, 22 translation keys) |
+
+## v8 Services (Trust Network & ESG)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| autonomous_os | 🚀 In-memory | Autonomous orchestration coordinating all services |
+| trust_network | 🚀 In-memory | Merkle-tree compliance attestations with verification |
+| compliance_api_standard | 🚀 In-memory | Universal compliance API specification (12+ endpoints) |
+| digital_marketplace | 🚀 In-memory | B2B marketplace for compliance assets (policies/templates) |
+| regulatory_simulation | 🚀 In-memory | Monte Carlo regulatory outcome simulation |
+| legal_copilot | 🚀 In-memory | AI assistant for DPA drafting, legal memos, clause review |
+| regulatory_intel_feed | 🚀 In-memory | Curated regulatory news with AI analysis summaries |
+| white_label_platform | 🚀 In-memory | White-label platform for compliance consulting firms |
+| cross_cloud_mesh | 🚀 In-memory | Unified compliance across AWS/Azure/GCP |
+| esg_sustainability | 🚀 In-memory | ESG/CSRD/TCFD sustainability with carbon tracking |
+
+## v9 Services (Telemetry & Plugins)
+
+| Service | Status | Description |
+|---------|--------|-------------|
+| telemetry_mesh | 🚀 In-memory | Distributed telemetry with SLOs and anomaly detection |
+| knowledge_assistant | 🚀 In-memory | Conversational compliance AI with citations |
+| digital_passport | 🚀 In-memory | Portable compliance credentials with crypto verification |
+| scenario_planner | 🚀 In-memory | Strategic planning: "What compliance for EU expansion?" |
+| regulatory_filing | 🚀 In-memory | Automated regulatory filing generation and submission |
+| cicd_runtime | 🚀 In-memory | Runtime compliance checks during deployment with rollback |
+| multi_org_orchestrator | 🚀 In-memory | Multi-subsidiary compliance with policy inheritance |
+| training_simulator | 🚀 In-memory | Interactive breach/incident training scenarios |
+| harmonization_engine | 🚀 In-memory | Cross-framework requirement overlap and deduplication |
+| plugin_ecosystem | 🚀 In-memory | Plugin architecture for third-party extensions |
+
+## Migration Priority
+
+Services that should be migrated from in-memory to DB persistence first:
+
+| Priority | Service | Reason |
+|----------|---------|--------|
+| 🔴 Critical | evidence_generation | Audit evidence must persist |
+| 🔴 Critical | cert_pipeline | Certification progress is long-running |
+| 🔴 Critical | auto_remediation | Pipeline state must survive restarts |
+| 🟠 High | compliance_copilot | Violation history enables learning |
+| 🟠 High | agents_marketplace | Agent catalog and installs are persistent |
+| 🟠 High | trust_network | Attestations are permanent records |
+| 🟡 Medium | compliance_debt | Debt tracking is longitudinal |
+| �� Medium | gamification_engine | User progress must persist |
+| 🟢 Low | mcp_server | Tool executions are ephemeral |
+| 🟢 Low | compliance_streaming | Events are transient by design |
