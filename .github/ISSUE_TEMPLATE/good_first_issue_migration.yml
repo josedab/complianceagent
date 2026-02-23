@@ -1,0 +1,44 @@
+name: "🟢 Good First Issue: Service Migration"
+description: Convert a stub service from in-memory to database persistence
+title: "[good first issue] Migrate `{service_name}` to DB persistence"
+labels: ["good first issue", "help wanted", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎯 Goal
+        Convert a stub service from in-memory dict-based storage to real SQLAlchemy database persistence.
+        
+        ## 📋 Background
+        Many services in ComplianceAgent currently use `self._dict` in-memory storage for rapid prototyping.
+        This makes them lose data on restart. We need to migrate critical services to use the database.
+        
+        ## ✅ What needs to be done
+        
+        1. Create SQLAlchemy ORM model(s) in `backend/app/models/{service_name}.py`
+        2. Create an Alembic migration in `backend/alembic/versions/`
+        3. Update the service to use `self.db.execute(select(...))` instead of `self._dict`
+        4. Update existing tests to verify data persists
+        5. Add a simple integration test
+        
+        ## 🔍 Where to look
+        
+        - Service code: `backend/app/services/{service_name}/service.py`
+        - Existing DB-backed example: `backend/app/services/audit/service.py`
+        - ORM models example: `backend/app/models/audit.py`
+        - Database config: `backend/app/core/database.py`
+        
+        ## 💡 Tips
+        
+        - The existing `drift_detection` service is a good pattern to follow
+        - Use `AsyncSession` for all database operations
+        - Run `ruff check` and `python -m pytest` before submitting
+
+  - type: input
+    id: service_name
+    attributes:
+      label: Service to migrate
+      description: Which service should be migrated?
+      placeholder: "e.g., evidence_generation"
+    validations:
+      required: true

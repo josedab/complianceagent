@@ -1,0 +1,82 @@
+# ComplianceAgent — Quick Start Docker Compose
+#
+# Start everything with: docker compose -f docker-compose.quickstart.yml up
+# Access: Frontend http://localhost:3000, API http://localhost:8000, Docs http://localhost:8000/docs
+#
+# This is a minimal, verified configuration for evaluation and development.
+# For production, see docker-compose.prod.yml
+
+services:
+  # ── Infrastructure ──────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: complianceagent
+      POSTGRES_PASSWORD: complianceagent
+      POSTGRES_DB: complianceagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U complianceagent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Application ─────────────────────────────────────────────────────────
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: complianceagent
+      POSTGRES_PASSWORD: complianceagent
+      POSTGRES_DB: complianceagent
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      SECRET_KEY: quickstart-dev-secret-change-in-production
+      ENABLE_EXPERIMENTAL: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/status/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pg_data:

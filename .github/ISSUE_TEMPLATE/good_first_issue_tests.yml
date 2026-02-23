@@ -1,0 +1,51 @@
+name: "🟢 Good First Issue: Add Tests"
+description: Add unit tests for a service that needs better coverage
+title: "[good first issue] Add tests for `{service_name}`"
+labels: ["good first issue", "help wanted", "testing"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎯 Goal
+        Add comprehensive unit tests for a service to improve test coverage.
+        
+        ## ✅ What needs to be done
+        
+        1. Create test file at `backend/tests/services/test_{service_name}.py`
+        2. Write test fixtures using `@pytest_asyncio.fixture` with `db_session`
+        3. Cover: happy path, edge cases, error conditions
+        4. Follow the pattern in `backend/tests/services/test_nextgen_v3.py`
+        
+        ## 🔍 Pattern to follow
+        
+        ```python
+        import pytest
+        import pytest_asyncio
+        from sqlalchemy.ext.asyncio import AsyncSession
+        
+        from app.services.{service_name}.service import ServiceClass
+        
+        @pytest_asyncio.fixture
+        async def service(db_session: AsyncSession):
+            return ServiceClass(db=db_session)
+        
+        class TestFeature:
+            @pytest.mark.asyncio
+            async def test_something(self, service):
+                result = await service.some_method(...)
+                assert result is not None
+        ```
+        
+        ## 💡 Tips
+        
+        - Run tests: `cd backend && python -m pytest tests/services/test_{service_name}.py -v`
+        - Check lint: `ruff check tests/services/test_{service_name}.py`
+
+  - type: input
+    id: service_name
+    attributes:
+      label: Service to test
+      description: Which service needs tests?
+      placeholder: "e.g., compliance_sandbox"
+    validations:
+      required: true
