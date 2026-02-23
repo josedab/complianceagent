@@ -2,7 +2,7 @@
 # Run `make help` to see available commands
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev dev-down run-backend run-frontend run-workers test test-backend test-frontend lint lint-backend lint-frontend format type-check migrate migrate-new build up down logs clean pre-commit docker-build docker-push seed status check doctor check-all monitoring-up monitoring-down monitoring-logs
+.PHONY: help setup install dev dev-down run-backend run-frontend run-workers test test-backend test-frontend lint lint-backend lint-frontend format type-check migrate migrate-new build up down logs clean pre-commit docker-build docker-push seed status check doctor check-all monitoring-up monitoring-down monitoring-logs
 
 # Colors for terminal output
 BLUE := \033[36m
@@ -16,6 +16,15 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*##"; printf "\n$(BLUE)Usage:$(RESET)\n  make $(GREEN)<target>$(RESET)\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2 } /^##@/ { printf "\n$(YELLOW)%s$(RESET)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Development Setup
+
+setup: ## Full first-time setup (env, deps, hooks, infra, migrations)
+	@echo "$(BLUE)Running full first-time setup...$(RESET)"
+	bash scripts/setup.sh
+	@echo "$(BLUE)Installing pre-commit hooks...$(RESET)"
+	pip install pre-commit
+	pre-commit install
+	pre-commit install --hook-type commit-msg
+	@echo "$(GREEN)✓ Full setup complete — run 'make run-backend' and 'make run-frontend' to start$(RESET)"
 
 install: ## Install all dependencies (backend + frontend)
 	@echo "$(BLUE)Installing backend dependencies...$(RESET)"
