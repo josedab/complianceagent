@@ -177,10 +177,7 @@ async def _update_scores_async():
         for repo in repositories:
             # Count mappings by status
             mapping_result = await db.execute(
-                select(
-                    CodebaseMapping.compliance_status,
-                    func.count(CodebaseMapping.id)
-                )
+                select(CodebaseMapping.compliance_status, func.count(CodebaseMapping.id))
                 .where(CodebaseMapping.repository_id == repo.id)
                 .group_by(CodebaseMapping.compliance_status)
             )
@@ -216,9 +213,7 @@ async def _cleanup_async():
 
     async with get_db_context() as db:
         # Note: In production, you'd archive before deleting
-        result = await db.execute(
-            delete(AuditTrail).where(AuditTrail.created_at < cutoff_date)
-        )
+        result = await db.execute(delete(AuditTrail).where(AuditTrail.created_at < cutoff_date))
         logger.info(f"Cleaned up {result.rowcount} old audit entries")
         await db.commit()
 
@@ -293,10 +288,7 @@ async def _create_pr_async(action_id: str, organization_id: str):
             )
 
             # Add labels
-            await github.add_labels_to_pr(
-                owner, repo, pr.number,
-                ["compliance", "auto-generated"]
-            )
+            await github.add_labels_to_pr(owner, repo, pr.number, ["compliance", "auto-generated"])
 
             # Update action
             action.pr_url = pr.html_url

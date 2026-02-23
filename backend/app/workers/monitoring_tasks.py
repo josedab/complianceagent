@@ -145,9 +145,7 @@ async def _process_change_async(source_id: str, change_data: dict):
         for org in organizations:
             # Get customer profiles
             profile_result = await db.execute(
-                select(CustomerProfile).where(
-                    CustomerProfile.organization_id == org.id
-                )
+                select(CustomerProfile).where(CustomerProfile.organization_id == org.id)
             )
             profiles = list(profile_result.scalars().all())
 
@@ -168,9 +166,7 @@ async def _process_change_async(source_id: str, change_data: dict):
 @celery_app.task(name="app.workers.monitoring_tasks.analyze_regulation_for_org")
 def analyze_regulation_for_org(regulation_id: str, organization_id: str, profile_id: str):
     """Analyze a regulation for a specific organization."""
-    logger.info(
-        f"Analyzing regulation {regulation_id} for org {organization_id}"
-    )
+    logger.info(f"Analyzing regulation {regulation_id} for org {organization_id}")
     asyncio.run(_analyze_for_org_async(regulation_id, organization_id, profile_id))
 
 
@@ -225,9 +221,7 @@ async def _analyze_for_org_async(regulation_id: str, organization_id: str, profi
             from app.models.requirement import Requirement
 
             req_result = await db.execute(
-                select(Requirement).where(
-                    Requirement.regulation_id == regulation.id
-                )
+                select(Requirement).where(Requirement.regulation_id == regulation.id)
             )
             requirements = list(req_result.scalars().all())
 

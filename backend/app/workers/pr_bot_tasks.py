@@ -8,6 +8,7 @@ import structlog
 from app.core.database import get_db_context
 from app.workers import celery_app
 
+
 logger = structlog.get_logger()
 
 
@@ -24,7 +25,7 @@ def analyze_pr(
     organization_id: str | None = None,
 ):
     """Analyze a PR for compliance issues.
-    
+
     Args:
         task_data: PRAnalysisTask data as dictionary
         access_token: GitHub access token
@@ -35,16 +36,14 @@ def analyze_pr(
         task_data=task_data,
         celery_task_id=self.request.id,
     )
-    
+
     try:
-        result = asyncio.run(
-            _analyze_pr_async(task_data, access_token, organization_id)
-        )
+        result = asyncio.run(_analyze_pr_async(task_data, access_token, organization_id))
         return result
     except Exception as e:
         logger.exception("PR analysis failed", error=str(e))
         # Retry with exponential backoff
-        raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=e, countdown=60 * (2**self.request.retries)) from e
 
 
 async def _analyze_pr_async(
@@ -55,21 +54,22 @@ async def _analyze_pr_async(
     """Async implementation of PR analysis."""
     from app.services.pr_bot import PRBot, PRBotConfig
     from app.services.pr_bot.queue import PRAnalysisTask
-    
+
     task = PRAnalysisTask.from_dict(task_data)
-    
+
     # Load organization-specific config if available
     config = PRBotConfig()
     if organization_id:
         async with get_db_context() as db:
             from sqlalchemy import select
+
             from app.models.organization import Organization
-            
+
             result = await db.execute(
                 select(Organization).where(Organization.id == UUID(organization_id))
             )
             org = result.scalar_one_or_none()
-            
+
             if org and org.settings:
                 # Override config from organization settings
                 settings = org.settings
@@ -79,43 +79,36 @@ async def _analyze_pr_async(
                 config.block_on_critical = settings.get(
                     "block_on_critical", config.block_on_critical
                 )
-                config.block_on_high = settings.get(
-                    "block_on_high", config.block_on_high
-                )
-                config.deep_analysis = settings.get(
-                    "deep_analysis", config.deep_analysis
-                )
-    
+                config.block_on_high = settings.get("block_on_high", config.block_on_high)
+                config.deep_analysis = settings.get("deep_analysis", config.deep_analysis)
+
     # Initialize bot and process
     bot = PRBot(config=config)
     result = await bot.process_task(task, access_token)
-    
+
     # Store result in database
     if organization_id:
         await _store_analysis_result(result, organization_id)
-    
+
     return result.to_dict()
 
 
 async def _store_analysis_result(result, organization_id: str) -> None:
     """Store analysis result in database for tracking."""
-    from datetime import UTC, datetime
     from sqlalchemy import select
-    
+
     from app.models.audit import AuditEventType
     from app.services.audit.service import AuditService
-    
+
     async with get_db_context() as db:
         # Find repository
         from app.models.codebase import Repository
-        
+
         repo_result = await db.execute(
-            select(Repository).where(
-                Repository.full_name == f"{result.owner}/{result.repo}"
-            )
+            select(Repository).where(Repository.full_name == f"{result.owner}/{result.repo}")
         )
         repo = repo_result.scalar_one_or_none()
-        
+
         # Log audit event
         audit_service = AuditService(db)
         await audit_service.log_event(
@@ -140,7 +133,7 @@ async def _store_analysis_result(result, organization_id: str) -> None:
             },
             actor_type="system",
         )
-        
+
         await db.commit()
 
 
@@ -152,7 +145,7 @@ def process_pr_webhook(
     access_token: str,
 ):
     """Process a GitHub webhook event for PR analysis.
-    
+
     Args:
         event_type: GitHub event type (pull_request, etc.)
         event_data: Webhook payload
@@ -162,16 +155,14 @@ def process_pr_webhook(
     if event_type != "pull_request":
         logger.info(f"Ignoring non-PR event: {event_type}")
         return {"status": "ignored", "reason": f"Event type {event_type} not handled"}
-    
+
     action = event_data.get("action")
     if action not in ("opened", "synchronize", "reopened"):
         logger.info(f"Ignoring PR action: {action}")
         return {"status": "ignored", "reason": f"Action {action} not handled"}
-    
+
     # Create task and queue for processing
-    return asyncio.run(
-        _process_webhook_async(event_data, organization_id, access_token)
-    )
+    return asyncio.run(_process_webhook_async(event_data, organization_id, access_token))
 
 
 async def _process_webhook_async(
@@ -181,19 +172,17 @@ async def _process_webhook_async(
 ) -> dict:
     """Async implementation of webhook processing."""
     from app.services.pr_bot import PRBot, PRBotConfig
-    
+
     bot = PRBot(config=PRBotConfig())
-    task = await bot.handle_pr_event(
-        event_data, access_token, UUID(organization_id)
-    )
-    
+    task = await bot.handle_pr_event(event_data, access_token, UUID(organization_id))
+
     # Queue the analysis task
     analyze_pr.delay(
         task_data=task.to_dict(),
         access_token=access_token,
         organization_id=organization_id,
     )
-    
+
     return {
         "status": "queued",
         "task_id": str(task.id),
@@ -211,9 +200,7 @@ def reanalyze_pr(
     organization_id: str | None = None,
 ):
     """Re-analyze an existing PR (e.g., after config change or fix applied)."""
-    return asyncio.run(
-        _reanalyze_pr_async(owner, repo, pr_number, access_token, organization_id)
-    )
+    return asyncio.run(_reanalyze_pr_async(owner, repo, pr_number, access_token, organization_id))
 
 
 async def _reanalyze_pr_async(
@@ -227,11 +214,11 @@ async def _reanalyze_pr_async(
     from app.services.github.client import GitHubClient
     from app.services.pr_bot import PRBot, PRBotConfig
     from app.services.pr_bot.queue import PRAnalysisTask, PRTaskPriority
-    
+
     # Get current PR info
     async with GitHubClient(access_token=access_token) as client:
         pr = await client.get_pull_request(owner, repo, pr_number)
-    
+
     task = PRAnalysisTask(
         owner=owner,
         repo=repo,
@@ -240,10 +227,10 @@ async def _reanalyze_pr_async(
         organization_id=UUID(organization_id) if organization_id else None,
         priority=PRTaskPriority.HIGH,  # Re-analysis gets higher priority
     )
-    
+
     bot = PRBot(config=PRBotConfig())
     result = await bot.process_task(task, access_token)
-    
+
     return result.to_dict()
 
 
@@ -272,15 +259,15 @@ async def _create_fix_pr_async(
 ) -> dict:
     """Async implementation of fix PR creation."""
     from app.services.pr_bot import PRBot, PRBotConfig
-    
+
     bot = PRBot(config=PRBotConfig())
     result = await bot.create_fix_pr(owner, repo, pr_number, fixes, access_token)
-    
+
     # Log audit event
     if organization_id and result.get("pr_number"):
         from app.models.audit import AuditEventType
         from app.services.audit.service import AuditService
-        
+
         async with get_db_context() as db:
             audit_service = AuditService(db)
             await audit_service.log_event(
@@ -295,7 +282,7 @@ async def _create_fix_pr_async(
                 actor_type="system",
             )
             await db.commit()
-    
+
     return result
 
 
@@ -319,18 +306,22 @@ def batch_analyze_prs(
                 access_token=access_token,
                 organization_id=organization_id,
             )
-            results.append({
-                "pr": f"{pr_info['owner']}/{pr_info['repo']}#{pr_info['pr_number']}",
-                "task_id": result.id,
-                "status": "queued",
-            })
+            results.append(
+                {
+                    "pr": f"{pr_info['owner']}/{pr_info['repo']}#{pr_info['pr_number']}",
+                    "task_id": result.id,
+                    "status": "queued",
+                }
+            )
         except Exception as e:
-            results.append({
-                "pr": f"{pr_info['owner']}/{pr_info['repo']}#{pr_info['pr_number']}",
-                "status": "failed",
-                "error": str(e),
-            })
-    
+            results.append(
+                {
+                    "pr": f"{pr_info['owner']}/{pr_info['repo']}#{pr_info['pr_number']}",
+                    "status": "failed",
+                    "error": str(e),
+                }
+            )
+
     return {
         "total": len(pr_list),
         "queued": sum(1 for r in results if r["status"] == "queued"),

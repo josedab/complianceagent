@@ -1,7 +1,7 @@
 """Background tasks for Pattern Marketplace service."""
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
@@ -56,7 +56,7 @@ async def _update_pattern_metrics_async(pattern_id: str):
         active_result = await db.execute(
             select(func.count(PatternInstallation.id)).where(
                 PatternInstallation.pattern_id == UUID(pattern_id),
-                PatternInstallation.enabled == True,
+                PatternInstallation.enabled,
             )
         )
         pattern.active_users = active_result.scalar() or 0
@@ -132,7 +132,7 @@ async def _process_publisher_payout_async(organization_id: str):
         purchases_result = await db.execute(
             select(PatternPurchase).where(
                 PatternPurchase.pattern_id.in_(pattern_ids),
-                PatternPurchase.refunded == False,
+                not PatternPurchase.refunded,
             )
         )
         purchases = list(purchases_result.scalars().all())
@@ -169,7 +169,6 @@ async def _check_pattern_updates_async(organization_id: str):
     from sqlalchemy.orm import selectinload
 
     from app.models.pattern_marketplace import (
-        CompliancePattern,
         PatternInstallation,
     )
 
@@ -180,8 +179,8 @@ async def _check_pattern_updates_async(organization_id: str):
             .options(selectinload(PatternInstallation.pattern))
             .where(
                 PatternInstallation.organization_id == UUID(organization_id),
-                PatternInstallation.auto_update == True,
-                PatternInstallation.enabled == True,
+                PatternInstallation.auto_update,
+                PatternInstallation.enabled,
             )
         )
         installations = list(result.scalars().all())
@@ -190,12 +189,14 @@ async def _check_pattern_updates_async(organization_id: str):
         for installation in installations:
             pattern = installation.pattern
             if pattern and installation.installed_version != pattern.current_version:
-                updates_available.append({
-                    "pattern_id": str(pattern.id),
-                    "pattern_name": pattern.name,
-                    "installed_version": installation.installed_version,
-                    "latest_version": pattern.current_version,
-                })
+                updates_available.append(
+                    {
+                        "pattern_id": str(pattern.id),
+                        "pattern_name": pattern.name,
+                        "installed_version": installation.installed_version,
+                        "latest_version": pattern.current_version,
+                    }
+                )
 
                 # Auto-update if enabled
                 installation.installed_version = pattern.current_version
@@ -218,9 +219,7 @@ def notify_pattern_updates(organization_id: str, updates: list[dict]):
 
     Called by check_pattern_updates when updates are available.
     """
-    logger.info(
-        f"Notifying organization {organization_id} of {len(updates)} pattern updates"
-    )
+    logger.info(f"Notifying organization {organization_id} of {len(updates)} pattern updates")
     # In production, this would send email/webhook notifications
     # For now, just log
     for update in updates:
@@ -269,9 +268,7 @@ async def _update_marketplace_stats_async():
 
         # Total revenue
         revenue_sum = await db.execute(
-            select(func.sum(PatternPurchase.price_paid)).where(
-                PatternPurchase.refunded == False
-            )
+            select(func.sum(PatternPurchase.price_paid)).where(not PatternPurchase.refunded)
         )
         total_revenue = revenue_sum.scalar() or 0
 
@@ -336,7 +333,7 @@ async def _cleanup_expired_installations_async():
         expired_result = await db.execute(
             select(PatternPurchase).where(
                 PatternPurchase.expires_at < now,
-                PatternPurchase.refunded == False,
+                not PatternPurchase.refunded,
             )
         )
         expired_purchases = list(expired_result.scalars().all())

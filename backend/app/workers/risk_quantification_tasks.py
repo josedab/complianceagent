@@ -29,14 +29,12 @@ async def _calculate_repository_risk_async(repository_id: str, organization_id: 
     from sqlalchemy import select
 
     from app.models.codebase import Repository
-    from app.models.risk_quantification import RepositoryRiskProfile, ViolationRisk
+    from app.models.risk_quantification import RepositoryRiskProfile
     from app.services.risk_quantification import get_risk_quantification_service
 
     async with get_db_context() as db:
         # Get repository
-        result = await db.execute(
-            select(Repository).where(Repository.id == UUID(repository_id))
-        )
+        result = await db.execute(select(Repository).where(Repository.id == UUID(repository_id)))
         repository = result.scalar_one_or_none()
 
         if not repository:
@@ -124,7 +122,7 @@ def generate_org_risk_snapshot(organization_id: str):
 
 async def _generate_org_risk_snapshot_async(organization_id: str):
     """Async implementation of org risk snapshot generation."""
-    from sqlalchemy import func, select
+    from sqlalchemy import select
 
     from app.models.organization import Organization
     from app.models.risk_quantification import (
@@ -164,9 +162,7 @@ async def _generate_org_risk_snapshot_async(organization_id: str):
                 exposure_by_regulation[reg] = exposure_by_regulation.get(reg, 0) + amount
 
         # Aggregate by repository
-        exposure_by_repository = {
-            p.repository_name: p.total_expected_exposure for p in profiles
-        }
+        exposure_by_repository = {p.repository_name: p.total_expected_exposure for p in profiles}
 
         # Calculate overall risk score
         if profiles:
@@ -241,9 +237,7 @@ def generate_executive_report(
     Creates a comprehensive report with analysis, findings,
     and recommendations.
     """
-    logger.info(
-        f"Generating {report_type} executive report for organization: {organization_id}"
-    )
+    logger.info(f"Generating {report_type} executive report for organization: {organization_id}")
     asyncio.run(_generate_executive_report_async(organization_id, report_type, user_id))
 
 
@@ -319,14 +313,12 @@ async def _update_all_risk_scores_async():
     """Async implementation of bulk risk score updates."""
     from sqlalchemy import select
 
-    from app.models.organization import Organization
     from app.models.codebase import Repository
+    from app.models.organization import Organization
 
     async with get_db_context() as db:
         # Get all active organizations
-        result = await db.execute(
-            select(Organization).where(Organization.is_active == True)
-        )
+        result = await db.execute(select(Organization).where(Organization.is_active))
         organizations = list(result.scalars().all())
 
         for org in organizations:
@@ -334,7 +326,7 @@ async def _update_all_risk_scores_async():
             repos_result = await db.execute(
                 select(Repository).where(
                     Repository.organization_id == org.id,
-                    Repository.is_active == True,
+                    Repository.is_active,
                 )
             )
             repositories = list(repos_result.scalars().all())

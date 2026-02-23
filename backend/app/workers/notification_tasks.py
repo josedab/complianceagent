@@ -77,9 +77,9 @@ async def _notify_change_async(organization_id: str, regulation_data: dict[str, 
                     body=f"""
 A new regulatory change has been detected that may affect your compliance status.
 
-Regulation: {regulation_data.get('name')}
-Jurisdiction: {regulation_data.get('jurisdiction')}
-Framework: {regulation_data.get('framework')}
+Regulation: {regulation_data.get("name")}
+Jurisdiction: {regulation_data.get("jurisdiction")}
+Framework: {regulation_data.get("framework")}
 
 Please review the changes in your ComplianceAgent dashboard.
                     """.strip(),
@@ -123,9 +123,9 @@ async def _notify_gap_async(organization_id: str, gap_data: dict[str, Any]):
                     body=f"""
 A critical compliance gap has been identified in your codebase.
 
-Requirement: {gap_data.get('requirement_title')}
-Repository: {gap_data.get('repository_name')}
-Gap: {gap_data.get('description')}
+Requirement: {gap_data.get("requirement_title")}
+Repository: {gap_data.get("repository_name")}
+Gap: {gap_data.get("description")}
 
 Immediate action is recommended. Review in your ComplianceAgent dashboard.
                     """.strip(),
@@ -170,8 +170,7 @@ async def _send_digest_async():
             avg_score = total_score / len(repos) if repos else 0
 
             total_gaps = sum(
-                (r.gaps_critical or 0) + (r.gaps_major or 0) + (r.gaps_minor or 0)
-                for r in repos
+                (r.gaps_critical or 0) + (r.gaps_major or 0) + (r.gaps_minor or 0) for r in repos
             )
 
             # Get pending actions
@@ -180,10 +179,12 @@ async def _send_digest_async():
                 .select_from(ComplianceAction)
                 .where(
                     ComplianceAction.organization_id == org.id,
-                    ComplianceAction.status.in_([
-                        ComplianceActionStatus.PENDING,
-                        ComplianceActionStatus.AWAITING_REVIEW,
-                    ])
+                    ComplianceAction.status.in_(
+                        [
+                            ComplianceActionStatus.PENDING,
+                            ComplianceActionStatus.AWAITING_REVIEW,
+                        ]
+                    ),
                 )
             )
             pending_actions = action_result.scalar() or 0
@@ -194,7 +195,7 @@ async def _send_digest_async():
                 .options(selectinload(OrganizationMember.user))
                 .where(
                     OrganizationMember.organization_id == org.id,
-                    OrganizationMember.role.in_(["owner", "admin"])
+                    OrganizationMember.role.in_(["owner", "admin"]),
                 )
             )
             members = list(member_result.scalars().all())
@@ -264,7 +265,7 @@ async def _check_deadlines_async():
                     .options(selectinload(OrganizationMember.user))
                     .where(
                         OrganizationMember.organization_id == org_id,
-                        OrganizationMember.role.in_(["owner", "admin"])
+                        OrganizationMember.role.in_(["owner", "admin"]),
                     )
                 )
                 members = list(member_result.scalars().all())

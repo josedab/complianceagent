@@ -25,12 +25,8 @@ def run_full_analysis(
     This is the main background task for code analysis,
     triggered by IDE events like file save or manual request.
     """
-    logger.info(
-        f"Running IDE agent analysis: session={session_id}, org={organization_id}"
-    )
-    asyncio.run(
-        _run_full_analysis_async(session_id, organization_id, repository_id, target_files)
-    )
+    logger.info(f"Running IDE agent analysis: session={session_id}, org={organization_id}")
+    asyncio.run(_run_full_analysis_async(session_id, organization_id, repository_id, target_files))
 
 
 async def _run_full_analysis_async(
@@ -112,9 +108,7 @@ def generate_fixes(
 
     Creates fix suggestions that can be reviewed and applied.
     """
-    logger.info(
-        f"Generating fixes for {len(violation_ids)} violations in session: {session_id}"
-    )
+    logger.info(f"Generating fixes for {len(violation_ids)} violations in session: {session_id}")
     asyncio.run(_generate_fixes_async(session_id, organization_id, violation_ids))
 
 
@@ -216,7 +210,6 @@ async def _apply_approved_fixes_async(
     from app.models.ide_agent import (
         AgentStatus,
         IDEAgentAction,
-        IDEAgentFix,
         IDEAgentSession,
     )
 
@@ -260,15 +253,13 @@ async def _apply_approved_fixes_async(
             action.executed_at = datetime.now(UTC)
             action.result = {
                 "fixes_applied": applied_count,
-                "files_modified": [f for f in action.target_files],
+                "files_modified": list(action.target_files),
             }
 
             # Update session
             if session:
                 session.fixes_applied += applied_count
-                session.pending_approval_count = max(
-                    0, session.pending_approval_count - 1
-                )
+                session.pending_approval_count = max(0, session.pending_approval_count - 1)
 
                 # Check if all actions are complete
                 if session.pending_approval_count == 0:
@@ -315,8 +306,8 @@ async def _create_github_issue_async(
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
-    from app.models.ide_agent import IDEAgentSession, IDEAgentViolation
     from app.models.codebase import Repository
+    from app.models.ide_agent import IDEAgentSession, IDEAgentViolation
 
     async with get_db_context() as db:
         # Get violation
@@ -352,32 +343,6 @@ async def _create_github_issue_async(
             return
 
         # Build issue content
-        issue_title = f"[Compliance] {violation.rule_name} - {violation.regulation}"
-        issue_body = f"""## Compliance Violation Detected
-
-**Rule:** {violation.rule_id} - {violation.rule_name}
-**Regulation:** {violation.regulation}
-**Severity:** {violation.severity}
-**Article Reference:** {violation.article_reference or 'N/A'}
-
-### Location
-- **File:** `{violation.file_path}`
-- **Lines:** {violation.start_line}-{violation.end_line}
-
-### Description
-{violation.message}
-
-### Original Code
-```
-{violation.original_code or 'N/A'}
-```
-
-### Recommended Action
-Please review and address this compliance violation. Consult the relevant regulatory requirements for guidance.
-
----
-*This issue was automatically created by ComplianceAgent IDE.*
-"""
 
         # In production, create issue via GitHub API
         # For now, simulate success
@@ -419,11 +384,13 @@ async def _cleanup_stale_sessions_async():
 
         result = await db.execute(
             select(IDEAgentSession).where(
-                IDEAgentSession.status.in_([
-                    AgentStatus.ANALYZING,
-                    AgentStatus.PLANNING,
-                    AgentStatus.EXECUTING,
-                ]),
+                IDEAgentSession.status.in_(
+                    [
+                        AgentStatus.ANALYZING,
+                        AgentStatus.PLANNING,
+                        AgentStatus.EXECUTING,
+                    ]
+                ),
                 IDEAgentSession.started_at < cutoff,
             )
         )
