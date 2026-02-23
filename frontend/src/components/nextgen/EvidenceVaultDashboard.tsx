@@ -102,6 +102,29 @@ export default function EvidenceVaultDashboard() {
           ))}
         </div>
       </div>
+
+      {/* v2: Multi-Framework Control Mapping */}
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">📋 Control Mapping Engine</h2>
+        <p className="text-sm text-gray-500 mb-4">37+ controls mapped across 4 major frameworks</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[
+            { fw: 'SOC 2', controls: 11, color: 'blue' },
+            { fw: 'ISO 27001', controls: 10, color: 'purple' },
+            { fw: 'HIPAA', controls: 9, color: 'red' },
+            { fw: 'PCI-DSS', controls: 8, color: 'orange' },
+          ].map(f => (
+            <div key={f.fw} className={`p-4 rounded-lg bg-${f.color}-50 border border-${f.color}-200`}>
+              <p className={`text-sm font-medium text-${f.color}-700`}>{f.fw}</p>
+              <p className={`text-3xl font-bold text-${f.color}-900 mt-1`}>{f.controls}</p>
+              <p className={`text-xs text-${f.color}-600`}>controls mapped</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 p-3 rounded-lg bg-gray-50">
+          <p className="text-sm text-gray-700">Readiness grading: <strong>A+</strong> through <strong>F</strong> with gap analysis, remediation hours estimation, and critical gap prioritization.</p>
+        </div>
+      </div>
     </div>
   )
 }

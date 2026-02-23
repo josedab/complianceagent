@@ -208,6 +208,26 @@ export default function MultiLLMDashboard() {
           </div>
         </div>
       )}
+
+      {/* v2: Smart Routing */}
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">🧭 Smart Routing Engine</h2>
+        <p className="text-sm text-gray-500 mb-4">Routes parsing requests to optimal providers based on text complexity</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {[
+            { level: 'Simple', route: 'Cheapest provider', color: 'green', example: 'Short definitions' },
+            { level: 'Moderate', route: 'Most accurate provider', color: 'blue', example: 'Standard articles' },
+            { level: 'Complex', route: 'Consensus of 2+', color: 'orange', example: 'Cross-border rules' },
+            { level: 'Critical', route: 'All providers', color: 'red', example: 'Penalties & sanctions' },
+          ].map(r => (
+            <div key={r.level} className={`p-3 rounded-lg bg-${r.color}-50 border border-${r.color}-200`}>
+              <p className={`text-sm font-bold text-${r.color}-900`}>{r.level}</p>
+              <p className={`text-xs text-${r.color}-700 mt-1`}>{r.route}</p>
+              <p className={`text-xs text-${r.color}-500 mt-2 italic`}>e.g. {r.example}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

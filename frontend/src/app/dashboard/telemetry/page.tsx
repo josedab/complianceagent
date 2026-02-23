@@ -18,7 +18,7 @@ const fallbackSnapshot: TelemetrySnapshot = {
 }
 
 export default function TelemetryPage() {
-  const { data: snapshot, isLoading: snapshotLoading, error: snapshotError } = useTelemetrySnapshot()
+  const { data: snapshot, error: snapshotError } = useTelemetrySnapshot()
   const { data: events } = useTelemetryEvents(20)
   const { data: heatmap } = useHeatmapData('7d')
 

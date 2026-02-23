@@ -572,3 +572,111 @@ export const blockchainAuditApi = {
   listSmartContracts: () =>
     api.get('/blockchain-audit/smart-contracts'),
 }
+
+// ---------------------------------------------------------------------------
+// v2 API Clients — Next-Gen Feature Endpoints
+// ---------------------------------------------------------------------------
+
+export const marketplaceV2Api = {
+  getAppManifest: () =>
+    api.get('/marketplace-app/app-manifest'),
+  verifyWebhook: (data: { payload: string; signature: string }) =>
+    api.post('/marketplace-app/webhook/verify', data),
+}
+
+export const chatV2Api = {
+  diagnoseRag: (query: string) =>
+    api.post('/chat/rag/diagnose', null, { params: { query } }),
+  checkGuardrails: (data: { content: string; add_disclaimer?: boolean }) =>
+    api.post('/chat/guardrails/check', data),
+}
+
+export const digitalTwinV2Api = {
+  recordEvent: (data: { event_type: string; source: string; description: string; auto_snapshot?: boolean }) =>
+    api.post('/digital-twin/live/events', data),
+  listEvents: (params?: { event_type?: string; limit?: number }) =>
+    api.get('/digital-twin/live/events', { params }),
+  timeTravel: (target_time: string) =>
+    api.post('/digital-twin/live/time-travel', { target_time }),
+  getTimeline: (days?: number) =>
+    api.get('/digital-twin/live/timeline', { params: { days } }),
+  blastRadius: (regulation: string, scenario_description?: string) =>
+    api.post('/digital-twin/live/blast-radius', null, { params: { regulation, scenario_description } }),
+}
+
+export const remediationV2Api = {
+  listTemplates: (framework?: string) =>
+    api.get('/remediation/templates', { params: { framework } }),
+  getTemplate: (id: string) =>
+    api.get(`/remediation/templates/${id}`),
+  applyTemplate: (data: { template_id: string; variables?: Record<string, string>; file_path?: string }) =>
+    api.post('/remediation/templates/apply', data),
+  validateTransition: (data: { current_state: string; target_state: string }) =>
+    api.post('/remediation/validate-transition', data),
+}
+
+export const multiLlmV2Api = {
+  smartRoute: (data: { text: string; framework?: string }) =>
+    api.post('/multi-llm/route', data),
+  classifyComplexity: (text: string) =>
+    api.post('/multi-llm/classify-complexity', null, { params: { text } }),
+}
+
+export const evidenceVaultV2Api = {
+  listControls: (framework: string) =>
+    api.get(`/evidence-vault/v2/controls/${framework}`),
+  assessFramework: (data: { framework: string; available_evidence: string[] }) =>
+    api.post('/evidence-vault/v2/assess', data),
+  readinessReport: (params?: { frameworks?: string[]; available_evidence?: string[] }) =>
+    api.post('/evidence-vault/v2/readiness-report', null, { params }),
+}
+
+export const selfHostedV2Api = {
+  generateLicense: (data: { organization: string; tier: string }) =>
+    api.post('/self-hosted/v2/licenses/generate', data),
+  validateLicense: (key: string) =>
+    api.post('/self-hosted/v2/licenses/validate', null, { params: { key } }),
+  listBundles: () =>
+    api.get('/self-hosted/v2/bundles'),
+  createDeployConfig: (data: { mode: string; license_key?: string; llm_backend?: string; bundles?: string[] }) =>
+    api.post('/self-hosted/v2/deploy-config', data),
+  generateHelmValues: (data: { mode: string; llm_backend?: string; bundles?: string[] }) =>
+    api.post('/self-hosted/v2/helm-values', data),
+}
+
+export const industryPacksV2Api = {
+  listStarterPacks: () =>
+    api.get('/industry-packs/v2/starter-packs'),
+  getStarterPack: (id: string) =>
+    api.get(`/industry-packs/v2/starter-packs/${id}`),
+  provision: (data: { pack_id: string }) =>
+    api.post('/industry-packs/v2/provision', data),
+  getOnboardingProgress: (provisionId: string) =>
+    api.get(`/industry-packs/v2/onboarding/${provisionId}`),
+  updateOnboardingStep: (provisionId: string, data: { step_id: string; status: string }) =>
+    api.put(`/industry-packs/v2/onboarding/${provisionId}/steps`, data),
+}
+
+export const predictionsV2Api = {
+  ingestSignal: (data: { source: string; strength: string; jurisdiction: string; framework: string; title: string; description?: string }) =>
+    api.post('/predictions/v2/signals', data),
+  generatePredictions: (params?: { jurisdiction?: string; framework?: string }) =>
+    api.post('/predictions/v2/generate', null, { params }),
+  listPredictions: (params?: { jurisdiction?: string; min_confidence?: number; limit?: number }) =>
+    api.get('/predictions/v2/ml-predictions', { params }),
+  assessImpact: (prediction_id: string, repository: string) =>
+    api.post('/predictions/v2/impact', null, { params: { prediction_id, repository } }),
+  getAccuracy: () =>
+    api.get('/predictions/v2/accuracy'),
+}
+
+export const federatedIntelV2Api = {
+  anonymizePatterns: (data: { patterns: Record<string, unknown>[]; privacy_level?: string }) =>
+    api.post('/federated-intel/v2/anonymize', data),
+  findSimilarOrgs: (data: { regulations: string[]; industry: string; size_bucket?: string }) =>
+    api.post('/federated-intel/v2/similar-orgs', data),
+  getPrivacyBudget: () =>
+    api.get('/federated-intel/v2/privacy-budget'),
+  noiseDemo: (params: { true_value: number; epsilon?: number; sensitivity?: number }) =>
+    api.post('/federated-intel/v2/noise-demo', null, { params }),
+}

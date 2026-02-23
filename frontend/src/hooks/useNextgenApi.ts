@@ -794,3 +794,100 @@ export function useBlockchainVerification() {
     []
   )
 }
+
+// ─── v2 Feature Hooks ────────────────────────────────────────
+
+import {
+  marketplaceV2Api,
+  digitalTwinV2Api,
+  remediationV2Api,
+  multiLlmV2Api,
+  evidenceVaultV2Api,
+  selfHostedV2Api,
+  industryPacksV2Api,
+  predictionsV2Api,
+  federatedIntelV2Api,
+} from '@/lib/api'
+
+// Marketplace v2
+export function useAppManifest() {
+  return useApiCall<Record<string, unknown>>(() => marketplaceV2Api.getAppManifest(), [])
+}
+
+// Digital Twin v2 - Live Tracking
+export function useTwinEvents(eventType?: string) {
+  return useApiCall<Record<string, unknown>[]>(
+    () => digitalTwinV2Api.listEvents({ event_type: eventType }),
+    [eventType]
+  )
+}
+
+export function usePostureTimeline(days = 30) {
+  return useApiCall<Record<string, unknown>>(
+    () => digitalTwinV2Api.getTimeline(days),
+    [days]
+  )
+}
+
+// Remediation v2 - Fix Templates
+export function useFixTemplates(framework?: string) {
+  return useApiCall<Record<string, unknown>[]>(
+    () => remediationV2Api.listTemplates(framework),
+    [framework]
+  )
+}
+
+// Multi-LLM v2 - Smart Routing
+export function useComplexityClassification(text: string) {
+  return useApiCall<Record<string, unknown>>(
+    () => multiLlmV2Api.classifyComplexity(text),
+    [text]
+  )
+}
+
+// Evidence Vault v2 - Controls
+export function useFrameworkControls(framework: string) {
+  return useApiCall<Record<string, unknown>[]>(
+    () => evidenceVaultV2Api.listControls(framework),
+    [framework]
+  )
+}
+
+// Self-Hosted v2 - Bundles
+export function useRegulationBundles() {
+  return useApiCall<Record<string, unknown>[]>(
+    () => selfHostedV2Api.listBundles(),
+    []
+  )
+}
+
+// Industry Packs v2 - Starter Packs
+export function useStarterPacks() {
+  return useApiCall<Record<string, unknown>[]>(
+    () => industryPacksV2Api.listStarterPacks(),
+    []
+  )
+}
+
+// Predictions v2 - ML Predictions
+export function useMlPredictions(params?: { jurisdiction?: string; min_confidence?: number }) {
+  return useApiCall<Record<string, unknown>[]>(
+    () => predictionsV2Api.listPredictions(params),
+    [params?.jurisdiction, params?.min_confidence]
+  )
+}
+
+export function usePredictionAccuracy() {
+  return useApiCall<Record<string, unknown>>(
+    () => predictionsV2Api.getAccuracy(),
+    []
+  )
+}
+
+// Federated Intel v2 - Privacy
+export function usePrivacyBudget() {
+  return useApiCall<Record<string, unknown>>(
+    () => federatedIntelV2Api.getPrivacyBudget(),
+    []
+  )
+}

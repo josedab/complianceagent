@@ -119,6 +119,28 @@ export default function DigitalTwinDashboard() {
           ))}
         </div>
       )}
+
+      {/* v2: Live Posture Tracking */}
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">🔴 Live Posture Tracking</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+            <p className="text-sm font-medium text-blue-700">Time-Travel Queries</p>
+            <p className="text-2xl font-bold text-blue-900 mt-1">View posture at any point in time</p>
+            <p className="text-xs text-blue-600 mt-2">Powered by event-driven snapshots</p>
+          </div>
+          <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+            <p className="text-sm font-medium text-red-700">Blast Radius Analysis</p>
+            <p className="text-2xl font-bold text-red-900 mt-1">Impact of regulation changes</p>
+            <p className="text-xs text-red-600 mt-2">Estimates remediation effort in hours</p>
+          </div>
+          <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+            <p className="text-sm font-medium text-green-700">Event-Driven Snapshots</p>
+            <p className="text-2xl font-bold text-green-900 mt-1">Auto-capture on changes</p>
+            <p className="text-xs text-green-600 mt-2">Regulation changes, deploys, scans</p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
