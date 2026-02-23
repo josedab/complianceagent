@@ -1,12 +1,11 @@
 """Tests for rate limiting and exception handling middleware."""
 
 import hashlib
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from app.core.exceptions import (
@@ -23,6 +22,7 @@ from app.core.middleware import (
 # Helper: build a minimal FastAPI app with chosen middleware
 # ---------------------------------------------------------------------------
 
+
 def _build_app_with_rate_limit(calls: int = 3, period: int = 60) -> FastAPI:
     """Create a test FastAPI app with RateLimitMiddleware."""
     test_app = FastAPI()
@@ -36,7 +36,6 @@ def _build_app_with_rate_limit(calls: int = 3, period: int = 60) -> FastAPI:
         return {"status": "healthy"}
 
     # Add exception handler so HTTPException raised in middleware becomes a response
-    from fastapi.exceptions import HTTPException as FastAPIHTTPException
     from starlette.exceptions import HTTPException as StarletteHTTPException
 
     @test_app.exception_handler(StarletteHTTPException)
@@ -74,6 +73,7 @@ def _build_app_with_exception_handler(raise_exc: Exception) -> FastAPI:
 # ---------------------------------------------------------------------------
 # RateLimitMiddleware
 # ---------------------------------------------------------------------------
+
 
 class TestRateLimitMiddleware:
     """In-memory sliding-window rate limiting."""
@@ -150,9 +150,7 @@ class TestRateLimitMiddleware:
         # Simulate old requests outside the window
         middleware.requests[key] = [now - 20, now - 15]
 
-        is_limited, remaining, _ = await middleware._check_memory_rate_limit(
-            key, now, now - 10, 0
-        )
+        is_limited, remaining, _ = await middleware._check_memory_rate_limit(key, now, now - 10, 0)
         assert is_limited is False
         assert remaining == 1  # old ones cleaned, new one added
 
@@ -160,7 +158,9 @@ class TestRateLimitMiddleware:
 class TestClientIdExtraction:
     """Test _get_client_id extracts identifiers from Bearer token, API key, or IP."""
 
-    def _make_request(self, headers: dict | None = None, client_host: str = "127.0.0.1") -> MagicMock:
+    def _make_request(
+        self, headers: dict | None = None, client_host: str = "127.0.0.1"
+    ) -> MagicMock:
         """Build a mock Request with given headers and client IP."""
         request = MagicMock(spec=Request)
         request.headers = headers or {}
@@ -185,7 +185,7 @@ class TestClientIdExtraction:
 
         client_id = middleware._get_client_id(request)
 
-        expected_hash = hashlib.sha256("my-secret-key".encode()).hexdigest()[:16]
+        expected_hash = hashlib.sha256(b"my-secret-key").hexdigest()[:16]
         assert client_id == f"apikey:{expected_hash}"
 
     def test_ip_fallback(self):
@@ -211,6 +211,7 @@ class TestClientIdExtraction:
 # ---------------------------------------------------------------------------
 # GlobalExceptionHandlerMiddleware
 # ---------------------------------------------------------------------------
+
 
 class TestGlobalExceptionHandlerMiddleware:
     """Test that domain exceptions are mapped to correct HTTP status codes and JSON."""

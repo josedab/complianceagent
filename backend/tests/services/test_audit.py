@@ -1,15 +1,14 @@
 """Tests for AuditService."""
 
+import warnings
+from uuid import uuid4
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, patch
-from uuid import uuid4
-import warnings
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.audit import AuditEventType, AuditTrail
-from app.services.audit.service import AuditService, AuditEventData, get_audit_service
+from app.models.audit import AuditEventType
+from app.services.audit.service import AuditEventData, AuditService, get_audit_service
 
 
 @pytest_asyncio.fixture
@@ -42,7 +41,10 @@ class TestAuditService:
 
     @pytest.mark.asyncio
     async def test_log_creates_audit_entry(
-        self, audit_service: AuditService, sample_event_data: AuditEventData, db_session: AsyncSession
+        self,
+        audit_service: AuditService,
+        sample_event_data: AuditEventData,
+        db_session: AsyncSession,
     ):
         """Test that log() creates an audit trail entry."""
         entry = await audit_service.log(sample_event_data)
@@ -65,9 +67,7 @@ class TestAuditService:
         assert entry.entry_hash.isalnum()
 
     @pytest.mark.asyncio
-    async def test_log_creates_hash_chain(
-        self, audit_service: AuditService, organization_id
-    ):
+    async def test_log_creates_hash_chain(self, audit_service: AuditService, organization_id):
         """Test that sequential entries create a hash chain."""
         # Create first entry
         event1 = AuditEventData(
@@ -104,7 +104,7 @@ class TestAuditService:
         """Test that log_event() shows deprecation warning."""
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            
+
             await audit_service.log_event(
                 organization_id=organization_id,
                 event_type=AuditEventType.MAPPING_CREATED,
@@ -116,9 +116,7 @@ class TestAuditService:
             assert "log_event() is deprecated" in str(w[0].message)
 
     @pytest.mark.asyncio
-    async def test_log_stores_ai_metadata(
-        self, audit_service: AuditService, organization_id
-    ):
+    async def test_log_stores_ai_metadata(self, audit_service: AuditService, organization_id):
         """Test that AI metadata is stored correctly."""
         event = AuditEventData(
             organization_id=organization_id,
@@ -128,7 +126,7 @@ class TestAuditService:
             ai_model="copilot",
             ai_confidence=0.92,
         )
-        
+
         entry = await audit_service.log(event)
 
         assert entry.actor_type == "ai"
@@ -136,9 +134,7 @@ class TestAuditService:
         assert entry.ai_confidence == 0.92
 
     @pytest.mark.asyncio
-    async def test_log_stores_request_metadata(
-        self, audit_service: AuditService, organization_id
-    ):
+    async def test_log_stores_request_metadata(self, audit_service: AuditService, organization_id):
         """Test that request metadata (IP, user agent) is stored."""
         event = AuditEventData(
             organization_id=organization_id,
@@ -147,7 +143,7 @@ class TestAuditService:
             ip_address="192.168.1.100",
             user_agent="Mozilla/5.0",
         )
-        
+
         entry = await audit_service.log(event)
 
         assert entry.ip_address == "192.168.1.100"
@@ -172,7 +168,7 @@ class TestAuditService:
             repository_id=repository_id,
             mapping_id=mapping_id,
         )
-        
+
         entry = await audit_service.log(event)
 
         assert entry.regulation_id == regulation_id
@@ -195,9 +191,7 @@ class TestAuditServiceVerification:
         assert result["entries_checked"] == 0
 
     @pytest.mark.asyncio
-    async def test_verify_chain_with_entries(
-        self, audit_service: AuditService, organization_id
-    ):
+    async def test_verify_chain_with_entries(self, audit_service: AuditService, organization_id):
         """Test chain verification with multiple entries."""
         # Create multiple entries
         for i in range(3):
@@ -218,9 +212,7 @@ class TestAuditServiceExport:
     """Test cases for audit trail export."""
 
     @pytest.mark.asyncio
-    async def test_export_audit_package(
-        self, audit_service: AuditService, organization_id
-    ):
+    async def test_export_audit_package(self, audit_service: AuditService, organization_id):
         """Test exporting audit trail as evidence package."""
         # Create some entries
         for i in range(2):

@@ -1,27 +1,25 @@
 """Tests for IDE Agent service."""
 
-import pytest
-import pytest_asyncio
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.ide_agent.agent import IDEAgentService, get_ide_agent_service
 from app.services.ide_agent.models import (
+    AgentAction,
+    AgentActionType,
+    AgentConfig,
     AgentSession,
     AgentStatus,
     AgentTriggerType,
-    AgentAction,
-    AgentActionType,
-    ComplianceViolation,
-    ProposedFix,
-    FixConfidence,
-    RefactorPlan,
-    AgentConfig,
     AnalysisResult,
+    ComplianceViolation,
+    FixConfidence,
+    ProposedFix,
+    RefactorPlan,
 )
-from app.services.ide_agent.agent import IDEAgentService, get_ide_agent_service
 
 
 pytestmark = pytest.mark.asyncio

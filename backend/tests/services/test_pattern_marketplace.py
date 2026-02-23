@@ -1,24 +1,21 @@
 """Tests for Pattern Marketplace service."""
 
-import pytest
-import pytest_asyncio
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.pattern_marketplace.models import (
     CompliancePattern,
-    PatternVersion,
-    PatternInstallation,
-    PatternRating,
-    PatternPurchase,
-    PublisherProfile,
+    LicenseType,
     MarketplaceStats,
     PatternCategory,
+    PatternInstallation,
+    PatternPurchase,
+    PatternRating,
     PatternType,
-    LicenseType,
+    PatternVersion,
+    PublisherProfile,
     PublishStatus,
 )
 from app.services.pattern_marketplace.service import (
@@ -153,7 +150,7 @@ class TestPatternMarketplaceService:
 
     def test_search_patterns_by_regulation(self, service):
         """Test searching patterns by regulation."""
-        patterns, total = service.search_patterns(
+        patterns, _total = service.search_patterns(
             regulations=["GDPR"],
             limit=10,
         )
@@ -163,7 +160,7 @@ class TestPatternMarketplaceService:
 
     def test_search_patterns_free_only(self, service):
         """Test searching only free patterns."""
-        patterns, total = service.search_patterns(
+        patterns, _total = service.search_patterns(
             free_only=True,
             limit=10,
         )

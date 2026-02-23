@@ -1,17 +1,16 @@
 """Service-level tests for Next-Gen Strategic Features."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from app.services.benchmarking import BenchmarkingService
-from app.services.pr_copilot import PRCopilotService, SuggestionAction, SuggestionFeedback
-from app.services.industry_packs import IndustryPacksService, IndustryVertical
 from app.services.drift_detection import DriftDetectionService
-from app.services.multi_llm import MultiLLMService, ConsensusStrategy
-from app.services.evidence_vault import EvidenceVaultService, ControlFramework, EvidenceType
-from app.services.public_api import PublicAPIService, APIKeyScope, RateLimitTier
+from app.services.evidence_vault import ControlFramework, EvidenceType, EvidenceVaultService
 from app.services.impact_simulator import ImpactSimulatorService, RegulatoryChange, ScenarioType
-from app.services.marketplace_app import MarketplaceAppService, AppPlatform, WebhookEvent
+from app.services.industry_packs import IndustryPacksService, IndustryVertical
+from app.services.marketplace_app import AppPlatform, MarketplaceAppService, WebhookEvent
+from app.services.multi_llm import MultiLLMService
+from app.services.pr_copilot import PRCopilotService, SuggestionAction, SuggestionFeedback
+from app.services.public_api import PublicAPIService
 
 
 class TestBenchmarkingService:
@@ -185,12 +184,20 @@ class TestEvidenceVaultService:
     async def test_verify_chain(self, db_session):
         service = EvidenceVaultService(db=db_session)
         await service.store_evidence(
-            evidence_type=EvidenceType.SCAN_RESULT, title="E1", description="",
-            content="content1", framework=ControlFramework.SOC2, control_id="CC6.1",
+            evidence_type=EvidenceType.SCAN_RESULT,
+            title="E1",
+            description="",
+            content="content1",
+            framework=ControlFramework.SOC2,
+            control_id="CC6.1",
         )
         await service.store_evidence(
-            evidence_type=EvidenceType.SCAN_RESULT, title="E2", description="",
-            content="content2", framework=ControlFramework.SOC2, control_id="CC6.2",
+            evidence_type=EvidenceType.SCAN_RESULT,
+            title="E2",
+            description="",
+            content="content2",
+            framework=ControlFramework.SOC2,
+            control_id="CC6.2",
         )
         verified = await service.verify_chain(ControlFramework.SOC2)
         assert verified is True
@@ -218,7 +225,7 @@ class TestPublicAPIService:
     @pytest.mark.asyncio
     async def test_create_and_validate_key(self, db_session):
         service = PublicAPIService(db=db_session)
-        key, raw = await service.create_api_key(name="test-key")
+        _key, raw = await service.create_api_key(name="test-key")
         assert raw.startswith("ca_")
         validated = await service.validate_key(raw)
         assert validated is not None
@@ -276,9 +283,7 @@ class TestImpactSimulatorService:
     @pytest.mark.asyncio
     async def test_compare_scenarios(self, db_session):
         service = ImpactSimulatorService(db=db_session)
-        results = await service.compare_scenarios(
-            ["gdpr-deletion-24h", "hipaa-breach-1h"]
-        )
+        results = await service.compare_scenarios(["gdpr-deletion-24h", "hipaa-breach-1h"])
         assert len(results) == 2
 
 

@@ -1,8 +1,8 @@
 """Tests for SaaS Platform API endpoints."""
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from httpx import AsyncClient
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -216,7 +216,9 @@ class TestSaaSPlatformAPI:
         assert data["status"] == "completed"
         assert data["completed_at"] is not None
 
-    async def test_complete_onboarding_step_not_found(self, client: AsyncClient, auth_headers: dict):
+    async def test_complete_onboarding_step_not_found(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """Test completing non-existent onboarding step."""
         # Provision a tenant
         provision_response = await client.post(

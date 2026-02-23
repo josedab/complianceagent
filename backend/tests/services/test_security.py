@@ -5,7 +5,6 @@ from datetime import timedelta
 import pytest
 
 from app.core.security import (
-    TokenPayload,
     create_access_token,
     create_refresh_token,
     decode_token,

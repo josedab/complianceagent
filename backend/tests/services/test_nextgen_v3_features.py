@@ -5,10 +5,11 @@ evidence vault auditor sessions, policy marketplace, infrastructure posture,
 knowledge graph enrichment, prediction signal aggregation, and digital twin persistence.
 """
 
-import pytest
-from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+
+import pytest
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -53,14 +54,16 @@ class TestPRBotGitHubAPI:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post = AsyncMock(return_value=MagicMock(
-                status_code=201,
-                json=MagicMock(return_value={"id": 1, "status": "completed"}),
-                raise_for_status=MagicMock(),
-            ))
+            mock_client.post = AsyncMock(
+                return_value=MagicMock(
+                    status_code=201,
+                    json=MagicMock(return_value={"id": 1, "status": "completed"}),
+                    raise_for_status=MagicMock(),
+                )
+            )
             mock_client_cls.return_value = mock_client
 
-            result = await service.post_check_run(
+            await service.post_check_run(
                 repo_owner="test-org",
                 repo_name="test-repo",
                 head_sha="abc123",
@@ -86,14 +89,16 @@ class TestPRBotGitHubAPI:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post = AsyncMock(return_value=MagicMock(
-                status_code=201,
-                json=MagicMock(return_value={"id": 1}),
-                raise_for_status=MagicMock(),
-            ))
+            mock_client.post = AsyncMock(
+                return_value=MagicMock(
+                    status_code=201,
+                    json=MagicMock(return_value={"id": 1}),
+                    raise_for_status=MagicMock(),
+                )
+            )
             mock_client_cls.return_value = mock_client
 
-            result = await service.post_review_comment(
+            await service.post_review_comment(
                 repo_owner="test-org",
                 repo_name="test-repo",
                 pr_number=42,
@@ -118,14 +123,16 @@ class TestPRBotGitHubAPI:
             mock_client = AsyncMock()
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post = AsyncMock(return_value=MagicMock(
-                status_code=200,
-                json=MagicMock(return_value=[{"name": "compliance:pass"}]),
-                raise_for_status=MagicMock(),
-            ))
+            mock_client.post = AsyncMock(
+                return_value=MagicMock(
+                    status_code=200,
+                    json=MagicMock(return_value=[{"name": "compliance:pass"}]),
+                    raise_for_status=MagicMock(),
+                )
+            )
             mock_client_cls.return_value = mock_client
 
-            result = await service.apply_labels_via_api(
+            await service.apply_labels_via_api(
                 repo_owner="test-org",
                 repo_name="test-repo",
                 issue_number=42,
@@ -148,6 +155,7 @@ class TestSaaSTrialFlow:
     def service(self):
         """Create SaaS platform service with mock DB."""
         from app.services.saas_platform.service import SaaSPlatformService
+
         mock_db = AsyncMock()
         return SaaSPlatformService(db=mock_db)
 
@@ -199,6 +207,7 @@ class TestChatGuardrails:
     def service(self):
         """Create copilot chat service with mock DB."""
         from app.services.copilot_chat.service import CopilotChatService
+
         mock_db = AsyncMock()
         return CopilotChatService(db=mock_db)
 
@@ -251,6 +260,7 @@ class TestEvidenceVaultAuditor:
     def service(self):
         """Create evidence vault service with mock DB."""
         from app.services.evidence_vault.service import EvidenceVaultService
+
         mock_db = AsyncMock()
         return EvidenceVaultService(db=mock_db)
 
@@ -267,6 +277,7 @@ class TestEvidenceVaultAuditor:
     async def test_generate_readiness_report(self, service):
         """Test generating an audit readiness report."""
         from app.services.evidence_vault.models import ControlFramework
+
         report = await service.generate_readiness_report(ControlFramework.SOC2)
 
         assert report["framework"] == "soc2"
@@ -288,18 +299,21 @@ class TestPolicyMarketplace:
     def service(self):
         """Create policy marketplace service."""
         from app.services.policy_marketplace.service import PolicyMarketplaceService
+
         return PolicyMarketplaceService()
 
     async def test_publish_policy(self, service):
         """Test publishing a policy pack."""
-        result = await service.publish_policy({
-            "name": "Test GDPR Policy",
-            "description": "GDPR compliance rules",
-            "framework": "gdpr",
-            "version": "1.0.0",
-            "author": "test-author",
-            "rules": [{"id": "r1", "name": "Consent Check"}],
-        })
+        result = await service.publish_policy(
+            {
+                "name": "Test GDPR Policy",
+                "description": "GDPR compliance rules",
+                "framework": "gdpr",
+                "version": "1.0.0",
+                "author": "test-author",
+                "rules": [{"id": "r1", "name": "Consent Check"}],
+            }
+        )
 
         assert result["name"] == "Test GDPR Policy"
         assert result["status"] == "published"
@@ -309,7 +323,7 @@ class TestPolicyMarketplace:
     async def test_rate_policy(self, service):
         """Test rating a published policy."""
         policy = await service.publish_policy({"name": "Test Policy", "framework": "gdpr"})
-        
+
         result = await service.rate_policy(policy["id"], 4.5, "reviewer@test.com")
         assert result["new_rating"] == 4.5
 
@@ -324,8 +338,12 @@ class TestPolicyMarketplace:
 
     async def test_search_policies(self, service):
         """Test searching marketplace policies."""
-        await service.publish_policy({"name": "GDPR Pack", "framework": "gdpr", "description": "GDPR rules"})
-        await service.publish_policy({"name": "HIPAA Pack", "framework": "hipaa", "description": "HIPAA rules"})
+        await service.publish_policy(
+            {"name": "GDPR Pack", "framework": "gdpr", "description": "GDPR rules"}
+        )
+        await service.publish_policy(
+            {"name": "HIPAA Pack", "framework": "hipaa", "description": "HIPAA rules"}
+        )
 
         results = await service.search_policies(query="gdpr")
         assert len(results) == 1
@@ -356,6 +374,7 @@ class TestPolicyAsCodeGenerator:
     def generator(self):
         """Create policy generator."""
         from app.services.policy_as_code.generator import PolicyGenerator
+
         return PolicyGenerator()
 
     async def test_generate_yaml_bundle(self, generator):
@@ -406,6 +425,7 @@ class TestInfrastructurePosture:
     def analyzer(self):
         """Create infrastructure analyzer."""
         from app.services.infrastructure import get_infrastructure_analyzer
+
         return get_infrastructure_analyzer()
 
     async def test_get_multi_cloud_posture(self, analyzer):
@@ -418,11 +438,13 @@ class TestInfrastructurePosture:
 
     async def test_persist_and_get_scan_history(self, analyzer):
         """Test persisting and retrieving scan history."""
-        await analyzer.persist_scan_results({
-            "providers": {"aws": {"violation_count": 3}},
-            "total_violations": 3,
-            "critical_count": 1,
-        })
+        await analyzer.persist_scan_results(
+            {
+                "providers": {"aws": {"violation_count": 3}},
+                "total_violations": 3,
+                "critical_count": 1,
+            }
+        )
 
         history = await analyzer.get_scan_history()
         assert len(history) == 1
@@ -431,9 +453,13 @@ class TestInfrastructurePosture:
     async def test_scan_history_limit(self, analyzer):
         """Test scan history respects limit."""
         for i in range(5):
-            await analyzer.persist_scan_results({
-                "providers": {}, "total_violations": i, "critical_count": 0,
-            })
+            await analyzer.persist_scan_results(
+                {
+                    "providers": {},
+                    "total_violations": i,
+                    "critical_count": 0,
+                }
+            )
 
         history = await analyzer.get_scan_history(limit=3)
         assert len(history) == 3
@@ -451,10 +477,13 @@ class TestKnowledgeGraphEnrichment:
     def service(self):
         """Create knowledge graph service with mock DB."""
         from app.services.knowledge_graph.service import KnowledgeGraphService
+
         mock_db = AsyncMock()
-        mock_db.execute = AsyncMock(return_value=MagicMock(
-            scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
-        ))
+        mock_db.execute = AsyncMock(
+            return_value=MagicMock(
+                scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+            )
+        )
         return KnowledgeGraphService(db=mock_db)
 
     async def test_build_graph_includes_controls(self, service):
@@ -462,6 +491,7 @@ class TestKnowledgeGraphEnrichment:
         graph = await service.build_graph(organization_id=uuid4())
 
         from app.services.knowledge_graph.models import NodeType
+
         control_nodes = graph.nodes_by_type.get(NodeType.CONTROL, [])
         assert len(control_nodes) > 0
 
@@ -470,6 +500,7 @@ class TestKnowledgeGraphEnrichment:
         graph = await service.build_graph(organization_id=uuid4())
 
         from app.services.knowledge_graph.models import NodeType
+
         risk_nodes = graph.nodes_by_type.get(NodeType.RISK, [])
         assert len(risk_nodes) == 4  # 4 risk categories
 
@@ -478,6 +509,7 @@ class TestKnowledgeGraphEnrichment:
         graph = await service.build_graph(organization_id=uuid4())
 
         from app.services.knowledge_graph.models import NodeType
+
         risk_names = {n.name for n in graph.nodes_by_type.get(NodeType.RISK, [])}
         assert "Data Breach Risk" in risk_names
         assert "Regulatory Fine Risk" in risk_names
@@ -497,6 +529,7 @@ class TestSignalAggregator:
     def aggregator(self):
         """Create signal aggregator."""
         from app.services.prediction.sources import SignalAggregator
+
         return SignalAggregator()
 
     def test_register_source(self, aggregator):
@@ -542,6 +575,7 @@ class TestDigitalTwinPersistence:
     async def test_snapshot_manager_with_db(self):
         """Test SnapshotManager accepts DB session."""
         from app.services.digital_twin.snapshot import SnapshotManager
+
         mock_db = AsyncMock()
 
         manager = SnapshotManager(db=mock_db)
@@ -557,6 +591,7 @@ class TestDigitalTwinPersistence:
     async def test_simulator_with_db(self):
         """Test ComplianceSimulator accepts DB session."""
         from app.services.digital_twin.simulator import ComplianceSimulator
+
         mock_db = AsyncMock()
 
         simulator = ComplianceSimulator(db=mock_db)

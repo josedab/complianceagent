@@ -1,18 +1,18 @@
 """Tests for GitLab integration service."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+
+import pytest
 
 from app.services.gitlab import (
-    GitLabClient,
-    GitLabAnalyzer,
-    GitLabRepository,
-    GitLabFile,
     ComplianceFile,
     ComplianceFileType,
-    RepositoryStructure,
+    GitLabAnalyzer,
+    GitLabClient,
+    GitLabFile,
+    GitLabRepository,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -44,7 +44,7 @@ class TestGitLabClient:
     def test_headers(self, gitlab_client):
         """Test request headers include token."""
         headers = gitlab_client._get_headers()
-        
+
         assert headers["PRIVATE-TOKEN"] == "test_token_123"
         assert headers["Content-Type"] == "application/json"
 
@@ -52,7 +52,7 @@ class TestGitLabClient:
         """Test headers without token."""
         client = GitLabClient()
         headers = client._get_headers()
-        
+
         assert "PRIVATE-TOKEN" not in headers
         assert headers["Content-Type"] == "application/json"
 
@@ -125,10 +125,10 @@ class TestGitLabClient:
     async def test_get_file_content(self, mock_request, gitlab_client):
         """Test getting file content."""
         import base64
-        
+
         content = "def main():\n    print('Hello')"
         encoded = base64.b64encode(content.encode()).decode()
-        
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -247,37 +247,43 @@ class TestGitLabAnalyzer:
     def mock_gitlab_client(self):
         """Create mock GitLab client."""
         client = AsyncMock()
-        
-        client.get_project = AsyncMock(return_value=GitLabRepository(
-            id=12345,
-            name="test-project",
-            path="test-project",
-            full_path="acme/test-project",
-            default_branch="main",
-            visibility="private",
-            description="Test project",
-            web_url="https://gitlab.example.com/acme/test-project",
-            ssh_url="git@gitlab.example.com:acme/test-project.git",
-            http_url="https://gitlab.example.com/acme/test-project.git",
-        ))
-        
-        client.get_project_languages = AsyncMock(return_value={
-            "Python": 70.0,
-            "JavaScript": 30.0,
-        })
-        
-        client.get_repository_tree = AsyncMock(return_value=[
-            GitLabFile("README.md", "README.md", 1024, "blob", "100644"),
-            GitLabFile("src/main.py", "main.py", 2048, "blob", "100644"),
-            GitLabFile("src/auth/login.py", "login.py", 1500, "blob", "100644"),
-            GitLabFile("src/data/user_handler.py", "user_handler.py", 3000, "blob", "100644"),
-            GitLabFile("tests/test_main.py", "test_main.py", 500, "blob", "100644"),
-            GitLabFile(".gitlab-ci.yml", ".gitlab-ci.yml", 800, "blob", "100644"),
-            GitLabFile("Dockerfile", "Dockerfile", 400, "blob", "100644"),
-        ])
-        
+
+        client.get_project = AsyncMock(
+            return_value=GitLabRepository(
+                id=12345,
+                name="test-project",
+                path="test-project",
+                full_path="acme/test-project",
+                default_branch="main",
+                visibility="private",
+                description="Test project",
+                web_url="https://gitlab.example.com/acme/test-project",
+                ssh_url="git@gitlab.example.com:acme/test-project.git",
+                http_url="https://gitlab.example.com/acme/test-project.git",
+            )
+        )
+
+        client.get_project_languages = AsyncMock(
+            return_value={
+                "Python": 70.0,
+                "JavaScript": 30.0,
+            }
+        )
+
+        client.get_repository_tree = AsyncMock(
+            return_value=[
+                GitLabFile("README.md", "README.md", 1024, "blob", "100644"),
+                GitLabFile("src/main.py", "main.py", 2048, "blob", "100644"),
+                GitLabFile("src/auth/login.py", "login.py", 1500, "blob", "100644"),
+                GitLabFile("src/data/user_handler.py", "user_handler.py", 3000, "blob", "100644"),
+                GitLabFile("tests/test_main.py", "test_main.py", 500, "blob", "100644"),
+                GitLabFile(".gitlab-ci.yml", ".gitlab-ci.yml", 800, "blob", "100644"),
+                GitLabFile("Dockerfile", "Dockerfile", 400, "blob", "100644"),
+            ]
+        )
+
         client.get_file_content = AsyncMock(return_value="# Test content")
-        
+
         return client
 
     @pytest.fixture
@@ -312,7 +318,7 @@ class TestGitLabAnalyzer:
     async def test_find_compliance_files(self, analyzer, mock_gitlab_client):
         """Test finding compliance-relevant files."""
         tree = await mock_gitlab_client.get_repository_tree()
-        
+
         compliance_files = await analyzer._find_compliance_files(
             12345,
             tree,
@@ -321,12 +327,15 @@ class TestGitLabAnalyzer:
 
         # Should find auth/login.py (authentication) and user_handler.py (data handler)
         file_types = [f.file_type for f in compliance_files]
-        assert ComplianceFileType.AUTHENTICATION in file_types or \
-               ComplianceFileType.DATA_HANDLER in file_types
+        assert (
+            ComplianceFileType.AUTHENTICATION in file_types
+            or ComplianceFileType.DATA_HANDLER in file_types
+        )
 
     async def test_analyze_compliance_file_data_handler(self, analyzer, mock_gitlab_client):
         """Test analyzing a data handler file."""
-        mock_gitlab_client.get_file_content = AsyncMock(return_value="""
+        mock_gitlab_client.get_file_content = AsyncMock(
+            return_value="""
 class UserHandler:
     def process_user(self, email, phone, address):
         # Handle user data
@@ -335,7 +344,8 @@ class UserHandler:
     def store_pii(self, email, phone):
         # Store in database
         pass
-        """)
+        """
+        )
 
         compliance_file = ComplianceFile(
             path="src/data/user_handler.py",
@@ -354,7 +364,8 @@ class UserHandler:
 
     async def test_analyze_compliance_file_encryption(self, analyzer, mock_gitlab_client):
         """Test analyzing an encryption file."""
-        mock_gitlab_client.get_file_content = AsyncMock(return_value="""
+        mock_gitlab_client.get_file_content = AsyncMock(
+            return_value="""
 from cryptography.fernet import Fernet
 import bcrypt
 
@@ -365,7 +376,8 @@ def encrypt_data(data):
 
 def hash_password(password):
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-        """)
+        """
+        )
 
         compliance_file = ComplianceFile(
             path="src/security/crypto.py",
@@ -384,7 +396,8 @@ def hash_password(password):
 
     async def test_analyze_compliance_file_authentication(self, analyzer, mock_gitlab_client):
         """Test analyzing an authentication file."""
-        mock_gitlab_client.get_file_content = AsyncMock(return_value="""
+        mock_gitlab_client.get_file_content = AsyncMock(
+            return_value="""
 import jwt
 from pyotp import TOTP
 
@@ -395,7 +408,8 @@ def authenticate(username, password, otp=None):
         if not totp.verify(otp):
             raise AuthError("Invalid 2FA code")
     return create_jwt_token(user)
-        """)
+        """
+        )
 
         compliance_file = ComplianceFile(
             path="src/auth/auth.py",
@@ -414,17 +428,21 @@ def authenticate(username, password, otp=None):
 
     async def test_scan_for_sensitive_data(self, analyzer, mock_gitlab_client):
         """Test scanning for sensitive data."""
-        mock_gitlab_client.get_repository_tree = AsyncMock(return_value=[
-            GitLabFile(".env", ".env", 100, "blob", "100644"),
-            GitLabFile("config.yaml", "config.yaml", 200, "blob", "100644"),
-        ])
-        
-        mock_gitlab_client.get_file_content = AsyncMock(return_value="""
+        mock_gitlab_client.get_repository_tree = AsyncMock(
+            return_value=[
+                GitLabFile(".env", ".env", 100, "blob", "100644"),
+                GitLabFile("config.yaml", "config.yaml", 200, "blob", "100644"),
+            ]
+        )
+
+        mock_gitlab_client.get_file_content = AsyncMock(
+            return_value="""
 # Config file
 API_KEY = "sk_test_FAKE_KEY_FOR_TESTING_ONLY"
 DATABASE_URL = "postgres://user:password123@localhost/db"
 SECRET = "my_super_secret_value"
-        """)
+        """
+        )
 
         findings = await analyzer.scan_for_sensitive_data(12345)
 
@@ -434,11 +452,13 @@ SECRET = "my_super_secret_value"
 
     async def test_skip_vendor_directories(self, analyzer, mock_gitlab_client):
         """Test that vendor directories are skipped."""
-        mock_gitlab_client.get_repository_tree = AsyncMock(return_value=[
-            GitLabFile("src/auth.py", "auth.py", 1000, "blob", "100644"),
-            GitLabFile("node_modules/pkg/auth.js", "auth.js", 500, "blob", "100644"),
-            GitLabFile("vendor/lib/auth.go", "auth.go", 600, "blob", "100644"),
-        ])
+        mock_gitlab_client.get_repository_tree = AsyncMock(
+            return_value=[
+                GitLabFile("src/auth.py", "auth.py", 1000, "blob", "100644"),
+                GitLabFile("node_modules/pkg/auth.js", "auth.js", 500, "blob", "100644"),
+                GitLabFile("vendor/lib/auth.go", "auth.go", 600, "blob", "100644"),
+            ]
+        )
 
         structure = await analyzer.analyze_repository(12345)
 

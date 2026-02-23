@@ -1,6 +1,5 @@
 """Service-level tests for Next-Gen Strategic Features (Testing & Architecture Advisor)."""
 
-
 import pytest
 
 from app.services.architecture_advisor import (

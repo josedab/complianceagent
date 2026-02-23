@@ -1,17 +1,19 @@
 """Tests for notification service."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services.notification import (
-    NotificationService,
     EmailChannel,
-    SlackChannel,
     InAppChannel,
-    NotificationType,
-    NotificationPriority,
     Notification,
+    NotificationPriority,
+    NotificationService,
+    NotificationType,
+    SlackChannel,
 )
+
 
 pytestmark = pytest.mark.asyncio
 

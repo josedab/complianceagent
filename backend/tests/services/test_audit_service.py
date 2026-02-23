@@ -1,14 +1,14 @@
 """Tests for AuditService core behavior: hash chain, tampering detection, filtering."""
 
-import pytest
-import pytest_asyncio
 from uuid import uuid4
 
-from sqlalchemy import select, update
+import pytest
+import pytest_asyncio
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditEventType, AuditTrail
-from app.services.audit.service import AuditService, AuditEventData
+from app.services.audit.service import AuditEventData, AuditService
 
 
 @pytest_asyncio.fixture
@@ -62,9 +62,7 @@ class TestAuditEntryCreation:
         assert len(entry.entry_hash) == 64
 
     @pytest.mark.asyncio
-    async def test_create_entry_defaults_actor_to_system(
-        self, audit_service: AuditService, org_id
-    ):
+    async def test_create_entry_defaults_actor_to_system(self, audit_service: AuditService, org_id):
         """Verify default actor_type is 'system' when not specified."""
         event = AuditEventData(
             organization_id=org_id,
@@ -96,9 +94,7 @@ class TestHashChainIntegrity:
     """Test that the audit trail maintains a valid hash chain."""
 
     @pytest.mark.asyncio
-    async def test_first_entry_has_no_previous_hash(
-        self, audit_service: AuditService, org_id
-    ):
+    async def test_first_entry_has_no_previous_hash(self, audit_service: AuditService, org_id):
         """The first entry in a chain should have previous_hash=None."""
         event = AuditEventData(
             organization_id=org_id,
@@ -111,9 +107,7 @@ class TestHashChainIntegrity:
         assert entry.previous_hash is None
 
     @pytest.mark.asyncio
-    async def test_second_entry_links_to_first_hash(
-        self, audit_service: AuditService, org_id
-    ):
+    async def test_second_entry_links_to_first_hash(self, audit_service: AuditService, org_id):
         """Each subsequent entry's previous_hash must equal the prior entry's hash."""
         e1 = AuditEventData(
             organization_id=org_id,
@@ -132,16 +126,16 @@ class TestHashChainIntegrity:
         assert entry2.previous_hash == entry1.entry_hash
 
     @pytest.mark.asyncio
-    async def test_three_entry_chain_links_correctly(
-        self, audit_service: AuditService, org_id
-    ):
+    async def test_three_entry_chain_links_correctly(self, audit_service: AuditService, org_id):
         """Build a 3-entry chain and verify each link."""
         entries = []
-        for i, evt_type in enumerate([
-            AuditEventType.REGULATION_DETECTED,
-            AuditEventType.REQUIREMENTS_EXTRACTED,
-            AuditEventType.CODEBASE_MAPPED,
-        ]):
+        for i, evt_type in enumerate(
+            [
+                AuditEventType.REGULATION_DETECTED,
+                AuditEventType.REQUIREMENTS_EXTRACTED,
+                AuditEventType.CODEBASE_MAPPED,
+            ]
+        ):
             event = AuditEventData(
                 organization_id=org_id,
                 event_type=evt_type,
@@ -154,9 +148,7 @@ class TestHashChainIntegrity:
         assert entries[2].previous_hash == entries[1].entry_hash
 
     @pytest.mark.asyncio
-    async def test_separate_orgs_have_independent_chains(
-        self, audit_service: AuditService
-    ):
+    async def test_separate_orgs_have_independent_chains(self, audit_service: AuditService):
         """Different organizations should maintain separate hash chains."""
         org_a, org_b = uuid4(), uuid4()
 
@@ -183,18 +175,14 @@ class TestChainVerification:
     """Test verify_chain detects valid chains and tampering."""
 
     @pytest.mark.asyncio
-    async def test_verify_empty_chain_is_valid(
-        self, audit_service: AuditService, org_id
-    ):
+    async def test_verify_empty_chain_is_valid(self, audit_service: AuditService, org_id):
         result = await audit_service.verify_chain(org_id)
 
         assert result["valid"] is True
         assert result["entries_checked"] == 0
 
     @pytest.mark.asyncio
-    async def test_verify_untampered_chain_is_valid(
-        self, audit_service: AuditService, org_id
-    ):
+    async def test_verify_untampered_chain_is_valid(self, audit_service: AuditService, org_id):
         """An untampered chain should verify successfully."""
         for i in range(4):
             event = AuditEventData(
@@ -250,7 +238,11 @@ class TestExportFiltering:
         """Export should only include entries matching the regulation filter."""
         reg_a, reg_b = uuid4(), uuid4()
 
-        for reg_id, desc in [(reg_a, "Reg A event"), (reg_b, "Reg B event"), (reg_a, "Reg A second")]:
+        for reg_id, desc in [
+            (reg_a, "Reg A event"),
+            (reg_b, "Reg B event"),
+            (reg_a, "Reg A second"),
+        ]:
             event = AuditEventData(
                 organization_id=org_id,
                 event_type=AuditEventType.REQUIREMENTS_EXTRACTED,

@@ -1,25 +1,26 @@
 """Tests for Compliance Copilot Chat service."""
 
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from app.services.chat import (
-    ComplianceAssistant,
+    ActionHandler,
+    ActionType,
+    ChatAction,
     ChatMessage,
     ChatResponse,
+    ComplianceAssistant,
     ConversationManager,
     ConversationState,
     Message,
     MessageRole,
-    RAGPipeline,
     RAGContext,
     RAGDocument,
-    ActionHandler,
-    ActionType,
-    ChatAction,
+    RAGPipeline,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -36,13 +37,13 @@ class TestConversationManager:
         """Test creating a new conversation."""
         org_id = uuid4()
         user_id = uuid4()
-        
+
         conversation = await manager.get_or_create(
             conversation_id=None,
             organization_id=org_id,
             user_id=user_id,
         )
-        
+
         assert conversation is not None
         assert conversation.organization_id == org_id
         assert len(conversation.messages) == 0
@@ -51,21 +52,21 @@ class TestConversationManager:
         """Test getting an existing conversation."""
         org_id = uuid4()
         user_id = uuid4()
-        
+
         # Create first
         conv1 = await manager.get_or_create(
             conversation_id=None,
             organization_id=org_id,
             user_id=user_id,
         )
-        
+
         # Get same
         conv2 = await manager.get_or_create(
             conversation_id=str(conv1.id),
             organization_id=org_id,
             user_id=user_id,
         )
-        
+
         assert conv1.id == conv2.id
 
     async def test_save_conversation(self, manager):
@@ -75,15 +76,17 @@ class TestConversationManager:
             conversation_id=None,
             organization_id=org_id,
         )
-        
+
         # Add a message
-        conversation.add_message(Message(
-            role=MessageRole.USER,
-            content="Test question",
-        ))
-        
+        conversation.add_message(
+            Message(
+                role=MessageRole.USER,
+                content="Test question",
+            )
+        )
+
         await manager.save(conversation)
-        
+
         # Retrieve and verify
         retrieved = await manager.get(str(conversation.id))
         assert retrieved is not None
@@ -96,12 +99,12 @@ class TestConversationManager:
             conversation_id=None,
             organization_id=org_id,
         )
-        
+
         await manager.save(conversation)
         result = await manager.delete(str(conversation.id), org_id)
-        
+
         assert result is True
-        
+
         # Should not exist anymore
         retrieved = await manager.get(str(conversation.id))
         assert retrieved is None
@@ -116,17 +119,21 @@ class TestConversationState:
             id=uuid4(),
             organization_id=uuid4(),
         )
-        
-        state.add_message(Message(
-            role=MessageRole.USER,
-            content="Hello",
-        ))
-        
-        state.add_message(Message(
-            role=MessageRole.ASSISTANT,
-            content="Hi there!",
-        ))
-        
+
+        state.add_message(
+            Message(
+                role=MessageRole.USER,
+                content="Hello",
+            )
+        )
+
+        state.add_message(
+            Message(
+                role=MessageRole.ASSISTANT,
+                content="Hi there!",
+            )
+        )
+
         assert len(state.messages) == 2
         assert state.messages[0].role == MessageRole.USER
         assert state.messages[1].role == MessageRole.ASSISTANT
@@ -137,16 +144,18 @@ class TestConversationState:
             id=uuid4(),
             organization_id=uuid4(),
         )
-        
+
         # Add many messages
         for i in range(15):
-            state.add_message(Message(
-                role=MessageRole.USER if i % 2 == 0 else MessageRole.ASSISTANT,
-                content=f"Message {i}",
-            ))
-        
+            state.add_message(
+                Message(
+                    role=MessageRole.USER if i % 2 == 0 else MessageRole.ASSISTANT,
+                    content=f"Message {i}",
+                )
+            )
+
         context = state.get_context_messages(max_messages=5)
-        
+
         assert len(context) == 5
         # Should be the most recent messages
         assert "Message 14" in context[-1].content
@@ -157,11 +166,11 @@ class TestConversationState:
             id=uuid4(),
             organization_id=uuid4(),
         )
-        
+
         state.active_repository = "owner/repo"
         state.active_regulations = ["GDPR", "HIPAA"]
         state.active_file_path = "src/user.py"
-        
+
         assert state.active_repository == "owner/repo"
         assert "GDPR" in state.active_regulations
 
@@ -177,13 +186,13 @@ class TestRAGPipeline:
     async def test_retrieve_context(self, rag_pipeline):
         """Test retrieving context for a query."""
         org_id = uuid4()
-        
+
         context = await rag_pipeline.retrieve(
             query="What are GDPR encryption requirements?",
             organization_id=org_id,
             regulations=["GDPR"],
         )
-        
+
         assert context is not None
         assert context.detected_intent is not None
 
@@ -192,11 +201,11 @@ class TestRAGPipeline:
         # Compliance status query
         intent1 = rag_pipeline._detect_intent("What's my compliance status?")
         assert intent1 == "compliance_status"
-        
+
         # Explanation query
         intent2 = rag_pipeline._detect_intent("Explain GDPR Article 17")
         assert intent2 == "explanation"
-        
+
         # Action query
         intent3 = rag_pipeline._detect_intent("Generate a fix for this issue")
         assert intent3 == "action"
@@ -206,7 +215,7 @@ class TestRAGPipeline:
         entities = rag_pipeline._extract_entities(
             "What are the HIPAA requirements for PHI encryption?"
         )
-        
+
         assert "HIPAA" in entities.get("regulations", [])
 
     def test_context_string_generation(self, rag_pipeline):
@@ -230,9 +239,9 @@ class TestRAGPipeline:
             ],
             detected_intent="explanation",
         )
-        
+
         context_str = context.get_context_string(max_documents=5)
-        
+
         assert "GDPR Article 32" in context_str
         assert "AES-256" in context_str
 
@@ -258,19 +267,19 @@ class TestActionHandler:
                 "language": "python",
             },
         )
-        
-        with patch.object(action_handler, '_generate_fix', new_callable=AsyncMock) as mock:
+
+        with patch.object(action_handler, "_generate_fix", new_callable=AsyncMock) as mock:
             mock.return_value = {
                 "success": True,
                 "fixed_code": "log(mask_pii(user.email))",
                 "explanation": "Added PII masking",
             }
-            
+
             result = await action_handler.execute(
                 action=action,
                 organization_id=uuid4(),
             )
-        
+
         assert result["success"] is True
         assert "fixed_code" in result
 
@@ -286,18 +295,18 @@ class TestActionHandler:
                 "article": "17",
             },
         )
-        
-        with patch.object(action_handler, '_explain_requirement', new_callable=AsyncMock) as mock:
+
+        with patch.object(action_handler, "_explain_requirement", new_callable=AsyncMock) as mock:
             mock.return_value = {
                 "success": True,
                 "explanation": "Article 17 covers the right to erasure...",
             }
-            
+
             result = await action_handler.execute(
                 action=action,
                 organization_id=uuid4(),
             )
-        
+
         assert result["success"] is True
         assert "explanation" in result
 
@@ -309,15 +318,15 @@ I can help you fix this. Would you like me to:
 1. Generate a fix for the unencrypted PII storage
 2. Create a PR with the fix
 3. Explain the GDPR Article 32 requirements"""
-        
+
         context = {
             "repository": "owner/repo",
             "file_path": "src/user.py",
             "regulations": ["GDPR"],
         }
-        
+
         actions = action_handler.create_actions_from_response(response, context)
-        
+
         # Should detect action opportunities
         assert len(actions) >= 0  # May or may not detect depending on implementation
 
@@ -329,11 +338,13 @@ class TestComplianceAssistant:
     def mock_copilot_client(self):
         """Create mock Copilot client."""
         client = MagicMock()
-        client.chat = AsyncMock(return_value=MagicMock(
-            content="Based on GDPR Article 32, you need to encrypt personal data at rest.",
-            model="gpt-4",
-            usage={"prompt_tokens": 100, "completion_tokens": 50},
-        ))
+        client.chat = AsyncMock(
+            return_value=MagicMock(
+                content="Based on GDPR Article 32, you need to encrypt personal data at rest.",
+                model="gpt-4",
+                usage={"prompt_tokens": 100, "completion_tokens": 50},
+            )
+        )
         client.__aenter__ = AsyncMock(return_value=client)
         client.__aexit__ = AsyncMock(return_value=None)
         return client
@@ -352,18 +363,18 @@ class TestComplianceAssistant:
     async def test_chat_basic(self, assistant, mock_copilot_client):
         """Test basic chat interaction."""
         org_id = uuid4()
-        
+
         message = ChatMessage(
             role="user",
             content="What encryption does GDPR require?",
             regulations=["GDPR"],
         )
-        
+
         response = await assistant.chat(
             message=message,
             organization_id=org_id,
         )
-        
+
         assert response is not None
         assert response.content is not None
         assert response.conversation_id is not None
@@ -372,44 +383,44 @@ class TestComplianceAssistant:
     async def test_chat_with_code(self, assistant, mock_copilot_client):
         """Test chat with code context."""
         org_id = uuid4()
-        
+
         message = ChatMessage(
             role="user",
             content="Is this code GDPR compliant?",
             code_snippet="user_data = {'email': user.email, 'ssn': user.ssn}",
             regulations=["GDPR"],
         )
-        
+
         response = await assistant.chat(
             message=message,
             organization_id=org_id,
         )
-        
+
         assert response is not None
         assert response.content is not None
 
     async def test_chat_with_repository_context(self, assistant, mock_copilot_client):
         """Test chat with repository context."""
         org_id = uuid4()
-        
+
         message = ChatMessage(
             role="user",
             content="What compliance issues exist?",
             repository="owner/repo",
         )
-        
+
         response = await assistant.chat(
             message=message,
             organization_id=org_id,
         )
-        
+
         assert response is not None
         assert response.conversation_id is not None
 
     async def test_chat_continues_conversation(self, assistant, mock_copilot_client):
         """Test continuing a conversation."""
         org_id = uuid4()
-        
+
         # First message
         msg1 = ChatMessage(
             role="user",
@@ -417,7 +428,7 @@ class TestComplianceAssistant:
         )
         response1 = await assistant.chat(message=msg1, organization_id=org_id)
         conv_id = response1.conversation_id
-        
+
         # Follow-up
         msg2 = ChatMessage(
             role="user",
@@ -425,18 +436,18 @@ class TestComplianceAssistant:
             conversation_id=conv_id,
         )
         response2 = await assistant.chat(message=msg2, organization_id=org_id)
-        
+
         assert response2.conversation_id == conv_id
 
     async def test_get_quick_actions(self, assistant):
         """Test getting quick action suggestions."""
         org_id = uuid4()
-        
+
         actions = await assistant.get_quick_actions(
             organization_id=org_id,
             repository="owner/repo",
         )
-        
+
         assert len(actions) > 0
         for action in actions:
             assert "label" in action
@@ -445,16 +456,16 @@ class TestComplianceAssistant:
     async def test_suggest_questions(self, assistant):
         """Test suggesting follow-up questions."""
         org_id = uuid4()
-        
+
         # Create a conversation first
         msg = ChatMessage(role="user", content="Tell me about GDPR")
         response = await assistant.chat(message=msg, organization_id=org_id)
-        
+
         suggestions = await assistant.suggest_questions(
             conversation_id=response.conversation_id,
             organization_id=org_id,
         )
-        
+
         assert len(suggestions) > 0
         for suggestion in suggestions:
             assert isinstance(suggestion, str)
@@ -471,7 +482,7 @@ class TestChatMessage:
             repository="owner/repo",
             regulations=["HIPAA"],
         )
-        
+
         assert message.role == "user"
         assert message.content == "What is HIPAA?"
         assert message.repository == "owner/repo"
@@ -485,7 +496,7 @@ class TestChatMessage:
             code_snippet="password = 'secret123'",
             file_path="src/config.py",
         )
-        
+
         assert message.code_snippet is not None
         assert message.file_path == "src/config.py"
 
@@ -502,7 +513,7 @@ class TestChatResponse:
             input_tokens=100,
             output_tokens=50,
         )
-        
+
         assert response.content is not None
         assert response.model == "gpt-4"
         assert response.is_complete is True
@@ -520,7 +531,7 @@ class TestChatResponse:
                 },
             ],
         )
-        
+
         assert len(response.citations) == 1
         assert response.citations[0]["source"] == "GDPR"
 
@@ -538,7 +549,7 @@ class TestChatResponse:
                 ),
             ],
         )
-        
+
         assert len(response.actions) == 1
         assert response.actions[0].type == ActionType.GENERATE_FIX
 
@@ -550,9 +561,9 @@ class TestChatResponse:
             model="gpt-4",
             latency_ms=150.5,
         )
-        
+
         data = response.to_dict()
-        
+
         assert data["conversation_id"] == "conv-123"
         assert data["content"] == "Test response"
         assert data["latency_ms"] == 150.5
@@ -571,7 +582,7 @@ class TestRAGDocument:
             relevance_score=0.95,
             metadata={"regulation": "GDPR", "article": "17"},
         )
-        
+
         assert doc.title == "GDPR Article 17"
         assert doc.relevance_score == 0.95
         assert doc.metadata["article"] == "17"
@@ -592,7 +603,7 @@ class TestChatAction:
                 "branch": "fix/compliance",
             },
         )
-        
+
         assert action.type == ActionType.CREATE_PR
         assert action.label == "Create PR"
         assert action.parameters["repository"] == "owner/repo"
@@ -605,8 +616,8 @@ class TestChatAction:
             label="Fix Code",
             description="Generate compliant code",
         )
-        
+
         data = action.to_dict()
-        
+
         assert data["type"] == "generate_fix"
         assert data["label"] == "Fix Code"

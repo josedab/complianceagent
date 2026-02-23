@@ -1,7 +1,6 @@
 """Tests for Next-Gen Strategic Features (Phase 6)."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestBenchmarkingAPI:
@@ -52,7 +51,8 @@ class TestMarketplaceAppAPI:
     async def test_list_installations(self, client, auth_headers):
         """Test listing installations."""
         response = await client.get(
-            "/api/v1/marketplace-app/installations", headers=auth_headers,
+            "/api/v1/marketplace-app/installations",
+            headers=auth_headers,
         )
         assert response.status_code in (200, 401)
 
@@ -60,7 +60,8 @@ class TestMarketplaceAppAPI:
     async def test_get_listing_info(self, client, auth_headers):
         """Test getting marketplace listing info."""
         response = await client.get(
-            "/api/v1/marketplace-app/listing", headers=auth_headers,
+            "/api/v1/marketplace-app/listing",
+            headers=auth_headers,
         )
         assert response.status_code in (200, 401)
 
@@ -220,7 +221,8 @@ class TestEvidenceVaultAPI:
     async def test_verify_chain(self, client, auth_headers):
         """Test verifying evidence chain."""
         response = await client.get(
-            "/api/v1/evidence-vault/verify/soc2", headers=auth_headers,
+            "/api/v1/evidence-vault/verify/soc2",
+            headers=auth_headers,
         )
         assert response.status_code in (200, 401, 422)
 

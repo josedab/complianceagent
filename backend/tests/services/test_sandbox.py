@@ -1,14 +1,16 @@
 """Tests for compliance sandbox service."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.services.sandbox import (
     ComplianceSandbox,
-    SimulationScenario,
-    SimulationResult,
     ScenarioType,
+    SimulationResult,
+    SimulationScenario,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -34,7 +36,7 @@ class TestComplianceSandbox:
             },
             regulations=["GDPR", "CCPA"],
         )
-        
+
         with patch.object(sandbox, "_analyze_code_change") as mock_analyze:
             mock_analyze.return_value = SimulationResult(
                 scenario_id="test-123",
@@ -47,9 +49,9 @@ class TestComplianceSandbox:
                 estimated_effort_hours=4,
                 risk_level="medium",
             )
-            
+
             result = await sandbox.simulate(scenario)
-            
+
             assert result.status == "completed"
             assert "GDPR" in result.compliance_impact
             assert result.risk_level == "medium"
@@ -67,7 +69,7 @@ class TestComplianceSandbox:
             },
             regulations=["GDPR", "LGPD"],
         )
-        
+
         with patch.object(sandbox, "_analyze_architecture_change") as mock_analyze:
             mock_analyze.return_value = SimulationResult(
                 scenario_id="test-456",
@@ -78,7 +80,7 @@ class TestComplianceSandbox:
                         "issues": ["Data residency requirements for EU data"],
                     },
                     "LGPD": {
-                        "status": "requires_changes", 
+                        "status": "requires_changes",
                         "issues": ["Brazil data localization requirements"],
                     },
                 },
@@ -89,9 +91,9 @@ class TestComplianceSandbox:
                 estimated_effort_hours=40,
                 risk_level="high",
             )
-            
+
             result = await sandbox.simulate(scenario)
-            
+
             assert result.status == "completed"
             assert result.risk_level == "high"
             assert len(result.recommendations) >= 2
@@ -108,22 +110,28 @@ class TestComplianceSandbox:
             },
             regulations=["SOC2", "ISO27001"],
         )
-        
+
         with patch.object(sandbox, "_analyze_vendor_change") as mock_analyze:
             mock_analyze.return_value = SimulationResult(
                 scenario_id="test-789",
                 status="completed",
                 compliance_impact={
-                    "SOC2": {"status": "review_required", "issues": ["New vendor SOC2 attestation needed"]},
-                    "ISO27001": {"status": "review_required", "issues": ["Update security controls mapping"]},
+                    "SOC2": {
+                        "status": "review_required",
+                        "issues": ["New vendor SOC2 attestation needed"],
+                    },
+                    "ISO27001": {
+                        "status": "review_required",
+                        "issues": ["Update security controls mapping"],
+                    },
                 },
                 recommendations=["Request Azure SOC2 Type II report"],
                 estimated_effort_hours=80,
                 risk_level="medium",
             )
-            
+
             result = await sandbox.simulate(scenario)
-            
+
             assert result.status == "completed"
             assert "SOC2" in result.compliance_impact
 
@@ -139,7 +147,7 @@ class TestComplianceSandbox:
             },
             regulations=["EU_AI_ACT"],
         )
-        
+
         with patch.object(sandbox, "_analyze_regulation_change") as mock_analyze:
             mock_analyze.return_value = SimulationResult(
                 scenario_id="test-abc",
@@ -162,9 +170,9 @@ class TestComplianceSandbox:
                 estimated_effort_hours=200,
                 risk_level="high",
             )
-            
+
             result = await sandbox.simulate(scenario)
-            
+
             assert result.status == "completed"
             assert len(result.compliance_impact["EU_AI_ACT"]["issues"]) >= 3
 
@@ -180,7 +188,7 @@ class TestComplianceSandbox:
             },
             regulations=["GDPR", "CCPA"],
         )
-        
+
         with patch.object(sandbox, "_analyze_data_flow_change") as mock_analyze:
             mock_analyze.return_value = SimulationResult(
                 scenario_id="test-def",
@@ -199,15 +207,15 @@ class TestComplianceSandbox:
                 estimated_effort_hours=16,
                 risk_level="medium",
             )
-            
+
             result = await sandbox.simulate(scenario)
-            
+
             assert result.status == "completed"
 
     def test_list_scenarios(self, sandbox):
         """Test listing available scenario types."""
         scenarios = sandbox.list_scenario_types()
-        
+
         assert len(scenarios) >= 5
         types = [s["type"] for s in scenarios]
         assert "code_change" in types
@@ -217,7 +225,7 @@ class TestComplianceSandbox:
     async def test_get_scenario_template(self, sandbox):
         """Test getting scenario template."""
         template = sandbox.get_scenario_template(ScenarioType.CODE_CHANGE)
-        
+
         assert template is not None
         assert "parameters" in template
         assert "description" in template
@@ -238,7 +246,7 @@ class TestComplianceSandbox:
                 regulations=["GDPR"],
             ),
         ]
-        
+
         with patch.object(sandbox, "simulate") as mock_simulate:
             mock_simulate.side_effect = [
                 SimulationResult(
@@ -258,9 +266,9 @@ class TestComplianceSandbox:
                     risk_level="medium",
                 ),
             ]
-            
+
             comparison = await sandbox.compare_scenarios(scenarios)
-            
+
             assert "results" in comparison
             assert len(comparison["results"]) == 2
 
@@ -276,7 +284,7 @@ class TestSimulationScenario:
             parameters={"key": "value"},
             regulations=["GDPR"],
         )
-        
+
         assert scenario.scenario_type == ScenarioType.CODE_CHANGE
         assert scenario.description == "Test scenario"
 
@@ -288,9 +296,9 @@ class TestSimulationScenario:
             parameters={},
             regulations=["SOC2"],
         )
-        
+
         scenario_dict = scenario.to_dict()
-        
+
         assert scenario_dict["scenario_type"] == "vendor_change"
         assert "regulations" in scenario_dict
 
@@ -308,7 +316,7 @@ class TestSimulationResult:
             estimated_effort_hours=0,
             risk_level="low",
         )
-        
+
         assert result.scenario_id == "test-123"
         assert result.status == "completed"
         assert result.risk_level == "low"
@@ -323,9 +331,9 @@ class TestSimulationResult:
             estimated_effort_hours=0,
             risk_level="unknown",
         )
-        
+
         result_dict = result.to_dict()
-        
+
         assert result_dict["status"] == "failed"
 
 

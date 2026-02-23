@@ -1,19 +1,22 @@
 """Service-level tests for v3.0 Next-Gen Features."""
 
-import pytest
 from uuid import uuid4
-from unittest.mock import AsyncMock
 
-from app.services.telemetry import TelemetryService, MetricType, TelemetryEventType, AlertSeverity
-from app.services.nl_query import NLQueryService, QueryIntent
-from app.services.remediation_workflow import RemediationWorkflowService, RemediationPriority, WorkflowState
-from app.services.posture_scoring import PostureScoringService
-from app.services.org_hierarchy import OrgHierarchyService, OrgNodeType, OrgRole
-from app.services.policy_sdk import PolicySDKService, PolicyCategory, PolicyLanguage
+import pytest
+
 from app.services.audit_autopilot import AuditAutopilotService, AuditFramework
-from app.services.impact_timeline import ImpactTimelineService, TaskStatus
-from app.services.compliance_intel import ComplianceIntelService, PrivacyLevel
-from app.services.self_hosted import SelfHostedService, DeploymentMode, LicenseType
+from app.services.compliance_intel import ComplianceIntelService
+from app.services.impact_timeline import ImpactTimelineService
+from app.services.nl_query import NLQueryService, QueryIntent
+from app.services.org_hierarchy import OrgHierarchyService, OrgNodeType, OrgRole
+from app.services.policy_sdk import PolicySDKService
+from app.services.posture_scoring import PostureScoringService
+from app.services.remediation_workflow import (
+    RemediationWorkflowService,
+    WorkflowState,
+)
+from app.services.self_hosted import DeploymentMode, LicenseType, SelfHostedService
+from app.services.telemetry import AlertSeverity, MetricType, TelemetryEventType, TelemetryService
 
 
 class TestTelemetryService:
@@ -47,7 +50,7 @@ class TestTelemetryService:
     @pytest.mark.asyncio
     async def test_threshold_breach(self, db_session):
         service = TelemetryService(db=db_session)
-        metric = await service.record_metric(MetricType.COMPLIANCE_SCORE, 50.0)
+        await service.record_metric(MetricType.COMPLIANCE_SCORE, 50.0)
         events = await service.get_events(event_type=TelemetryEventType.THRESHOLD_BREACH)
         assert len(events) > 0
 
@@ -73,7 +76,11 @@ class TestNLQueryService:
         service = NLQueryService(db=db_session)
         result = await service.query("Show me all current violations")
         assert result.intent == QueryIntent.VIOLATION_QUERY
-        assert "violation" in result.answer.lower() or "breach" in result.answer.lower() or "Critical" in result.answer
+        assert (
+            "violation" in result.answer.lower()
+            or "breach" in result.answer.lower()
+            or "Critical" in result.answer
+        )
 
     @pytest.mark.asyncio
     async def test_code_search_query(self, db_session):
@@ -94,8 +101,10 @@ class TestRemediationWorkflowService:
     async def test_create_workflow(self, db_session):
         service = RemediationWorkflowService(db=db_session)
         wf = await service.create_workflow(
-            title="Fix GDPR consent", violation_id="VIO-001",
-            framework="gdpr", repository="test/repo",
+            title="Fix GDPR consent",
+            violation_id="VIO-001",
+            framework="gdpr",
+            repository="test/repo",
         )
         assert wf.state == WorkflowState.DETECTED
         assert wf.violation_id == "VIO-001"
@@ -104,7 +113,10 @@ class TestRemediationWorkflowService:
     async def test_generate_fixes(self, db_session):
         service = RemediationWorkflowService(db=db_session)
         wf = await service.create_workflow(
-            title="Fix GDPR", violation_id="VIO-002", framework="gdpr", repository="test/repo",
+            title="Fix GDPR",
+            violation_id="VIO-002",
+            framework="gdpr",
+            repository="test/repo",
         )
         wf = await service.generate_fixes(wf.id)
         assert wf.state == WorkflowState.REVIEW
@@ -115,7 +127,10 @@ class TestRemediationWorkflowService:
     async def test_full_workflow_cycle(self, db_session):
         service = RemediationWorkflowService(db=db_session)
         wf = await service.create_workflow(
-            title="Fix PCI", violation_id="VIO-003", framework="pci_dss", repository="test/repo",
+            title="Fix PCI",
+            violation_id="VIO-003",
+            framework="pci_dss",
+            repository="test/repo",
         )
         wf = await service.generate_fixes(wf.id)
         wf = await service.approve_workflow(wf.id, "admin@test.com")
@@ -162,7 +177,9 @@ class TestOrgHierarchyService:
     async def test_parent_child_hierarchy(self, db_session):
         service = OrgHierarchyService(db=db_session)
         root = await service.create_node("Corp", OrgNodeType.ROOT)
-        child = await service.create_node("Engineering", OrgNodeType.BUSINESS_UNIT, parent_id=root.id)
+        child = await service.create_node(
+            "Engineering", OrgNodeType.BUSINESS_UNIT, parent_id=root.id
+        )
         assert child.depth == 1
         assert child.parent_id == root.id
 
@@ -177,7 +194,9 @@ class TestOrgHierarchyService:
     @pytest.mark.asyncio
     async def test_policy_inheritance(self, db_session):
         service = OrgHierarchyService(db=db_session)
-        root = await service.create_node("Corp", OrgNodeType.ROOT, policies={"encryption": "required"})
+        root = await service.create_node(
+            "Corp", OrgNodeType.ROOT, policies={"encryption": "required"}
+        )
         child = await service.create_node("Team", OrgNodeType.TEAM, parent_id=root.id)
         policies = await service.get_effective_policies(child.id)
         assert "encryption" in policies
@@ -194,7 +213,8 @@ class TestPolicySDKService:
     async def test_create_custom_policy(self, db_session):
         service = PolicySDKService(db=db_session)
         policy = await service.create_policy(
-            name="my-policy", description="Custom test policy",
+            name="my-policy",
+            description="Custom test policy",
             source_code="rules:\n  - id: test\n    pattern: 'test()'",
         )
         assert policy.name == "my-policy"
@@ -203,7 +223,8 @@ class TestPolicySDKService:
     async def test_validate_policy(self, db_session):
         service = PolicySDKService(db=db_session)
         policy = await service.create_policy(
-            name="valid-policy", description="Test",
+            name="valid-policy",
+            description="Test",
             source_code="rules:\n  - id: check\n    pattern: 'x()'",
         )
         result = await service.validate_policy(policy.id)
@@ -285,7 +306,11 @@ class TestComplianceIntelService:
         service = ComplianceIntelService(db=db_session)
         p = await service.join_network("ContribOrg", "saas")
         pattern = await service.contribute_pattern(
-            p.id, "gdpr", "Art.25", "Encryption-first architecture", 85.0,
+            p.id,
+            "gdpr",
+            "Art.25",
+            "Encryption-first architecture",
+            85.0,
         )
         assert pattern is not None
         assert pattern.noise_applied is True
@@ -323,7 +348,8 @@ class TestSelfHostedService:
     async def test_configure_deployment(self, db_session):
         service = SelfHostedService(db=db_session)
         config = await service.configure_deployment(
-            mode=DeploymentMode.AIR_GAPPED, local_llm_enabled=True,
+            mode=DeploymentMode.AIR_GAPPED,
+            local_llm_enabled=True,
         )
         assert config.mode == DeploymentMode.AIR_GAPPED
         assert config.local_llm_enabled is True

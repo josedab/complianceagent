@@ -1,9 +1,11 @@
 """Tests for PR Bot and Chat API endpoints."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
+
+import pytest
 from httpx import AsyncClient
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -15,7 +17,7 @@ class TestPRBotAPI:
         """Test triggering PR analysis."""
         with patch("app.api.v1.pr_bot.analyze_pr_task") as mock_task:
             mock_task.delay = MagicMock(return_value=MagicMock(id="task-123"))
-            
+
             response = await client.post(
                 "/api/v1/pr-bot/analyze",
                 headers=auth_headers,
@@ -25,19 +27,19 @@ class TestPRBotAPI:
                     "pr_number": 123,
                 },
             )
-        
+
         # May need GitHub token in org settings
         assert response.status_code in [200, 400, 422]
 
     async def test_get_task_status(self, client: AsyncClient, auth_headers: dict):
         """Test getting task status."""
         task_id = str(uuid4())
-        
+
         response = await client.get(
             f"/api/v1/pr-bot/task/{task_id}",
             headers=auth_headers,
         )
-        
+
         # Task may not exist
         assert response.status_code in [200, 404]
 
@@ -47,7 +49,7 @@ class TestPRBotAPI:
             "/api/v1/pr-bot/config",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "enabled" in data
@@ -65,7 +67,7 @@ class TestPRBotAPI:
                 "frameworks": ["GDPR", "HIPAA"],
             },
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["enabled"] is True
@@ -74,7 +76,7 @@ class TestPRBotAPI:
         """Test batch analyzing multiple PRs."""
         with patch("app.api.v1.pr_bot.batch_analyze_prs_task") as mock_task:
             mock_task.delay = MagicMock()
-            
+
             response = await client.post(
                 "/api/v1/pr-bot/analyze/batch",
                 headers=auth_headers,
@@ -85,7 +87,7 @@ class TestPRBotAPI:
                     ],
                 },
             )
-        
+
         assert response.status_code in [200, 400, 422]
 
     async def test_get_pr_bot_stats(self, client: AsyncClient, auth_headers: dict):
@@ -94,7 +96,7 @@ class TestPRBotAPI:
             "/api/v1/pr-bot/stats",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "total_analyzed" in data or "prs_analyzed" in data or isinstance(data, dict)
@@ -106,7 +108,7 @@ class TestPRBotAPI:
             headers=auth_headers,
             params={"limit": 10},
         )
-        
+
         assert response.status_code == 200
 
 
@@ -117,21 +119,23 @@ class TestChatAPI:
         """Test sending a chat message."""
         with patch("app.services.chat.get_compliance_assistant") as mock_get:
             mock_assistant = MagicMock()
-            mock_assistant.chat = AsyncMock(return_value=MagicMock(
-                id=uuid4(),
-                conversation_id="conv-123",
-                content="GDPR requires encryption for personal data.",
-                citations=[],
-                context_used=[],
-                actions=[],
-                model="gpt-4",
-                input_tokens=100,
-                output_tokens=50,
-                latency_ms=150.0,
-                timestamp=MagicMock(isoformat=MagicMock(return_value="2024-01-01T00:00:00Z")),
-            ))
+            mock_assistant.chat = AsyncMock(
+                return_value=MagicMock(
+                    id=uuid4(),
+                    conversation_id="conv-123",
+                    content="GDPR requires encryption for personal data.",
+                    citations=[],
+                    context_used=[],
+                    actions=[],
+                    model="gpt-4",
+                    input_tokens=100,
+                    output_tokens=50,
+                    latency_ms=150.0,
+                    timestamp=MagicMock(isoformat=MagicMock(return_value="2024-01-01T00:00:00Z")),
+                )
+            )
             mock_get.return_value = mock_assistant
-            
+
             response = await client.post(
                 "/api/v1/chat/message",
                 headers=auth_headers,
@@ -140,7 +144,7 @@ class TestChatAPI:
                     "regulations": ["GDPR"],
                 },
             )
-        
+
         assert response.status_code in [200, 500]  # 500 if mocking fails
 
     async def test_list_conversations(self, client: AsyncClient, auth_headers: dict):
@@ -150,28 +154,34 @@ class TestChatAPI:
             mock_assistant.conversation_manager = MagicMock()
             mock_assistant.conversation_manager.list_conversations = AsyncMock(return_value=[])
             mock_get.return_value = mock_assistant
-            
+
             response = await client.get(
                 "/api/v1/chat/conversations",
                 headers=auth_headers,
             )
-        
+
         assert response.status_code == 200
 
     async def test_get_quick_actions(self, client: AsyncClient, auth_headers: dict):
         """Test getting quick actions."""
         with patch("app.services.chat.get_compliance_assistant") as mock_get:
             mock_assistant = MagicMock()
-            mock_assistant.get_quick_actions = AsyncMock(return_value=[
-                {"label": "Check status", "query": "What's my compliance status?", "icon": "shield"},
-            ])
+            mock_assistant.get_quick_actions = AsyncMock(
+                return_value=[
+                    {
+                        "label": "Check status",
+                        "query": "What's my compliance status?",
+                        "icon": "shield",
+                    },
+                ]
+            )
             mock_get.return_value = mock_assistant
-            
+
             response = await client.get(
                 "/api/v1/chat/quick-actions",
                 headers=auth_headers,
             )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -179,32 +189,34 @@ class TestChatAPI:
     async def test_delete_conversation(self, client: AsyncClient, auth_headers: dict):
         """Test deleting a conversation."""
         conv_id = "test-conv-123"
-        
+
         with patch("app.services.chat.get_compliance_assistant") as mock_get:
             mock_assistant = MagicMock()
             mock_assistant.conversation_manager = MagicMock()
             mock_assistant.conversation_manager.delete = AsyncMock(return_value=True)
             mock_get.return_value = mock_assistant
-            
+
             response = await client.delete(
                 f"/api/v1/chat/conversation/{conv_id}",
                 headers=auth_headers,
             )
-        
+
         assert response.status_code in [200, 404]
 
     async def test_analyze_code(self, client: AsyncClient, auth_headers: dict):
         """Test code analysis endpoint."""
         with patch("app.services.chat.get_compliance_assistant") as mock_get:
             mock_assistant = MagicMock()
-            mock_assistant.chat = AsyncMock(return_value=MagicMock(
-                content="This code has PII logging issues.",
-                conversation_id="conv-123",
-                citations=[],
-                actions=[],
-            ))
+            mock_assistant.chat = AsyncMock(
+                return_value=MagicMock(
+                    content="This code has PII logging issues.",
+                    conversation_id="conv-123",
+                    citations=[],
+                    actions=[],
+                )
+            )
             mock_get.return_value = mock_assistant
-            
+
             response = await client.post(
                 "/api/v1/chat/analyze-code",
                 headers=auth_headers,
@@ -213,20 +225,22 @@ class TestChatAPI:
                     "language": "python",
                 },
             )
-        
+
         assert response.status_code in [200, 422, 500]
 
     async def test_explain_regulation(self, client: AsyncClient, auth_headers: dict):
         """Test regulation explanation endpoint."""
         with patch("app.services.chat.get_compliance_assistant") as mock_get:
             mock_assistant = MagicMock()
-            mock_assistant.chat = AsyncMock(return_value=MagicMock(
-                content="GDPR Article 17 covers the right to erasure...",
-                conversation_id="conv-123",
-                citations=[{"source": "GDPR", "title": "Article 17"}],
-            ))
+            mock_assistant.chat = AsyncMock(
+                return_value=MagicMock(
+                    content="GDPR Article 17 covers the right to erasure...",
+                    conversation_id="conv-123",
+                    citations=[{"source": "GDPR", "title": "Article 17"}],
+                )
+            )
             mock_get.return_value = mock_assistant
-            
+
             response = await client.post(
                 "/api/v1/chat/explain-regulation",
                 headers=auth_headers,
@@ -235,7 +249,7 @@ class TestChatAPI:
                     "article": "17",
                 },
             )
-        
+
         assert response.status_code in [200, 422, 500]
 
 
@@ -248,7 +262,7 @@ class TestIDEAPIExtended:
             "/api/v1/ide/suppressions",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -264,7 +278,7 @@ class TestIDEAPIExtended:
                 "pattern": "test_.*\\.py",
             },
         )
-        
+
         assert response.status_code in [200, 201]
         data = response.json()
         assert "id" in data
@@ -273,12 +287,12 @@ class TestIDEAPIExtended:
     async def test_delete_team_suppression(self, client: AsyncClient, auth_headers: dict):
         """Test deleting a team suppression."""
         suppression_id = str(uuid4())
-        
+
         response = await client.delete(
             f"/api/v1/ide/suppressions/{suppression_id}",
             headers=auth_headers,
         )
-        
+
         assert response.status_code in [200, 404]
 
     async def test_submit_feedback(self, client: AsyncClient, auth_headers: dict):
@@ -296,7 +310,7 @@ class TestIDEAPIExtended:
                 "reason": "This is test code, not production",
             },
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "received"
@@ -307,7 +321,7 @@ class TestIDEAPIExtended:
             "/api/v1/ide/stats/rules",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -321,7 +335,7 @@ class TestIDEAPIExtended:
             "/api/v1/ide/stats/rules/GDPR-PII-001",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["rule_id"] == "GDPR-PII-001"
@@ -343,7 +357,7 @@ def get_user_email(user_id):
                 "regulations": ["GDPR"],
             },
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "diagnostics" in data
@@ -353,15 +367,17 @@ def get_user_email(user_id):
         """Test getting AI quick fix."""
         with patch("app.services.ide.get_copilot_suggester") as mock_get:
             mock_suggester = MagicMock()
-            mock_suggester.generate_quick_fix = AsyncMock(return_value=MagicMock(
-                original_code="print(user.email)",
-                fixed_code='print(mask_pii(user.email))',
-                explanation="Added PII masking to prevent data exposure in logs",
-                imports_added=["from utils import mask_pii"],
-                compliance_comments=["# GDPR Art. 32 - Data masking applied"],
-            ))
+            mock_suggester.generate_quick_fix = AsyncMock(
+                return_value=MagicMock(
+                    original_code="print(user.email)",
+                    fixed_code="print(mask_pii(user.email))",
+                    explanation="Added PII masking to prevent data exposure in logs",
+                    imports_added=["from utils import mask_pii"],
+                    compliance_comments=["# GDPR Art. 32 - Data masking applied"],
+                )
+            )
             mock_get.return_value = mock_suggester
-            
+
             response = await client.post(
                 "/api/v1/ide/quickfix",
                 headers=auth_headers,
@@ -372,7 +388,7 @@ def get_user_email(user_id):
                     "language": "python",
                 },
             )
-        
+
         assert response.status_code in [200, 500]
 
     async def test_deep_analyze(self, client: AsyncClient, auth_headers: dict):
@@ -381,7 +397,7 @@ def get_user_email(user_id):
             mock_suggester = MagicMock()
             mock_suggester.analyze_code_block = AsyncMock(return_value=[])
             mock_get.return_value = mock_suggester
-            
+
             response = await client.post(
                 "/api/v1/ide/deep-analyze",
                 headers=auth_headers,
@@ -395,7 +411,7 @@ def process_payment(card_number, cvv):
                     "regulations": ["PCI-DSS", "GDPR"],
                 },
             )
-        
+
         assert response.status_code in [200, 500]
 
 
@@ -423,10 +439,10 @@ class TestWebhooksExtended:
                 "id": 12345,
             },
         }
-        
+
         with patch("app.api.v1.webhooks.process_pr_webhook_task") as mock_task:
             mock_task.delay = MagicMock()
-            
+
             response = await client.post(
                 "/api/v1/webhooks/github",
                 headers={
@@ -435,7 +451,7 @@ class TestWebhooksExtended:
                 },
                 json=payload,
             )
-        
+
         # Webhook should be accepted (signature validation may fail in test)
         assert response.status_code in [200, 202, 400, 401]
 
@@ -454,10 +470,10 @@ class TestWebhooksExtended:
                 "name": "test-repo",
             },
         }
-        
+
         with patch("app.api.v1.webhooks.process_pr_webhook_task") as mock_task:
             mock_task.delay = MagicMock()
-            
+
             response = await client.post(
                 "/api/v1/webhooks/github",
                 headers={
@@ -466,5 +482,5 @@ class TestWebhooksExtended:
                 },
                 json=payload,
             )
-        
+
         assert response.status_code in [200, 202, 400, 401]

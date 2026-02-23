@@ -1,7 +1,8 @@
 """Compliance test fixtures for consistent testing data."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
+
 
 # Sample regulations for testing
 SAMPLE_REGULATIONS = [
@@ -401,9 +402,9 @@ def get_requirements_for_regulation(regulation_index: int):
     """Get requirements for a regulation by index (0-3)."""
     if regulation_index == 0:  # GDPR
         return SAMPLE_REQUIREMENTS[:3]
-    elif regulation_index == 2:  # PCI-DSS
+    if regulation_index == 2:  # PCI-DSS
         return SAMPLE_REQUIREMENTS[3:5]
-    elif regulation_index == 3:  # EU AI Act
+    if regulation_index == 3:  # EU AI Act
         return SAMPLE_REQUIREMENTS[5:]
     return []
 
@@ -432,7 +433,7 @@ def create_test_repository():
         "default_branch": "main",
         "scan_patterns": ["**/*.py", "**/*.js", "**/*.ts"],
         "is_active": True,
-        "last_scan": datetime.now(timezone.utc).isoformat(),
+        "last_scan": datetime.now(UTC).isoformat(),
     }
 
 

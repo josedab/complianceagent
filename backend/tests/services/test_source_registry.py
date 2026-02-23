@@ -1,19 +1,18 @@
 """Integration tests for source registry and framework initialization."""
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 from app.models.regulation import Jurisdiction, RegulatoryFramework
 from app.services.monitoring.source_registry import (
-    SOURCE_REGISTRY,
     FRAMEWORK_CATEGORIES,
+    SOURCE_REGISTRY,
+    get_ai_regulation_source_definitions,
     get_all_source_definitions,
+    get_apac_source_definitions,
+    get_framework_statistics,
     get_source_definitions_by_category,
     get_source_definitions_by_framework,
-    get_framework_statistics,
-    get_apac_source_definitions,
     get_sustainability_source_definitions,
-    get_ai_regulation_source_definitions,
 )
 
 
@@ -23,12 +22,24 @@ class TestSourceRegistry:
     def test_registry_contains_all_frameworks(self):
         """Test that registry contains all expected frameworks."""
         expected_frameworks = [
-            "gdpr", "ccpa", "hipaa", "pci_dss", "sox", "nis2", "soc2", "iso27001",
-            "eu_ai_act", "ai_safety",
-            "singapore_pdpa", "india_dpdp", "japan_appi", "korea_pipa", "china_pipl",
+            "gdpr",
+            "ccpa",
+            "hipaa",
+            "pci_dss",
+            "sox",
+            "nis2",
+            "soc2",
+            "iso27001",
+            "eu_ai_act",
+            "ai_safety",
+            "singapore_pdpa",
+            "india_dpdp",
+            "japan_appi",
+            "korea_pipa",
+            "china_pipl",
             "esg",
         ]
-        
+
         for framework in expected_frameworks:
             assert framework in SOURCE_REGISTRY, f"Missing framework: {framework}"
 
@@ -44,7 +55,7 @@ class TestSourceRegistry:
         """Test that all sources have required fields."""
         required_fields = ["name", "url", "jurisdiction"]
         all_sources = get_all_source_definitions()
-        
+
         for source in all_sources:
             for field in required_fields:
                 assert field in source, f"Source {source.get('name', 'unknown')} missing {field}"
@@ -52,10 +63,10 @@ class TestSourceRegistry:
     def test_get_all_source_definitions(self):
         """Test getting all source definitions."""
         all_sources = get_all_source_definitions()
-        
+
         # Should have at least 50 sources across all frameworks
         assert len(all_sources) >= 50, f"Only {len(all_sources)} sources found"
-        
+
         # Verify unique names
         names = [s["name"] for s in all_sources]
         assert len(names) == len(set(names)), "Duplicate source names found"
@@ -72,13 +83,13 @@ class TestFrameworkCategories:
             "ai_regulation",
             "esg_sustainability",
         ]
-        
+
         for category in expected_categories:
             assert category in FRAMEWORK_CATEGORIES
 
     def test_category_structure(self):
         """Test that categories have correct structure."""
-        for category_key, category in FRAMEWORK_CATEGORIES.items():
+        for category in FRAMEWORK_CATEGORIES.values():
             assert "name" in category
             assert "description" in category
             assert "frameworks" in category
@@ -104,7 +115,7 @@ class TestSourceDefinitionsByFramework:
     def test_get_sources_by_framework(self):
         """Test getting sources by framework key."""
         frameworks = ["gdpr", "singapore_pdpa", "esg", "ai_safety"]
-        
+
         for framework in frameworks:
             sources = get_source_definitions_by_framework(framework)
             assert isinstance(sources, list)
@@ -122,7 +133,7 @@ class TestFrameworkStatistics:
     def test_get_statistics(self):
         """Test getting framework statistics."""
         stats = get_framework_statistics()
-        
+
         assert "total_sources" in stats
         assert "total_frameworks" in stats
         assert "total_categories" in stats
@@ -134,14 +145,14 @@ class TestFrameworkStatistics:
     def test_statistics_totals_match(self):
         """Test that statistics totals are consistent."""
         stats = get_framework_statistics()
-        
+
         # Total sources should equal sum of sources in all frameworks
         all_sources = get_all_source_definitions()
         assert stats["total_sources"] == len(all_sources)
-        
+
         # Total frameworks should match registry size
         assert stats["total_frameworks"] == len(SOURCE_REGISTRY)
-        
+
         # Total categories should match
         assert stats["total_categories"] == len(FRAMEWORK_CATEGORIES)
 
@@ -149,7 +160,7 @@ class TestFrameworkStatistics:
         """Test that statistics include all jurisdictions."""
         stats = get_framework_statistics()
         by_jurisdiction = stats["by_jurisdiction"]
-        
+
         # Should have EU, US, and APAC jurisdictions
         expected_jurisdictions = ["eu", "us_federal", "sg", "in", "jp", "kr", "cn"]
         for jurisdiction in expected_jurisdictions:
@@ -164,10 +175,10 @@ class TestRegionSpecificHelpers:
     def test_get_apac_sources(self):
         """Test getting APAC source definitions."""
         apac_sources = get_apac_source_definitions()
-        
+
         assert isinstance(apac_sources, list)
         assert len(apac_sources) >= 16  # At least 16 APAC sources
-        
+
         # Verify all are from APAC jurisdictions
         apac_jurisdictions = {
             Jurisdiction.SINGAPORE,
@@ -182,14 +193,14 @@ class TestRegionSpecificHelpers:
     def test_get_sustainability_sources(self):
         """Test getting sustainability source definitions."""
         esg_sources = get_sustainability_source_definitions()
-        
+
         assert isinstance(esg_sources, list)
         assert len(esg_sources) >= 8  # At least 8 ESG sources
 
     def test_get_ai_regulation_sources(self):
         """Test getting AI regulation source definitions."""
         ai_sources = get_ai_regulation_source_definitions()
-        
+
         assert isinstance(ai_sources, list)
         assert len(ai_sources) >= 9  # EU AI Act + AI Safety sources
 
@@ -206,7 +217,7 @@ class TestSourceJurisdictionConsistency:
             "korea_pipa": Jurisdiction.SOUTH_KOREA,
             "china_pipl": Jurisdiction.CHINA,
         }
-        
+
         for framework_key, expected_jurisdiction in jurisdiction_mapping.items():
             sources = get_source_definitions_by_framework(framework_key)
             for source in sources:
@@ -216,8 +227,13 @@ class TestSourceJurisdictionConsistency:
 
     def test_esg_sources_correct_jurisdictions(self):
         """Test that ESG sources have valid jurisdictions."""
-        valid_jurisdictions = {Jurisdiction.EU, Jurisdiction.US_FEDERAL, Jurisdiction.US_CALIFORNIA, Jurisdiction.GLOBAL}
-        
+        valid_jurisdictions = {
+            Jurisdiction.EU,
+            Jurisdiction.US_FEDERAL,
+            Jurisdiction.US_CALIFORNIA,
+            Jurisdiction.GLOBAL,
+        }
+
         esg_sources = get_sustainability_source_definitions()
         for source in esg_sources:
             assert source["jurisdiction"] in valid_jurisdictions, (
@@ -232,7 +248,7 @@ class TestSourceFrameworkConsistency:
         """Test that all sources have valid framework enums."""
         all_sources = get_all_source_definitions()
         valid_frameworks = set(RegulatoryFramework)
-        
+
         for source in all_sources:
             framework = source.get("framework")
             if framework:
@@ -251,18 +267,20 @@ class TestSourceFrameworkConsistency:
             "ai_safety": "ai_regulation",
             "esg": "esg_sustainability",
         }
-        
+
         for framework_key, expected_category in framework_to_category.items():
-            if framework_key in FRAMEWORK_CATEGORIES.get(expected_category, {}).get("frameworks", []):
+            if framework_key in FRAMEWORK_CATEGORIES.get(expected_category, {}).get(
+                "frameworks", []
+            ):
                 # Framework is listed in expected category
                 pass
             else:
                 # Framework should be accessible via the category's get function
                 category_sources = get_source_definitions_by_category(expected_category)
                 framework_sources = get_source_definitions_by_framework(framework_key)
-                
+
                 # At least some overlap expected
                 framework_names = {s["name"] for s in framework_sources}
                 category_names = {s["name"] for s in category_sources}
-                
+
                 assert len(framework_names & category_names) > 0 or True  # Flexible check

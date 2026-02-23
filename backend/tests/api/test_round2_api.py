@@ -102,9 +102,7 @@ class TestIncidentRemediationAPI:
 
     @pytest.mark.asyncio
     async def test_list_incidents(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/incident-remediation/incidents", headers=auth_headers
-        )
+        response = await client.get("/api/v1/incident-remediation/incidents", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
@@ -170,16 +168,12 @@ class TestPairProgrammingAPI:
 
     @pytest.mark.asyncio
     async def test_get_context(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/pair-programming/context/python", headers=auth_headers
-        )
+        response = await client.get("/api/v1/pair-programming/context/python", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
     async def test_get_rules(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/pair-programming/rules", headers=auth_headers
-        )
+        response = await client.get("/api/v1/pair-programming/rules", headers=auth_headers)
         assert response.status_code in (200, 401)
 
 
@@ -228,9 +222,7 @@ class TestAPIMonetizationAPI:
 
     @pytest.mark.asyncio
     async def test_list_apis(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/api-monetization/apis", headers=auth_headers
-        )
+        response = await client.get("/api/v1/api-monetization/apis", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
@@ -268,9 +260,7 @@ class TestAPIMonetizationAPI:
 
     @pytest.mark.asyncio
     async def test_get_revenue(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/api-monetization/revenue", headers=auth_headers
-        )
+        response = await client.get("/api/v1/api-monetization/revenue", headers=auth_headers)
         assert response.status_code in (200, 401)
 
 
@@ -279,9 +269,7 @@ class TestPredictionMarketAPI:
 
     @pytest.mark.asyncio
     async def test_list_markets(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/prediction-market/markets", headers=auth_headers
-        )
+        response = await client.get("/api/v1/prediction-market/markets", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
@@ -310,16 +298,12 @@ class TestPredictionMarketAPI:
 
     @pytest.mark.asyncio
     async def test_get_leaderboard(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/prediction-market/leaderboard", headers=auth_headers
-        )
+        response = await client.get("/api/v1/prediction-market/leaderboard", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
     async def test_get_stats(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/prediction-market/stats", headers=auth_headers
-        )
+        response = await client.get("/api/v1/prediction-market/stats", headers=auth_headers)
         assert response.status_code in (200, 401)
 
 
@@ -328,9 +312,7 @@ class TestChaosEngineeringAPI:
 
     @pytest.mark.asyncio
     async def test_list_experiments(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/chaos-engineering/experiments", headers=auth_headers
-        )
+        response = await client.get("/api/v1/chaos-engineering/experiments", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
@@ -372,16 +354,12 @@ class TestChaosEngineeringAPI:
 
     @pytest.mark.asyncio
     async def test_get_game_days(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/chaos-engineering/game-days", headers=auth_headers
-        )
+        response = await client.get("/api/v1/chaos-engineering/game-days", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
     async def test_get_stats(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/chaos-engineering/stats", headers=auth_headers
-        )
+        response = await client.get("/api/v1/chaos-engineering/stats", headers=auth_headers)
         assert response.status_code in (200, 401)
 
 
@@ -390,23 +368,17 @@ class TestDebtSecuritizationAPI:
 
     @pytest.mark.asyncio
     async def test_list_items(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/debt-securitization/items", headers=auth_headers
-        )
+        response = await client.get("/api/v1/debt-securitization/items", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
     async def test_get_portfolio(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/debt-securitization/portfolio", headers=auth_headers
-        )
+        response = await client.get("/api/v1/debt-securitization/portfolio", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
     async def test_get_bonds(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/debt-securitization/bonds", headers=auth_headers
-        )
+        response = await client.get("/api/v1/debt-securitization/bonds", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
@@ -422,16 +394,12 @@ class TestRegulationDiffAPI:
 
     @pytest.mark.asyncio
     async def test_list_versions(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/regulation-diff/versions", headers=auth_headers
-        )
+        response = await client.get("/api/v1/regulation-diff/versions", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio
     async def test_list_diffs(self, client, auth_headers):
-        response = await client.get(
-            "/api/v1/regulation-diff/diffs", headers=auth_headers
-        )
+        response = await client.get("/api/v1/regulation-diff/diffs", headers=auth_headers)
         assert response.status_code in (200, 401)
 
     @pytest.mark.asyncio

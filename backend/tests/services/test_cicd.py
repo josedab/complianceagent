@@ -1,16 +1,17 @@
 """Tests for CI/CD compliance service."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.services.cicd import (
     CICDComplianceAnalyzer,
     ComplianceScanResult,
-    SARIFReport,
-    GitLabCodeQualityReport,
     Finding,
+    SARIFReport,
     Severity,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -35,7 +36,7 @@ class TestCICDComplianceAnalyzer:
                     return stripe.charge(card_number)
             """,
         }
-        
+
         with patch.object(analyzer, "_analyze_files") as mock_analyze:
             mock_analyze.return_value = ComplianceScanResult(
                 scan_id="scan-001",
@@ -60,12 +61,12 @@ class TestCICDComplianceAnalyzer:
                     "low": 0,
                 },
             )
-            
+
             result = await analyzer.scan(
                 files=files,
                 regulations=["GDPR", "PCI-DSS"],
             )
-            
+
             assert result.status == "completed"
             assert len(result.findings) >= 1
 
@@ -77,7 +78,7 @@ class TestCICDComplianceAnalyzer:
             "exclude_patterns": ["*_test.py"],
             "regulations": ["GDPR"],
         }
-        
+
         with patch.object(analyzer, "_analyze_files") as mock_analyze:
             mock_analyze.return_value = ComplianceScanResult(
                 scan_id="scan-002",
@@ -87,12 +88,12 @@ class TestCICDComplianceAnalyzer:
                 findings=[],
                 summary={"critical": 0, "high": 0, "medium": 0, "low": 0},
             )
-            
+
             result = await analyzer.scan(
                 files=files,
                 config=config,
             )
-            
+
             assert result.status == "completed"
 
     async def test_generate_sarif_report(self, analyzer):
@@ -115,9 +116,9 @@ class TestCICDComplianceAnalyzer:
             ],
             summary={"critical": 0, "high": 1, "medium": 0, "low": 0},
         )
-        
+
         sarif = await analyzer.to_sarif(scan_result)
-        
+
         assert sarif is not None
         assert sarif.version == "2.1.0"
         assert len(sarif.runs) >= 1
@@ -143,9 +144,9 @@ class TestCICDComplianceAnalyzer:
             ],
             summary={"critical": 0, "high": 0, "medium": 1, "low": 0},
         )
-        
+
         gitlab_report = await analyzer.to_gitlab_code_quality(scan_result)
-        
+
         assert gitlab_report is not None
         assert len(gitlab_report.issues) >= 1
 
@@ -154,7 +155,7 @@ class TestCICDComplianceAnalyzer:
         changed_files = {
             "src/new_feature.py": "def new_function(): pass",
         }
-        
+
         with patch.object(analyzer, "_analyze_files") as mock_analyze:
             mock_analyze.return_value = ComplianceScanResult(
                 scan_id="scan-005",
@@ -164,14 +165,14 @@ class TestCICDComplianceAnalyzer:
                 findings=[],
                 summary={"critical": 0, "high": 0, "medium": 0, "low": 0},
             )
-            
+
             result = await analyzer.incremental_scan(
                 changed_files=changed_files,
                 base_commit="abc123",
                 head_commit="def456",
                 regulations=["GDPR"],
             )
-            
+
             assert result.status == "completed"
             assert result.total_files == 1
 
@@ -195,12 +196,12 @@ class TestCICDComplianceAnalyzer:
             ],
             summary={"critical": 1, "high": 0, "medium": 0, "low": 0},
         )
-        
+
         should_block = analyzer.should_block_merge(
             result=result_with_critical,
             threshold=Severity.HIGH,
         )
-        
+
         assert should_block is True
 
     async def test_should_not_block_merge(self, analyzer):
@@ -223,12 +224,12 @@ class TestCICDComplianceAnalyzer:
             ],
             summary={"critical": 0, "high": 0, "medium": 0, "low": 1},
         )
-        
+
         should_block = analyzer.should_block_merge(
             result=result_low_severity,
             threshold=Severity.HIGH,
         )
-        
+
         assert should_block is False
 
     async def test_generate_pr_comment(self, analyzer):
@@ -251,9 +252,9 @@ class TestCICDComplianceAnalyzer:
             ],
             summary={"critical": 0, "high": 1, "medium": 0, "low": 0},
         )
-        
+
         comment = await analyzer.generate_pr_comment(result)
-        
+
         assert comment is not None
         assert "compliance" in comment.lower() or "finding" in comment.lower()
 
@@ -271,7 +272,7 @@ class TestComplianceScanResult:
             findings=[],
             summary={"critical": 0, "high": 0, "medium": 2, "low": 5},
         )
-        
+
         assert result.scan_id == "scan-001"
         assert result.total_files == 10
 
@@ -285,9 +286,9 @@ class TestComplianceScanResult:
             findings=[],
             summary={},
         )
-        
+
         result_dict = result.to_dict()
-        
+
         assert result_dict["status"] == "failed"
 
 
@@ -305,7 +306,7 @@ class TestFinding:
             line_number=25,
             regulation="GDPR",
         )
-        
+
         assert finding.severity == Severity.HIGH
         assert finding.line_number == 25
 
@@ -320,9 +321,9 @@ class TestFinding:
             line_number=1,
             regulation="TEST",
         )
-        
+
         finding_dict = finding.to_dict()
-        
+
         assert finding_dict["severity"] == "low"
 
 
@@ -346,7 +347,7 @@ class TestSARIFReport:
                 }
             ],
         )
-        
+
         assert sarif.version == "2.1.0"
         assert len(sarif.runs) == 1
 

@@ -1,25 +1,27 @@
 """Tests for regulatory framework sources."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-from app.services.monitoring.pci_dss_sources import (
-    PCIDSSSourceMonitor,
-    PCI_DSS_SOURCES,
-    PCI_DSS_REQUIREMENTS,
-)
-from app.services.monitoring.sox_sources import (
-    SOXSourceMonitor,
-    SOX_SOURCES,
-    SOX_REQUIREMENTS,
-    SOX_IT_CONTROLS,
-)
+import pytest
+
 from app.services.monitoring.nis2_sources import (
-    NIS2SourceMonitor,
-    NIS2_SOURCES,
     NIS2_REQUIREMENTS,
     NIS2_SECTORS,
+    NIS2_SOURCES,
+    NIS2SourceMonitor,
 )
+from app.services.monitoring.pci_dss_sources import (
+    PCI_DSS_REQUIREMENTS,
+    PCI_DSS_SOURCES,
+    PCIDSSSourceMonitor,
+)
+from app.services.monitoring.sox_sources import (
+    SOX_IT_CONTROLS,
+    SOX_REQUIREMENTS,
+    SOX_SOURCES,
+    SOXSourceMonitor,
+)
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -30,7 +32,7 @@ class TestPCIDSSSources:
     def test_pci_dss_sources_structure(self):
         """Test PCI-DSS sources are properly structured."""
         assert len(PCI_DSS_SOURCES) > 0
-        
+
         for source in PCI_DSS_SOURCES:
             assert "id" in source
             assert "name" in source
@@ -45,14 +47,14 @@ class TestPCIDSSSources:
             # Extract domain number from requirement ID (e.g., "1.1" -> "1")
             domain = req_id.split(".")[0]
             domains.add(domain)
-        
+
         # PCI-DSS v4.0 has 12 requirement domains
         expected_domains = {str(i) for i in range(1, 13)}
         assert domains == expected_domains, f"Missing domains: {expected_domains - domains}"
 
     def test_pci_dss_requirement_structure(self):
         """Test PCI-DSS requirements have proper structure."""
-        for req_id, requirement in PCI_DSS_REQUIREMENTS.items():
+        for requirement in PCI_DSS_REQUIREMENTS.values():
             assert "name" in requirement
             assert "description" in requirement
             assert "domain" in requirement
@@ -62,7 +64,7 @@ class TestPCIDSSSources:
     def test_pci_dss_source_monitor_initialization(self):
         """Test PCIDSSSourceMonitor initialization."""
         monitor = PCIDSSSourceMonitor()
-        
+
         assert monitor.framework == "pci_dss"
         assert len(monitor.sources) > 0
 
@@ -75,7 +77,7 @@ class TestPCIDSSSources:
         mock_get.return_value = mock_response
 
         monitor = PCIDSSSourceMonitor()
-        
+
         # Test that monitor can check sources without error
         # In real implementation, this would check for content changes
         assert monitor.framework == "pci_dss"
@@ -87,7 +89,7 @@ class TestSOXSources:
     def test_sox_sources_structure(self):
         """Test SOX sources are properly structured."""
         assert len(SOX_SOURCES) > 0
-        
+
         for source in SOX_SOURCES:
             assert "id" in source
             assert "name" in source
@@ -99,7 +101,7 @@ class TestSOXSources:
         sections = set()
         for req in SOX_REQUIREMENTS:
             sections.add(req.get("section"))
-        
+
         # Key SOX sections
         expected_sections = {"302", "404", "409", "802", "806", "906"}
         assert sections >= expected_sections, f"Missing sections: {expected_sections - sections}"
@@ -109,7 +111,7 @@ class TestSOXSources:
         control_categories = set()
         for control in SOX_IT_CONTROLS:
             control_categories.add(control.get("category"))
-        
+
         # COBIT-aligned IT control categories
         expected_categories = {
             "access_control",
@@ -140,7 +142,7 @@ class TestSOXSources:
     def test_sox_source_monitor_initialization(self):
         """Test SOXSourceMonitor initialization."""
         monitor = SOXSourceMonitor()
-        
+
         assert monitor.framework == "sox"
         assert len(monitor.sources) > 0
 
@@ -151,7 +153,7 @@ class TestNIS2Sources:
     def test_nis2_sources_structure(self):
         """Test NIS2 sources are properly structured."""
         assert len(NIS2_SOURCES) > 0
-        
+
         for source in NIS2_SOURCES:
             assert "id" in source
             assert "name" in source
@@ -163,7 +165,7 @@ class TestNIS2Sources:
         articles = set()
         for req in NIS2_REQUIREMENTS:
             articles.add(req.get("article"))
-        
+
         # Key NIS2 articles for cybersecurity
         expected_articles = {"20", "21", "23", "24", "26"}
         assert articles >= expected_articles
@@ -172,7 +174,7 @@ class TestNIS2Sources:
         """Test sector classifications are defined."""
         assert "essential" in NIS2_SECTORS
         assert "important" in NIS2_SECTORS
-        
+
         # Essential sectors
         essential_sectors = NIS2_SECTORS["essential"]
         assert "energy" in essential_sectors
@@ -201,7 +203,7 @@ class TestNIS2Sources:
     def test_nis2_source_monitor_initialization(self):
         """Test NIS2SourceMonitor initialization."""
         monitor = NIS2SourceMonitor()
-        
+
         assert monitor.framework == "nis2"
         assert len(monitor.sources) > 0
 
@@ -216,7 +218,7 @@ class TestRegulatoryFrameworkIntegration:
             SOXSourceMonitor(),
             NIS2SourceMonitor(),
         ]
-        
+
         frameworks = {m.framework for m in monitors}
         expected = {"pci_dss", "sox", "nis2"}
         assert frameworks == expected
@@ -238,7 +240,7 @@ class TestRegulatoryFrameworkIntegration:
         pci_ids = [s["id"] for s in PCI_DSS_SOURCES]
         sox_ids = [s["id"] for s in SOX_SOURCES]
         nis2_ids = [s["id"] for s in NIS2_SOURCES]
-        
+
         assert len(pci_ids) == len(set(pci_ids)), "Duplicate PCI-DSS source IDs"
         assert len(sox_ids) == len(set(sox_ids)), "Duplicate SOX source IDs"
         assert len(nis2_ids) == len(set(nis2_ids)), "Duplicate NIS2 source IDs"
@@ -248,7 +250,7 @@ class TestRegulatoryFrameworkIntegration:
         pci_req_ids = list(PCI_DSS_REQUIREMENTS.keys())
         sox_req_ids = [r["id"] for r in SOX_REQUIREMENTS]
         nis2_req_ids = [r["id"] for r in NIS2_REQUIREMENTS]
-        
+
         assert len(pci_req_ids) == len(set(pci_req_ids)), "Duplicate PCI-DSS req IDs"
         assert len(sox_req_ids) == len(set(sox_req_ids)), "Duplicate SOX req IDs"
         assert len(nis2_req_ids) == len(set(nis2_req_ids)), "Duplicate NIS2 req IDs"
@@ -260,12 +262,10 @@ class TestGDPRSourcesIntegration:
     def test_gdpr_sources_exist(self):
         """Test GDPR sources module exists and exports correctly."""
         from app.services.monitoring.gdpr_sources import (
-            GDPR_SOURCES,
             GDPR_ARTICLES,
-            GDPRParser,
-            GDPRSourceMonitor,
+            GDPR_SOURCES,
         )
-        
+
         assert len(GDPR_SOURCES) > 0
         assert len(GDPR_ARTICLES) > 0
 
@@ -276,12 +276,10 @@ class TestCCPASourcesIntegration:
     def test_ccpa_sources_exist(self):
         """Test CCPA sources module exists and exports correctly."""
         from app.services.monitoring.ccpa_sources import (
-            CCPA_SOURCES,
             CCPA_SECTIONS,
-            CCPAParser,
-            CCPASourceMonitor,
+            CCPA_SOURCES,
         )
-        
+
         assert len(CCPA_SOURCES) > 0
         assert len(CCPA_SECTIONS) > 0
 
@@ -292,12 +290,10 @@ class TestHIPAASourcesIntegration:
     def test_hipaa_sources_exist(self):
         """Test HIPAA sources module exists and exports correctly."""
         from app.services.monitoring.hipaa_sources import (
-            HIPAA_SOURCES,
             HIPAA_RULES,
-            HIPAAParser,
-            HIPAASourceMonitor,
+            HIPAA_SOURCES,
         )
-        
+
         assert len(HIPAA_SOURCES) > 0
         assert len(HIPAA_RULES) > 0
 
@@ -308,12 +304,10 @@ class TestEUAIActSourcesIntegration:
     def test_eu_ai_act_sources_exist(self):
         """Test EU AI Act sources module exists and exports correctly."""
         from app.services.monitoring.eu_ai_act_sources import (
-            EU_AI_ACT_SOURCES,
             EU_AI_ACT_RISK_CATEGORIES,
-            EUAIActParser,
-            EUAIActSourceMonitor,
+            EU_AI_ACT_SOURCES,
         )
-        
+
         assert len(EU_AI_ACT_SOURCES) > 0
         assert len(EU_AI_ACT_RISK_CATEGORIES) > 0
 
@@ -324,13 +318,11 @@ class TestSOC2SourcesIntegration:
     def test_soc2_sources_exist(self):
         """Test SOC 2 sources module exists and exports correctly."""
         from app.services.monitoring.soc2_sources import (
-            SOC2_SOURCES,
             SOC2_REQUIREMENTS,
+            SOC2_SOURCES,
             SOC2_TRUST_CATEGORIES,
-            SOC2Parser,
-            SOC2SourceMonitor,
         )
-        
+
         assert len(SOC2_SOURCES) > 0
         assert len(SOC2_REQUIREMENTS) > 0
         assert len(SOC2_TRUST_CATEGORIES) > 0
@@ -338,7 +330,7 @@ class TestSOC2SourcesIntegration:
     def test_soc2_sources_structure(self):
         """Test SOC 2 sources are properly structured."""
         from app.services.monitoring.soc2_sources import SOC2_SOURCES
-        
+
         for source in SOC2_SOURCES:
             assert "id" in source
             assert "name" in source
@@ -349,7 +341,7 @@ class TestSOC2SourcesIntegration:
     def test_soc2_requirements_structure(self):
         """Test SOC 2 requirements have proper structure."""
         from app.services.monitoring.soc2_sources import SOC2_REQUIREMENTS
-        
+
         for req in SOC2_REQUIREMENTS:
             assert "id" in req
             assert "category" in req
@@ -360,11 +352,11 @@ class TestSOC2SourcesIntegration:
     def test_soc2_trust_categories(self):
         """Test SOC 2 trust services categories."""
         from app.services.monitoring.soc2_sources import SOC2_TRUST_CATEGORIES
-        
+
         # Security is mandatory for all SOC 2 reports
         assert "security" in SOC2_TRUST_CATEGORIES
         assert SOC2_TRUST_CATEGORIES["security"]["required"] is True
-        
+
         # Optional categories
         assert "availability" in SOC2_TRUST_CATEGORIES
         assert "processing_integrity" in SOC2_TRUST_CATEGORIES
@@ -374,9 +366,9 @@ class TestSOC2SourcesIntegration:
     def test_soc2_source_monitor_initialization(self):
         """Test SOC2SourceMonitor initialization."""
         from app.services.monitoring.soc2_sources import SOC2SourceMonitor
-        
+
         monitor = SOC2SourceMonitor()
-        
+
         assert monitor.framework == "soc2"
         assert len(monitor.sources) > 0
 
@@ -387,13 +379,11 @@ class TestISO27001SourcesIntegration:
     def test_iso27001_sources_exist(self):
         """Test ISO 27001 sources module exists and exports correctly."""
         from app.services.monitoring.iso27001_sources import (
-            ISO27001_SOURCES,
-            ISO27001_REQUIREMENTS,
             ISO27001_CONTROL_CATEGORIES,
-            ISO27001Parser,
-            ISO27001SourceMonitor,
+            ISO27001_REQUIREMENTS,
+            ISO27001_SOURCES,
         )
-        
+
         assert len(ISO27001_SOURCES) > 0
         assert len(ISO27001_REQUIREMENTS) > 0
         assert len(ISO27001_CONTROL_CATEGORIES) > 0
@@ -401,7 +391,7 @@ class TestISO27001SourcesIntegration:
     def test_iso27001_sources_structure(self):
         """Test ISO 27001 sources are properly structured."""
         from app.services.monitoring.iso27001_sources import ISO27001_SOURCES
-        
+
         for source in ISO27001_SOURCES:
             assert "id" in source
             assert "name" in source
@@ -411,7 +401,7 @@ class TestISO27001SourcesIntegration:
     def test_iso27001_requirements_structure(self):
         """Test ISO 27001 requirements have proper structure."""
         from app.services.monitoring.iso27001_sources import ISO27001_REQUIREMENTS
-        
+
         for req in ISO27001_REQUIREMENTS:
             assert "id" in req
             assert "clause" in req
@@ -423,7 +413,7 @@ class TestISO27001SourcesIntegration:
     def test_iso27001_control_categories(self):
         """Test ISO 27001 control categories."""
         from app.services.monitoring.iso27001_sources import ISO27001_CONTROL_CATEGORIES
-        
+
         expected_categories = ["organizational", "people", "physical", "technological"]
         for cat in expected_categories:
             assert cat in ISO27001_CONTROL_CATEGORIES
@@ -433,9 +423,9 @@ class TestISO27001SourcesIntegration:
     def test_iso27001_mandatory_clauses(self):
         """Test ISO 27001 mandatory clauses are present."""
         from app.services.monitoring.iso27001_sources import ISO27001_REQUIREMENTS
-        
+
         mandatory_reqs = [r for r in ISO27001_REQUIREMENTS if "mandatory" in r["applies_to"]]
-        
+
         # Clauses 4-10 are mandatory
         clauses_found = {r["clause"] for r in mandatory_reqs}
         expected_clauses = {"4", "5", "6", "7", "8", "9", "10"}
@@ -444,8 +434,8 @@ class TestISO27001SourcesIntegration:
     def test_iso27001_source_monitor_initialization(self):
         """Test ISO27001SourceMonitor initialization."""
         from app.services.monitoring.iso27001_sources import ISO27001SourceMonitor
-        
+
         monitor = ISO27001SourceMonitor()
-        
+
         assert monitor.framework == "iso27001"
         assert len(monitor.sources) > 0

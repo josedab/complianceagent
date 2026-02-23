@@ -1,13 +1,13 @@
 """Tests for compliance templates service."""
 
 import pytest
-from unittest.mock import AsyncMock, patch
 
 from app.services.templates.registry import (
-    TemplateRegistry,
     ComplianceTemplate,
     TemplateParameter,
+    TemplateRegistry,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -23,7 +23,7 @@ class TestTemplateRegistry:
     def test_list_templates(self, registry):
         """Test listing all templates."""
         templates = registry.list_templates()
-        
+
         assert len(templates) >= 5
         template_ids = [t.template_id for t in templates]
         assert "gdpr-consent-banner" in template_ids
@@ -35,7 +35,7 @@ class TestTemplateRegistry:
     def test_list_templates_by_regulation(self, registry):
         """Test filtering templates by regulation."""
         gdpr_templates = registry.list_templates(regulation="gdpr")
-        
+
         assert len(gdpr_templates) >= 2
         for template in gdpr_templates:
             assert "gdpr" in [r.lower() for r in template.regulations]
@@ -43,7 +43,7 @@ class TestTemplateRegistry:
     def test_list_templates_by_category(self, registry):
         """Test filtering templates by category."""
         consent_templates = registry.list_templates(category="consent")
-        
+
         assert len(consent_templates) >= 1
         for template in consent_templates:
             assert template.category.lower() == "consent"
@@ -51,7 +51,7 @@ class TestTemplateRegistry:
     def test_get_template(self, registry):
         """Test retrieving specific template."""
         template = registry.get_template("gdpr-consent-banner")
-        
+
         assert template is not None
         assert template.template_id == "gdpr-consent-banner"
         assert template.name == "GDPR Consent Banner"
@@ -62,20 +62,20 @@ class TestTemplateRegistry:
     def test_get_template_not_found(self, registry):
         """Test retrieving non-existent template."""
         template = registry.get_template("non-existent-template")
-        
+
         assert template is None
 
     def test_gdpr_consent_template_structure(self, registry):
         """Test GDPR consent template structure."""
         template = registry.get_template("gdpr-consent-banner")
-        
+
         assert template is not None
-        
+
         # Check parameters
         param_names = [p.name for p in template.parameters]
         assert "cookie_domain" in param_names
         assert "consent_version" in param_names
-        
+
         # Check code languages
         assert "typescript" in template.code
         code = template.code["typescript"]
@@ -84,10 +84,10 @@ class TestTemplateRegistry:
     def test_hipaa_phi_template_structure(self, registry):
         """Test HIPAA PHI handler template structure."""
         template = registry.get_template("hipaa-phi-handler")
-        
+
         assert template is not None
         assert "HIPAA" in template.regulations
-        
+
         # Check parameters
         param_names = [p.name for p in template.parameters]
         assert any("encryption" in p.lower() for p in param_names)
@@ -95,7 +95,7 @@ class TestTemplateRegistry:
     def test_audit_logging_template_structure(self, registry):
         """Test audit logging template structure."""
         template = registry.get_template("compliance-audit-logging")
-        
+
         assert template is not None
         # Should support multiple regulations
         assert len(template.regulations) >= 2
@@ -103,7 +103,7 @@ class TestTemplateRegistry:
     def test_pci_tokenization_template_structure(self, registry):
         """Test PCI tokenization template structure."""
         template = registry.get_template("pci-card-tokenization")
-        
+
         assert template is not None
         assert "PCI-DSS" in template.regulations
 
@@ -113,13 +113,13 @@ class TestTemplateRegistry:
             "cookie_domain": "example.com",
             "consent_version": "1.0",
         }
-        
+
         result = await registry.generate(
             template_id="gdpr-consent-banner",
             language="typescript",
             parameters=params,
         )
-        
+
         assert result is not None
         assert "code" in result
         assert "example.com" in result["code"]
@@ -131,7 +131,7 @@ class TestTemplateRegistry:
             language="python",
             parameters={},
         )
-        
+
         assert result is None or "error" in result
 
     async def test_generate_template_unsupported_language(self, registry):
@@ -141,7 +141,7 @@ class TestTemplateRegistry:
             language="cobol",
             parameters={},
         )
-        
+
         # Should return None or error for unsupported language
         assert result is None or "error" in result
 
@@ -168,7 +168,7 @@ class TestComplianceTemplate:
             code={"python": "def test(): pass"},
             version="1.0.0",
         )
-        
+
         assert template.template_id == "test-template"
         assert len(template.parameters) == 1
         assert "python" in template.code
@@ -186,7 +186,7 @@ class TestTemplateParameter:
             required=True,
             default=None,
         )
-        
+
         assert param.name == "api_key"
         assert param.required is True
 
@@ -199,6 +199,6 @@ class TestTemplateParameter:
             required=False,
             default=30,
         )
-        
+
         assert param.default == 30
         assert param.required is False

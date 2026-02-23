@@ -1,14 +1,14 @@
 """Tests for cloud compliance service."""
 
 import pytest
-from unittest.mock import AsyncMock, patch
 
 from app.services.cloud import (
     CloudComplianceAnalyzer,
-    IaCType,
     CloudComplianceFinding,
     CloudComplianceReport,
+    IaCType,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -69,13 +69,13 @@ class TestCloudComplianceAnalyzer:
             bucket = "sensitive-data-bucket"
         }
         """
-        
+
         findings = await analyzer.analyze(
             content=terraform_code,
             filename="main.tf",
             regulations=["GDPR", "HIPAA"],
         )
-        
+
         # Should find unencrypted storage issue
         assert len(findings) >= 1
         encryption_findings = [f for f in findings if "encrypt" in f.description.lower()]
@@ -97,15 +97,17 @@ class TestCloudComplianceAnalyzer:
             }
         }
         """
-        
+
         findings = await analyzer.analyze(
             content=terraform_code,
             filename="main.tf",
             regulations=["GDPR"],
         )
-        
+
         # Should have fewer or no encryption findings
-        encryption_findings = [f for f in findings if "encrypt" in f.description.lower() and f.severity == "high"]
+        encryption_findings = [
+            f for f in findings if "encrypt" in f.description.lower() and f.severity == "high"
+        ]
         assert len(encryption_findings) == 0
 
     async def test_analyze_cloudformation_unencrypted_rds(self, analyzer):
@@ -119,13 +121,13 @@ class TestCloudComplianceAnalyzer:
               DBInstanceClass: db.t3.micro
               Engine: postgres
         """
-        
+
         findings = await analyzer.analyze(
             content=cfn_code,
             filename="database.yaml",
             regulations=["HIPAA"],
         )
-        
+
         # Should find unencrypted database issue
         assert len(findings) >= 1
 
@@ -143,13 +145,13 @@ class TestCloudComplianceAnalyzer:
             securityContext:
               privileged: true
         """
-        
+
         findings = await analyzer.analyze(
             content=k8s_code,
             filename="pod.yaml",
             regulations=["SOC2"],
         )
-        
+
         # Should find privileged container issue
         privileged_findings = [f for f in findings if "privileged" in f.description.lower()]
         assert len(privileged_findings) >= 1
@@ -168,12 +170,12 @@ class TestCloudComplianceAnalyzer:
             }
             """,
         }
-        
+
         report = await analyzer.generate_report(
             files=files,
             regulations=["GDPR", "HIPAA"],
         )
-        
+
         assert isinstance(report, CloudComplianceReport)
         assert report.total_files == 2
         assert len(report.findings) >= 0
@@ -194,7 +196,7 @@ class TestCloudComplianceFinding:
             regulations=["GDPR", "HIPAA"],
             remediation="Enable server-side encryption",
         )
-        
+
         assert finding.rule_id == "CLOUD-001"
         assert finding.severity == "high"
         assert "GDPR" in finding.regulations
@@ -211,9 +213,9 @@ class TestCloudComplianceFinding:
             regulations=["TEST"],
             remediation="Fix it",
         )
-        
+
         finding_dict = finding.to_dict()
-        
+
         assert finding_dict["rule_id"] == "CLOUD-001"
         assert finding_dict["severity"] == "medium"
 
@@ -233,7 +235,7 @@ class TestCloudComplianceReport:
             regulations=["TEST"],
             remediation="Fix",
         )
-        
+
         report = CloudComplianceReport(
             total_files=5,
             findings=[finding],
@@ -244,7 +246,7 @@ class TestCloudComplianceReport:
             },
             regulations_checked=["TEST"],
         )
-        
+
         assert report.total_files == 5
         assert len(report.findings) == 1
         assert report.summary["high"] == 1

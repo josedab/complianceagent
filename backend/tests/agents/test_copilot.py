@@ -1,9 +1,5 @@
 """Tests for the Copilot agent: CircuitBreaker and JSON parsing."""
 
-import asyncio
-from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
-
 import pytest
 
 from app.agents.copilot import CircuitBreaker, CopilotClient
@@ -13,6 +9,7 @@ from app.core.exceptions import CopilotParsingError
 # ---------------------------------------------------------------------------
 # CircuitBreaker
 # ---------------------------------------------------------------------------
+
 
 class TestCircuitBreakerClosedToOpen:
     """Test that the breaker opens after reaching the failure threshold."""
@@ -130,6 +127,7 @@ class TestCircuitBreakerBlocksRequests:
 # ---------------------------------------------------------------------------
 # _parse_json_response
 # ---------------------------------------------------------------------------
+
 
 class TestParseJsonResponse:
     """Test the CopilotClient._parse_json_response helper."""

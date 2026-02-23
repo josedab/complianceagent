@@ -1,9 +1,9 @@
 """Integration tests for the Copilot SDK client."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import pytest
 
 from app.agents.copilot import CopilotClient, CopilotMessage, CopilotResponse
 from app.core.exceptions import (
@@ -13,6 +13,7 @@ from app.core.exceptions import (
     CopilotRateLimitError,
     CopilotTimeoutError,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -155,9 +156,7 @@ class TestCopilotClient:
     ):
         """Test legal text analysis handles invalid JSON gracefully."""
         mock_httpx_response.json.return_value = {
-            "choices": [
-                {"message": {"content": "Not valid JSON"}, "finish_reason": "stop"}
-            ],
+            "choices": [{"message": {"content": "Not valid JSON"}, "finish_reason": "stop"}],
             "model": "test-model",
             "usage": {},
         }

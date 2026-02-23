@@ -1,22 +1,20 @@
 """Integration tests for the compliance pipeline."""
 
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.copilot import CopilotClient, CopilotMessage, CopilotResponse
+from app.agents.copilot import CopilotMessage
 from app.agents.orchestrator import ComplianceOrchestrator
-from app.models import Organization, Regulation, Requirement, Repository
+from app.models import Organization, Regulation, Repository, Requirement
 from app.models.regulation import RegulationStatus
 
 
 @pytest_asyncio.fixture
-async def test_regulation(
-    db_session: AsyncSession, test_organization: Organization
-) -> Regulation:
+async def test_regulation(db_session: AsyncSession, test_organization: Organization) -> Regulation:
     """Create a test regulation."""
     regulation = Regulation(
         id=uuid4(),
@@ -83,9 +81,7 @@ class TestCompliancePipeline:
     """Integration tests for the compliance processing pipeline."""
 
     @pytest.mark.asyncio
-    async def test_orchestrator_initialization(
-        self, mock_copilot_client: MagicMock
-    ):
+    async def test_orchestrator_initialization(self, mock_copilot_client: MagicMock):
         """Test orchestrator can be initialized."""
         with patch("app.agents.orchestrator.CopilotClient") as MockClient:
             MockClient.return_value = mock_copilot_client
@@ -93,9 +89,7 @@ class TestCompliancePipeline:
             assert orchestrator is not None
 
     @pytest.mark.asyncio
-    async def test_regulation_text_analysis(
-        self, mock_copilot_client: MagicMock
-    ):
+    async def test_regulation_text_analysis(self, mock_copilot_client: MagicMock):
         """Test that regulations can be analyzed for requirements."""
         mock_copilot_client.analyze_legal_text = AsyncMock(
             return_value={
@@ -132,9 +126,7 @@ class TestCompliancePipeline:
         assert result["requirements"][0]["obligation_type"] == "must"
 
     @pytest.mark.asyncio
-    async def test_code_mapping(
-        self, mock_copilot_client: MagicMock
-    ):
+    async def test_code_mapping(self, mock_copilot_client: MagicMock):
         """Test that requirements can be mapped to code."""
         mock_copilot_client.map_requirement_to_code = AsyncMock(
             return_value={
@@ -154,9 +146,7 @@ class TestCompliancePipeline:
 
         result = await mock_copilot_client.map_requirement_to_code(
             requirement_text="All personal data must be encrypted",
-            code_files={
-                "src/api/users.py": "def create_user(email: str): ..."
-            }
+            code_files={"src/api/users.py": "def create_user(email: str): ..."},
         )
 
         assert "mappings" in result
@@ -165,9 +155,7 @@ class TestCompliancePipeline:
         assert "gaps" in result["mappings"][0]
 
     @pytest.mark.asyncio
-    async def test_fix_generation(
-        self, mock_copilot_client: MagicMock
-    ):
+    async def test_fix_generation(self, mock_copilot_client: MagicMock):
         """Test that compliance fixes can be generated."""
         mock_copilot_client.generate_compliant_code = AsyncMock(
             return_value={
@@ -204,9 +192,7 @@ class TestPipelineErrorHandling:
         from app.core.exceptions import CopilotTimeoutError
 
         mock_client = MagicMock()
-        mock_client.chat = AsyncMock(
-            side_effect=CopilotTimeoutError("Request timed out")
-        )
+        mock_client.chat = AsyncMock(side_effect=CopilotTimeoutError("Request timed out"))
 
         with pytest.raises(CopilotTimeoutError):
             await mock_client.chat([CopilotMessage(role="user", content="test")])
@@ -219,8 +205,7 @@ class TestPipelineErrorHandling:
         mock_client = MagicMock()
         mock_client.analyze_legal_text = AsyncMock(
             side_effect=CopilotParsingError(
-                "Failed to parse response",
-                raw_response="invalid json {{"
+                "Failed to parse response", raw_response="invalid json {{"
             )
         )
 
@@ -236,10 +221,7 @@ class TestPipelineErrorHandling:
 
         mock_client = MagicMock()
         mock_client.chat = AsyncMock(
-            side_effect=CopilotRateLimitError(
-                "Rate limit exceeded",
-                retry_after=30
-            )
+            side_effect=CopilotRateLimitError("Rate limit exceeded", retry_after=30)
         )
 
         with pytest.raises(CopilotRateLimitError) as exc_info:
@@ -288,12 +270,14 @@ class TestComplianceFixtures:
         # Setup mock responses for the full pipeline
         mock_copilot_client.map_requirement_to_code = AsyncMock(
             return_value={
-                "mappings": [{
-                    "file_path": "src/main.py",
-                    "compliance_status": "non_compliant",
-                    "confidence": 0.9,
-                    "gaps": ["Missing encryption"],
-                }]
+                "mappings": [
+                    {
+                        "file_path": "src/main.py",
+                        "compliance_status": "non_compliant",
+                        "confidence": 0.9,
+                        "gaps": ["Missing encryption"],
+                    }
+                ]
             }
         )
 
@@ -308,7 +292,7 @@ class TestComplianceFixtures:
         # Step 1: Map requirement to code
         mapping_result = await mock_copilot_client.map_requirement_to_code(
             requirement_text=test_requirement.full_text,
-            code_files={"src/main.py": "# Original code"}
+            code_files={"src/main.py": "# Original code"},
         )
 
         assert mapping_result["mappings"][0]["compliance_status"] == "non_compliant"
@@ -317,7 +301,7 @@ class TestComplianceFixtures:
         fix_result = await mock_copilot_client.generate_compliant_code(
             code="# Original code",
             requirement=test_requirement.full_text,
-            context={"gaps": mapping_result["mappings"][0]["gaps"]}
+            context={"gaps": mapping_result["mappings"][0]["gaps"]},
         )
 
         assert "fixed_code" in fix_result
@@ -423,12 +407,11 @@ class TestEndToEndCompliance:
         # Map to compliance
         mapping_result = await mock_copilot_client.map_requirement_to_code(
             requirement_text=test_requirement.full_text,
-            code_files={f["path"]: "code" for f in files}
+            code_files={f["path"]: "code" for f in files},
         )
 
         non_compliant = [
-            m for m in mapping_result["mappings"]
-            if m["compliance_status"] == "non_compliant"
+            m for m in mapping_result["mappings"] if m["compliance_status"] == "non_compliant"
         ]
         assert len(non_compliant) == 1
         assert non_compliant[0]["file_path"] == "src/user_service.py"

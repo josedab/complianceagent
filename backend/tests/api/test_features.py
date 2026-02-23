@@ -1,8 +1,8 @@
 """Tests for next-gen features API endpoints."""
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from httpx import AsyncClient
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -16,7 +16,7 @@ class TestTemplatesAPI:
             "/api/v1/features/templates",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "templates" in data
@@ -27,7 +27,7 @@ class TestTemplatesAPI:
             "/api/v1/features/templates/gdpr-consent-banner",
             headers=auth_headers,
         )
-        
+
         # May be 200 or 404 depending on implementation
         assert response.status_code in [200, 404]
 
@@ -44,7 +44,7 @@ class TestTemplatesAPI:
                 },
             },
         )
-        
+
         assert response.status_code in [200, 404, 422]
 
 
@@ -63,7 +63,7 @@ class TestCloudComplianceAPI:
                 "regulations": ["GDPR"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
 
@@ -79,7 +79,7 @@ class TestGraphAPI:
                 "query": "What code handles GDPR consent?",
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
     async def test_get_coverage(self, client: AsyncClient, auth_headers: dict):
@@ -88,7 +88,7 @@ class TestGraphAPI:
             "/api/v1/features/graph/coverage/GDPR",
             headers=auth_headers,
         )
-        
+
         assert response.status_code in [200, 404]
 
 
@@ -106,7 +106,7 @@ class TestVendorRiskAPI:
                 "regulations": ["SOC2"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
     async def test_scan_dependencies(self, client: AsyncClient, auth_headers: dict):
@@ -120,7 +120,7 @@ class TestVendorRiskAPI:
                 "regulations": ["SOC2"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
 
@@ -141,7 +141,7 @@ class TestSandboxAPI:
                 "regulations": ["GDPR"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
     async def test_list_scenario_types(self, client: AsyncClient, auth_headers: dict):
@@ -150,7 +150,7 @@ class TestSandboxAPI:
             "/api/v1/features/sandbox/scenario-types",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
 
 
@@ -163,7 +163,7 @@ class TestEvidenceAPI:
             "/api/v1/features/evidence/frameworks",
             headers=auth_headers,
         )
-        
+
         assert response.status_code == 200
 
     async def test_collect_evidence(self, client: AsyncClient, auth_headers: dict):
@@ -175,7 +175,7 @@ class TestEvidenceAPI:
                 "framework": "soc2",
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
     async def test_get_coverage_report(self, client: AsyncClient, auth_headers: dict):
@@ -184,7 +184,7 @@ class TestEvidenceAPI:
             "/api/v1/features/evidence/coverage/soc2",
             headers=auth_headers,
         )
-        
+
         assert response.status_code in [200, 404]
 
 
@@ -200,7 +200,7 @@ class TestChatbotAPI:
                 "context": {"organization": "test"},
             },
         )
-        
+
         assert response.status_code in [200, 201, 422]
 
     async def test_quick_answer(self, client: AsyncClient, auth_headers: dict):
@@ -213,7 +213,7 @@ class TestChatbotAPI:
                 "regulations": ["GDPR"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
 
@@ -232,7 +232,7 @@ class TestCICDAPI:
                 "regulations": ["GDPR"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
     async def test_scan_sarif(self, client: AsyncClient, auth_headers: dict):
@@ -247,7 +247,7 @@ class TestCICDAPI:
                 "regulations": ["GDPR"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
 
@@ -264,7 +264,7 @@ class TestPredictionsAPI:
                 "industries": ["technology"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
     async def test_get_predictions(self, client: AsyncClient, auth_headers: dict):
@@ -274,7 +274,7 @@ class TestPredictionsAPI:
             headers=auth_headers,
             params={"jurisdiction": "EU"},
         )
-        
+
         assert response.status_code == 200
 
     async def test_impact_assessment(self, client: AsyncClient, auth_headers: dict):
@@ -289,7 +289,7 @@ class TestPredictionsAPI:
                 },
             },
         )
-        
+
         assert response.status_code in [200, 404, 422]
 
 
@@ -308,7 +308,7 @@ class TestIDECopilotAPI:
                 "regulations": ["GDPR"],
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
     async def test_get_quickfix(self, client: AsyncClient, auth_headers: dict):
@@ -323,7 +323,7 @@ class TestIDECopilotAPI:
                 "language": "python",
             },
         )
-        
+
         assert response.status_code in [200, 422]
 
     async def test_get_tooltip(self, client: AsyncClient, auth_headers: dict):
@@ -336,7 +336,7 @@ class TestIDECopilotAPI:
                 "article": "17",
             },
         )
-        
+
         assert response.status_code in [200, 404]
 
     async def test_deep_analyze(self, client: AsyncClient, auth_headers: dict):
@@ -351,5 +351,5 @@ class TestIDECopilotAPI:
                 "regulations": ["GDPR", "CCPA"],
             },
         )
-        
+
         assert response.status_code in [200, 422]

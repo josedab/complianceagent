@@ -1,14 +1,16 @@
 """Tests for vendor risk service."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.services.vendor import (
-    VendorRiskAssessor,
-    VendorAssessment,
     DependencyRisk,
     RiskLevel,
+    VendorAssessment,
+    VendorRiskAssessor,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -30,13 +32,13 @@ class TestVendorRiskAssessor:
                 "data_processing_locations": ["US", "EU"],
                 "subprocessors": ["AWS", "Google Cloud"],
             }
-            
+
             assessment = await assessor.assess_vendor(
                 vendor_name="Stripe",
                 data_types=["payment_data", "pii"],
                 regulations=["GDPR", "PCI-DSS"],
             )
-            
+
             assert assessment is not None
             assert assessment.vendor_name == "Stripe"
             assert assessment.risk_level in [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH]
@@ -50,13 +52,13 @@ class TestVendorRiskAssessor:
                 "data_processing_locations": ["Unknown"],
                 "subprocessors": [],
             }
-            
+
             assessment = await assessor.assess_vendor(
                 vendor_name="UnknownVendor",
                 data_types=["health_data", "financial_data"],
                 regulations=["HIPAA", "PCI-DSS"],
             )
-            
+
             assert assessment is not None
             assert assessment.risk_level == RiskLevel.HIGH
 
@@ -69,7 +71,7 @@ class TestVendorRiskAssessor:
                 "moment": "^2.29.4"
             }
         }"""
-        
+
         with patch.object(assessor, "_check_vulnerability_db") as mock_vuln:
             mock_vuln.return_value = {
                 "lodash": {"vulnerabilities": [], "license": "MIT"},
@@ -79,13 +81,13 @@ class TestVendorRiskAssessor:
                     "license": "MIT",
                 },
             }
-            
+
             risks = await assessor.scan_dependencies(
                 manifest_content=package_json,
                 manifest_type="npm",
                 regulations=["SOC2"],
             )
-            
+
             assert len(risks) >= 1
             moment_risks = [r for r in risks if r.package_name == "moment"]
             assert len(moment_risks) >= 1
@@ -97,20 +99,20 @@ class TestVendorRiskAssessor:
         requests==2.31.0
         cryptography==41.0.0
         """
-        
+
         with patch.object(assessor, "_check_vulnerability_db") as mock_vuln:
             mock_vuln.return_value = {
                 "django": {"vulnerabilities": [], "license": "BSD"},
                 "requests": {"vulnerabilities": [], "license": "Apache-2.0"},
                 "cryptography": {"vulnerabilities": [], "license": "Apache-2.0"},
             }
-            
+
             risks = await assessor.scan_dependencies(
                 manifest_content=requirements_txt,
                 manifest_type="pip",
                 regulations=["HIPAA"],
             )
-            
+
             assert isinstance(risks, list)
 
     async def test_scan_dependencies_with_vulnerabilities(self, assessor):
@@ -120,7 +122,7 @@ class TestVendorRiskAssessor:
                 "vulnerable-package": "1.0.0"
             }
         }"""
-        
+
         with patch.object(assessor, "_check_vulnerability_db") as mock_vuln:
             mock_vuln.return_value = {
                 "vulnerable-package": {
@@ -131,20 +133,20 @@ class TestVendorRiskAssessor:
                     "license": "MIT",
                 },
             }
-            
+
             risks = await assessor.scan_dependencies(
                 manifest_content=package_json,
                 manifest_type="npm",
                 regulations=["SOC2"],
             )
-            
+
             assert len(risks) >= 1
             assert risks[0].risk_level == RiskLevel.HIGH
 
     async def test_generate_risk_report(self, assessor):
         """Test generating risk report."""
         vendors = ["AWS", "Stripe", "SendGrid"]
-        
+
         with patch.object(assessor, "assess_vendor") as mock_assess:
             mock_assess.side_effect = [
                 VendorAssessment(
@@ -169,12 +171,12 @@ class TestVendorRiskAssessor:
                     recommendations=["Review DPA terms"],
                 ),
             ]
-            
+
             report = await assessor.generate_risk_report(
                 vendors=vendors,
                 regulations=["SOC2", "ISO27001"],
             )
-            
+
             assert "summary" in report
             assert report["summary"]["total_vendors"] == 3
             assert report["summary"]["high_risk"] == 0
@@ -183,7 +185,7 @@ class TestVendorRiskAssessor:
     def test_list_supported_manifest_types(self, assessor):
         """Test listing supported manifest types."""
         types = assessor.list_supported_manifest_types()
-        
+
         assert "npm" in types
         assert "pip" in types
         assert "maven" in types or "gradle" in types
@@ -195,14 +197,14 @@ class TestVendorRiskAssessor:
             {"name": "package-b", "license": "Apache-2.0"},
             {"name": "package-c", "license": "GPL-3.0"},
         ]
-        
+
         allowed_licenses = ["MIT", "Apache-2.0", "BSD-3-Clause"]
-        
+
         issues = await assessor.check_license_compliance(
             dependencies=dependencies,
             allowed_licenses=allowed_licenses,
         )
-        
+
         assert len(issues) >= 1
         assert any("GPL-3.0" in str(issue) for issue in issues)
 
@@ -219,7 +221,7 @@ class TestVendorAssessment:
             issues=["Missing ISO27001"],
             recommendations=["Request ISO certification"],
         )
-        
+
         assert assessment.vendor_name == "TestVendor"
         assert assessment.risk_level == RiskLevel.MEDIUM
         assert len(assessment.certifications) == 1
@@ -233,9 +235,9 @@ class TestVendorAssessment:
             issues=[],
             recommendations=[],
         )
-        
+
         assessment_dict = assessment.to_dict()
-        
+
         assert assessment_dict["vendor_name"] == "TestVendor"
         assert assessment_dict["risk_level"] == "low"
 
@@ -255,7 +257,7 @@ class TestDependencyRisk:
             license="MIT",
             recommendations=["Upgrade to version 2.0.0"],
         )
-        
+
         assert risk.package_name == "vulnerable-lib"
         assert risk.risk_level == RiskLevel.HIGH
         assert len(risk.vulnerabilities) == 1
@@ -270,9 +272,9 @@ class TestDependencyRisk:
             license="MIT",
             recommendations=[],
         )
-        
+
         risk_dict = risk.to_dict()
-        
+
         assert risk_dict["package_name"] == "safe-lib"
         assert risk_dict["risk_level"] == "low"
 

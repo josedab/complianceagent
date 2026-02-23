@@ -1,16 +1,18 @@
 """Tests for regulatory prediction service."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import patch
+
+import pytest
 
 from app.services.prediction import (
-    RegulatoryPredictionEngine,
+    ImpactAssessment,
     PredictedRegulation,
+    RegulatoryPredictionEngine,
     RegulatorySignal,
     SignalSource,
-    ImpactAssessment,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -36,7 +38,7 @@ class TestRegulatoryPredictionEngine:
                     detected_at=datetime.utcnow(),
                 ),
             ]
-            
+
             with patch.object(engine, "_generate_predictions") as mock_predict:
                 mock_predict.return_value = [
                     PredictedRegulation(
@@ -49,12 +51,12 @@ class TestRegulatoryPredictionEngine:
                         signals_count=5,
                     ),
                 ]
-                
+
                 result = await engine.analyze_regulatory_landscape(
                     jurisdictions=["EU", "US"],
                     industries=["technology", "healthcare"],
                 )
-                
+
                 assert "signals" in result
                 assert "predictions" in result
                 assert len(result["predictions"]) >= 1
@@ -73,12 +75,12 @@ class TestRegulatoryPredictionEngine:
                     signals_count=3,
                 ),
             ]
-            
+
             predictions = await engine.get_predictions(
                 jurisdiction="EU",
                 min_confidence=0.7,
             )
-            
+
             assert len(predictions) >= 1
             assert predictions[0].confidence >= 0.7
 
@@ -100,12 +102,12 @@ class TestRegulatoryPredictionEngine:
                 ],
                 "horizon_months": 12,
             }
-            
+
             timeline = await engine.get_prediction_timeline(
                 horizon_months=12,
                 jurisdictions=["US"],
             )
-            
+
             assert "timeline" in timeline
             assert len(timeline["timeline"]) >= 1
 
@@ -120,13 +122,13 @@ class TestRegulatoryPredictionEngine:
             impact_areas=["Data handling", "Privacy"],
             signals_count=4,
         )
-        
+
         codebase_info = {
             "languages": ["python", "typescript"],
             "frameworks": ["fastapi", "react"],
             "data_handling": ["user_data", "analytics"],
         }
-        
+
         with patch.object(engine, "_calculate_impact") as mock_impact:
             mock_impact.return_value = ImpactAssessment(
                 prediction_id="pred-002",
@@ -142,12 +144,12 @@ class TestRegulatoryPredictionEngine:
                     "Implement consent management",
                 ],
             )
-            
+
             assessment = await engine.assess_impact(
                 prediction=prediction,
                 codebase_info=codebase_info,
             )
-            
+
             assert assessment.overall_impact in ["low", "medium", "high"]
             assert assessment.estimated_effort_hours > 0
 
@@ -159,14 +161,14 @@ class TestRegulatoryPredictionEngine:
             keywords=["privacy", "data protection"],
             webhook_url="https://example.com/webhook",
         )
-        
+
         assert result is not None
         assert "subscription_id" in result
 
     async def test_get_signal_sources(self, engine):
         """Test getting available signal sources."""
         sources = engine.get_signal_sources()
-        
+
         assert len(sources) >= 5
         source_names = [s.source_name for s in sources]
         assert any("eur-lex" in s.lower() or "eu" in s.lower() for s in source_names)
@@ -179,9 +181,9 @@ class TestRegulatoryPredictionEngine:
                 "updated_predictions": 2,
                 "last_refresh": datetime.utcnow().isoformat(),
             }
-            
+
             result = await engine.refresh_signals()
-            
+
             assert "new_signals" in result
 
     async def test_get_confidence_factors(self, engine):
@@ -189,15 +191,27 @@ class TestRegulatoryPredictionEngine:
         with patch.object(engine, "_analyze_confidence") as mock_analyze:
             mock_analyze.return_value = {
                 "factors": [
-                    {"factor": "Legislative stage", "contribution": 0.3, "value": "Committee review"},
-                    {"factor": "Historical accuracy", "contribution": 0.25, "value": "Similar predictions 80% accurate"},
-                    {"factor": "Source reliability", "contribution": 0.2, "value": "Official sources"},
+                    {
+                        "factor": "Legislative stage",
+                        "contribution": 0.3,
+                        "value": "Committee review",
+                    },
+                    {
+                        "factor": "Historical accuracy",
+                        "contribution": 0.25,
+                        "value": "Similar predictions 80% accurate",
+                    },
+                    {
+                        "factor": "Source reliability",
+                        "contribution": 0.2,
+                        "value": "Official sources",
+                    },
                 ],
                 "total_confidence": 0.82,
             }
-            
+
             factors = await engine.get_confidence_factors("pred-001")
-            
+
             assert "factors" in factors
             assert len(factors["factors"]) >= 2
 
@@ -216,7 +230,7 @@ class TestPredictedRegulation:
             impact_areas=["Privacy", "Data handling"],
             signals_count=3,
         )
-        
+
         assert prediction.prediction_id == "pred-001"
         assert prediction.confidence == 0.75
 
@@ -231,9 +245,9 @@ class TestPredictedRegulation:
             impact_areas=["Security"],
             signals_count=5,
         )
-        
+
         pred_dict = prediction.to_dict()
-        
+
         assert pred_dict["jurisdiction"] == "EU"
         assert pred_dict["confidence"] == 0.88
 
@@ -251,7 +265,7 @@ class TestRegulatorySignal:
             relevance_score=0.85,
             detected_at=datetime.utcnow(),
         )
-        
+
         assert signal.source == SignalSource.CONGRESS_GOV
         assert signal.relevance_score == 0.85
 
@@ -265,9 +279,9 @@ class TestRegulatorySignal:
             relevance_score=0.72,
             detected_at=datetime(2024, 1, 15),
         )
-        
+
         signal_dict = signal.to_dict()
-        
+
         assert "source" in signal_dict
 
 
@@ -286,7 +300,7 @@ class TestImpactAssessment:
             priority="urgent",
             recommendations=["Review policies"],
         )
-        
+
         assert assessment.overall_impact == "high"
         assert assessment.estimated_effort_hours == 80
 
@@ -300,9 +314,9 @@ class TestImpactAssessment:
             priority="normal",
             recommendations=[],
         )
-        
+
         assessment_dict = assessment.to_dict()
-        
+
         assert assessment_dict["priority"] == "normal"
 
 

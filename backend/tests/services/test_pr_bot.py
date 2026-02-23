@@ -1,15 +1,16 @@
 """Tests for PR Bot service."""
 
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from app.services.pr_bot import PRBot, PRBotConfig, PRBotResult
-from app.services.pr_bot.queue import PRAnalysisQueue, PRAnalysisTask, TaskStatus
-from app.services.pr_bot.checks import ChecksService, CheckConclusion
+from app.services.pr_bot.checks import CheckConclusion, ChecksService
 from app.services.pr_bot.comments import CommentGenerator
-from app.services.pr_bot.labels import LabelService, ComplianceLabel
+from app.services.pr_bot.labels import ComplianceLabel, LabelService
+from app.services.pr_bot.queue import PRAnalysisQueue, PRAnalysisTask, TaskStatus
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -20,7 +21,7 @@ class TestPRBotConfig:
     def test_default_config(self):
         """Test default configuration values."""
         config = PRBotConfig()
-        
+
         assert config.enabled is True
         assert config.auto_comment is True
         assert config.auto_label is True
@@ -38,7 +39,7 @@ class TestPRBotConfig:
             min_severity="high",
             frameworks=["HIPAA", "SOC2"],
         )
-        
+
         assert config.auto_comment is False
         assert config.block_on_critical is False
         assert config.min_severity == "high"
@@ -63,9 +64,9 @@ class TestPRAnalysisQueue:
             organization_id=uuid4(),
             access_token="test-token",
         )
-        
+
         await queue.enqueue(task)
-        
+
         # Task should be trackable
         retrieved = await queue.get_task(task.id)
         assert retrieved is not None
@@ -81,10 +82,10 @@ class TestPRAnalysisQueue:
             organization_id=uuid4(),
             access_token="test-token",
         )
-        
+
         await queue.enqueue(task)
         await queue.update_status(task.id, TaskStatus.PROCESSING)
-        
+
         retrieved = await queue.get_task(task.id)
         assert retrieved.status == TaskStatus.PROCESSING
 
@@ -98,7 +99,7 @@ class TestPRAnalysisQueue:
             organization_id=uuid4(),
             access_token="test-token",
         )
-        
+
         result = PRBotResult(
             pr_number=123,
             owner="test-owner",
@@ -109,10 +110,10 @@ class TestPRAnalysisQueue:
             medium_count=2,
             low_count=0,
         )
-        
+
         await queue.enqueue(task)
         await queue.complete(task.id, result)
-        
+
         retrieved = await queue.get_task(task.id)
         assert retrieved.status == TaskStatus.COMPLETED
         assert retrieved.result is not None
@@ -128,10 +129,10 @@ class TestPRAnalysisQueue:
             organization_id=uuid4(),
             access_token="test-token",
         )
-        
+
         await queue.enqueue(task)
         await queue.fail(task.id, "API rate limit exceeded")
-        
+
         retrieved = await queue.get_task(task.id)
         assert retrieved.status == TaskStatus.FAILED
         assert "rate limit" in retrieved.error.lower()
@@ -173,9 +174,9 @@ class TestChecksService:
                 },
             ],
         )
-        
+
         output = checks_service.build_output_from_analysis(result)
-        
+
         assert output["title"] is not None
         assert "3" in output["summary"] or "violations" in output["summary"].lower()
         assert len(output["annotations"]) == 2
@@ -192,7 +193,7 @@ class TestChecksService:
             medium_count=0,
             low_count=0,
         )
-        
+
         conclusion = checks_service.determine_conclusion(result, block_on_critical=True)
         assert conclusion == CheckConclusion.FAILURE
 
@@ -208,7 +209,7 @@ class TestChecksService:
             medium_count=0,
             low_count=0,
         )
-        
+
         conclusion = checks_service.determine_conclusion(result, block_on_critical=True)
         assert conclusion in [CheckConclusion.NEUTRAL, CheckConclusion.SUCCESS]
 
@@ -224,7 +225,7 @@ class TestChecksService:
             medium_count=0,
             low_count=0,
         )
-        
+
         conclusion = checks_service.determine_conclusion(result, block_on_critical=True)
         assert conclusion == CheckConclusion.SUCCESS
 
@@ -250,9 +251,9 @@ class TestCommentGenerator:
             low_count=0,
             violations=[],
         )
-        
+
         comment = comment_gen.generate_summary_comment(result)
-        
+
         assert "## 🛡️ ComplianceAgent Analysis" in comment
         assert "5" in comment  # Total violations
         assert "Critical" in comment
@@ -267,9 +268,9 @@ class TestCommentGenerator:
             "article": "Article 32",
             "quick_fix": "Encrypt or mask PII before logging",
         }
-        
+
         comment = comment_gen.generate_inline_comment(violation)
-        
+
         assert "GDPR" in comment
         assert "critical" in comment.lower() or "🔴" in comment
         assert "encrypt" in comment.lower() or "mask" in comment.lower()
@@ -286,9 +287,9 @@ class TestCommentGenerator:
             medium_count=0,
             low_count=0,
         )
-        
+
         comment = comment_gen.generate_summary_comment(result)
-        
+
         assert "✅" in comment or "clean" in comment.lower() or "no" in comment.lower()
 
 
@@ -312,9 +313,9 @@ class TestLabelService:
             medium_count=0,
             low_count=0,
         )
-        
+
         labels = label_service.determine_labels(result)
-        
+
         assert ComplianceLabel.COMPLIANCE_CRITICAL in labels
 
     def test_determine_labels_needs_review(self, label_service):
@@ -329,9 +330,9 @@ class TestLabelService:
             medium_count=1,
             low_count=0,
         )
-        
+
         labels = label_service.determine_labels(result)
-        
+
         assert ComplianceLabel.NEEDS_COMPLIANCE_REVIEW in labels
 
     def test_determine_labels_compliant(self, label_service):
@@ -346,17 +347,17 @@ class TestLabelService:
             medium_count=0,
             low_count=0,
         )
-        
+
         labels = label_service.determine_labels(result)
-        
+
         assert ComplianceLabel.COMPLIANCE_PASSED in labels
 
     def test_get_label_definitions(self, label_service):
         """Test getting label definitions."""
         definitions = label_service.get_label_definitions()
-        
+
         assert len(definitions) > 0
-        for label, defn in definitions.items():
+        for defn in definitions.values():
             assert "color" in defn
             assert "description" in defn
 
@@ -368,15 +369,23 @@ class TestPRBot:
     def mock_github_client(self):
         """Create mock GitHub client."""
         client = MagicMock()
-        client.get_pull_request = AsyncMock(return_value={
-            "number": 123,
-            "title": "Test PR",
-            "head": {"sha": "abc123"},
-            "base": {"ref": "main"},
-        })
-        client.get_pull_request_files = AsyncMock(return_value=[
-            {"filename": "src/user.py", "status": "modified", "patch": "@@ -1,5 +1,10 @@\n+def get_user():\n+    log(user.email)"},
-        ])
+        client.get_pull_request = AsyncMock(
+            return_value={
+                "number": 123,
+                "title": "Test PR",
+                "head": {"sha": "abc123"},
+                "base": {"ref": "main"},
+            }
+        )
+        client.get_pull_request_files = AsyncMock(
+            return_value=[
+                {
+                    "filename": "src/user.py",
+                    "status": "modified",
+                    "patch": "@@ -1,5 +1,10 @@\n+def get_user():\n+    log(user.email)",
+                },
+            ]
+        )
         client.create_check_run = AsyncMock(return_value={"id": 456})
         client.update_check_run = AsyncMock(return_value={"id": 456})
         client.create_review_comment = AsyncMock(return_value={"id": 789})
@@ -388,16 +397,18 @@ class TestPRBot:
     def mock_analyzer(self):
         """Create mock PR analyzer."""
         analyzer = MagicMock()
-        analyzer.analyze_diff = AsyncMock(return_value=[
-            {
-                "rule_id": "GDPR-LOG-001",
-                "severity": "critical",
-                "message": "PII in logs",
-                "file": "src/user.py",
-                "line": 2,
-                "framework": "GDPR",
-            },
-        ])
+        analyzer.analyze_diff = AsyncMock(
+            return_value=[
+                {
+                    "rule_id": "GDPR-LOG-001",
+                    "severity": "critical",
+                    "message": "PII in logs",
+                    "file": "src/user.py",
+                    "line": 2,
+                    "framework": "GDPR",
+                },
+            ]
+        )
         return analyzer
 
     @pytest.fixture
@@ -411,15 +422,15 @@ class TestPRBot:
 
     async def test_analyze_pr(self, pr_bot, mock_github_client, mock_analyzer):
         """Test analyzing a PR."""
-        with patch.object(pr_bot, '_get_github_client', return_value=mock_github_client):
-            with patch.object(pr_bot, '_get_analyzer', return_value=mock_analyzer):
+        with patch.object(pr_bot, "_get_github_client", return_value=mock_github_client):
+            with patch.object(pr_bot, "_get_analyzer", return_value=mock_analyzer):
                 result = await pr_bot.analyze_pr(
                     owner="test-owner",
                     repo="test-repo",
                     pr_number=123,
                     access_token="test-token",
                 )
-        
+
         assert result is not None
         assert result.pr_number == 123
         assert result.violations_found >= 0
@@ -434,11 +445,11 @@ class TestPRBot:
             organization_id=uuid4(),
             access_token="test-token",
         )
-        
-        with patch.object(pr_bot, '_get_github_client', return_value=mock_github_client):
-            with patch.object(pr_bot, '_get_analyzer', return_value=mock_analyzer):
+
+        with patch.object(pr_bot, "_get_github_client", return_value=mock_github_client):
+            with patch.object(pr_bot, "_get_analyzer", return_value=mock_analyzer):
                 result = await pr_bot.process_task(task)
-        
+
         assert result is not None
 
     async def test_create_check_run(self, pr_bot, mock_github_client):
@@ -453,8 +464,8 @@ class TestPRBot:
             medium_count=0,
             low_count=0,
         )
-        
-        with patch.object(pr_bot, '_get_github_client', return_value=mock_github_client):
+
+        with patch.object(pr_bot, "_get_github_client", return_value=mock_github_client):
             check_id = await pr_bot._create_check_run(
                 owner="test-owner",
                 repo="test-repo",
@@ -462,7 +473,7 @@ class TestPRBot:
                 result=result,
                 access_token="test-token",
             )
-        
+
         assert check_id is not None
         mock_github_client.create_check_run.assert_called()
 
@@ -482,7 +493,7 @@ class TestPRBotResult:
             medium_count=2,
             low_count=0,
         )
-        
+
         assert result.pr_number == 123
         assert result.total_violations == 5
 
@@ -498,7 +509,7 @@ class TestPRBotResult:
             medium_count=0,
             low_count=0,
         )
-        
+
         result_non_blocking = PRBotResult(
             pr_number=124,
             owner="test-owner",
@@ -509,7 +520,7 @@ class TestPRBotResult:
             medium_count=0,
             low_count=0,
         )
-        
+
         assert result_blocking.has_blocking_issues is True
         assert result_non_blocking.has_blocking_issues is False
 
@@ -525,9 +536,9 @@ class TestPRBotResult:
             medium_count=1,
             low_count=0,
         )
-        
+
         data = result.to_dict()
-        
+
         assert data["pr_number"] == 123
         assert data["violations_found"] == 3
         assert "critical_count" in data

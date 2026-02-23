@@ -4,12 +4,23 @@ from uuid import uuid4
 
 import pytest
 
+from app.services.api_monetization import (
+    APIMonetizationService,
+    PricingTier,
+)
+from app.services.chaos_engineering import (
+    ChaosEngineeringService,
+    ExperimentStatus,
+    ExperimentType,
+)
+from app.services.compliance_cloning import ComplianceCloningService
 from app.services.dao_governance import (
     DAOGovernanceService,
     ProposalStatus,
     ProposalType,
     VoteChoice,
 )
+from app.services.debt import DebtSecuritizationService
 from app.services.game_engine import (
     GameEngineService,
     ScenarioDifficulty,
@@ -20,21 +31,10 @@ from app.services.incident_remediation import (
     IncidentSource,
 )
 from app.services.pair_programming import PairProgrammingService
-from app.services.compliance_cloning import ComplianceCloningService
-from app.services.api_monetization import (
-    APIMonetizationService,
-    PricingTier,
-)
 from app.services.prediction_market import (
-    PredictionMarketService,
     MarketStatus,
+    PredictionMarketService,
 )
-from app.services.chaos_engineering import (
-    ChaosEngineeringService,
-    ExperimentType,
-    ExperimentStatus,
-)
-from app.services.debt import DebtSecuritizationService
 from app.services.regulation_diff import RegulationDiffService
 
 

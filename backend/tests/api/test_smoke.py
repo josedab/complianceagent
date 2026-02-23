@@ -5,7 +5,8 @@ conflicts across all 96+ API modules — without needing any infrastructure.
 """
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -70,7 +71,7 @@ class TestRouteIntegrity:
 
         # Find all modules in api/v1 that define a router
         modules_with_routers = []
-        for importer, modname, ispkg in pkgutil.iter_modules(v1_package.__path__):
+        for _importer, modname, _ispkg in pkgutil.iter_modules(v1_package.__path__):
             if modname.startswith("_"):
                 continue
             try:

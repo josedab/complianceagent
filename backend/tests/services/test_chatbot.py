@@ -1,15 +1,17 @@
 """Tests for compliance chatbot service."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import patch
+
+import pytest
 
 from app.services.chatbot import (
-    ComplianceChatbot,
-    ChatSession,
     ChatMessage,
     ChatResponse,
+    ChatSession,
+    ComplianceChatbot,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -28,7 +30,7 @@ class TestComplianceChatbot:
             user_id="user-123",
             context={"organization": "test-org"},
         )
-        
+
         assert session is not None
         assert session.session_id is not None
         assert session.user_id == "user-123"
@@ -37,7 +39,7 @@ class TestComplianceChatbot:
     async def test_send_message(self, chatbot):
         """Test sending a message."""
         session = await chatbot.create_session(user_id="user-123")
-        
+
         with patch.object(chatbot, "_generate_response") as mock_generate:
             mock_generate.return_value = ChatResponse(
                 message_id="msg-002",
@@ -51,12 +53,12 @@ class TestComplianceChatbot:
                     "Does this apply to backups as well?",
                 ],
             )
-            
+
             response = await chatbot.send_message(
                 session_id=session.session_id,
                 message="Does GDPR require encryption at rest?",
             )
-            
+
             assert response is not None
             assert response.content is not None
             assert len(response.sources) >= 1
@@ -68,7 +70,7 @@ class TestComplianceChatbot:
             user_id="user-123",
             context={"codebase": "test-repo"},
         )
-        
+
         with patch.object(chatbot, "_generate_response") as mock_generate:
             mock_generate.return_value = ChatResponse(
                 message_id="msg-003",
@@ -81,7 +83,7 @@ class TestComplianceChatbot:
                 ],
                 confidence=0.88,
             )
-            
+
             response = await chatbot.send_message(
                 session_id=session.session_id,
                 message="Is our user service GDPR compliant?",
@@ -90,7 +92,7 @@ class TestComplianceChatbot:
                     "repository": "test-repo",
                 },
             )
-            
+
             assert response is not None
             assert response.code_references is not None
             assert len(response.code_references) >= 1
@@ -106,12 +108,12 @@ class TestComplianceChatbot:
                 ],
                 confidence=0.95,
             )
-            
+
             response = await chatbot.quick_answer(
                 question="What are HIPAA encryption requirements?",
                 regulations=["HIPAA"],
             )
-            
+
             assert response is not None
             assert "HIPAA" in response.content or "encrypt" in response.content.lower()
 
@@ -131,7 +133,7 @@ Encrypt the email field before storage using AES-256.""",
                 sources=[{"regulation": "GDPR", "article": "32"}],
                 confidence=0.9,
             )
-            
+
             response = await chatbot.explain_code_issue(
                 code_snippet="""
                 def store_user(user):
@@ -140,14 +142,14 @@ Encrypt the email field before storage using AES-256.""",
                 issue_type="unencrypted_pii",
                 regulations=["GDPR"],
             )
-            
+
             assert response is not None
             assert "encrypt" in response.content.lower() or "GDPR" in response.content
 
     async def test_get_session_history(self, chatbot):
         """Test getting session history."""
         session = await chatbot.create_session(user_id="user-123")
-        
+
         # Add some messages
         with patch.object(chatbot, "_generate_response") as mock_generate:
             mock_generate.return_value = ChatResponse(
@@ -156,12 +158,12 @@ Encrypt the email field before storage using AES-256.""",
                 sources=[],
                 confidence=0.9,
             )
-            
+
             await chatbot.send_message(session.session_id, "Question 1")
             await chatbot.send_message(session.session_id, "Question 2")
-        
+
         history = await chatbot.get_session_history(session.session_id)
-        
+
         assert len(history) >= 2
 
     async def test_get_suggested_questions(self, chatbot):
@@ -169,7 +171,7 @@ Encrypt the email field before storage using AES-256.""",
         suggestions = await chatbot.get_suggested_questions(
             context={"regulations": ["GDPR", "CCPA"]},
         )
-        
+
         assert len(suggestions) >= 3
         for suggestion in suggestions:
             assert isinstance(suggestion, str)
@@ -177,15 +179,15 @@ Encrypt the email field before storage using AES-256.""",
     async def test_end_session(self, chatbot):
         """Test ending a session."""
         session = await chatbot.create_session(user_id="user-123")
-        
+
         result = await chatbot.end_session(session.session_id)
-        
+
         assert result is True
 
     async def test_rate_response(self, chatbot):
         """Test rating a response."""
         session = await chatbot.create_session(user_id="user-123")
-        
+
         with patch.object(chatbot, "_generate_response") as mock_generate:
             mock_generate.return_value = ChatResponse(
                 message_id="msg-to-rate",
@@ -193,15 +195,15 @@ Encrypt the email field before storage using AES-256.""",
                 sources=[],
                 confidence=0.9,
             )
-            
+
             response = await chatbot.send_message(session.session_id, "Test question")
-        
+
         result = await chatbot.rate_response(
             message_id=response.message_id,
             rating=5,
             feedback="Very helpful!",
         )
-        
+
         assert result is True
 
     async def test_search_knowledge_base(self, chatbot):
@@ -221,12 +223,12 @@ Encrypt the email field before storage using AES-256.""",
                     "relevance": 0.88,
                 },
             ]
-            
+
             results = await chatbot.search_knowledge_base(
                 query="right to delete personal data",
                 regulations=["GDPR", "CCPA"],
             )
-            
+
             assert len(results) >= 2
 
 
@@ -242,7 +244,7 @@ class TestChatSession:
             messages=[],
             context={"org": "test"},
         )
-        
+
         assert session.session_id == "sess-123"
         assert session.user_id == "user-456"
         assert len(session.messages) == 0
@@ -256,16 +258,16 @@ class TestChatSession:
             messages=[],
             context={},
         )
-        
+
         message = ChatMessage(
             message_id="msg-001",
             role="user",
             content="Test question",
             timestamp=datetime.utcnow(),
         )
-        
+
         session.messages.append(message)
-        
+
         assert len(session.messages) == 1
 
 
@@ -280,7 +282,7 @@ class TestChatMessage:
             content="What is GDPR?",
             timestamp=datetime.utcnow(),
         )
-        
+
         assert message.role == "user"
         assert message.content == "What is GDPR?"
 
@@ -293,7 +295,7 @@ class TestChatMessage:
             timestamp=datetime.utcnow(),
             sources=[{"regulation": "GDPR"}],
         )
-        
+
         assert message.role == "assistant"
         assert message.sources is not None
 
@@ -309,7 +311,7 @@ class TestChatResponse:
             sources=[{"regulation": "GDPR", "article": "5"}],
             confidence=0.85,
         )
-        
+
         assert response.confidence == 0.85
         assert len(response.sources) == 1
 
@@ -322,7 +324,7 @@ class TestChatResponse:
             confidence=0.9,
             follow_up_questions=["Q1?", "Q2?"],
         )
-        
+
         assert len(response.follow_up_questions) == 2
 
     def test_response_with_code_references(self):
@@ -336,7 +338,7 @@ class TestChatResponse:
                 {"file": "main.py", "line": 10, "issue": "Problem"},
             ],
         )
-        
+
         assert len(response.code_references) == 1
 
     def test_response_to_dict(self):
@@ -347,8 +349,8 @@ class TestChatResponse:
             sources=[],
             confidence=0.9,
         )
-        
+
         response_dict = response.to_dict()
-        
+
         assert response_dict["message_id"] == "msg-001"
         assert response_dict["confidence"] == 0.9

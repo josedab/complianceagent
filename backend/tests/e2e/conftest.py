@@ -6,7 +6,7 @@ Requires: make dev && make run-backend && make run-frontend
 """
 
 import pytest
-from playwright.async_api import async_playwright, Browser, Page, BrowserContext
+from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 
 FRONTEND_URL = "http://localhost:3000"
@@ -54,4 +54,4 @@ async def authenticated_page(page: Page):
     await page.click('button[type="submit"]')
     # Wait for redirect to dashboard
     await page.wait_for_url("**/dashboard**", timeout=10000)
-    yield page
+    return page

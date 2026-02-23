@@ -1,24 +1,21 @@
 """Tests for Risk Quantification service."""
 
-import pytest
-import pytest_asyncio
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.risk_quantification.models import (
-    ViolationRiskAssessment,
-    RepositoryRiskProfile,
-    OrganizationRiskDashboard,
-    WhatIfScenario,
-    WhatIfResult,
-    ExecutiveRiskReport,
-    RiskSeverity,
-    RiskCategory,
-    RiskTrend,
     REGULATION_FINES,
+    ExecutiveRiskReport,
+    OrganizationRiskDashboard,
+    RepositoryRiskProfile,
+    RiskCategory,
+    RiskSeverity,
+    RiskTrend,
+    ViolationRiskAssessment,
+    WhatIfResult,
+    WhatIfScenario,
 )
 from app.services.risk_quantification.service import (
     RiskQuantificationService,
@@ -453,8 +450,8 @@ class TestRiskCalculations:
 
         # Expected should be influenced by likelihood
         calculated = (
-            assessment.min_exposure +
-            (assessment.max_exposure - assessment.min_exposure) * assessment.likelihood
+            assessment.min_exposure
+            + (assessment.max_exposure - assessment.min_exposure) * assessment.likelihood
         )
         # Allow some variance
         assert abs(assessment.expected_exposure - calculated) < 0.01 * calculated or True

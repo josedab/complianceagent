@@ -1,14 +1,16 @@
 """Tests for IDE Copilot suggestions service."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.services.ide.copilot_suggestions import (
-    CopilotComplianceSuggester,
     ComplianceSuggestion,
+    CopilotComplianceSuggester,
     QuickFix,
     RegulationTooltip,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -27,7 +29,7 @@ class TestCopilotComplianceSuggester:
         def store_user_email(email: str):
             db.users.insert({"email": email})
         """
-        
+
         with patch.object(suggester, "_call_copilot") as mock_copilot:
             mock_copilot.return_value = ComplianceSuggestion(
                 suggestion_id="sugg-001",
@@ -38,14 +40,14 @@ class TestCopilotComplianceSuggester:
                 code_range={"start_line": 2, "end_line": 3},
                 confidence=0.88,
             )
-            
+
             suggestion = await suggester.generate_suggestion(
                 code=code,
                 file_path="src/users.py",
                 language="python",
                 regulations=["GDPR"],
             )
-            
+
             assert suggestion is not None
             assert suggestion.severity in ["info", "warning", "error"]
 
@@ -55,7 +57,7 @@ class TestCopilotComplianceSuggester:
         user_data = {"email": email, "name": name}
         save_to_db(user_data)
         """
-        
+
         with patch.object(suggester, "_generate_fix") as mock_fix:
             mock_fix.return_value = QuickFix(
                 fix_id="fix-001",
@@ -68,14 +70,14 @@ class TestCopilotComplianceSuggester:
         """,
                 explanation="Encrypts personal data to comply with GDPR Article 32",
             )
-            
+
             fix = await suggester.generate_quick_fix(
                 code=code,
                 issue_type="unencrypted_pii",
                 file_path="src/users.py",
                 language="python",
             )
-            
+
             assert fix is not None
             assert "encrypt" in fix.fixed_code
 
@@ -93,12 +95,12 @@ class TestCopilotComplianceSuggester:
                 ],
                 related_articles=["Article 16", "Article 18"],
             )
-            
+
             tooltip = await suggester.get_regulation_tooltip(
                 regulation="GDPR",
                 article="17",
             )
-            
+
             assert tooltip is not None
             assert tooltip.title == "Right to erasure"
             assert len(tooltip.key_requirements) >= 1
@@ -115,7 +117,7 @@ class TestCopilotComplianceSuggester:
                 db.delete(user)
                 db.commit()
         """
-        
+
         with patch.object(suggester, "_deep_analyze") as mock_analyze:
             mock_analyze.return_value = {
                 "compliance_score": 72,
@@ -139,14 +141,14 @@ class TestCopilotComplianceSuggester:
                     "Implement soft delete pattern",
                 ],
             }
-            
+
             analysis = await suggester.analyze_code_block(
                 code=code,
                 file_path="src/repositories/user.py",
                 language="python",
                 regulations=["GDPR", "CCPA"],
             )
-            
+
             assert analysis["compliance_score"] <= 100
             assert len(analysis["issues"]) >= 1
 
@@ -156,7 +158,7 @@ class TestCopilotComplianceSuggester:
             "src/users.py": "def store_user(user): db.save(user)",
             "src/payments.py": "def charge(card): stripe.charge(card)",
         }
-        
+
         with patch.object(suggester, "generate_suggestion") as mock_suggest:
             mock_suggest.side_effect = [
                 ComplianceSuggestion(
@@ -174,12 +176,12 @@ class TestCopilotComplianceSuggester:
                     confidence=0.92,
                 ),
             ]
-            
+
             suggestions = await suggester.batch_suggestions(
                 files=files,
                 regulations=["GDPR", "PCI-DSS"],
             )
-            
+
             assert len(suggestions) == 2
 
     async def test_get_compliance_score(self, suggester):
@@ -191,7 +193,7 @@ class TestCopilotComplianceSuggester:
             user['password'] = hashlib.sha256(user['password'].encode()).hexdigest()
             db.save(user)
         """
-        
+
         with patch.object(suggester, "_calculate_score") as mock_score:
             mock_score.return_value = {
                 "score": 85,
@@ -204,14 +206,14 @@ class TestCopilotComplianceSuggester:
                 "issues_found": 2,
                 "critical_issues": 0,
             }
-            
+
             score = await suggester.get_compliance_score(
                 code=code,
                 file_path="src/users.py",
                 language="python",
                 regulations=["GDPR"],
             )
-            
+
             assert score["score"] >= 0
             assert score["score"] <= 100
 
@@ -230,7 +232,7 @@ class TestComplianceSuggestion:
             code_range={"start_line": 10, "end_line": 15},
             confidence=0.9,
         )
-        
+
         assert suggestion.suggestion_id == "sugg-001"
         assert suggestion.severity == "warning"
 
@@ -243,9 +245,9 @@ class TestComplianceSuggestion:
             regulation="HIPAA",
             confidence=0.8,
         )
-        
+
         sugg_dict = suggestion.to_dict()
-        
+
         assert sugg_dict["severity"] == "error"
 
 
@@ -262,7 +264,7 @@ class TestQuickFix:
             fixed_code="save(encrypt(email))",
             explanation="Adds AES-256 encryption",
         )
-        
+
         assert fix.fix_id == "fix-001"
         assert "encrypt" in fix.fixed_code
 
@@ -276,9 +278,9 @@ class TestQuickFix:
             fixed_code="b",
             explanation="Exp",
         )
-        
+
         fix_dict = fix.to_dict()
-        
+
         assert fix_dict["title"] == "Fix issue"
 
 
@@ -295,7 +297,7 @@ class TestRegulationTooltip:
             key_requirements=["Delete without delay"],
             related_articles=["Article 16"],
         )
-        
+
         assert tooltip.regulation == "GDPR"
         assert len(tooltip.key_requirements) >= 1
 
@@ -309,7 +311,7 @@ class TestRegulationTooltip:
             key_requirements=[],
             related_articles=[],
         )
-        
+
         tooltip_dict = tooltip.to_dict()
-        
+
         assert tooltip_dict["regulation"] == "CCPA"

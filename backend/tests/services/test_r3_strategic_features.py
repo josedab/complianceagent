@@ -1,19 +1,26 @@
 """Tests for Round 3 Next-Gen Strategic Features (9 new services)."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-from app.services.horizon_scanner import HorizonScannerService, ImpactSeverity, PendingLegislation, LegislativeSource, LegislativeStatus, ConfidenceLevel
-from app.services.control_testing import ControlTestingService, ControlFramework, TestStatus
-from app.services.compliance_knowledge_graph import ComplianceKnowledgeGraphService
-from app.services.entity_rollup import EntityRollupService
-from app.services.board_reports import BoardReportsService
-from app.services.gitops_pipeline import GitOpsPipelineService
-from app.services.residency_map import ResidencyMapService
-from app.services.dependency_scanner import DependencyScannerService
+import pytest
+
 from app.services.audit_workspace import AuditWorkspaceService
 from app.services.audit_workspace.service import AuditFramework, WorkspacePhase
+from app.services.board_reports import BoardReportsService
+from app.services.compliance_knowledge_graph import ComplianceKnowledgeGraphService
+from app.services.control_testing import ControlFramework, ControlTestingService, TestStatus
+from app.services.dependency_scanner import DependencyScannerService
+from app.services.entity_rollup import EntityRollupService
+from app.services.gitops_pipeline import GitOpsPipelineService
+from app.services.horizon_scanner import (
+    ConfidenceLevel,
+    HorizonScannerService,
+    ImpactSeverity,
+    LegislativeSource,
+    LegislativeStatus,
+    PendingLegislation,
+)
+from app.services.residency_map import ResidencyMapService
 
 
 # ─── Horizon Scanner ──────────────────────────────────────────────────────
@@ -185,7 +192,7 @@ class TestComplianceKnowledgeGraphService:
     @pytest.mark.asyncio
     async def test_get_neighbors(self, db_session):
         svc = ComplianceKnowledgeGraphService(db=db_session)
-        stats = await svc.get_stats()
+        await svc.get_stats()
         # Get first node
         for node_id in svc._nodes:
             result = await svc.get_neighbors(node_id)
@@ -220,7 +227,7 @@ class TestEntityRollupService:
     async def test_compute_rollup_root(self, db_session):
         svc = EntityRollupService(db=db_session)
         entities = await svc.get_hierarchy()
-        root = [e for e in entities if e.level == 0][0]
+        root = next(e for e in entities if e.level == 0)
         rollup = await svc.compute_rollup(root.id)
         assert rollup.entity_name == "Acme Corp"
         assert rollup.aggregated_score > 0
@@ -231,7 +238,7 @@ class TestEntityRollupService:
     async def test_compute_rollup_leaf(self, db_session):
         svc = EntityRollupService(db=db_session)
         entities = await svc.get_hierarchy()
-        leaf = [e for e in entities if e.level == 2][0]
+        leaf = next(e for e in entities if e.level == 2)
         rollup = await svc.compute_rollup(leaf.id)
         assert rollup.own_score == rollup.aggregated_score
         assert len(rollup.child_scores) == 0
@@ -240,7 +247,7 @@ class TestEntityRollupService:
     async def test_resolve_policies_inheritance(self, db_session):
         svc = EntityRollupService(db=db_session)
         entities = await svc.get_hierarchy()
-        child = [e for e in entities if e.level == 2][0]
+        child = next(e for e in entities if e.level == 2)
         policies = await svc.resolve_policies(child.id)
         assert len(policies.effective_frameworks) > 0
         # Should inherit parent frameworks
@@ -311,7 +318,9 @@ class TestGitOpsPipelineService:
     async def test_evaluate_gate_pass(self, db_session):
         svc = GitOpsPipelineService(db=db_session)
         result = await svc.evaluate_gate(
-            repo="test/repo", branch="main", commit_sha="abc123",
+            repo="test/repo",
+            branch="main",
+            commit_sha="abc123",
             changed_files=[{"path": "src/math.py", "content": "x = 1 + 2"}],
         )
         assert result.decision.value == "pass"
@@ -322,8 +331,12 @@ class TestGitOpsPipelineService:
     async def test_evaluate_gate_block_critical(self, db_session):
         svc = GitOpsPipelineService(db=db_session)
         result = await svc.evaluate_gate(
-            repo="test/repo", branch="main", commit_sha="def456",
-            changed_files=[{"path": "src/data.py", "content": "credit_card = user.card_number\ncvv = input()"}],
+            repo="test/repo",
+            branch="main",
+            commit_sha="def456",
+            changed_files=[
+                {"path": "src/data.py", "content": "credit_card = user.card_number\ncvv = input()"}
+            ],
         )
         assert result.decision.value == "block"
         assert len(result.violations) > 0
@@ -333,8 +346,12 @@ class TestGitOpsPipelineService:
     async def test_evaluate_gate_warn(self, db_session):
         svc = GitOpsPipelineService(db=db_session)
         result = await svc.evaluate_gate(
-            repo="test/repo", branch="main", commit_sha="ghi789",
-            changed_files=[{"path": "src/security.py", "content": "# nosec\nsecurity_disable = True"}],
+            repo="test/repo",
+            branch="main",
+            commit_sha="ghi789",
+            changed_files=[
+                {"path": "src/security.py", "content": "# nosec\nsecurity_disable = True"}
+            ],
         )
         assert result.decision.value in ("warn", "block")
 
@@ -360,7 +377,9 @@ class TestGitOpsPipelineService:
     async def test_evaluations_history(self, db_session):
         svc = GitOpsPipelineService(db=db_session)
         await svc.evaluate_gate(
-            repo="test/repo", branch="main", commit_sha="aaa",
+            repo="test/repo",
+            branch="main",
+            commit_sha="aaa",
             changed_files=[{"path": "x.py", "content": "x = 1"}],
         )
         evals = await svc.get_evaluations(repo="test/repo")
@@ -440,10 +459,12 @@ class TestDependencyScannerService:
     @pytest.mark.asyncio
     async def test_scan_clean_dependencies(self, db_session):
         svc = DependencyScannerService(db=db_session)
-        result = await svc.scan_requirements([
-            {"name": "fastapi", "version": "0.109.0", "license": "MIT"},
-            {"name": "pydantic", "version": "2.6.0", "license": "MIT"},
-        ])
+        result = await svc.scan_requirements(
+            [
+                {"name": "fastapi", "version": "0.109.0", "license": "MIT"},
+                {"name": "pydantic", "version": "2.6.0", "license": "MIT"},
+            ]
+        )
         assert result.total_dependencies == 2
         assert result.critical_risks == 0
         assert result.license_violations == 0
@@ -451,9 +472,12 @@ class TestDependencyScannerService:
     @pytest.mark.asyncio
     async def test_scan_copyleft_violation(self, db_session):
         svc = DependencyScannerService(db=db_session)
-        result = await svc.scan_requirements([
-            {"name": "some-gpl-lib", "version": "1.0", "license": "GPL-3.0"},
-        ], proprietary_project=True)
+        result = await svc.scan_requirements(
+            [
+                {"name": "some-gpl-lib", "version": "1.0", "license": "GPL-3.0"},
+            ],
+            proprietary_project=True,
+        )
         assert result.critical_risks == 1
         assert result.license_violations == 1
         assert result.risks[0].risk_level.value == "critical"
@@ -462,17 +486,22 @@ class TestDependencyScannerService:
     @pytest.mark.asyncio
     async def test_scan_copyleft_ok_in_oss(self, db_session):
         svc = DependencyScannerService(db=db_session)
-        result = await svc.scan_requirements([
-            {"name": "some-gpl-lib", "version": "1.0", "license": "GPL-3.0"},
-        ], proprietary_project=False)
+        result = await svc.scan_requirements(
+            [
+                {"name": "some-gpl-lib", "version": "1.0", "license": "GPL-3.0"},
+            ],
+            proprietary_project=False,
+        )
         assert result.critical_risks == 0
 
     @pytest.mark.asyncio
     async def test_scan_data_sharing_sdk(self, db_session):
         svc = DependencyScannerService(db=db_session)
-        result = await svc.scan_requirements([
-            {"name": "mixpanel", "version": "4.0", "license": "MIT"},
-        ])
+        result = await svc.scan_requirements(
+            [
+                {"name": "mixpanel", "version": "4.0", "license": "MIT"},
+            ]
+        )
         assert result.data_sharing_count == 1
         assert result.high_risks >= 1
         assert result.risks[0].data_sharing is True
@@ -480,18 +509,22 @@ class TestDependencyScannerService:
     @pytest.mark.asyncio
     async def test_scan_deprecated_crypto(self, db_session):
         svc = DependencyScannerService(db=db_session)
-        result = await svc.scan_requirements([
-            {"name": "pycrypto", "version": "2.6", "license": "MIT"},
-        ])
+        result = await svc.scan_requirements(
+            [
+                {"name": "pycrypto", "version": "2.6", "license": "MIT"},
+            ]
+        )
         assert result.deprecated_crypto_count == 1
         assert result.risks[0].deprecated_crypto is True
 
     @pytest.mark.asyncio
     async def test_scan_unknown_license(self, db_session):
         svc = DependencyScannerService(db=db_session)
-        result = await svc.scan_requirements([
-            {"name": "mystery-pkg", "version": "1.0", "license": "UNKNOWN"},
-        ])
+        result = await svc.scan_requirements(
+            [
+                {"name": "mystery-pkg", "version": "1.0", "license": "UNKNOWN"},
+            ]
+        )
         assert result.license_violations == 1
 
     @pytest.mark.asyncio

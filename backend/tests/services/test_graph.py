@@ -1,16 +1,18 @@
 """Tests for compliance knowledge graph service."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.services.graph import (
     ComplianceKnowledgeGraph,
-    GraphNode,
+    EdgeType,
     GraphEdge,
+    GraphNode,
     GraphQuery,
     NodeType,
-    EdgeType,
 )
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -35,27 +37,31 @@ class TestComplianceKnowledgeGraph:
                 "obligation_type": "must",
             },
         )
-        
+
         result = await graph.add_node(node)
-        
+
         assert result is True
 
     async def test_add_edge(self, graph):
         """Test adding an edge between nodes."""
         # Add nodes first
-        await graph.add_node(GraphNode(
-            node_id="gdpr-art-17",
-            node_type=NodeType.REQUIREMENT,
-            name="Right to Erasure",
-            properties={},
-        ))
-        await graph.add_node(GraphNode(
-            node_id="user-service",
-            node_type=NodeType.CODE_MODULE,
-            name="User Service",
-            properties={"file": "src/user_service.py"},
-        ))
-        
+        await graph.add_node(
+            GraphNode(
+                node_id="gdpr-art-17",
+                node_type=NodeType.REQUIREMENT,
+                name="Right to Erasure",
+                properties={},
+            )
+        )
+        await graph.add_node(
+            GraphNode(
+                node_id="user-service",
+                node_type=NodeType.CODE_MODULE,
+                name="User Service",
+                properties={"file": "src/user_service.py"},
+            )
+        )
+
         edge = GraphEdge(
             edge_id="gdpr-17-to-user-svc",
             edge_type=EdgeType.IMPLEMENTS,
@@ -63,9 +69,9 @@ class TestComplianceKnowledgeGraph:
             target_id="gdpr-art-17",
             properties={"confidence": 0.85},
         )
-        
+
         result = await graph.add_edge(edge)
-        
+
         assert result is True
 
     async def test_query_natural_language(self, graph):
@@ -82,11 +88,9 @@ class TestComplianceKnowledgeGraph:
                 "edges": [],
                 "query_interpretation": "Find code that handles GDPR consent",
             }
-            
-            result = await graph.query_natural_language(
-                "What code handles GDPR consent?"
-            )
-            
+
+            result = await graph.query_natural_language("What code handles GDPR consent?")
+
             assert "nodes" in result
             assert "query_interpretation" in result
 
@@ -98,7 +102,7 @@ class TestComplianceKnowledgeGraph:
             filters={"regulation": "GDPR"},
             limit=10,
         )
-        
+
         with patch.object(graph, "_execute_query") as mock_execute:
             mock_execute.return_value = {
                 "nodes": [
@@ -107,61 +111,69 @@ class TestComplianceKnowledgeGraph:
                 "edges": [],
                 "total_count": 1,
             }
-            
+
             result = await graph.query(query)
-            
+
             assert "nodes" in result
             assert len(result["nodes"]) >= 0
 
     async def test_get_node(self, graph):
         """Test getting a specific node."""
-        await graph.add_node(GraphNode(
-            node_id="test-node",
-            node_type=NodeType.REGULATION,
-            name="Test Regulation",
-            properties={},
-        ))
-        
+        await graph.add_node(
+            GraphNode(
+                node_id="test-node",
+                node_type=NodeType.REGULATION,
+                name="Test Regulation",
+                properties={},
+            )
+        )
+
         node = await graph.get_node("test-node")
-        
+
         assert node is not None
         assert node.node_id == "test-node"
 
     async def test_get_node_not_found(self, graph):
         """Test getting non-existent node."""
         node = await graph.get_node("non-existent")
-        
+
         assert node is None
 
     async def test_get_connected_nodes(self, graph):
         """Test getting nodes connected to a given node."""
         # Setup nodes and edges
-        await graph.add_node(GraphNode(
-            node_id="center",
-            node_type=NodeType.REQUIREMENT,
-            name="Center Node",
-            properties={},
-        ))
-        await graph.add_node(GraphNode(
-            node_id="connected-1",
-            node_type=NodeType.CODE_MODULE,
-            name="Connected 1",
-            properties={},
-        ))
-        await graph.add_edge(GraphEdge(
-            edge_id="edge-1",
-            edge_type=EdgeType.IMPLEMENTS,
-            source_id="connected-1",
-            target_id="center",
-            properties={},
-        ))
-        
+        await graph.add_node(
+            GraphNode(
+                node_id="center",
+                node_type=NodeType.REQUIREMENT,
+                name="Center Node",
+                properties={},
+            )
+        )
+        await graph.add_node(
+            GraphNode(
+                node_id="connected-1",
+                node_type=NodeType.CODE_MODULE,
+                name="Connected 1",
+                properties={},
+            )
+        )
+        await graph.add_edge(
+            GraphEdge(
+                edge_id="edge-1",
+                edge_type=EdgeType.IMPLEMENTS,
+                source_id="connected-1",
+                target_id="center",
+                properties={},
+            )
+        )
+
         connected = await graph.get_connected_nodes(
             node_id="center",
             edge_type=EdgeType.IMPLEMENTS,
             direction="incoming",
         )
-        
+
         assert len(connected) >= 0
 
     async def test_find_path(self, graph):
@@ -172,12 +184,12 @@ class TestComplianceKnowledgeGraph:
                 "edges": ["edge-1", "edge-2"],
                 "length": 2,
             }
-            
+
             path = await graph.find_path(
                 source_id="node-a",
                 target_id="node-c",
             )
-            
+
             assert "path" in path
             assert len(path["path"]) >= 2
 
@@ -193,9 +205,9 @@ class TestComplianceKnowledgeGraph:
                     {"requirement_id": "gdpr-art-22", "status": "not_implemented"},
                 ],
             }
-            
+
             coverage = await graph.get_regulation_coverage("GDPR")
-            
+
             assert coverage["coverage_percentage"] == 84.0
             assert len(coverage["gaps"]) >= 1
 
@@ -209,13 +221,13 @@ class TestComplianceKnowledgeGraph:
                 "edges": [],
                 "format": "json",
             }
-            
+
             export = await graph.export_subgraph(
                 node_ids=["node-1"],
                 include_connected=True,
                 export_format="json",
             )
-            
+
             assert "nodes" in export
             assert export["format"] == "json"
 
@@ -230,15 +242,15 @@ class TestComplianceKnowledgeGraph:
                 ],
                 "total_affected": 2,
             }
-            
+
             impact = await graph.get_impact_analysis("gdpr-art-17")
-            
+
             assert impact["total_affected"] >= 1
 
     def test_list_node_types(self, graph):
         """Test listing available node types."""
         types = graph.list_node_types()
-        
+
         assert len(types) >= 4
         type_values = [t.value for t in types]
         assert "regulation" in type_values
@@ -248,7 +260,7 @@ class TestComplianceKnowledgeGraph:
     def test_list_edge_types(self, graph):
         """Test listing available edge types."""
         types = graph.list_edge_types()
-        
+
         assert len(types) >= 3
         type_values = [t.value for t in types]
         assert "implements" in type_values
@@ -266,7 +278,7 @@ class TestGraphNode:
             name="Test Node",
             properties={"version": "1.0"},
         )
-        
+
         assert node.node_id == "test-node"
         assert node.node_type == NodeType.REGULATION
 
@@ -278,9 +290,9 @@ class TestGraphNode:
             name="Test",
             properties={},
         )
-        
+
         node_dict = node.to_dict()
-        
+
         assert node_dict["node_id"] == "test-node"
         assert node_dict["node_type"] == "requirement"
 
@@ -297,7 +309,7 @@ class TestGraphEdge:
             target_id="node-b",
             properties={"confidence": 0.9},
         )
-        
+
         assert edge.edge_id == "test-edge"
         assert edge.edge_type == EdgeType.IMPLEMENTS
 
@@ -310,9 +322,9 @@ class TestGraphEdge:
             target_id="b",
             properties={},
         )
-        
+
         edge_dict = edge.to_dict()
-        
+
         assert edge_dict["edge_type"] == "depends_on"
 
 
@@ -327,7 +339,7 @@ class TestGraphQuery:
             filters={"regulation": "GDPR"},
             limit=50,
         )
-        
+
         assert len(query.node_types) == 2
         assert query.limit == 50
 
