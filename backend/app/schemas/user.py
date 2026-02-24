@@ -51,6 +51,12 @@ class TokenPayload(BaseSchema):
     type: str
 
 
+class RefreshTokenRequest(BaseSchema):
+    """Refresh token request body."""
+
+    refresh_token: str
+
+
 class LoginRequest(BaseSchema):
     """Login request."""
 

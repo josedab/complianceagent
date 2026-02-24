@@ -15,7 +15,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
-from app.schemas.user import LoginRequest, Token, UserCreate, UserRead
+from app.schemas.user import LoginRequest, RefreshTokenRequest, Token, UserCreate, UserRead
 
 
 router = APIRouter()
@@ -86,9 +86,9 @@ async def login(login_request: LoginRequest, db: DB) -> dict:
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(refresh_token: str, db: DB) -> dict:
+async def refresh_token(body: RefreshTokenRequest, db: DB) -> dict:
     """Refresh access token."""
-    payload = decode_token(refresh_token)
+    payload = decode_token(body.refresh_token)
     if not payload or payload.type != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
