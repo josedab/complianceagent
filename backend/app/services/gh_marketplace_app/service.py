@@ -114,7 +114,7 @@ class GHMarketplaceAppService:
             install_id=inst.id if inst else uuid4(),
             repo=repo,
             pr_number=pr_number,
-            sha=sha or hashlib.sha1(f"{repo}-{pr_number}".encode()).hexdigest()[:8],
+            sha=sha or hashlib.sha256(f"{repo}-{pr_number}".encode()).hexdigest()[:8],
             conclusion=conclusion,
             violations=violations,
             frameworks=frameworks,

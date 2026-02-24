@@ -225,7 +225,7 @@ class ComplianceScoringService:
         logger.info("Quick scoring repository", url=repository_url)
 
         # Generate deterministic but varied scores based on URL hash
-        url_hash = hashlib.md5(repository_url.encode()).hexdigest()
+        url_hash = hashlib.sha256(repository_url.encode()).hexdigest()
         int(url_hash[:2], 16) / 255 * 40 + 60  # 60-100 range
 
         framework_scores = []
@@ -233,7 +233,7 @@ class ComplianceScoringService:
 
         for i, fw in enumerate(requested_frameworks):
             # Vary score per framework
-            fw_hash = hashlib.md5(f"{repository_url}{fw}".encode()).hexdigest()
+            fw_hash = hashlib.sha256(f"{repository_url}{fw}".encode()).hexdigest()
             fw_score = int(fw_hash[:2], 16) / 255 * 30 + 65  # 65-95 range
 
             framework_scores.append(

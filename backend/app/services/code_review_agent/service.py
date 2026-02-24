@@ -78,7 +78,7 @@ class CodeReviewAgentService:
         review = PRComplianceReview(
             repo=repo,
             pr_number=pr_number,
-            commit_sha=commit_sha or hashlib.sha1(f"{repo}-{pr_number}".encode()).hexdigest()[:8],
+            commit_sha=commit_sha or hashlib.sha256(f"{repo}-{pr_number}".encode()).hexdigest()[:8],
             overall_risk=overall_risk,
             decision=decision,
             suggestions=suggestions,

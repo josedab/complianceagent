@@ -259,7 +259,7 @@ class ImpactSimulatorService:
 
         import hashlib
 
-        seed = int(hashlib.md5(scenario_id.encode()).hexdigest()[:8], 16)
+        seed = int(hashlib.sha256(scenario_id.encode()).hexdigest()[:8], 16)
         num_components = 4 + (seed % 8)
 
         components = []

@@ -287,7 +287,7 @@ class CICDComplianceService:
                 {
                     "description": issue.get("message", "Compliance issue"),
                     "check_name": issue.get("code", "COMPLIANCE"),
-                    "fingerprint": hashlib.md5(
+                    "fingerprint": hashlib.sha256(
                         f"{issue.get('file')}:{issue.get('line')}:{issue.get('code')}".encode()
                     ).hexdigest(),
                     "severity": severity_map.get(issue.get("severity", "info"), "minor"),

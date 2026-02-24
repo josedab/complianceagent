@@ -22,7 +22,7 @@ logger = structlog.get_logger()
 
 def _deterministic_position(node_id: str, axis: str) -> float:
     """Generate a deterministic layout position using hashlib."""
-    digest = hashlib.md5(f"{node_id}:{axis}".encode()).hexdigest()
+    digest = hashlib.sha256(f"{node_id}:{axis}".encode()).hexdigest()
     return (int(digest[:8], 16) % 1000) / 1000.0
 
 
