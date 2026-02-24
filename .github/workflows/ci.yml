@@ -106,8 +106,7 @@ jobs:
             --ignore=tests/services/test_prediction.py \
             --ignore=tests/services/test_risk_quantification.py \
             --ignore=tests/services/test_sandbox.py \
-            --ignore=tests/services/test_vendor.py \
-            || true  # Don't fail CI on pre-existing test issues
+            --ignore=tests/services/test_vendor.py
 
       - name: Run smoke tests
         working-directory: ./backend
