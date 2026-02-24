@@ -1965,6 +1965,7 @@ Implements SOC2 CC6.6 - Access Authentication.
 
 import secrets
 import hashlib
+import hmac
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -2028,7 +2029,7 @@ class MFAService:
         key = bytes.fromhex(secret)
         counter_bytes = counter.to_bytes(8, byteorder="big")
         
-        hmac_hash = hashlib.sha1(key + counter_bytes).digest()
+        hmac_hash = hmac.new(key, counter_bytes, hashlib.sha1).digest()
         offset = hmac_hash[-1] & 0x0F
         code = ((hmac_hash[offset] & 0x7F) << 24 |
                 (hmac_hash[offset + 1] & 0xFF) << 16 |
