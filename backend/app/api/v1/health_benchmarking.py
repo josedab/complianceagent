@@ -1,5 +1,7 @@
 """API endpoints for Compliance Health Score Benchmarking Dashboard."""
 
+from typing import Any
+
 import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -150,7 +152,7 @@ def _suggestion_to_schema(s) -> ImprovementSuggestionSchema:
     )
 
 
-def _get_service(db, copilot):
+def _get_service(db: Any, copilot: Any) -> "HealthBenchmarkingService":
     from app.services.health_benchmarking import HealthBenchmarkingService
 
     return HealthBenchmarkingService(db=db, copilot_client=copilot)

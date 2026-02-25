@@ -14,7 +14,7 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 
-def _serialize(obj):
+def _serialize(obj: Any) -> dict[str, Any]:
     """Convert a dataclass to a JSON-serializable dict."""
     from dataclasses import fields, is_dataclass
 
@@ -28,7 +28,7 @@ def _serialize(obj):
     return result
 
 
-def _ser_val(v):
+def _ser_val(v: Any) -> Any:
     from dataclasses import is_dataclass
     from datetime import datetime
     from enum import Enum
