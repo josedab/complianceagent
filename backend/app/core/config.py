@@ -112,6 +112,9 @@ class Settings(BaseSettings):
     monitoring_interval_hours: int = 6
     max_concurrent_crawlers: int = 5
 
+    # GitHub Webhook
+    github_webhook_secret: str = ""
+
     # Rate Limiting
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60

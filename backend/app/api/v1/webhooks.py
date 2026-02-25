@@ -28,19 +28,25 @@ async def github_webhook(
     """Handle GitHub App webhooks."""
     payload = await request.body()
 
-    # Verify signature
-    if settings.github_webhook_secret:
-        expected_sig = (
-            "sha256="
-            + hmac.new(
-                settings.github_webhook_secret.encode(),
-                payload,
-                hashlib.sha256,
-            ).hexdigest()
+    # Reject webhooks when secret is not configured
+    if not settings.github_webhook_secret:
+        raise HTTPException(
+            status_code=403,
+            detail="Webhook signature verification is not configured",
         )
 
-        if not hmac.compare_digest(expected_sig, x_hub_signature_256 or ""):
-            raise HTTPException(status_code=401, detail="Invalid signature")
+    # Verify signature
+    expected_sig = (
+        "sha256="
+        + hmac.new(
+            settings.github_webhook_secret.encode(),
+            payload,
+            hashlib.sha256,
+        ).hexdigest()
+    )
+
+    if not hmac.compare_digest(expected_sig, x_hub_signature_256 or ""):
+        raise HTTPException(status_code=401, detail="Invalid signature")
 
     data = await request.json()
 
