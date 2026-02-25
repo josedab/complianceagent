@@ -6,9 +6,12 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.api.v1 import router as api_v1_router
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import ClientDisconnect
+
 from app.core.config import settings
 from app.core.metrics import MetricsMiddleware, get_metrics
 from app.core.middleware import GlobalExceptionHandlerMiddleware, RateLimitMiddleware
@@ -97,6 +100,42 @@ def create_app() -> FastAPI:
         allow_methods=_cors_methods,
         allow_headers=_cors_headers,
     )
+
+    # Request body size limit middleware (10 MB default)
+    MAX_BODY_SIZE = 10 * 1024 * 1024  # 10 MB
+
+    class RequestBodySizeLimitMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            content_length = request.headers.get("content-length")
+            if content_length and int(content_length) > MAX_BODY_SIZE:
+                return JSONResponse(
+                    status_code=413,
+                    content={"error": {"code": "payload_too_large", "message": "Request body too large"}},
+                )
+            return await call_next(request)
+
+    app.add_middleware(RequestBodySizeLimitMiddleware)
+
+    # Security headers middleware
+    class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            response = await call_next(request)
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=63072000; includeSubDomains; preload"
+            )
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; font-src 'self'; frame-ancestors 'none'"
+            )
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            response.headers["Permissions-Policy"] = (
+                "camera=(), microphone=(), geolocation=(), payment=()"
+            )
+            return response
+
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # Include API router
     app.include_router(api_v1_router, prefix=settings.api_prefix)
