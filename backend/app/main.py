@@ -43,7 +43,7 @@ def _setup_opentelemetry(app: FastAPI) -> None:
             excluded_urls="health,healthz,metrics",
         )
         logger.info("OpenTelemetry tracing enabled")
-    except Exception as exc:
+    except (ImportError, RuntimeError, ValueError) as exc:
         logger.debug("OpenTelemetry instrumentation skipped", reason=str(exc))
 
 

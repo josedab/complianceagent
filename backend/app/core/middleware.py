@@ -237,7 +237,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         except HTTPException:
             raise
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError) as e:
             # Log error but don't block request
             logger.exception("Rate limiting error", error=str(e))
             return await call_next(request)
@@ -273,7 +273,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             is_limited = count > self.calls
 
             return is_limited, remaining, reset_time
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError) as e:
             logger.exception("Redis rate limit error", error=str(e))
             # Fall back to memory
             return await self._check_memory_rate_limit(key, now, window_start, reset_time)
@@ -416,7 +416,7 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
 
         except HTTPException:
             raise
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError) as e:
             logger.exception("Rate limiting error", error=str(e))
             return await call_next(request)
 
@@ -460,7 +460,7 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
             is_limited = count > effective_limit
 
             return is_limited, remaining, reset_time
-        except Exception as e:
+        except (OSError, ConnectionError, TimeoutError) as e:
             logger.exception("Redis rate limit error", error=str(e))
             return await self._check_memory_rate_limit(
                 key, now, window_start, reset_time, effective_limit
