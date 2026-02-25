@@ -374,12 +374,116 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
         tier = getattr(request.state, "user_tier", "free") if hasattr(request, "state") else "free"
         effective_limit = self.TIER_LIMITS.get(tier, 100)
 
-        # Temporarily set the limit for this request's rate-limit check.
-        # BaseHTTPMiddleware serialises dispatch calls per-connection,
-        # so we save/restore to be safe under concurrent connections.
-        saved = self.calls
-        self.calls = effective_limit
+        # Skip rate limiting in development if configured
+        if settings.debug and not settings.rate_limit_in_debug:
+            return await call_next(request)
+
+        # Skip health check endpoints
+        if request.url.path in ["/health", "/healthz", "/api/health"]:
+            return await call_next(request)
+
+        # Get client identifier
+        client_id = self._get_client_id(request)
+        key = f"{self.key_prefix}{client_id}"
+
         try:
-            return await super().dispatch(request, call_next)
-        finally:
-            self.calls = saved
+            is_limited, remaining, reset_time = await self._check_rate_limit(
+                key, effective_limit
+            )
+
+            if is_limited:
+                logger.warning(
+                    "Rate limit exceeded",
+                    client_id=client_id,
+                    path=request.url.path,
+                )
+                raise HTTPException(
+                    status_code=429,
+                    detail="Too many requests. Please slow down.",
+                    headers={
+                        "Retry-After": str(self.period),
+                        "X-RateLimit-Limit": str(effective_limit),
+                        "X-RateLimit-Remaining": "0",
+                        "X-RateLimit-Reset": str(reset_time),
+                    },
+                )
+
+            response = await call_next(request)
+            response.headers["X-RateLimit-Limit"] = str(effective_limit)
+            response.headers["X-RateLimit-Remaining"] = str(remaining)
+            response.headers["X-RateLimit-Reset"] = str(reset_time)
+            return response
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception("Rate limiting error", error=str(e))
+            return await call_next(request)
+
+    async def _check_rate_limit(
+        self, key: str, limit: int | None = None
+    ) -> tuple[bool, int, int]:
+        """Check if rate limit is exceeded. Returns (is_limited, remaining, reset_time)."""
+        effective_limit = limit if limit is not None else self.calls
+        now = time.time()
+        window_start = now - self.period
+        reset_time = int(now + self.period)
+
+        if self.redis:
+            return await self._check_redis_rate_limit(
+                key, now, window_start, reset_time, effective_limit
+            )
+        return await self._check_memory_rate_limit(
+            key, now, window_start, reset_time, effective_limit
+        )
+
+    async def _check_redis_rate_limit(
+        self,
+        key: str,
+        now: float,
+        window_start: float,
+        reset_time: int,
+        limit: int | None = None,
+    ) -> tuple[bool, int, int]:
+        """Redis-backed rate limiting using sorted sets."""
+        effective_limit = limit if limit is not None else self.calls
+        try:
+            pipe = self.redis.pipeline()
+            pipe.zremrangebyscore(key, 0, window_start)
+            pipe.zadd(key, {str(now): now})
+            pipe.zcard(key)
+            pipe.expire(key, self.period + 1)
+            results = await pipe.execute()
+
+            count = results[2]
+            remaining = max(0, effective_limit - count)
+            is_limited = count > effective_limit
+
+            return is_limited, remaining, reset_time
+        except Exception as e:
+            logger.exception("Redis rate limit error", error=str(e))
+            return await self._check_memory_rate_limit(
+                key, now, window_start, reset_time, effective_limit
+            )
+
+    async def _check_memory_rate_limit(
+        self,
+        key: str,
+        now: float,
+        window_start: float,
+        reset_time: int,
+        limit: int | None = None,
+    ) -> tuple[bool, int, int]:
+        """In-memory rate limiting using sliding window."""
+        effective_limit = limit if limit is not None else self.calls
+        async with self._memory_lock:
+            self.requests[key] = [t for t in self.requests[key] if t > window_start]
+            count = len(self.requests[key])
+            is_limited = count >= effective_limit
+
+            if not is_limited:
+                self.requests[key].append(now)
+                count += 1
+
+            remaining = max(0, effective_limit - count)
+            return is_limited, remaining, reset_time
