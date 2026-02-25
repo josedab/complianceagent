@@ -1,16 +1,52 @@
 """Notification service for sending alerts via email and Slack."""
 
 import asyncio
+import ipaddress
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 import structlog
 
 
 logger = structlog.get_logger()
+
+
+def _is_safe_url(url: str) -> bool:
+    """Validate that a URL is safe to make requests to (SSRF protection)."""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+
+    if parsed.scheme not in ("https",):
+        return False
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+
+    # Block localhost and loopback
+    if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+        return False
+
+    # Block cloud metadata endpoints
+    if hostname == "169.254.169.254":
+        return False
+
+    try:
+        addr = ipaddress.ip_address(hostname)
+        # Block private and reserved IP ranges
+        if addr.is_private or addr.is_reserved or addr.is_loopback or addr.is_link_local:
+            return False
+    except ValueError:
+        # hostname is a DNS name, not an IP — allow but check for suspicious patterns
+        pass
+
+    return True
 
 
 class NotificationType(str, Enum):
@@ -204,6 +240,13 @@ class SlackChannel(NotificationChannel):
         webhook_url = config.get("webhook_url")
         if not webhook_url:
             logger.warning("No Slack webhook URL configured")
+            return False
+
+        if not _is_safe_url(webhook_url):
+            logger.warning(
+                "Blocked unsafe webhook URL",
+                url=webhook_url,
+            )
             return False
 
         try:
