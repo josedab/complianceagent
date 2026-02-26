@@ -71,7 +71,6 @@ src/
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) with `clsx` + `tailwind-merge`
 - **Components**: [Radix UI](https://www.radix-ui.com/) primitives
 - **Data Fetching**: [TanStack React Query](https://tanstack.com/query) v5
-- **State Management**: [Zustand](https://zustand-demo.pmnd.rs/)
 - **Charts**: [Recharts](https://recharts.org/)
 - **Code Editor**: [Monaco Editor](https://microsoft.github.io/monaco-editor/) (for in-browser code viewing)
 - **Icons**: [Lucide React](https://lucide.dev/)
