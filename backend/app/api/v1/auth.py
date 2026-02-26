@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import select
 
 from app.api.v1.deps import DB
@@ -19,6 +19,29 @@ from app.schemas.user import LoginRequest, RefreshTokenRequest, Token, UserCreat
 
 
 router = APIRouter()
+
+
+def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    """Set HttpOnly cookies for authentication tokens."""
+    is_production = settings.environment == "production"
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=is_production,
+        samesite="lax",
+        max_age=settings.access_token_expire_minutes * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=is_production,
+        samesite="lax",
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+        path="/api/v1/auth",
+    )
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -46,7 +69,7 @@ async def register(user_in: UserCreate, db: DB) -> User:
 
 
 @router.post("/login", response_model=Token)
-async def login(login_request: LoginRequest, db: DB) -> dict:
+async def login(login_request: LoginRequest, db: DB, response: Response) -> dict:
     """Login and get access token."""
     result = await db.execute(select(User).where(User.email == login_request.email))
     user = result.scalar_one_or_none()
@@ -77,6 +100,8 @@ async def login(login_request: LoginRequest, db: DB) -> dict:
     access_token = create_access_token(subject=str(user.id))
     refresh_token = create_refresh_token(subject=str(user.id))
 
+    _set_auth_cookies(response, access_token, refresh_token)
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -86,7 +111,7 @@ async def login(login_request: LoginRequest, db: DB) -> dict:
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(body: RefreshTokenRequest, db: DB) -> dict:
+async def refresh_token(body: RefreshTokenRequest, db: DB, response: Response) -> dict:
     """Refresh access token."""
     payload = decode_token(body.refresh_token)
     if not payload or payload.type != "refresh":
@@ -107,6 +132,8 @@ async def refresh_token(body: RefreshTokenRequest, db: DB) -> dict:
     # Generate new tokens
     access_token = create_access_token(subject=str(user.id), org_id=payload.org_id)
     new_refresh_token = create_refresh_token(subject=str(user.id), org_id=payload.org_id)
+
+    _set_auth_cookies(response, access_token, new_refresh_token)
 
     return {
         "access_token": access_token,
