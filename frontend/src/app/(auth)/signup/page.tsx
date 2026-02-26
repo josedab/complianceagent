@@ -30,9 +30,7 @@ export default function SignupPage() {
     try {
       await authApi.register(email, password, fullName)
       // Auto-login after registration
-      const response = await authApi.login(email, password)
-      localStorage.setItem('access_token', response.data.access_token)
-      localStorage.setItem('refresh_token', response.data.refresh_token)
+      await authApi.login(email, password)
       router.push('/dashboard')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } }

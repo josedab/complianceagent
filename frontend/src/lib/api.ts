@@ -7,42 +7,30 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-})
-
-// Request interceptor to add auth token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+  withCredentials: true,
 })
 
 // Response interceptor for error handling
+let isRefreshing = false
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      // Token expired, try to refresh
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (refreshToken) {
+    if (error.response?.status === 401 && !error.config?._retry) {
+      error.config._retry = true
+      if (!isRefreshing) {
+        isRefreshing = true
         try {
-          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-            refresh_token: refreshToken,
-          })
-          localStorage.setItem('access_token', response.data.access_token)
-          localStorage.setItem('refresh_token', response.data.refresh_token)
-          // Retry original request
-          error.config.headers.Authorization = `Bearer ${response.data.access_token}`
+          await axios.post(
+            `${API_BASE_URL}/api/v1/auth/refresh`,
+            {},
+            { withCredentials: true }
+          )
+          isRefreshing = false
           return api(error.config)
         } catch {
-          // Refresh failed, clear tokens and redirect to login
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
+          isRefreshing = false
           window.location.href = '/login'
         }
-      } else {
-        window.location.href = '/login'
       }
     }
     return Promise.reject(error)

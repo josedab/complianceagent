@@ -20,9 +20,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await authApi.login(email, password)
-      localStorage.setItem('access_token', response.data.access_token)
-      localStorage.setItem('refresh_token', response.data.refresh_token)
+      await authApi.login(email, password)
       router.push('/dashboard')
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } }
