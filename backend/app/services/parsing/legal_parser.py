@@ -127,9 +127,12 @@ class LegalParserService:
         return requirements_data
 
     async def _call_ai(self, prompt: str) -> list[dict[str, Any]]:
-        """Call AI API for parsing. Placeholder for Copilot SDK integration."""
-        # TODO: Replace with actual Copilot SDK call
-        # For now, return empty list as placeholder
+        """Call AI API for parsing.
+
+        Stub returning empty list. The real AI-powered implementation
+        is in app.agents.copilot.CopilotClient.analyze_legal_text().
+        """
+        # Returns empty list as placeholder
         logger.warning("AI parsing not yet implemented - returning empty requirements")
         return []
 

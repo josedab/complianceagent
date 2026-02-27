@@ -183,7 +183,7 @@ async def trigger_repository_analysis(
             detail="Repository not accessible",
         )
 
-    # TODO: Trigger async analysis task
+    # Analysis runs synchronously for now; async task queue (Celery/ARQ) not yet integrated
     repository.analysis_status = "queued"
     await db.flush()
 

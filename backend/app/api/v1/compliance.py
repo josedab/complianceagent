@@ -155,7 +155,7 @@ async def get_compliance_status(
         total_requirements=total_reqs,
         compliant_requirements=compliant_reqs,
         pending_actions=pending_actions,
-        overdue_actions=0,  # TODO: Calculate based on deadlines
+        overdue_actions=0,  # Requires deadline tracking on ComplianceAction model (not yet implemented)
         assessed_at=datetime.now(UTC),
     )
 

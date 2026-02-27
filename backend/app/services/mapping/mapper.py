@@ -124,8 +124,11 @@ class CodebaseMappingService:
         return mapping
 
     async def _call_ai(self, prompt: str) -> dict[str, Any]:
-        """Call AI for mapping analysis. Placeholder for Copilot SDK."""
-        # TODO: Implement actual Copilot SDK call
+        """Call AI for mapping analysis.
+
+        Stub returning placeholder data. The real AI-powered implementation
+        is in app.agents.copilot.CopilotClient.map_requirement_to_code().
+        """
         logger.warning("AI mapping not yet implemented - returning placeholder")
         return {
             "affected_files": [],
