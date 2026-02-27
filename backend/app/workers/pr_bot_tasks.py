@@ -40,7 +40,7 @@ def analyze_pr(
     try:
         result = asyncio.run(_analyze_pr_async(task_data, access_token, organization_id))
         return result
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.exception("PR analysis failed", error=str(e))
         # Retry with exponential backoff
         raise self.retry(exc=e, countdown=60 * (2**self.request.retries)) from e
@@ -313,7 +313,7 @@ def batch_analyze_prs(
                     "status": "queued",
                 }
             )
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             results.append(
                 {
                     "pr": f"{pr_info['owner']}/{pr_info['repo']}#{pr_info['pr_number']}",

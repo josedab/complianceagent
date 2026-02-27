@@ -92,7 +92,7 @@ async def _check_gdpr_sources_async():
                 # Trigger processing
                 process_regulatory_change.delay(str(source.id), result)
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.exception(f"Error checking source {source.name}: {e}")
 
 

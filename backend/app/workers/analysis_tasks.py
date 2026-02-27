@@ -90,7 +90,7 @@ async def _analyze_repository_async(repository_id: str, organization_id: str):
             await db.commit()
             logger.info(f"Repository analysis complete: {repository.full_name}")
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.exception(f"Repository analysis failed: {e}")
             repository.analysis_status = "failed"
             await db.commit()

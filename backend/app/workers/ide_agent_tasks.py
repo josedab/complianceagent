@@ -89,7 +89,7 @@ async def _run_full_analysis_async(
                 fixes=result.fixes_applied,
             )
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.exception(f"IDE agent analysis failed: {e}")
             session.status = AgentStatus.FAILED
             session.error_message = str(e)
@@ -176,7 +176,7 @@ async def _generate_fixes_async(
 
             logger.info(f"Generated {len(violations)} fixes for session: {session_id}")
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.exception(f"Fix generation failed: {e}")
             session.status = AgentStatus.FAILED
             session.error_message = str(e)
@@ -274,7 +274,7 @@ async def _apply_approved_fixes_async(
                 files=action.target_files,
             )
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.exception(f"Fix application failed: {e}")
             if session:
                 session.status = AgentStatus.FAILED
