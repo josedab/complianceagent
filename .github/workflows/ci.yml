@@ -271,10 +271,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to staging
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Deploy backend to ECS staging
+        env:
+          CLUSTER: complianceagent-staging
+          SERVICE: complianceagent-backend-staging
+          IMAGE_TAG: sha-${{ github.sha }}
         run: |
-          echo "Deploying to staging environment..."
-          # Add deployment commands here (e.g., kubectl, docker-compose, etc.)
+          TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
+          NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition' | \
+            jq --arg IMAGE "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${IMAGE_TAG}" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$NEW_REVISION" --force-new-deployment
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+
+      - name: Deploy frontend to ECS staging
+        env:
+          CLUSTER: complianceagent-staging
+          SERVICE: complianceagent-frontend-staging
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
+          NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition' | \
+            jq --arg IMAGE "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${IMAGE_TAG}" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$NEW_REVISION" --force-new-deployment
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
 
   # Deploy to Production (manual approval required)
   deploy-production:
@@ -287,7 +318,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to production
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Deploy backend to ECS production
+        env:
+          CLUSTER: complianceagent-production
+          SERVICE: complianceagent-backend-production
+          IMAGE_TAG: sha-${{ github.sha }}
         run: |
-          echo "Deploying to production environment..."
-          # Add production deployment commands here
+          TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
+          NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition' | \
+            jq --arg IMAGE "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${IMAGE_TAG}" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$NEW_REVISION" --force-new-deployment
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+
+      - name: Deploy frontend to ECS production
+        env:
+          CLUSTER: complianceagent-production
+          SERVICE: complianceagent-frontend-production
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
+          NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition' | \
+            jq --arg IMAGE "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${IMAGE_TAG}" \
+            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$NEW_REVISION" --force-new-deployment
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
