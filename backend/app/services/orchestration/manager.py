@@ -412,7 +412,7 @@ class OrchestrationManager:
                         "status": "queued",
                     }
                 )
-            except Exception as e:
+            except (KeyError, ValueError, OSError, RuntimeError) as e:
                 result.repositories_failed += 1
                 result.results.append(
                     {

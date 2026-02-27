@@ -1,5 +1,6 @@
 """Regulatory Accuracy Benchmarking Service."""
 
+import json
 import time
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -218,7 +219,7 @@ class BenchmarkingService:
                 predicted_labels = self._extract_labels_from_ai(ai_result)
                 predicted_obligations = ai_result.get("requirements", [])
                 predicted_entities = self._extract_entities_from_ai(ai_result)
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 logger.exception("AI evaluation failed for passage", article=passage.article_ref)
                 predicted_labels = []
                 predicted_obligations = []

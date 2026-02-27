@@ -191,7 +191,7 @@ class SBOMGenerator:
                 components = self._parse_pom(content)
             elif filename.endswith("Gemfile.lock"):
                 components = self._parse_gemfile_lock(content)
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning(f"Failed to parse {filename}: {e}")
 
         return components

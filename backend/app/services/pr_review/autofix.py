@@ -1,10 +1,12 @@
 """Auto-Fix Generator - Phase 3: Generate and apply auto-fixes for compliance violations."""
 
+import json
 import re
 import time
 from typing import Any
 from uuid import uuid4
 
+import httpx
 import structlog
 
 from app.agents.copilot import CopilotClient, CopilotMessage
@@ -298,7 +300,7 @@ Return JSON only."""
                         status=AutoFixStatus.GENERATED,
                         tests_generated=result.get("tests", []),
                     )
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"AI fix generation failed: {e}")
 
         return None
@@ -390,7 +392,7 @@ Return JSON only."""
 
                 return True
 
-            except Exception as e:
+            except (httpx.HTTPError, OSError, ValueError) as e:
                 logger.error(f"Failed to apply fix: {e}")
                 return False
 
@@ -472,7 +474,7 @@ Return JSON only."""
                     "fixes_applied": len(applied_fixes),
                 }
 
-            except Exception as e:
+            except (httpx.HTTPError, OSError, ValueError) as e:
                 logger.error(f"Failed to create fix PR: {e}")
                 return None
 

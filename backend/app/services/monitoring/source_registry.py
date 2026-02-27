@@ -111,7 +111,7 @@ def get_all_source_definitions() -> list[dict[str, Any]]:
             sources = get_definitions()
             logger.debug(f"Loaded {len(sources)} sources for {framework_key}")
             all_sources.extend(sources)
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"Error loading sources for {framework_key}: {e}")
 
     return all_sources
@@ -211,7 +211,7 @@ async def initialize_all_sources(
             results[framework_key] = sources
             logger.info(f"Initialized {len(sources)} sources for {framework_key}")
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"Error initializing sources for {framework_key}: {e}")
             results[framework_key] = []
 

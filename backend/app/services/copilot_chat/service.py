@@ -1,5 +1,7 @@
 """Compliance Copilot Chat service for non-technical users."""
 
+import json
+
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -451,7 +453,7 @@ class CopilotChatService:
                 )
                 if result:
                     logger.info("AI-enhanced location search completed")
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 logger.exception("AI location search failed")
 
         return locations
@@ -536,7 +538,7 @@ class CopilotChatService:
                 result = await self.copilot.analyze_legal_text(full_prompt)
                 if result:
                     return str(result)
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 logger.exception("AI answer generation failed")
 
         return self._generate_fallback_answer(question)

@@ -338,7 +338,7 @@ class RAGPipeline:
                             metadata={"framework": source.get("framework")},
                         )
                     )
-            except Exception as e:
+            except (ConnectionError, KeyError, ValueError, RuntimeError) as e:
                 logger.warning(f"Elasticsearch search failed: {e}")
 
         # Fallback to database search if no ES results
@@ -478,7 +478,7 @@ class RAGPipeline:
                             },
                         )
                     )
-            except Exception as e:
+            except (ConnectionError, KeyError, ValueError, RuntimeError) as e:
                 logger.warning(f"Codebase search failed: {e}")
 
         return documents
@@ -577,7 +577,7 @@ class RAGPipeline:
                     )
                     for hit in response.get("hits", {}).get("hits", [])
                 ]
-            except Exception as e:
+            except (ConnectionError, KeyError, ValueError, RuntimeError) as e:
                 logger.warning(f"Similar search failed: {e}")
 
         return []
@@ -599,7 +599,7 @@ class RAGPipeline:
 
         try:
             query_embedding = await self._embedding_fn(query)
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, OSError) as e:
             logger.warning("Failed to generate query embedding", error=str(e))
             return []
 
@@ -651,6 +651,6 @@ class RAGPipeline:
             )
             return documents
 
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError, ValueError) as e:
             logger.debug("Vector search unavailable (pgvector not configured)", error=str(e))
             return []

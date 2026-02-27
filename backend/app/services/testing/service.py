@@ -1,5 +1,6 @@
 """AI Compliance Testing Suite Generator Service."""
 
+import json
 import time
 from datetime import UTC, datetime
 from uuid import UUID
@@ -400,7 +401,7 @@ class ComplianceTestingService:
                 self.db.add(record)
 
             await self.db.commit()
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             await self.db.rollback()
             logger.warning("Failed to persist test suite, continuing with in-memory result")
 
@@ -461,7 +462,7 @@ class ComplianceTestingService:
         if self.copilot:
             try:
                 return await self._generate_test_with_copilot(pattern, framework, target_files)
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 logger.debug("Copilot unavailable, falling back to template", pattern=pattern.id)
 
         # Fallback to template-based generation

@@ -4,6 +4,8 @@ Generates executive compliance reports with AI-powered narrative summaries,
 traffic-light dashboards, trend analysis, and exportable formats.
 """
 
+import json
+
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -196,7 +198,7 @@ class BoardReportsService:
                     temperature=0.5,
                 )
                 return response.content
-            except Exception as exc:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as exc:
                 logger.debug("AI narrative failed, using template", error=str(exc))
 
         # Template fallback

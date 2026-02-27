@@ -293,7 +293,7 @@ class CloudComplianceAnalyzer:
                 template = json.loads(content)
             else:
                 template = yaml.safe_load(content)
-        except Exception as e:
+        except (json.JSONDecodeError, yaml.YAMLError, ValueError) as e:
             logger.warning(f"Failed to parse CloudFormation template: {e}")
             return findings
 
@@ -361,7 +361,7 @@ class CloudComplianceAnalyzer:
         # Parse all documents in the YAML
         try:
             docs = list(yaml.safe_load_all(content))
-        except Exception as e:
+        except (yaml.YAMLError, ValueError) as e:
             logger.warning(f"Failed to parse Kubernetes manifest: {e}")
             return findings
 

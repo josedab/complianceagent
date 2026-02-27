@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+import subprocess
+
 import structlog
 
 from app.services.policy_as_code.models import (
@@ -265,7 +267,7 @@ class PolicyValidator:
                 execution_time_ms=elapsed_ms,
             )
 
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError, KeyError, ValueError) as e:
             elapsed_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
             return PolicyTestResult(
                 test_case_id=test_case.id,

@@ -1,6 +1,7 @@
 """Multi-LLM Regulatory Parsing Engine Service."""
 
 import asyncio
+import json
 import time
 from datetime import UTC, datetime
 from typing import Any
@@ -427,7 +428,7 @@ class MultiLLMService:
                     result.raw_response = ai_result
                 else:
                     result.error = "Local model not configured"
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             result.error = str(e)
             logger.exception("Provider failed", provider=config.provider.value)
 

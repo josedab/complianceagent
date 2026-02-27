@@ -19,7 +19,7 @@ def _is_safe_url(url: str) -> bool:
     """Validate that a URL is safe to make requests to (SSRF protection)."""
     try:
         parsed = urlparse(url)
-    except Exception:
+    except (ValueError, TypeError):
         return False
 
     if parsed.scheme not in ("https",):
@@ -114,7 +114,7 @@ class EmailChannel(NotificationChannel):
             if self.api_endpoint:
                 return await self._send_via_api(notification, recipient)
             return await self._send_via_smtp(notification, recipient)
-        except Exception as e:
+        except (httpx.HTTPError, OSError, ValueError) as e:
             logger.exception("Failed to send email notification", error=str(e))
             return False
 
@@ -254,7 +254,7 @@ class SlackChannel(NotificationChannel):
             async with httpx.AsyncClient() as client:
                 response = await client.post(webhook_url, json=payload, timeout=30)
                 return response.status_code == 200
-        except Exception as e:
+        except (httpx.HTTPError, OSError, ValueError) as e:
             logger.exception("Failed to send Slack notification", error=str(e))
             return False
 
@@ -397,7 +397,7 @@ class NotificationService:
         """Send to a single channel with error handling."""
         try:
             return await channel.send(notification, config)
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.exception("Failed to send notification", channel=channel_name, error=str(e))
             return False
 

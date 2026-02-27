@@ -147,7 +147,7 @@ class DSARHandler:
                     subject_email=request.subject_email,
                 )
                 collected_data[collector.name] = data
-            except Exception as e:
+            except (KeyError, ValueError, OSError, RuntimeError) as e:
                 request.notes.append(f"Collection error from {collector.name}: {e}")
         
         request.data_collected = collected_data

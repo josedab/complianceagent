@@ -1,5 +1,6 @@
 """Compliance Co-Pilot IDE Agent - Agentic AI for proactive code compliance."""
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -174,7 +175,7 @@ Format as JSON array."""
                 # Parse violations from response
                 violations = self._parse_violations(result.get("text", ""), code, file_path)
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.exception("Error analyzing code", error=str(e))
             session.status = AgentStatus.FAILED
             session.error_message = str(e)
@@ -307,7 +308,7 @@ Format as JSON."""
                     if fix:
                         fixes.append(fix)
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.exception("Error generating fixes", error=str(e))
             session.error_message = str(e)
 
@@ -587,7 +588,7 @@ Format as JSON."""
                     session.status = AgentStatus.WAITING_APPROVAL
                     session.pending_approval_count = len(fixes)
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             session.status = AgentStatus.FAILED
             session.error_message = str(e)
             logger.exception("Agent session failed", session_id=str(session.id), error=str(e))

@@ -366,7 +366,7 @@ class PRBot:
                 time_ms=result.analysis_time_ms,
             )
 
-        except Exception as e:
+        except (KeyError, ValueError, OSError, RuntimeError) as e:
             result.error = str(e)
             result.completed_at = datetime.now(UTC)
             result.analysis_time_ms = (time.perf_counter() - start_time) * 1000

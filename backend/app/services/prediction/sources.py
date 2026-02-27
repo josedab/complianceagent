@@ -1,5 +1,6 @@
 """Draft legislation and regulatory signal monitoring sources."""
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -206,7 +207,7 @@ class DraftLegislationMonitor:
                 self._cached_signals[source.name] = source_signals
                 self._last_check[source.name] = datetime.now(UTC)
                 signals.extend(source_signals)
-            except Exception as e:
+            except (httpx.HTTPError, OSError, ValueError) as e:
                 logger.warning(f"Failed to fetch from {source.name}: {e}")
 
         return signals
@@ -329,7 +330,7 @@ Return JSON only."""
 
                 analysis.update(result)
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"Failed to analyze signal: {e}")
             # Return basic analysis based on signal data
             analysis["implications"] = signal.key_requirements

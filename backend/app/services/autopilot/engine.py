@@ -408,7 +408,7 @@ class AutopilotEngine:
 
             return result
 
-        except Exception as e:
+        except (KeyError, ValueError, OSError, RuntimeError) as e:
             action.status = RemediationStatus.FAILED
             action.error_message = str(e)
             action.completed_at = datetime.now(UTC)

@@ -7,6 +7,8 @@
     for new development.
 """
 
+import json
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -255,7 +257,7 @@ class VendorRiskAssessor:
             for name, info in deps.items():
                 version = info.get("version", "unknown") if isinstance(info, dict) else str(info)
                 packages.append((name, version))
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning(f"Failed to parse npm lockfile: {e}")
         return packages
 

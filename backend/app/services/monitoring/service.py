@@ -129,7 +129,7 @@ class MonitoringService:
             except asyncio.CancelledError:
                 logger.info("Monitoring service shutdown requested")
                 break
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError) as e:
                 logger.exception(
                     "Unexpected error in monitoring loop",
                     error_type=type(e).__name__,
@@ -248,7 +248,7 @@ class MonitoringService:
 
             return result
 
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.exception(f"Error checking source: {source.name}", error=str(e))
 
             # Update failure tracking
@@ -287,7 +287,7 @@ class MonitoringService:
         for callback in self.on_change_callbacks:
             try:
                 await callback(regulation, result)
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError) as e:
                 logger.exception("Error in change callback", error=str(e))
 
 

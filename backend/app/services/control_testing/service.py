@@ -248,7 +248,7 @@ class ControlTestingService:
         # Execute test based on type
         try:
             result = await self._execute_test(test)
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             result = TestResult(
                 test_id=test_id,
                 control_id=test.control_id,
@@ -382,7 +382,7 @@ class ControlTestingService:
             evidence["key_rotation"] = True
             evidence["mode"] = "config_check"
 
-        except Exception:
+        except (ImportError, OSError, ValueError):
             evidence["algorithm"] = "AES-256-GCM"
             evidence["key_rotation"] = True
             evidence["mode"] = "simulated"
@@ -410,7 +410,7 @@ class ControlTestingService:
                 resp = await client.get("https://api.github.com/rate_limit")
                 evidence["github_api_reachable"] = resp.is_success
                 evidence["mode"] = "live_check"
-        except Exception:
+        except (httpx.HTTPError, OSError, ValueError):
             evidence["mode"] = "simulated"
 
         evidence["mfa_enabled"] = True

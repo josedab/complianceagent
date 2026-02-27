@@ -1,5 +1,6 @@
 """PR Reviewer - Phase 2: AI-powered compliance review with inline suggestions."""
 
+import json
 import time
 from typing import Any
 from uuid import uuid4
@@ -194,7 +195,7 @@ class PRReviewer:
                             v.metadata["ai_analysis"] = ai_info.get("analysis", "")
                         enhanced_violations.append(v)
 
-                except Exception as e:
+                except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
                     logger.warning(f"AI enhancement failed: {e}")
                     enhanced_violations.extend(file_violations)
 
@@ -249,7 +250,7 @@ Return JSON only."""
 
         try:
             return self.copilot_client._parse_json_response(response.content, "violation analysis")
-        except Exception:
+        except (json.JSONDecodeError, KeyError, ValueError):
             return {}
 
     def _generate_review_comments(self, analysis: PRAnalysisResult) -> list[ReviewComment]:

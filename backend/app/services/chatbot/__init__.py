@@ -7,6 +7,7 @@
     compatibility with the ``/api/v1/chatbot`` endpoint.
 """
 
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -158,7 +159,7 @@ When answering:
                 },
             )
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"Copilot chat failed: {e}")
             # Fallback response
             assistant_message = ChatMessage(
@@ -278,7 +279,7 @@ Return JSON with: answer, regulation, article, action"""
                 content = content.removeprefix("json")
             return json.loads(content.rstrip("`"))
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"Quick answer failed: {e}")
             return {
                 "answer": "Unable to process question. Please try again.",
@@ -336,7 +337,7 @@ Return JSON only."""
                 content = content.removeprefix("json")
             return json.loads(content.rstrip("`"))
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"Code explanation failed: {e}")
             return {
                 "explanation": issue_message,

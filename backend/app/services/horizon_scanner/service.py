@@ -9,6 +9,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+import json
+
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -205,7 +207,7 @@ class HorizonScannerService:
         if self.copilot and hasattr(self.copilot, "chat"):
             try:
                 return await self._ai_predict_impact(legislation, repo_url)
-            except Exception as exc:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as exc:
                 logger.warning("AI impact prediction failed, using heuristic", error=str(exc))
 
         # Heuristic fallback

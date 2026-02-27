@@ -220,7 +220,7 @@ class InfrastructureAnalyzer:
                     all_violations.extend(violations)
                     analyzed_files.append(str(file_path))
 
-                except Exception as e:
+                except (OSError, ValueError) as e:
                     logger.warning(
                         "file_analysis_failed",
                         path=str(file_path),
@@ -265,7 +265,7 @@ class InfrastructureAnalyzer:
             detected = self._detect_type_from_content(content, file_path)
             if detected:
                 return detected
-        except Exception:
+        except (OSError, ValueError):
             pass
 
         # Default based on common patterns

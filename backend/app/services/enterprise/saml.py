@@ -88,7 +88,7 @@ class SAMLService:
         try:
             decoded = base64.b64decode(saml_response)
             root = DefusedET.fromstring(decoded)
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
             msg = f"Invalid SAML response: {e}"
             raise ValueError(msg) from e
 

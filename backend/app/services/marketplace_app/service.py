@@ -196,7 +196,7 @@ class MarketplaceAppService:
         if self.github and head_sha:
             try:
                 await self._create_check_run(repo, head_sha, pr_number)
-            except Exception as exc:
+            except (ConnectionError, OSError, ValueError) as exc:
                 logger.warning("Failed to create check run", error=str(exc))
 
         return {"status": "scan_triggered", "repo": repo, "pr": pr_number, "sha": head_sha}

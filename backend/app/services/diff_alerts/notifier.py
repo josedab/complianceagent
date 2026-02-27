@@ -152,7 +152,7 @@ class AlertNotifier:
                 response.raise_for_status()
                 logger.info("Slack notification sent", alert_id=str(alert.id))
                 return True
-        except Exception as e:
+        except (httpx.HTTPError, OSError, ValueError) as e:
             logger.error("Slack notification failed", error=str(e))
             return False
 
@@ -222,7 +222,7 @@ class AlertNotifier:
                 response.raise_for_status()
                 logger.info("Teams notification sent", alert_id=str(alert.id))
                 return True
-        except Exception as e:
+        except (httpx.HTTPError, OSError, ValueError) as e:
             logger.error("Teams notification failed", error=str(e))
             return False
 

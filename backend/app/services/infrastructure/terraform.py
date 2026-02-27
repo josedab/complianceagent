@@ -509,7 +509,7 @@ def analyze_terraform_directory(
             resources, violations = analyzer.analyze(content, str(tf_file), regulations)
             all_resources.extend(resources)
             all_violations.extend(violations)
-        except Exception:
+        except (OSError, ValueError):
             pass  # Skip files that can't be parsed
 
     return all_resources, all_violations

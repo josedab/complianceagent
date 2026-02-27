@@ -472,7 +472,7 @@ def analyze_kubernetes_directory(
                 resources, violations = analyzer.analyze(content, str(manifest_file), regulations)
                 all_resources.extend(resources)
                 all_violations.extend(violations)
-            except Exception:
+            except (OSError, yaml.YAMLError, ValueError):
                 pass  # Skip files that can't be parsed
 
     return all_resources, all_violations

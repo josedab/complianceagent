@@ -265,7 +265,7 @@ class MCPServerService:
                 duration_ms=round(duration, 2),
                 executed_at=start,
             )
-        except Exception as exc:
+        except (KeyError, ValueError, OSError, RuntimeError) as exc:
             duration = (datetime.now(UTC) - start).total_seconds() * 1000
             execution = MCPToolExecution(
                 tool_name=tool_name,

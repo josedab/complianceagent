@@ -5,6 +5,8 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import json
+
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -384,7 +386,7 @@ class SelfHostedService:
                 padded = payload + "=" * (4 - len(payload) % 4)
                 decoded = base64.urlsafe_b64decode(padded).decode()
                 license_data = json.loads(decoded)
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, UnicodeDecodeError):
                 license_data = {
                     "org": "demo-org",
                     "tier": "enterprise",
@@ -429,7 +431,7 @@ class SelfHostedService:
                 validation_errors=errors,
             )
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             errors.append(f"Validation error: {e}")
             return CryptoLicenseKey(
                 key_hash=key_hash,

@@ -1,5 +1,6 @@
 """AI Compliance Training Certification Program service."""
 
+import json
 import hashlib
 import secrets
 from datetime import UTC, datetime
@@ -436,7 +437,7 @@ class CertificationService:
                 response = await self.copilot_client.chat(prompt)
                 if response:
                     return response
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 logger.warning("tutor_ai_fallback", question=question)
 
         return (

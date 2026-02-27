@@ -1,5 +1,6 @@
 """Regulation-to-Architecture Advisor Service."""
 
+import json
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -305,7 +306,7 @@ class ArchitectureAdvisorService:
                 self.db.add(record)
 
             await self.db.commit()
-        except Exception:
+        except (OSError, RuntimeError, ValueError):
             await self.db.rollback()
             logger.warning(
                 "Failed to persist architecture review, continuing with in-memory result"
@@ -354,7 +355,7 @@ class ArchitectureAdvisorService:
                         trade_offs=[],
                     )
                 )
-        except Exception:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError):
             logger.debug("Copilot enhancement unavailable, using rule-based analysis only")
 
     async def get_review(self, review_id: UUID) -> DesignReviewResult | None:

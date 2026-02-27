@@ -1,6 +1,7 @@
 """CI/CD compliance analyzer for batch file analysis."""
 
 import asyncio
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -108,7 +109,7 @@ class CICDComplianceAnalyzer:
                     if fix_result.fixed_code != fix_result.original_code:
                         issue["fix_code"] = fix_result.fixed_code
                         issue["fix_explanation"] = fix_result.explanation
-                except Exception as e:
+                except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
                     logger.warning(f"Failed to generate AI fix: {e}")
 
             issues.append(issue)
@@ -153,7 +154,7 @@ class CICDComplianceAnalyzer:
                             }
                         )
 
-            except Exception as e:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
                 logger.warning(f"AI analysis failed for {filepath}: {e}")
 
         return issues

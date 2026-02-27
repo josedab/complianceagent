@@ -122,7 +122,7 @@ class ActionHandler:
 
             return result
 
-        except Exception as e:
+        except (KeyError, ValueError, OSError, RuntimeError) as e:
             action.executed = True
             action.executed_at = datetime.now(UTC)
             action.error = str(e)

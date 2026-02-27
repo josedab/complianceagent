@@ -177,7 +177,7 @@ class IntelligenceFeed:
                 for update in updates:
                     await self._broadcast_update(update)
 
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError) as e:
                 logger.error(f"Feed check error: {e}")
 
             await asyncio.sleep(self.check_interval)
@@ -280,7 +280,7 @@ class IntelligenceFeed:
                 source_updates = await self._check_source(source)
                 updates.extend(source_updates)
                 self._last_check[source.name] = datetime.now(UTC)
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError) as e:
                 logger.warning(f"Failed to check source {source.name}: {e}")
 
         return updates
@@ -300,7 +300,7 @@ class IntelligenceFeed:
         for subscriber_id, queue in list(self._subscribers.items()):
             try:
                 await queue.put(update)
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError) as e:
                 logger.warning(f"Failed to broadcast to {subscriber_id}: {e}")
                 self.unsubscribe(subscriber_id)
 

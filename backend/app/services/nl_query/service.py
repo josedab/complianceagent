@@ -1,5 +1,6 @@
 """Natural Language Compliance Query Engine Service."""
 
+import json
 import time
 from datetime import UTC, datetime
 from uuid import UUID
@@ -143,7 +144,7 @@ class NLQueryService:
                 enhanced = await self._enhance_with_ai(text, answer, intent)
                 if enhanced:
                     answer = enhanced
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 logger.exception("AI enhancement failed")
 
         elapsed = (time.monotonic() - start) * 1000
@@ -366,7 +367,7 @@ class NLQueryService:
             try:
                 result = await self.copilot.analyze_legal_text(text)
                 return str(result), []
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 pass
         return (
             "I can help with compliance queries. Try asking about:\n"
@@ -385,7 +386,7 @@ class NLQueryService:
                 f"Given this compliance query: '{query}'\nBase answer: {base_answer}\nProvide a more detailed response."
             )
             return str(result) if result else None
-        except Exception:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError):
             return None
 
     def _generate_follow_ups(self, intent: QueryIntent, text: str) -> list[str]:

@@ -236,7 +236,7 @@ Return JSON only."""
                     key_milestones=result.get("key_milestones", []),
                 )
 
-            except Exception as e:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
                 logger.warning(f"Failed to generate prediction: {e}")
                 # Return basic prediction from signal data
                 return PredictedRegulation(
@@ -374,7 +374,7 @@ Return JSON only."""
                     content = content.removeprefix("json")
                 return json.loads(content.rstrip("`"))
 
-            except Exception as e:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
                 logger.warning(f"Failed to assess code impact: {e}")
                 return {
                     "affected_patterns": [],

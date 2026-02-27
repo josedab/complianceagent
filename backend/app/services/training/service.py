@@ -1,6 +1,7 @@
 """Compliance training mode service."""
 
 import hashlib
+import json
 import secrets
 from datetime import UTC, datetime
 from typing import Any
@@ -431,7 +432,7 @@ class TrainingService:
             # (In production, would parse JSON from response)
             return self._create_static_quiz(framework, num_questions)
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.error("quiz_generation_failed", error=str(e))
             return self._create_static_quiz(framework, num_questions)
 

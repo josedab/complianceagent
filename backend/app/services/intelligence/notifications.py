@@ -214,7 +214,7 @@ class NotificationService:
             if pref.channel == NotificationChannel.IN_APP:
                 return await self._send_in_app(alert, pref)
             return False
-        except Exception as e:
+        except (httpx.HTTPError, OSError, ValueError) as e:
             logger.error(f"Failed to send {pref.channel.value} notification: {e}")
             return False
 
@@ -404,7 +404,7 @@ class NotificationService:
                 headers={"Content-Type": "application/json"},
             )
             return response.status_code < 400
-        except Exception as e:
+        except (httpx.HTTPError, OSError, ValueError) as e:
             logger.error(f"Webhook delivery failed: {e}")
             return False
 

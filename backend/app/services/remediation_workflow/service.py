@@ -3,6 +3,8 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+import json
+
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,7 +88,7 @@ class RemediationWorkflowService:
                         confidence=0.85,
                     )
                 )
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 logger.exception("AI fix generation failed")
 
         if not fixes:

@@ -418,7 +418,7 @@ class GitLabAnalyzer:
 
             compliance_file.analysis = analysis
 
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             logger.warning(
                 "Failed to analyze file",
                 path=compliance_file.path,
@@ -517,7 +517,7 @@ class GitLabAnalyzer:
                                     }
                                 )
 
-                except Exception:
+                except (OSError, ValueError):
                     continue
 
         return findings

@@ -2,6 +2,7 @@
 
 import difflib
 import hashlib
+import json
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -105,7 +106,7 @@ class RegulatoryDiffService:
                 # Update severity based on analysis
                 if alert.impact_analysis:
                     alert.severity = alert.impact_analysis.urgency_level
-            except Exception as e:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
                 logger.warning("Impact analysis failed", error=str(e))
 
         return alert
@@ -274,7 +275,7 @@ Return only valid JSON."""
                 confidence=result.get("confidence", 0.0),
             )
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.error("AI impact analysis failed", error=str(e))
             return None
 

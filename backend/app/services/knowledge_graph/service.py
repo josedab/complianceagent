@@ -1,5 +1,6 @@
 """Compliance knowledge graph explorer service."""
 
+import json
 import re
 import time
 from collections import deque
@@ -478,7 +479,7 @@ class KnowledgeGraphService:
                 model="gpt-4o-mini",
             )
             return response.choices[0].message.content
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.error("copilot_answer_failed", error=str(e))
             return self._generate_simple_answer(query, result)
 

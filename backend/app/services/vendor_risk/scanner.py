@@ -123,7 +123,7 @@ class DependencyScanner:
                 vendors = self._parse_pom_xml(content)
             elif filename.endswith("Cargo.toml"):
                 vendors = self._parse_cargo_toml(content)
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning(f"Failed to parse {filename}: {e}")
 
         return vendors

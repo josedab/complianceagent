@@ -141,7 +141,7 @@ Provide a compliant fix. Return JSON only."""
             self._suggestion_cache[cache_key] = suggestion
             return suggestion
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"Failed to generate Copilot suggestion: {e}")
             return ComplianceSuggestion(
                 diagnostic=diagnostic,
@@ -226,7 +226,7 @@ Return JSON only."""
                 compliance_comments=result.get("compliance_comments"),
             )
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"Failed to generate quick fix: {e}")
             return QuickFixResult(
                 original_code=code,
@@ -275,7 +275,7 @@ Return JSON with:
                 content = content.removeprefix("json")
             return json.loads(content.rstrip("`"))
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"Failed to get regulation tooltip: {e}")
             return {
                 "title": regulation,
@@ -390,7 +390,7 @@ Return JSON array of issues. If no issues, return []."""
 
             return suggestions
 
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning(f"Failed to analyze code block: {e}")
             return []
 

@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+import httpx
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -458,7 +459,7 @@ class DriftDetectionService:
                     resp = await client.post(url, json=payload, headers=headers)
                     response_code = resp.status_code
                     status = "delivered" if resp.is_success else "failed"
-            except Exception as exc:
+            except (httpx.HTTPError, OSError, ValueError) as exc:
                 status = "failed"
                 logger.warning("Webhook delivery failed", channel=channel, error=str(exc))
         else:

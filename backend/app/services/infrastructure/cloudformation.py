@@ -535,7 +535,7 @@ def analyze_cloudformation_directory(
                     )
                     all_resources.extend(resources)
                     all_violations.extend(violations)
-            except Exception:
+            except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError):
                 pass  # Skip files that can't be parsed
 
     return all_resources, all_violations

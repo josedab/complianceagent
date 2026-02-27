@@ -1,5 +1,6 @@
 """Compliance Co-Pilot for PRs Service."""
 
+import json
 import time
 from datetime import UTC, datetime
 from uuid import UUID
@@ -155,7 +156,7 @@ class PRCopilotService:
                             confidence=req.get("confidence", 0.5),
                         )
                     )
-            except Exception:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError):
                 logger.exception("AI analysis failed during PR scan")
         else:
             # Pattern-based fallback detection

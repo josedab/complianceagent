@@ -89,7 +89,7 @@ class ComplianceLSPServer:
                 result = await self._handlers[method](params)
                 if msg_id is not None:
                     return self._create_response(msg_id, result)
-            except Exception as e:
+            except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
                 logger.exception(f"Error handling {method}: {e}")
                 if msg_id is not None:
                     return self._create_error_response(msg_id, -32603, str(e))
@@ -480,7 +480,7 @@ class ComplianceLSPServer:
                     writer.write(response_body)
                     await writer.drain()
 
-            except Exception as e:
+            except (json.JSONDecodeError, OSError, ValueError) as e:
                 logger.exception(f"LSP server error: {e}")
                 break
 

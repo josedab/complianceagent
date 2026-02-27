@@ -1,5 +1,6 @@
 """Regulatory scenario simulator service."""
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -537,7 +538,7 @@ Return only valid JSON."""
             import json
 
             return json.loads(response.content.strip().strip("```json").strip("```"))
-        except Exception as e:
+        except (json.JSONDecodeError, KeyError, ValueError, OSError) as e:
             logger.warning("AI code analysis failed", error=str(e))
             return self._pattern_based_analysis(code, language, frameworks)
 

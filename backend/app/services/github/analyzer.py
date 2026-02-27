@@ -75,7 +75,7 @@ class RepositoryAnalyzer:
             try:
                 file = await self.github.get_file_content(owner, repo, file_info["path"])
                 file_samples[file.path] = file.content
-            except Exception as e:
+            except (OSError, ValueError) as e:
                 logger.warning(f"Could not fetch {file_info['path']}: {e}")
 
         keyword_findings = self._analyze_content(file_samples)
