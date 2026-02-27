@@ -295,7 +295,25 @@ class CopilotClient:
         max_tokens: int = 4096,
         tools: list[dict] | None = None,
     ) -> CopilotResponse:
-        """Send a chat completion request with automatic retries."""
+        """Send a chat completion request to the Copilot API with automatic retries.
+
+        Args:
+            messages: Conversation messages to send.
+            model: Model override; defaults to configured default_model.
+            system_message: Optional system prompt prepended to messages.
+            temperature: Sampling temperature (0.0–1.0).
+            max_tokens: Maximum tokens in the response.
+            tools: Optional tool definitions for function calling.
+
+        Returns:
+            CopilotResponse with content, model, usage stats, and finish reason.
+
+        Raises:
+            CopilotAuthenticationError: If the API key is invalid.
+            CopilotRateLimitError: If rate limits are exceeded after retries.
+            CopilotConnectionError: If the API is unreachable after retries.
+            CircuitBreakerOpenError: If the circuit breaker is open.
+        """
         formatted_messages = []
         if system_message:
             formatted_messages.append({"role": "system", "content": system_message})
@@ -371,7 +389,19 @@ class CopilotClient:
         jurisdiction: str,
         framework: str,
     ) -> list[dict[str, Any]]:
-        """Extract requirements from legal text."""
+        """Extract structured compliance requirements from legal/regulatory text.
+
+        Args:
+            text: Raw regulatory text to analyze (truncated to 30k chars).
+            regulation_name: Name of the regulation (e.g. 'GDPR').
+            jurisdiction: Jurisdictional scope (e.g. 'EU').
+            framework: Compliance framework identifier.
+
+        Returns:
+            List of requirement dicts with reference_id, title, description,
+            obligation_type, category, data_types, processes, and confidence.
+            Returns an empty list if parsing fails.
+        """
         system_prompt = """You are an expert regulatory compliance analyst.
 Extract specific, actionable requirements from legal text.
 
@@ -428,7 +458,19 @@ Return JSON array only, no explanation."""
         sample_files: dict[str, str],
         languages: list[str],
     ) -> dict[str, Any]:
-        """Map a requirement to code locations."""
+        """Map a regulatory requirement to relevant code locations and identify gaps.
+
+        Args:
+            requirement: Requirement dict with reference_id, title, description, etc.
+            codebase_structure: Text representation of the repo file tree.
+            sample_files: Dict of file_path → content for key source files.
+            languages: Programming languages used in the repository.
+
+        Returns:
+            Dict with affected_files, existing_implementations, gaps, data_flows,
+            estimated_effort_hours, risk_level, and confidence. Returns a default
+            response with zero confidence if parsing fails.
+        """
         system_prompt = """You are an expert compliance engineer mapping regulatory requirements to code.
 
 Analyze the codebase and identify:
@@ -506,7 +548,20 @@ Return JSON only."""
         language: str,
         style_guide: str | None = None,
     ) -> dict[str, Any]:
-        """Generate compliant code to address gaps."""
+        """Generate production-quality code patches to address compliance gaps.
+
+        Args:
+            requirement: The regulatory requirement to satisfy.
+            gaps: List of gap dicts with severity, description, and file_path.
+            existing_code: Dict of file_path → current source code.
+            language: Target programming language for generated code.
+            style_guide: Optional style guidelines for code generation.
+
+        Returns:
+            Dict with files (patches), tests, documentation, pr_title, pr_body,
+            compliance_comments, confidence, and warnings. Returns a default
+            response if generation or parsing fails.
+        """
         system_prompt = f"""You are an expert {language} developer generating compliance code.
 
 Generate production-quality code that:

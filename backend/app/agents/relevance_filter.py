@@ -110,7 +110,19 @@ class RelevanceFilter:
         requirements: list[dict[str, Any]],
         profile: CustomerProfile,
     ) -> list[dict[str, Any]]:
-        """Filter requirements for relevance to customer profile."""
+        """Filter requirements for relevance to a customer profile.
+
+        A requirement is considered relevant if any registered strategy matches.
+        Strategies check data type overlap, process overlap, PII handling,
+        health data, and AI/ML usage.
+
+        Args:
+            requirements: List of requirement dicts from the extractor.
+            profile: Customer profile with data types, processes, and feature flags.
+
+        Returns:
+            Subset of requirements relevant to the given profile.
+        """
         relevant = []
 
         for req in requirements:

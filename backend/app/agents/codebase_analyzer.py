@@ -40,7 +40,19 @@ class CodebaseAnalyzer:
         repository: Repository,
         requirements: list[Requirement],
     ) -> list[CodebaseMapping]:
-        """Analyze a repository against requirements."""
+        """Analyze a repository against a set of regulatory requirements.
+
+        Iterates through each requirement and maps it to the repository's codebase
+        using the Copilot AI client, identifying compliance gaps and existing implementations.
+
+        Args:
+            repository: The repository to analyze, including its structure cache and metadata.
+            requirements: List of regulatory requirements to map against the codebase.
+
+        Returns:
+            List of CodebaseMapping objects, one per requirement, containing gap analysis,
+            affected files, and compliance status.
+        """
         with tracer.start_as_current_span(
             "analyze_repository",
             attributes={
@@ -77,7 +89,19 @@ class CodebaseAnalyzer:
         requirement: Requirement,
         structure_text: str,
     ) -> CodebaseMapping:
-        """Map a single requirement to codebase."""
+        """Map a single regulatory requirement to the codebase and persist the result.
+
+        Sends the requirement and codebase structure to the Copilot AI for analysis,
+        creates a CodebaseMapping from the result, and logs an audit event.
+
+        Args:
+            repository: The target repository being analyzed.
+            requirement: The specific regulatory requirement to map.
+            structure_text: Pre-formatted text representation of the codebase structure.
+
+        Returns:
+            A CodebaseMapping with compliance status, gaps, and affected files.
+        """
         with tracer.start_as_current_span(
             "map_requirement",
             attributes={

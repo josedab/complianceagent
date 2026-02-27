@@ -24,7 +24,19 @@ class RequirementExtractor:
         regulation: Regulation,
         content: str,
     ) -> list[dict[str, Any]]:
-        """Extract requirements from regulatory text using AI."""
+        """Extract structured compliance requirements from regulatory text using AI.
+
+        Sends the raw regulation text to the Copilot AI for analysis, which returns
+        structured requirement objects with categories, obligations, and confidence scores.
+
+        Args:
+            regulation: The regulation metadata (name, jurisdiction, framework).
+            content: Raw text content of the regulation to analyze.
+
+        Returns:
+            List of requirement dicts, each containing reference_id, title, description,
+            obligation_type, category, data_types, processes, and confidence.
+        """
         with tracer.start_as_current_span(
             "copilot_analyze_legal_text",
             attributes={

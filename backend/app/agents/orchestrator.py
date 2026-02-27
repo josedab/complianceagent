@@ -63,7 +63,26 @@ class ComplianceOrchestrator:
         content: str,
         customer_profile: CustomerProfile,
     ) -> dict[str, Any]:
-        """Process a detected regulatory change through the full pipeline."""
+        """Process a detected regulatory change through the full pipeline.
+
+        Executes a three-stage pipeline:
+        1. Extract requirements from the regulatory text using AI
+        2. Filter requirements for relevance based on the customer profile
+        3. Persist relevant requirements to the database
+
+        Args:
+            regulation: The regulation that has changed.
+            content: Raw text content of the regulatory change.
+            customer_profile: Profile used to filter requirements for relevance
+                (data types, business processes, industry).
+
+        Returns:
+            Dict with keys: status ('processed' or 'not_applicable'),
+            requirements_found, relevant_requirements, and saved_requirements (UUIDs).
+
+        Raises:
+            RequirementExtractionError: If the Copilot AI fails during extraction.
+        """
         with tracer.start_as_current_span(
             "process_regulatory_change",
             attributes={
@@ -164,7 +183,16 @@ class ComplianceOrchestrator:
         regulation: Regulation,
         relevant_requirements: list[dict[str, Any]],
     ) -> list[Requirement]:
-        """Save extracted requirements to database."""
+        """Save extracted and filtered requirements to the database.
+
+        Args:
+            regulation: The source regulation for these requirements.
+            relevant_requirements: List of requirement dicts from the AI extractor,
+                already filtered for relevance.
+
+        Returns:
+            List of persisted Requirement model instances.
+        """
         saved_requirements = []
         for req_data in relevant_requirements:
             requirement = Requirement(
@@ -199,7 +227,18 @@ class ComplianceOrchestrator:
         repository: Repository,
         requirements: list[Requirement],
     ) -> list[CodebaseMapping]:
-        """Analyze a repository against requirements."""
+        """Analyze a repository against a set of requirements for compliance gaps.
+
+        Delegates to CodebaseAnalyzer, which maps each requirement to the codebase
+        using Copilot AI and returns gap analysis results.
+
+        Args:
+            repository: The repository to analyze.
+            requirements: Regulatory requirements to check against.
+
+        Returns:
+            List of CodebaseMapping objects with compliance status and gap details.
+        """
         copilot = await self.get_copilot()
         analyzer = CodebaseAnalyzer(
             db=self.db,
@@ -215,7 +254,20 @@ class ComplianceOrchestrator:
         requirement: Requirement,
         repository: Repository,
     ) -> dict[str, Any]:
-        """Generate compliant code for a mapping."""
+        """Generate compliant code to address gaps identified in a mapping.
+
+        Uses Copilot AI to produce code patches, tests, and documentation that
+        resolve compliance gaps for a specific requirement.
+
+        Args:
+            mapping: The CodebaseMapping containing identified compliance gaps.
+            requirement: The regulatory requirement the fix must satisfy.
+            repository: The target repository for generated code.
+
+        Returns:
+            Dict with keys: files (patches), tests, documentation, pr_title, pr_body,
+            confidence, and warnings. Returns {'status': 'no_gaps'} if no gaps exist.
+        """
         with tracer.start_as_current_span(
             "generate_compliance_fix",
             attributes={
