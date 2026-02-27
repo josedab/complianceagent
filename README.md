@@ -74,7 +74,7 @@ The following features are in active development and available behind the `ENABL
 - **UI Library**: React 18
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **State**: React Query + Zustand
+- **State**: React Query
 - **Components**: Radix UI primitives
 
 ### Infrastructure

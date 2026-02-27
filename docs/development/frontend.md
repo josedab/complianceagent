@@ -36,8 +36,8 @@ The frontend uses Next.js 14 with the App Router:
                               ▼
 ┌───────────────────────┬─────────────────────────────────────────┐
 │    State Management   │            API Layer                     │
-│    React Query +      │    API client, data fetching            │
-│    Zustand            │    hooks, transformations               │
+│    React Query        │    API client, data fetching,           │
+│                       │    hooks, transformations               │
 └───────────────────────┴─────────────────────────────────────────┘
 ```
 
@@ -90,10 +90,6 @@ frontend/
 │   │   ├── api.ts           # API client instance
 │   │   ├── auth.ts          # Auth utilities
 │   │   └── utils.ts         # Helper functions
-│   │
-│   ├── stores/              # Zustand state stores
-│   │   ├── authStore.ts
-│   │   └── uiStore.ts
 │   │
 │   └── types/               # TypeScript type definitions
 │       ├── api.ts           # API response types
@@ -391,27 +387,6 @@ export function useCreateRegulation() {
     },
   });
 }
-```
-
-### Zustand (Client State)
-
-```tsx
-// stores/uiStore.ts
-import { create } from 'zustand';
-
-interface UIState {
-  sidebarOpen: boolean;
-  theme: 'light' | 'dark' | 'system';
-  toggleSidebar: () => void;
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
-}
-
-export const useUIStore = create<UIState>((set) => ({
-  sidebarOpen: true,
-  theme: 'system',
-  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-  setTheme: (theme) => set({ theme }),
-}));
 ```
 
 ---
