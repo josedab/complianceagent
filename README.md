@@ -296,6 +296,109 @@ complianceagent/
 | `/api/v1/ide/feedback` | POST | Submit detection feedback |
 | `/api/v1/ide/stats/rules` | GET | Get rule statistics |
 
+### Usage Examples
+
+#### Authentication
+
+```bash
+# Register a new user
+curl -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "secure-password", "full_name": "Jane Doe"}'
+
+# Response:
+# {"id": "uuid", "email": "user@example.com", "full_name": "Jane Doe", "is_active": true}
+
+# Login and get JWT token
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "secure-password"}'
+
+# Response:
+# {"access_token": "eyJ...", "refresh_token": "eyJ...", "token_type": "bearer"}
+```
+
+#### Compliance Scanning
+
+```bash
+# Add a repository for scanning
+curl -X POST http://localhost:8000/api/v1/repositories \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com/org/repo", "name": "my-app"}'
+
+# Response:
+# {"id": "repo-uuid", "name": "my-app", "url": "https://github.com/org/repo", "status": "pending"}
+
+# Trigger compliance analysis
+curl -X POST http://localhost:8000/api/v1/repositories/repo-uuid/analyze \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response:
+# {"task_id": "task-uuid", "status": "queued", "repository_id": "repo-uuid"}
+
+# Check compliance status
+curl http://localhost:8000/api/v1/compliance/status \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response:
+# {"overall_score": 87.5, "frameworks": [{"name": "GDPR", "score": 92.0}, {"name": "HIPAA", "score": 83.0}]}
+```
+
+#### Audit Trail
+
+```bash
+# Verify audit chain integrity
+curl http://localhost:8000/api/v1/audit/verify-chain \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response:
+# {"valid": true, "entries_checked": 1247, "invalid_entries": []}
+
+# Export audit report
+curl http://localhost:8000/api/v1/audit/export \
+  -H "Authorization: Bearer $TOKEN" \
+  -o audit-report.json
+```
+
+#### Compliance Chat
+
+```bash
+# Send a chat message
+curl -X POST http://localhost:8000/api/v1/chat/message \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What encryption does HIPAA require?", "regulations": ["HIPAA"]}'
+
+# Response:
+# {
+#   "id": "msg-uuid",
+#   "conversation_id": "conv-uuid",
+#   "content": "HIPAA requires encryption for Protected Health Information (PHI)...",
+#   "citations": [{"source": "HIPAA", "title": "45 CFR 164.312(a)(2)(iv)"}]
+# }
+```
+
+#### PR Bot Analysis
+
+```bash
+# Trigger PR analysis
+curl -X POST http://localhost:8000/api/v1/pr-bot/analyze \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"repository": "org/repo", "pr_number": 42}'
+
+# Response:
+# {"task_id": "task-uuid", "status": "queued"}
+
+# Check task status
+curl http://localhost:8000/api/v1/pr-bot/task/task-uuid \
+  -H "Authorization: Bearer $TOKEN"
+
+# Response:
+# {"task_id": "task-uuid", "status": "completed", "findings": 3, "auto_fixed": 1}
+```
+
 ## ⚙️ Configuration
 
 ### Environment Variables
