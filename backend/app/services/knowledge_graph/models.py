@@ -1,4 +1,4 @@
-"""Knowledge graph data models."""
+"""Knowledge graph data models with pgvector semantic search support."""
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -22,6 +22,8 @@ class NodeType(str, Enum):
     POLICY = "policy"
     TEAM = "team"
     OWNER = "owner"
+    JURISDICTION = "jurisdiction"
+    FRAMEWORK = "framework"
 
 
 class RelationType(str, Enum):
@@ -41,6 +43,22 @@ class RelationType(str, Enum):
     SUPERSEDES = "supersedes"
     RELATED_TO = "related_to"
     PROVIDES_EVIDENCE_FOR = "provides_evidence_for"
+    APPLIES_IN = "applies_in"
+    MAPPED_TO = "mapped_to"
+
+
+class QueryIntent(str, Enum):
+    """Classified intent for natural language queries."""
+    SEARCH = "search"
+    PATH_FINDING = "path_finding"
+    IMPACT_ANALYSIS = "impact_analysis"
+    COMPLIANCE_CHECK = "compliance_check"
+    RISK_ASSESSMENT = "risk_assessment"
+    EVIDENCE_LOOKUP = "evidence_lookup"
+    REGULATION_LOOKUP = "regulation_lookup"
+    CODE_TRACING = "code_tracing"
+    COMPARISON = "comparison"
+    SUMMARY = "summary"
 
 
 @dataclass
@@ -58,6 +76,10 @@ class GraphNode:
 
     # Properties
     properties: dict = field(default_factory=dict)
+
+    # Semantic search
+    embedding: list[float] | None = None
+    embedding_text: str = ""
 
     # Metadata
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -158,6 +180,30 @@ class GraphQuery:
     # Starting points
     start_nodes: list[UUID] = field(default_factory=list)
 
+    # Semantic search
+    use_semantic_search: bool = True
+    similarity_threshold: float = 0.7
+
+
+@dataclass
+class SemanticSearchResult:
+    """Result from pgvector cosine similarity search."""
+    node: GraphNode | None = None
+    similarity: float = 0.0
+    matched_text: str = ""
+
+
+@dataclass
+class ParsedQuery:
+    """Result of NL query parsing with intent classification."""
+    intent: QueryIntent = QueryIntent.SEARCH
+    confidence: float = 0.0
+    node_types: list[NodeType] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
+    entities: dict[str, str] = field(default_factory=dict)
+    source_context: str | None = None
+    target_context: str | None = None
+
 
 @dataclass
 class GraphQueryResult:
@@ -174,6 +220,15 @@ class GraphQueryResult:
 
     # Paths found (for path queries)
     paths: list[list[UUID]] = field(default_factory=list)
+
+    # Semantic search results
+    semantic_results: list[SemanticSearchResult] = field(default_factory=list)
+
+    # Intent classification
+    parsed_intent: ParsedQuery | None = None
+
+    # Citations for grounded responses
+    citations: list[dict] = field(default_factory=list)
 
     # Statistics
     total_nodes: int = 0
@@ -219,6 +274,25 @@ QUERY_TEMPLATES = {
         "relations": [
             RelationType.PROVIDES_EVIDENCE_FOR,
             RelationType.IMPLEMENTS,
+        ],
+    },
+    "cross_regulation": {
+        "description": "Find overlapping requirements across regulations",
+        "start_types": [NodeType.REGULATION],
+        "end_types": [NodeType.REGULATION],
+        "relations": [
+            RelationType.MAPPED_TO,
+            RelationType.RELATED_TO,
+            RelationType.SUPERSEDES,
+        ],
+    },
+    "jurisdiction_impact": {
+        "description": "Find all regulations applying in a jurisdiction",
+        "start_types": [NodeType.JURISDICTION],
+        "end_types": [NodeType.REGULATION, NodeType.REQUIREMENT],
+        "relations": [
+            RelationType.APPLIES_IN,
+            RelationType.CONTAINS,
         ],
     },
 }

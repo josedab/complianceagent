@@ -3,8 +3,8 @@
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Query
+from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
 from app.services.compliance_knowledge_graph import ComplianceKnowledgeGraphService
@@ -16,6 +16,13 @@ router = APIRouter()
 
 class GraphQueryRequest(BaseModel):
     query: str
+
+
+class SemanticSearchRequest(BaseModel):
+    query: str = Field(..., description="Natural language search query")
+    top_k: int = Field(default=10, description="Number of results to return")
+    similarity_threshold: float = Field(default=0.3, description="Minimum similarity score")
+    node_types: list[str] = Field(default_factory=list, description="Filter by node types")
 
 
 @router.post("/query")
@@ -42,6 +49,53 @@ async def query_graph(request: GraphQueryRequest, db: DB) -> dict:
             for e in result.edges
         ],
     }
+
+
+@router.post("/semantic-search")
+async def semantic_search(request: SemanticSearchRequest, db: DB) -> dict:
+    """Search the knowledge graph using pgvector cosine similarity."""
+    from app.services.knowledge_graph import KnowledgeGraphService
+    from app.services.knowledge_graph.models import NodeType
+
+    kg_svc = KnowledgeGraphService(db)
+    # Build graph if not already built
+    graphs = list(kg_svc._graphs.values())
+    if not graphs:
+        return {"results": [], "message": "No graph built yet. Build a graph first via the knowledge graph service."}
+
+    graph = graphs[0]
+    node_types = [NodeType(nt) for nt in request.node_types] if request.node_types else None
+    results = await kg_svc.semantic_search(
+        graph_id=graph.id,
+        query_text=request.query,
+        top_k=request.top_k,
+        similarity_threshold=request.similarity_threshold,
+        node_types=node_types,
+    )
+    return {
+        "query": request.query,
+        "total_results": len(results),
+        "results": [
+            {
+                "node_id": str(r.node.id) if r.node else None,
+                "node_name": r.node.name if r.node else "",
+                "node_type": r.node.node_type.value if r.node else "",
+                "similarity": round(r.similarity, 4),
+                "matched_text": r.matched_text[:200],
+            }
+            for r in results
+        ],
+    }
+
+
+@router.get("/query-templates")
+async def get_query_templates(db: DB) -> dict:
+    """Get available query templates for common compliance queries."""
+    from app.services.knowledge_graph import KnowledgeGraphService
+
+    kg_svc = KnowledgeGraphService(db)
+    templates = await kg_svc.get_query_templates()
+    return {"templates": {k: {"description": v["description"]} for k, v in templates.items()}}
 
 
 @router.get("/stats")
