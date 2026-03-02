@@ -67,6 +67,29 @@ from app.models.testing import (
 )
 from app.models.user import User
 
+# Production Features models
+from app.models.production_features import (
+    AlertPolicyRecord,
+    APIKeyRecord,
+    AuditorSessionRecord,
+    AutoCollectedEvidenceRecord,
+    BenchmarkSubmissionRecord,
+    CertificationReadinessRecord,
+    ChatMessageRecord,
+    ChatSessionRecord,
+    IaCScanResultRecord,
+    KnowledgeGraphEdgeRecord,
+    KnowledgeGraphNodeRecord,
+    LegislativeActivityRecord,
+    MarketplaceCheckRunRecord,
+    MarketplaceInstallRecord,
+    OAuth2ClientRecord,
+    RegPredictionRecord,
+    RegulatorySignalRecord,
+    WebhookEventRecord,
+    WebhookIntegrationRecord,
+)
+
 
 __all__ = [
     # Architecture Review
@@ -122,4 +145,24 @@ __all__ = [
     # Risk Quantification
     "ViolationRisk",
     "WhatIfScenario",
+    # Production Features
+    "AlertPolicyRecord",
+    "APIKeyRecord",
+    "AuditorSessionRecord",
+    "AutoCollectedEvidenceRecord",
+    "BenchmarkSubmissionRecord",
+    "CertificationReadinessRecord",
+    "ChatMessageRecord",
+    "ChatSessionRecord",
+    "IaCScanResultRecord",
+    "KnowledgeGraphEdgeRecord",
+    "KnowledgeGraphNodeRecord",
+    "LegislativeActivityRecord",
+    "MarketplaceCheckRunRecord",
+    "MarketplaceInstallRecord",
+    "OAuth2ClientRecord",
+    "RegPredictionRecord",
+    "RegulatorySignalRecord",
+    "WebhookEventRecord",
+    "WebhookIntegrationRecord",
 ]
