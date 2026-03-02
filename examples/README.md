@@ -39,6 +39,41 @@ echo "COMPLIANCEAGENT_API_KEY=your-api-key" >> .env
 python python_sdk_example.py
 ```
 
+### TypeScript SDK Example
+
+**File**: `typescript_sdk_example.ts`
+
+A complete TypeScript example demonstrating the ComplianceAgent API with full type definitions.
+
+**Features demonstrated**:
+- Typed client with error handling
+- Health checks
+- Listing regulations and repositories
+- Compliance status checking
+- Audit chain verification
+- Compliance chat integration
+- IDE integration endpoints
+
+**Prerequisites**:
+```bash
+npm install dotenv
+# TypeScript compilation
+npx tsc typescript_sdk_example.ts --target ES2020 --module nodenext --moduleResolution nodenext
+```
+
+**Usage**:
+```bash
+# Set environment variables
+export COMPLIANCEAGENT_API_URL=http://localhost:8000
+export COMPLIANCEAGENT_API_KEY=your-api-key
+
+# Run with ts-node
+npx ts-node typescript_sdk_example.ts
+
+# Or compile and run
+npx tsc typescript_sdk_example.ts && node typescript_sdk_example.js
+```
+
 ## CI/CD Integration
 
 Use the Python client in your CI/CD pipeline:
@@ -101,7 +136,6 @@ jobs:
 
 ## More Examples Coming Soon
 
-- TypeScript/JavaScript SDK example
 - CLI tool example
 - Webhook handler example
 - VS Code extension integration
