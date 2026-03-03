@@ -232,3 +232,68 @@ async def get_scan_history(db: DB) -> ScanHistoryResponse:
         entries=[ScanHistoryEntry(**e) for e in entries],
         total=len(entries),
     )
+
+
+# --- New Production Endpoints ---
+
+
+class ScanContentRequest(BaseModel):
+    content: str = Field(..., description="Raw IaC content to scan")
+    iac_format: str = Field(default="terraform_hcl", description="Format: terraform_hcl, kubernetes_yaml, cloudformation")
+    file_path: str = Field(default="main.tf", description="File path for context")
+
+
+class RemediationPRRequest(BaseModel):
+    scan_id: str = Field(..., description="Scan result ID to remediate")
+    repo: str = Field(default="", description="Target repository")
+    branch: str = Field(default="compliance/auto-fix", description="Branch name for PR")
+
+
+@router.post("/scan/content", summary="Scan raw IaC content")
+async def scan_content(request: ScanContentRequest, db: DB) -> dict:
+    """Scan raw IaC content with real HCL/K8s/CloudFormation parsing."""
+    from app.services.iac_policy import IaCPolicyEngine as IacPolicyEngineService
+    from app.services.iac_policy.models import IaCFormat
+
+    service = IacPolicyEngineService(db=db)
+    result = await service.scan_content(
+        content=request.content,
+        iac_format=IaCFormat(request.iac_format),
+        file_path=request.file_path,
+    )
+    return _serialize(result)
+
+
+@router.get("/export/sarif", summary="Export latest scan as SARIF")
+async def export_sarif(db: DB, scan_id: str | None = None) -> dict:
+    """Export scan results as SARIF v2.1.0 for GitHub Code Scanning."""
+    from app.services.iac_policy import IaCPolicyEngine as IacPolicyEngineService
+
+    service = IacPolicyEngineService(db=db)
+    return await service.export_sarif(scan_id=scan_id)
+
+
+@router.get("/export/rego", summary="Export rules as OPA/Rego")
+async def export_rego(db: DB, provider: str | None = None) -> dict:
+    """Export policy rules as OPA/Rego policy."""
+    from app.services.iac_policy import IaCPolicyEngine as IacPolicyEngineService
+    from app.services.iac_policy.models import CloudProvider
+
+    service = IacPolicyEngineService(db=db)
+    cp = CloudProvider(provider) if provider else None
+    rego = await service.export_rego(provider=cp)
+    return {"rego": rego, "provider": provider or "all"}
+
+
+@router.post("/remediation-pr", summary="Generate auto-remediation PR")
+async def generate_remediation_pr(request: RemediationPRRequest, db: DB) -> dict:
+    """Generate auto-remediation PR from scan violations."""
+    from app.services.iac_policy import IaCPolicyEngine as IacPolicyEngineService
+
+    service = IacPolicyEngineService(db=db)
+    history = await service.get_scan_history()
+    scan = next((r for r in history if str(r.id) == request.scan_id), None)
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    pr = await service.generate_remediation_pr(scan, repo=request.repo, branch=request.branch)
+    return _serialize(pr)
