@@ -100,3 +100,79 @@ async def get_stats(db: DB) -> dict:
     """Get streaming statistics."""
     svc = ComplianceStreamingService()
     return await svc.get_stats(db)
+
+
+# --- Production Endpoints: Webhooks & Alert Policies ---
+
+
+class RegisterWebhookRequest(BaseModel):
+    name: str = Field(..., description="Webhook name")
+    target: str = Field(default="generic", description="Target: slack, pagerduty, teams, generic")
+    url: str = Field(..., description="Webhook URL")
+    channels: list[str] = Field(default_factory=list)
+    event_types: list[str] = Field(default_factory=list)
+    min_severity: str = Field(default="medium")
+
+
+class CreateAlertPolicyRequest(BaseModel):
+    name: str = Field(...)
+    channel: str = Field(...)
+    condition_type: str = Field(default="threshold")
+    metric: str = Field(...)
+    operator: str = Field(default="lt")
+    threshold: float = Field(...)
+    severity: str = Field(default="medium")
+    window_seconds: int = Field(default=300)
+    cooldown_seconds: int = Field(default=3600)
+
+
+@router.post("/webhooks", summary="Register webhook integration")
+async def register_webhook(request: RegisterWebhookRequest, db: DB) -> dict:
+    svc = ComplianceStreamingService(db)
+    webhook = await svc.register_webhook(
+        name=request.name, target=request.target, url=request.url,
+        channels=request.channels, event_types=request.event_types,
+        min_severity=request.min_severity,
+    )
+    return {"id": str(webhook.id), "name": webhook.name, "target": webhook.target.value, "url": webhook.url}
+
+
+@router.get("/webhooks", summary="List webhook integrations")
+async def list_webhooks(db: DB) -> list[dict]:
+    svc = ComplianceStreamingService(db)
+    webhooks = svc.list_webhooks()
+    return [{"id": str(w.id), "name": w.name, "target": w.target.value, "url": w.url, "active": w.active, "delivery_count": w.delivery_count} for w in webhooks]
+
+
+@router.delete("/webhooks/{webhook_id}", summary="Remove webhook")
+async def remove_webhook(webhook_id: str, db: DB) -> dict:
+    from uuid import UUID as PyUUID
+    svc = ComplianceStreamingService(db)
+    ok = await svc.remove_webhook(PyUUID(webhook_id))
+    return {"removed": ok}
+
+
+@router.post("/alert-policies", summary="Create alert policy")
+async def create_alert_policy(request: CreateAlertPolicyRequest, db: DB) -> dict:
+    svc = ComplianceStreamingService(db)
+    policy = await svc.create_alert_policy(
+        name=request.name, channel=request.channel, condition_type=request.condition_type,
+        metric=request.metric, operator=request.operator, threshold=request.threshold,
+        severity=request.severity, window_seconds=request.window_seconds,
+        cooldown_seconds=request.cooldown_seconds,
+    )
+    return {"id": str(policy.id), "name": policy.name, "metric": policy.metric, "threshold": policy.threshold}
+
+
+@router.get("/alert-policies", summary="List alert policies")
+async def list_alert_policies(db: DB) -> list[dict]:
+    svc = ComplianceStreamingService(db)
+    policies = svc.list_alert_policies()
+    return [{"id": str(p.id), "name": p.name, "metric": p.metric, "operator": p.operator, "threshold": p.threshold, "severity": p.severity.value, "active": p.active, "fire_count": p.fire_count} for p in policies]
+
+
+@router.get("/alerts", summary="List recent alert firings")
+async def list_alert_firings(db: DB, limit: int = 50) -> list[dict]:
+    svc = ComplianceStreamingService(db)
+    firings = svc.list_alert_firings(limit=limit)
+    return [{"id": str(f.id), "policy_name": f.policy_name, "severity": f.severity.value, "message": f.message, "fired_at": f.fired_at.isoformat() if f.fired_at else None} for f in firings]
