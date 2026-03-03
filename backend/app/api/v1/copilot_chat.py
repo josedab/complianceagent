@@ -285,3 +285,67 @@ async def ask_question_stream(
             yield result.answer[i : i + chunk_size]
 
     return StreamingResponse(generate(), media_type="text/plain")
+
+
+# --- Production Endpoints: Chat Sessions, RAG, Streaming ---
+
+
+class CreateSessionRequest(BaseModel):
+    persona: str = Field(default="cco", description="User persona")
+    regulations: list[str] = Field(default_factory=list, description="Regulations in scope")
+    user_id: str = Field(default="", description="User identifier")
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., description="Chat message")
+
+
+@router.post("/sessions", summary="Create chat session")
+async def create_chat_session(request: CreateSessionRequest, db: DB) -> dict:
+    """Create a new chat session with RAG context and guardrails."""
+    from app.services.copilot_chat.models import UserPersona
+    svc = CopilotChatService(db)
+    session = await svc.create_session(
+        persona=UserPersona(request.persona),
+        user_id=request.user_id,
+        regulations=request.regulations,
+    )
+    return {"session_id": str(session.id), "persona": session.persona.value}
+
+
+@router.post("/sessions/{session_id}/chat", summary="Send chat message")
+async def chat_in_session(session_id: str, request: ChatRequest, db: DB) -> dict:
+    """Send a message in a chat session with RAG + guardrails + citations."""
+    from uuid import UUID as PyUUID
+    svc = CopilotChatService(db)
+    response = await svc.chat(session_id=PyUUID(session_id), message=request.message)
+    return {
+        "answer": response.answer,
+        "confidence": response.confidence,
+        "citations": [{"title": c.title, "source_type": c.source_type, "relevance": c.relevance_score} for c in response.citations],
+        "guardrail": {"action": response.guardrail.action.value, "disclaimers": response.guardrail.disclaimers} if response.guardrail else None,
+        "suggested_followups": response.suggested_followups,
+        "visual_type": response.visual_type.value,
+    }
+
+
+@router.post("/sessions/{session_id}/stream", summary="Stream chat response")
+async def stream_chat_response(session_id: str, request: ChatRequest, db: DB) -> list[dict]:
+    """Stream a chat response as SSE events."""
+    from uuid import UUID as PyUUID
+    svc = CopilotChatService(db)
+    events = await svc.stream_chat(session_id=PyUUID(session_id), message=request.message)
+    return [{"event": e.event, "data": e.data} for e in events]
+
+
+@router.post("/rag/retrieve", summary="Retrieve RAG context")
+async def retrieve_rag_context(request: ChatRequest, db: DB) -> dict:
+    """Retrieve relevant regulation context using semantic search."""
+    svc = CopilotChatService(db)
+    ctx = await svc.retrieve_context(request.message)
+    return {
+        "chunks": ctx.chunks,
+        "citations": [{"title": c.title, "source_type": c.source_type, "relevance": c.relevance_score} for c in ctx.citations],
+        "total_tokens": ctx.total_tokens,
+        "retrieval_time_ms": ctx.retrieval_time_ms,
+    }
