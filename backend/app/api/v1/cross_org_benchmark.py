@@ -116,3 +116,83 @@ async def get_stats(db: DB) -> StatsSchema:
         global_avg_score=s.global_avg_score,
         data_freshness_hours=s.data_freshness_hours,
     )
+
+
+# --- Production Endpoints: Rankings, Peer Groups, Insights ---
+
+
+class PercentileRankingRequest(BaseModel):
+    organization_hash: str = Field(...)
+    industry: str = Field(...)
+    company_size: str = Field(...)
+    frameworks: list[str] = Field(default_factory=list)
+
+
+@router.post("/percentile-rankings", summary="Compute percentile rankings")
+async def compute_percentile_rankings(request: PercentileRankingRequest, db: DB) -> dict:
+    svc = CrossOrgBenchmarkService(db)
+    ranking = svc.compute_percentile_rankings(
+        org_hash=request.organization_hash, industry=request.industry,
+        company_size=request.company_size, frameworks=request.frameworks,
+    )
+    return {
+        "overall_percentile": ranking.overall_percentile,
+        "industry_percentile": ranking.industry_percentile,
+        "size_percentile": ranking.size_percentile,
+        "framework_percentile": ranking.framework_percentile,
+        "peer_group_percentile": ranking.peer_group_percentile,
+        "statistically_significant": ranking.statistically_significant,
+    }
+
+
+@router.post("/peer-group", summary="Get peer group")
+async def get_peer_group(request: PercentileRankingRequest, db: DB) -> dict:
+    svc = CrossOrgBenchmarkService(db)
+    group = svc.get_peer_group(
+        industry=request.industry, company_size=request.company_size,
+        frameworks=request.frameworks,
+    )
+    return {
+        "name": group.name,
+        "industry": group.industry,
+        "size": group.size,
+        "member_count": group.member_count,
+        "avg_score": group.avg_score,
+        "meets_threshold": group.meets_minimum_threshold,
+    }
+
+
+@router.post("/peer-recommendations", summary="Get peer recommendations")
+async def get_peer_recommendations(request: PercentileRankingRequest, db: DB) -> list[dict]:
+    svc = CrossOrgBenchmarkService(db)
+    recs = svc.get_peer_recommendations(
+        org_hash=request.organization_hash, industry=request.industry,
+        company_size=request.company_size, frameworks=request.frameworks,
+    )
+    return [{"area": r.area, "gap_size": r.gap_size, "peer_avg": r.peer_avg, "recommendation": r.recommendation, "priority": r.priority.value} for r in recs]
+
+
+@router.post("/insights-dashboard", summary="Get insights dashboard")
+async def get_insights_dashboard(request: PercentileRankingRequest, db: DB) -> dict:
+    svc = CrossOrgBenchmarkService(db)
+    dashboard = svc.get_insights_dashboard(
+        org_hash=request.organization_hash, industry=request.industry,
+        company_size=request.company_size, frameworks=request.frameworks,
+    )
+    return {
+        "rankings": {
+            "overall": dashboard.rankings.overall_percentile if dashboard.rankings else 0,
+            "industry": dashboard.rankings.industry_percentile if dashboard.rankings else 0,
+        },
+        "strengths": dashboard.strengths,
+        "weaknesses": dashboard.weaknesses,
+        "recommendations": [{"area": r.area, "recommendation": r.recommendation} for r in dashboard.recommendations],
+        "data_quality_warnings": dashboard.data_quality_warnings,
+    }
+
+
+@router.get("/threshold-check", summary="Check minimum org threshold")
+async def check_threshold(db: DB, industry: str | None = None) -> dict:
+    svc = CrossOrgBenchmarkService(db)
+    meets = svc.check_minimum_threshold(industry=industry)
+    return {"meets_threshold": meets, "required": 50}
