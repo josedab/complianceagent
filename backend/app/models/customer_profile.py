@@ -132,4 +132,5 @@ class CustomerProfile(Base, UUIDMixin, TimestampMixin):
         # Remove excluded
         frameworks -= set(self.excluded_frameworks)
 
-        return [RegulatoryFramework(f) for f in frameworks if f in RegulatoryFramework.__members__]
+        valid_values = {e.value for e in RegulatoryFramework}
+        return [RegulatoryFramework(f) for f in frameworks if f in valid_values]
