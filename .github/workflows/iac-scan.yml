@@ -1,0 +1,151 @@
+name: IaC Compliance Scan
+
+on:
+  pull_request:
+    paths:
+      - '**/*.tf'
+      - '**/*.tfvars'
+      - '**/k8s/**/*.yaml'
+      - '**/k8s/**/*.yml'
+      - '**/cloudformation/**/*.json'
+      - '**/cloudformation/**/*.yaml'
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  security-events: write
+
+jobs:
+  iac-scan:
+    name: ComplianceAgent IaC Policy Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ComplianceAgent CLI
+        run: |
+          pip install httpx pyyaml
+
+      - name: Collect IaC files
+        id: collect
+        run: |
+          echo "Scanning for IaC files..."
+          TF_FILES=$(find . -name '*.tf' -not -path './.terraform/*' | head -50)
+          K8S_FILES=$(find . -path '*/k8s/*.yaml' -o -path '*/k8s/*.yml' | head -50)
+          CFN_FILES=$(find . -path '*/cloudformation/*.json' -o -path '*/cloudformation/*.yaml' | head -50)
+          echo "tf_count=$(echo "$TF_FILES" | grep -c . || true)" >> $GITHUB_OUTPUT
+          echo "k8s_count=$(echo "$K8S_FILES" | grep -c . || true)" >> $GITHUB_OUTPUT
+          echo "cfn_count=$(echo "$CFN_FILES" | grep -c . || true)" >> $GITHUB_OUTPUT
+
+      - name: Run IaC Policy Scan
+        id: scan
+        env:
+          COMPLIANCEAGENT_API_KEY: ${{ secrets.COMPLIANCEAGENT_API_KEY }}
+          COMPLIANCEAGENT_API_URL: ${{ vars.COMPLIANCEAGENT_API_URL || 'https://api.complianceagent.ai/v1' }}
+        run: |
+          python - <<'EOF'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          api_url = os.environ.get("COMPLIANCEAGENT_API_URL", "https://api.complianceagent.ai/v1")
+          api_key = os.environ.get("COMPLIANCEAGENT_API_KEY", "")
+
+          sarif = {
+              "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+              "version": "2.1.0",
+              "runs": [{
+                  "tool": {
+                      "driver": {
+                          "name": "ComplianceAgent IaC Scanner",
+                          "version": "1.0.0",
+                          "informationUri": "https://complianceagent.ai/iac-scanner",
+                          "rules": [],
+                      },
+                  },
+                  "results": [],
+              }],
+          }
+
+          format_map = {".tf": "terraform_hcl", ".yaml": "kubernetes_yaml", ".yml": "kubernetes_yaml", ".json": "cloudformation"}
+          violations_total = 0
+          critical_count = 0
+
+          iac_files = list(Path(".").rglob("*.tf")) + list(Path(".").rglob("k8s/*.yaml")) + list(Path(".").rglob("cloudformation/*.json"))
+
+          for fpath in iac_files[:50]:
+              ext = fpath.suffix
+              iac_format = format_map.get(ext, "terraform_hcl")
+              content = fpath.read_text(errors="ignore")
+
+              if api_key:
+                  import httpx
+                  try:
+                      resp = httpx.post(
+                          f"{api_url}/iac-policy/scan/content",
+                          json={"content": content, "iac_format": iac_format, "file_path": str(fpath)},
+                          headers={"Authorization": f"Bearer {api_key}"},
+                          timeout=30,
+                      )
+                      if resp.status_code == 200:
+                          result = resp.json()
+                          for v in result.get("violations", []):
+                              sarif["runs"][0]["results"].append({
+                                  "ruleId": v.get("rule_id", "UNKNOWN"),
+                                  "level": {"critical": "error", "high": "error", "medium": "warning", "low": "note"}.get(v.get("severity", "medium"), "warning"),
+                                  "message": {"text": v.get("description", "Policy violation")},
+                                  "locations": [{"physicalLocation": {"artifactLocation": {"uri": str(fpath)}, "region": {"startLine": max(1, v.get("line_number", 1))}}}],
+                              })
+                              violations_total += 1
+                              if v.get("severity") == "critical":
+                                  critical_count += 1
+                  except Exception as e:
+                      print(f"Warning: API scan failed for {fpath}: {e}", file=sys.stderr)
+
+          Path("complianceagent-iac.sarif").write_text(json.dumps(sarif, indent=2))
+
+          print(f"Scanned {len(iac_files)} files, found {violations_total} violations ({critical_count} critical)")
+
+          with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+              f.write(f"violations={violations_total}\n")
+              f.write(f"critical={critical_count}\n")
+          EOF
+
+      - name: Upload SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: complianceagent-iac.sarif
+          category: complianceagent-iac
+
+      - name: Post PR Comment
+        if: github.event_name == 'pull_request' && steps.scan.outputs.violations != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const violations = '${{ steps.scan.outputs.violations }}';
+            const critical = '${{ steps.scan.outputs.critical }}';
+            const icon = critical > 0 ? '❌' : '⚠️';
+            const body = `## ${icon} ComplianceAgent IaC Scan\n\n` +
+              `**Violations:** ${violations} | **Critical:** ${critical}\n\n` +
+              `Full results available in the [Security tab](${context.payload.repository.html_url}/security/code-scanning).\n\n` +
+              `_Powered by [ComplianceAgent](https://complianceagent.ai)_`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Fail on critical violations
+        if: steps.scan.outputs.critical != '0'
+        run: |
+          echo "::error::Found ${{ steps.scan.outputs.critical }} critical IaC policy violations"
+          exit 1
