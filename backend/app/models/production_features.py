@@ -224,7 +224,7 @@ class ChatMessageRecord(Base, UUIDMixin, TimestampMixin):
     citations: Mapped[dict] = mapped_column(JSONBType, default=list)
     guardrail_action: Mapped[str | None] = mapped_column(String(30))
     confidence_score: Mapped[float] = mapped_column(Float, default=1.0)
-    metadata: Mapped[dict] = mapped_column(JSONBType, default=dict)
+    message_metadata: Mapped[dict] = mapped_column("metadata", JSONBType, default=dict)
 
 
 # ─── Client SDK ───────────────────────────────────────────────────────────
