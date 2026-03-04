@@ -9,8 +9,13 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.digital_twin.models import (
+    BlastRadiusMap,
+    BlastRadiusNode,
     ComplianceIssue,
     ComplianceSnapshot,
+    CostEstimate,
+    ExecutiveDashboard,
+    ScenarioComparison,
     ScenarioType,
     SimulationResult,
     SimulationScenario,
@@ -128,6 +133,10 @@ class ComplianceSimulator:
             await self._simulate_data_flow_change(scenario, baseline, result)
         elif scenario.scenario_type == ScenarioType.INFRASTRUCTURE_CHANGE:
             await self._simulate_infrastructure_change(scenario, baseline, result)
+        elif scenario.scenario_type == ScenarioType.JURISDICTION_EXPANSION:
+            await self._simulate_jurisdiction_expansion(scenario, baseline, result)
+        elif scenario.scenario_type == ScenarioType.MERGER_ACQUISITION:
+            await self._simulate_merger_acquisition(scenario, baseline, result)
 
         # Calculate final metrics
         result.score_delta = result.simulated_score - result.baseline_score
@@ -136,6 +145,12 @@ class ComplianceSimulator:
 
         # Generate recommendations
         result.recommendations = self._generate_recommendations(scenario, result)
+
+        # Calculate cost/effort/timeline
+        result.cost_estimate = self._estimate_cost(scenario, result)
+
+        # Generate blast radius map
+        result.blast_radius = self._compute_blast_radius(scenario, result)
 
         # Timing
         result.completed_at = datetime.now(UTC)
@@ -536,6 +551,367 @@ class ComplianceSimulator:
     async def get_result(self, result_id: UUID) -> SimulationResult | None:
         """Get a simulation result by ID."""
         return self._results.get(result_id)
+
+    # ─── Jurisdiction Expansion / M&A ─────────────────────────────────
+
+    async def _simulate_jurisdiction_expansion(
+        self,
+        scenario: SimulationScenario,
+        baseline: ComplianceSnapshot,
+        result: SimulationResult,
+    ) -> None:
+        """Simulate impact of expanding into new jurisdictions."""
+        jurisdiction_regs = {
+            "EU": ["GDPR", "EU AI Act", "NIS2", "DORA"],
+            "US": ["CCPA", "HIPAA", "SOX"],
+            "UK": ["UK GDPR", "Online Safety Act"],
+            "Brazil": ["LGPD"],
+            "China": ["PIPL", "CSL", "DSL"],
+            "India": ["DPDPA"],
+            "Japan": ["APPI"],
+            "South Korea": ["PIPA"],
+            "Canada": ["PIPEDA", "AIDA"],
+            "Australia": ["Privacy Act", "CDR"],
+        }
+
+        target_jurisdictions = scenario.target_jurisdictions or scenario.parameters.get("jurisdictions", [])
+
+        for jurisdiction in target_jurisdictions:
+            regs = jurisdiction_regs.get(jurisdiction, [f"{jurisdiction} Privacy Law"])
+            for reg in regs:
+                if reg not in result.compliance_before:
+                    result.new_issues.append(ComplianceIssue(
+                        code=f"JURIS-{reg.upper()[:4]}-001",
+                        message=f"Expansion to {jurisdiction} requires {reg} compliance",
+                        severity="high",
+                        regulation=reg,
+                        category="jurisdiction_expansion",
+                    ))
+                    result.compliance_after[reg] = 0.2  # Initial: ~20% compliant
+                    result.warnings.append(
+                        f"{jurisdiction}: {reg} compliance assessment required "
+                        f"(est. {len(regs) * 4} weeks)"
+                    )
+
+        result.compliance_after.update(result.compliance_before)
+        result.simulated_score = self._calculate_simulated_score(
+            baseline, result.new_issues, result.resolved_issues
+        )
+
+    async def _simulate_merger_acquisition(
+        self,
+        scenario: SimulationScenario,
+        baseline: ComplianceSnapshot,
+        result: SimulationResult,
+    ) -> None:
+        """Simulate compliance impact of a merger or acquisition."""
+        target = scenario.parameters.get("target_company", "Unknown")
+        target_size = scenario.parameters.get("target_employees", 100)
+        target_jurisdictions = scenario.parameters.get("target_jurisdictions", [])
+        target_frameworks = scenario.parameters.get("target_frameworks", [])
+
+        # M&A introduces data consolidation risks
+        result.new_issues.append(ComplianceIssue(
+            code="MA-DATA-001",
+            message=f"Data consolidation from {target} requires privacy impact assessment",
+            severity="high",
+            regulation="GDPR",
+            category="merger_acquisition",
+        ))
+        result.new_issues.append(ComplianceIssue(
+            code="MA-VENDOR-001",
+            message=f"Inherited vendor relationships from {target} require assessment",
+            severity="medium",
+            category="merger_acquisition",
+        ))
+
+        if target_size > 500:
+            result.new_issues.append(ComplianceIssue(
+                code="MA-SCALE-001",
+                message=f"Large acquisition ({target_size} employees) may trigger additional regulatory thresholds",
+                severity="high",
+                category="merger_acquisition",
+            ))
+
+        for jurisdiction in target_jurisdictions:
+            if jurisdiction not in ["US", "EU"]:  # Unknown territory
+                result.warnings.append(
+                    f"Target operates in {jurisdiction} — requires local counsel review"
+                )
+
+        result.compliance_after = dict(result.compliance_before)
+        result.simulated_score = self._calculate_simulated_score(
+            baseline, result.new_issues, result.resolved_issues
+        )
+
+    # ─── Cost/Effort/Timeline Calculator ──────────────────────────────
+
+    def _estimate_cost(
+        self,
+        scenario: SimulationScenario,
+        result: SimulationResult,
+    ) -> CostEstimate:
+        """Estimate cost, effort, and timeline for implementing scenario changes."""
+        eng_rate = 150.0  # USD/hour
+        legal_rate = 350.0
+
+        # Base engineering hours by scenario type
+        type_base_hours = {
+            ScenarioType.CODE_CHANGE: 8,
+            ScenarioType.ARCHITECTURE_CHANGE: 40,
+            ScenarioType.VENDOR_CHANGE: 16,
+            ScenarioType.REGULATION_ADOPTION: 80,
+            ScenarioType.DATA_FLOW_CHANGE: 24,
+            ScenarioType.INFRASTRUCTURE_CHANGE: 32,
+            ScenarioType.JURISDICTION_EXPANSION: 120,
+            ScenarioType.MERGER_ACQUISITION: 200,
+        }
+
+        base_hours = type_base_hours.get(scenario.scenario_type, 40)
+
+        # Scale by issue count
+        critical_multiplier = 1 + (result.new_critical_issues * 0.3)
+        issue_hours = len(result.new_issues) * 4  # ~4 hours per issue
+
+        eng_hours = (base_hours + issue_hours) * critical_multiplier
+        legal_hours = max(4, len(result.new_issues) * 2)
+
+        # Tooling cost (monitoring, scanning, etc.)
+        tooling = 500 if scenario.scenario_type in (
+            ScenarioType.REGULATION_ADOPTION,
+            ScenarioType.JURISDICTION_EXPANSION,
+        ) else 100
+
+        # Training cost
+        training = 0.0
+        if scenario.scenario_type in (
+            ScenarioType.REGULATION_ADOPTION,
+            ScenarioType.JURISDICTION_EXPANSION,
+            ScenarioType.MERGER_ACQUISITION,
+        ):
+            training = eng_hours * 0.2 * eng_rate
+
+        eng_cost = eng_hours * eng_rate
+        legal_cost = legal_hours * legal_rate
+        total = eng_cost + legal_cost + tooling + training
+        timeline = max(1, eng_hours / 40)  # weeks (40h/week)
+
+        return CostEstimate(
+            engineering_hours=round(eng_hours, 1),
+            engineering_cost_usd=round(eng_cost, 2),
+            legal_review_hours=round(legal_hours, 1),
+            legal_cost_usd=round(legal_cost, 2),
+            tooling_cost_usd=round(tooling, 2),
+            training_cost_usd=round(training, 2),
+            total_cost_usd=round(total, 2),
+            timeline_weeks=round(timeline, 1),
+            confidence=0.7 if len(result.new_issues) < 5 else 0.5,
+            breakdown={
+                "engineering": round(eng_cost, 2),
+                "legal": round(legal_cost, 2),
+                "tooling": round(tooling, 2),
+                "training": round(training, 2),
+            },
+        )
+
+    # ─── Blast Radius Visualization ───────────────────────────────────
+
+    def _compute_blast_radius(
+        self,
+        scenario: SimulationScenario,
+        result: SimulationResult,
+    ) -> BlastRadiusMap:
+        """Compute blast radius map showing impact spread."""
+        center = scenario.name
+        nodes: list[BlastRadiusNode] = []
+        edges: list[dict[str, str]] = []
+
+        # Origin node
+        nodes.append(BlastRadiusNode(
+            id="origin",
+            name=center,
+            node_type="change",
+            impact_level="critical",
+            distance=0,
+        ))
+
+        # Distance 1: directly affected regulations
+        affected_regs = set()
+        for issue in result.new_issues:
+            if issue.regulation and issue.regulation not in affected_regs:
+                affected_regs.add(issue.regulation)
+                node_id = f"reg-{issue.regulation}"
+                nodes.append(BlastRadiusNode(
+                    id=node_id,
+                    name=issue.regulation,
+                    node_type="regulation",
+                    impact_level=issue.severity,
+                    distance=1,
+                ))
+                edges.append({"source": "origin", "target": node_id})
+
+        # Distance 2: affected teams/services
+        categories = set(issue.category or "general" for issue in result.new_issues)
+        for cat in categories:
+            node_id = f"team-{cat}"
+            impact = "high" if any(
+                i.severity in ("critical", "high") and i.category == cat
+                for i in result.new_issues
+            ) else "medium"
+            nodes.append(BlastRadiusNode(
+                id=node_id,
+                name=f"{cat.replace('_', ' ').title()} Team",
+                node_type="team",
+                impact_level=impact,
+                distance=2,
+            ))
+            # Connect to affected regulations
+            for issue in result.new_issues:
+                if issue.category == cat and issue.regulation:
+                    edges.append({"source": f"reg-{issue.regulation}", "target": node_id})
+
+        # Distance 3: downstream systems
+        if scenario.scenario_type in (ScenarioType.ARCHITECTURE_CHANGE, ScenarioType.INFRASTRUCTURE_CHANGE):
+            for comp in scenario.new_components:
+                node_id = f"sys-{comp}"
+                nodes.append(BlastRadiusNode(
+                    id=node_id, name=comp, node_type="system",
+                    impact_level="low", distance=3,
+                ))
+                edges.append({"source": "origin", "target": node_id})
+
+        return BlastRadiusMap(
+            center=center,
+            nodes=nodes,
+            edges=edges,
+            max_distance=max((n.distance for n in nodes), default=0),
+            total_affected=len(nodes) - 1,
+        )
+
+    # ─── Executive Dashboard ──────────────────────────────────────────
+
+    async def get_executive_dashboard(
+        self,
+        organization_id: UUID | None = None,
+    ) -> ExecutiveDashboard:
+        """Generate executive dashboard data with scenario comparisons."""
+        # Get baseline snapshot
+        baseline = None
+        if organization_id:
+            baseline = await self.snapshot_manager.get_latest_snapshot(organization_id)
+
+        # Aggregate scenario results
+        completed = [r for r in self._results.values() if r.completed_at]
+        active = [s for s in self._scenarios.values()]
+
+        # Score trend from completed simulations
+        score_trend = []
+        for r in sorted(completed, key=lambda x: x.started_at):
+            score_trend.append({
+                "date": r.started_at.isoformat(),
+                "baseline": r.baseline_score,
+                "simulated": r.simulated_score,
+            })
+
+        # Top risks from latest simulations
+        all_issues: list[dict] = []
+        for r in completed[-5:]:  # Last 5 simulations
+            for issue in r.new_issues:
+                if issue.severity in ("critical", "high"):
+                    all_issues.append({
+                        "code": issue.code,
+                        "message": issue.message,
+                        "severity": issue.severity,
+                        "regulation": issue.regulation,
+                        "scenario": str(r.scenario_id),
+                    })
+
+        # Recent scenario summaries
+        recent = []
+        for r in completed[-10:]:
+            scenario = self._scenarios.get(r.scenario_id) if r.scenario_id else None
+            recent.append({
+                "id": str(r.id),
+                "name": scenario.name if scenario else "Unknown",
+                "type": scenario.scenario_type.value if scenario else "",
+                "passed": r.passed,
+                "score_delta": r.score_delta,
+                "new_issues": len(r.new_issues),
+                "cost_usd": r.cost_estimate.total_cost_usd if r.cost_estimate else 0,
+            })
+
+        # Regulation coverage from baseline
+        reg_coverage: dict[str, float] = {}
+        if baseline:
+            for reg in baseline.regulations:
+                reg_coverage[reg.regulation] = reg.score
+
+        return ExecutiveDashboard(
+            overall_score=baseline.overall_score if baseline else 0.0,
+            score_trend=score_trend,
+            active_simulations=len(active),
+            completed_simulations=len(completed),
+            regulation_coverage=reg_coverage,
+            top_risks=all_issues[:10],
+            recent_scenarios=recent,
+        )
+
+    async def compare_scenarios(
+        self,
+        result_ids: list[UUID],
+    ) -> ScenarioComparison:
+        """Compare multiple scenario results side-by-side."""
+        scenarios = []
+        best_id = ""
+        worst_id = ""
+        best_score = -999.0
+        worst_score = 999.0
+
+        for rid in result_ids:
+            result = self._results.get(rid)
+            if not result:
+                continue
+            scenario = self._scenarios.get(result.scenario_id) if result.scenario_id else None
+
+            entry = {
+                "id": str(rid),
+                "name": scenario.name if scenario else "Unknown",
+                "type": scenario.scenario_type.value if scenario else "",
+                "baseline_score": result.baseline_score,
+                "simulated_score": result.simulated_score,
+                "score_delta": result.score_delta,
+                "passed": result.passed,
+                "new_issues": len(result.new_issues),
+                "resolved_issues": len(result.resolved_issues),
+                "risk_delta": result.risk_delta,
+                "cost_usd": result.cost_estimate.total_cost_usd if result.cost_estimate else 0,
+                "timeline_weeks": result.cost_estimate.timeline_weeks if result.cost_estimate else 0,
+            }
+            scenarios.append(entry)
+
+            if result.score_delta > best_score:
+                best_score = result.score_delta
+                best_id = str(rid)
+            if result.score_delta < worst_score:
+                worst_score = result.score_delta
+                worst_id = str(rid)
+
+        recommendation = ""
+        if best_id:
+            best_entry = next((s for s in scenarios if s["id"] == best_id), None)
+            if best_entry:
+                recommendation = (
+                    f"Recommended: '{best_entry['name']}' with "
+                    f"score delta of {best_entry['score_delta']:+.2f} "
+                    f"and estimated cost of ${best_entry.get('cost_usd', 0):,.0f}"
+                )
+
+        return ScenarioComparison(
+            scenarios=scenarios,
+            best_scenario_id=best_id,
+            worst_scenario_id=worst_id,
+            recommendation=recommendation,
+        )
 
 
 # Global instance

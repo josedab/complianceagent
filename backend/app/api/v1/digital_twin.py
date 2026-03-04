@@ -1036,3 +1036,40 @@ async def calculate_blast_radius(
         ],
         recommendations=report.recommendations,
     )
+
+
+# --- Production Endpoints: Executive Dashboard & Scenario Comparison ---
+
+@router.get("/executive-dashboard", summary="Get executive dashboard")
+async def get_executive_dashboard(db: DB, organization_id: str | None = None) -> dict:
+    """Get executive dashboard with score trends, top risks, and scenario summaries."""
+    from app.services.digital_twin.simulator import get_compliance_simulator
+    from uuid import UUID as PyUUID
+    simulator = get_compliance_simulator()
+    org_id = PyUUID(organization_id) if organization_id else None
+    dashboard = await simulator.get_executive_dashboard(organization_id=org_id)
+    return {
+        "overall_score": dashboard.overall_score,
+        "score_trend": dashboard.score_trend,
+        "active_simulations": dashboard.active_simulations,
+        "completed_simulations": dashboard.completed_simulations,
+        "regulation_coverage": dashboard.regulation_coverage,
+        "top_risks": dashboard.top_risks,
+        "recent_scenarios": dashboard.recent_scenarios,
+    }
+
+
+@router.post("/scenarios/compare", summary="Compare multiple scenarios")
+async def compare_scenarios(result_ids: list[str], db: DB) -> dict:
+    """Side-by-side comparison of multiple simulation results."""
+    from app.services.digital_twin.simulator import get_compliance_simulator
+    from uuid import UUID as PyUUID
+    simulator = get_compliance_simulator()
+    ids = [PyUUID(rid) for rid in result_ids]
+    comparison = await simulator.compare_scenarios(ids)
+    return {
+        "scenarios": comparison.scenarios,
+        "best_scenario_id": comparison.best_scenario_id,
+        "worst_scenario_id": comparison.worst_scenario_id,
+        "recommendation": comparison.recommendation,
+    }

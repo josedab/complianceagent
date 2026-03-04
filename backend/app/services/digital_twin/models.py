@@ -16,6 +16,8 @@ class ScenarioType(str, Enum):
     REGULATION_ADOPTION = "regulation_adoption"
     DATA_FLOW_CHANGE = "data_flow_change"
     INFRASTRUCTURE_CHANGE = "infrastructure_change"
+    JURISDICTION_EXPANSION = "jurisdiction_expansion"
+    MERGER_ACQUISITION = "merger_acquisition"
 
 
 class ComplianceStatus(str, Enum):
@@ -93,6 +95,19 @@ class ComplianceSnapshot:
 
 
 @dataclass
+class ScenarioParameter:
+    """A configurable parameter for scenario simulation."""
+    name: str = ""
+    param_type: str = "string"  # string, number, boolean, list, enum
+    description: str = ""
+    default_value: Any = None
+    min_value: float | None = None
+    max_value: float | None = None
+    allowed_values: list[str] = field(default_factory=list)
+    required: bool = False
+
+
+@dataclass
 class SimulationScenario:
     """A simulation scenario to test."""
 
@@ -106,6 +121,7 @@ class SimulationScenario:
 
     # Scenario parameters
     parameters: dict[str, Any] = field(default_factory=dict)
+    parameter_schema: list[ScenarioParameter] = field(default_factory=list)
 
     # Code changes (for code_change scenarios)
     file_changes: list[dict[str, Any]] = field(default_factory=list)
@@ -121,6 +137,67 @@ class SimulationScenario:
     # Regulation changes
     new_regulations: list[str] = field(default_factory=list)
     removed_regulations: list[str] = field(default_factory=list)
+
+    # Jurisdiction expansion
+    target_jurisdictions: list[str] = field(default_factory=list)
+
+
+@dataclass
+class CostEstimate:
+    """Cost/effort/timeline estimate for a simulation scenario."""
+    engineering_hours: float = 0.0
+    engineering_cost_usd: float = 0.0
+    legal_review_hours: float = 0.0
+    legal_cost_usd: float = 0.0
+    tooling_cost_usd: float = 0.0
+    training_cost_usd: float = 0.0
+    total_cost_usd: float = 0.0
+    timeline_weeks: float = 0.0
+    confidence: float = 0.7
+    breakdown: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class BlastRadiusNode:
+    """Node in the blast radius visualization."""
+    id: str = ""
+    name: str = ""
+    node_type: str = ""  # regulation, service, team, vendor
+    impact_level: str = "none"  # none, low, medium, high, critical
+    distance: int = 0  # hops from change origin
+
+
+@dataclass
+class BlastRadiusMap:
+    """Visual blast radius showing impact spread of a change."""
+    center: str = ""
+    nodes: list[BlastRadiusNode] = field(default_factory=list)
+    edges: list[dict[str, str]] = field(default_factory=list)
+    max_distance: int = 0
+    total_affected: int = 0
+
+
+@dataclass
+class ScenarioComparison:
+    """Side-by-side comparison of multiple scenario results."""
+    scenarios: list[dict] = field(default_factory=list)
+    best_scenario_id: str = ""
+    worst_scenario_id: str = ""
+    recommendation: str = ""
+
+
+@dataclass
+class ExecutiveDashboard:
+    """Executive dashboard data for digital twin status."""
+    overall_score: float = 0.0
+    score_trend: list[dict[str, float]] = field(default_factory=list)
+    active_simulations: int = 0
+    completed_simulations: int = 0
+    regulation_coverage: dict[str, float] = field(default_factory=dict)
+    top_risks: list[dict] = field(default_factory=list)
+    recent_scenarios: list[dict] = field(default_factory=list)
+    blast_radius: BlastRadiusMap | None = None
+    cost_summary: CostEstimate | None = None
 
 
 @dataclass
@@ -154,6 +231,10 @@ class SimulationResult:
     risk_delta: float = 0.0
     recommendations: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+
+    # Cost/effort/timeline
+    cost_estimate: CostEstimate | None = None
+    blast_radius: BlastRadiusMap | None = None
 
     @property
     def new_critical_issues(self) -> int:
