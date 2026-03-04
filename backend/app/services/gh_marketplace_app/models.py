@@ -30,6 +30,21 @@ class InstallState(str, Enum):
     UNINSTALLED = "uninstalled"
 
 
+class WebhookEventType(str, Enum):
+    """GitHub webhook event types handled by the app."""
+    INSTALLATION = "installation"
+    INSTALLATION_REPOSITORIES = "installation_repositories"
+    PULL_REQUEST = "pull_request"
+    PUSH = "push"
+    CHECK_SUITE = "check_suite"
+    MARKETPLACE_PURCHASE = "marketplace_purchase"
+
+
+class BillingInterval(str, Enum):
+    MONTHLY = "monthly"
+    ANNUAL = "annual"
+
+
 @dataclass
 class MarketplaceApp:
     id: UUID = field(default_factory=uuid4)
@@ -61,6 +76,9 @@ class AppInstall:
     prs_analyzed: int = 0
     installed_at: datetime | None = None
     last_active_at: datetime | None = None
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
+    billing_interval: BillingInterval = BillingInterval.MONTHLY
 
 
 @dataclass
@@ -80,6 +98,59 @@ class CheckRun:
 
 
 @dataclass
+class CheckAnnotation:
+    """GitHub Checks API annotation for inline PR feedback."""
+    path: str = ""
+    start_line: int = 1
+    end_line: int = 1
+    annotation_level: str = "warning"  # notice, warning, failure
+    message: str = ""
+    title: str = ""
+    framework: str = ""
+    rule_id: str = ""
+    raw_details: str = ""
+
+
+@dataclass
+class WebhookEvent:
+    """Incoming GitHub webhook event."""
+    id: UUID = field(default_factory=uuid4)
+    event_type: WebhookEventType = WebhookEventType.PUSH
+    action: str = ""
+    delivery_id: str = ""
+    payload: dict[str, Any] = field(default_factory=dict)
+    signature: str = ""
+    received_at: datetime | None = None
+    processed: bool = False
+    error: str | None = None
+
+
+@dataclass
+class BillingPlan:
+    """Stripe billing plan configuration."""
+    plan: MarketplacePlan = MarketplacePlan.FREE
+    stripe_price_id_monthly: str = ""
+    stripe_price_id_annual: str = ""
+    price_monthly: int = 0
+    price_annual: int = 0
+    repo_limit: int = 3
+    features: list[str] = field(default_factory=list)
+    trial_days: int = 0
+
+
+@dataclass
+class PRComment:
+    """Auto-generated PR comment with compliance summary."""
+    id: UUID = field(default_factory=uuid4)
+    repo: str = ""
+    pr_number: int = 0
+    body: str = ""
+    check_run_id: UUID = field(default_factory=uuid4)
+    posted: bool = False
+    posted_at: datetime | None = None
+
+
+@dataclass
 class MarketplaceStats:
     total_installs: int = 0
     active_installs: int = 0
@@ -88,3 +159,5 @@ class MarketplaceStats:
     total_violations_found: int = 0
     total_prs_analyzed: int = 0
     avg_check_duration_ms: float = 0.0
+    mrr: float = 0.0
+    free_tier_public_repos: int = 0

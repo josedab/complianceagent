@@ -1,7 +1,7 @@
 """API endpoints for GitHub Marketplace App integration."""
 
 import structlog
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
@@ -32,6 +32,17 @@ class RunCheckRequest(BaseModel):
 
 class ChangePlanRequest(BaseModel):
     new_plan: str = Field(..., description="New marketplace plan slug")
+
+
+class BillingSessionRequest(BaseModel):
+    github_id: int = Field(..., description="GitHub installation ID")
+    plan: str = Field(..., description="Target plan slug")
+    interval: str = Field(default="monthly", description="Billing interval: monthly or annual")
+
+
+class BillingWebhookRequest(BaseModel):
+    event_type: str = Field(..., description="Stripe event type")
+    data: dict = Field(default_factory=dict, description="Stripe event data")
 
 
 # --- Endpoints ---
@@ -107,3 +118,73 @@ async def get_stats(db: DB) -> dict:
     """Get marketplace app statistics."""
     svc = GHMarketplaceAppService()
     return await svc.get_stats(db)
+
+
+# --- Webhook Endpoints ---
+
+
+@router.post("/webhooks/github")
+async def handle_github_webhook(request: Request, db: DB) -> dict:
+    """Handle incoming GitHub webhook events (installation, PR, push, check_suite)."""
+    event_type = request.headers.get("X-GitHub-Event", "")
+    delivery_id = request.headers.get("X-GitHub-Delivery", "")
+    payload = await request.json()
+    action = payload.get("action", "")
+
+    svc = GHMarketplaceAppService()
+    return await svc.handle_webhook(
+        db,
+        event_type=event_type,
+        action=action,
+        delivery_id=delivery_id,
+        payload=payload,
+    )
+
+
+# --- Billing Endpoints ---
+
+
+@router.get("/billing/plans")
+async def get_billing_plans() -> list[dict]:
+    """Get all available billing plans with pricing."""
+    svc = GHMarketplaceAppService()
+    return svc.get_billing_plans()
+
+
+@router.post("/billing/checkout")
+async def create_billing_session(request: BillingSessionRequest, db: DB) -> dict:
+    """Create a Stripe checkout session for plan purchase/upgrade."""
+    svc = GHMarketplaceAppService()
+    return await svc.create_billing_session(
+        github_id=request.github_id,
+        plan=request.plan,
+        interval=request.interval,
+    )
+
+
+@router.post("/billing/webhooks/stripe")
+async def handle_stripe_webhook(request: BillingWebhookRequest, db: DB) -> dict:
+    """Handle Stripe billing webhooks."""
+    svc = GHMarketplaceAppService()
+    return await svc.handle_billing_webhook(
+        event_type=request.event_type,
+        data=request.data,
+    )
+
+
+# --- PR Comments ---
+
+
+@router.get("/pr-comments")
+async def list_pr_comments(
+    db: DB,
+    repo: str | None = Query(None, description="Filter by repository"),
+) -> list[dict]:
+    """List auto-generated PR compliance comments."""
+    svc = GHMarketplaceAppService()
+    comments = svc.list_pr_comments(repo=repo)
+    return [
+        {"id": str(c.id), "repo": c.repo, "pr_number": c.pr_number,
+         "body": c.body, "posted": c.posted}
+        for c in comments
+    ]
