@@ -80,3 +80,39 @@ class TestAuthAPI:
         """Test getting current user without auth."""
         response = await client.get("/api/v1/users/me")
         assert response.status_code == 401
+
+    async def test_expired_token_rejected(self, client: AsyncClient):
+        """Test that an expired access token returns 401."""
+        from datetime import timedelta
+
+        from app.core.security import create_access_token
+
+        expired_token = create_access_token(
+            subject="user-123",
+            expires_delta=timedelta(seconds=-1),
+        )
+        response = await client.get(
+            "/api/v1/users/me",
+            headers={"Authorization": f"Bearer {expired_token}"},
+        )
+        assert response.status_code == 401
+
+    async def test_malformed_token_rejected(self, client: AsyncClient):
+        """Test that a malformed JWT returns 401."""
+        response = await client.get(
+            "/api/v1/users/me",
+            headers={"Authorization": "Bearer not.a.valid.jwt.token"},
+        )
+        assert response.status_code == 401
+
+    async def test_missing_bearer_prefix_rejected(self, client: AsyncClient):
+        """Test that auth header without Bearer prefix is rejected."""
+        from app.core.security import create_access_token
+
+        token = create_access_token(subject="user-123")
+        response = await client.get(
+            "/api/v1/users/me",
+            headers={"Authorization": token},
+        )
+        # Should fail with 401 or 422
+        assert response.status_code in (401, 422)
