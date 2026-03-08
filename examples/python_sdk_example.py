@@ -79,6 +79,74 @@ class ComplianceAgentClient:
         response.raise_for_status()
         return response.json()
 
+    async def readiness_check(self) -> dict[str, Any]:
+        """Check readiness (DB + Redis connectivity)."""
+        response = await self._client.get("/health/ready")
+        return response.json()  # May return 503 if degraded
+
+    # -------------------------------------------------------------------------
+    # Auth & Session
+    # -------------------------------------------------------------------------
+
+    async def login(self, email: str, password: str) -> dict[str, Any]:
+        """Login and receive JWT tokens."""
+        return await self._request("POST", "/auth/login", json={"email": email, "password": password})
+
+    async def logout(self) -> None:
+        """Logout and revoke current tokens."""
+        await self._request("POST", "/auth/logout", json={})
+
+    # -------------------------------------------------------------------------
+    # Settings & Profile
+    # -------------------------------------------------------------------------
+
+    async def get_profile(self) -> dict[str, Any]:
+        """Get current user profile."""
+        return await self._request("GET", "/settings/profile")
+
+    async def update_profile(self, full_name: str | None = None, email: str | None = None) -> dict[str, Any]:
+        """Update profile fields."""
+        data = {}
+        if full_name is not None:
+            data["full_name"] = full_name
+        if email is not None:
+            data["email"] = email
+        return await self._request("PATCH", "/settings/profile", json=data)
+
+    async def change_password(self, current_password: str, new_password: str) -> dict[str, Any]:
+        """Change password (revokes all existing tokens)."""
+        return await self._request("POST", "/settings/password", json={
+            "current_password": current_password,
+            "new_password": new_password,
+        })
+
+    async def get_notification_preferences(self) -> dict[str, Any]:
+        """Get notification preferences."""
+        return await self._request("GET", "/settings/notifications")
+
+    async def update_notification_preferences(self, **prefs) -> dict[str, Any]:
+        """Update notification preferences."""
+        return await self._request("PUT", "/settings/notifications", json=prefs)
+
+    # -------------------------------------------------------------------------
+    # API Keys
+    # -------------------------------------------------------------------------
+
+    async def list_api_keys(self) -> dict[str, Any]:
+        """List API keys for the current user's organization."""
+        return await self._request("GET", "/api-keys")
+
+    async def create_api_key(self, name: str, scopes: list[str] | None = None) -> dict[str, Any]:
+        """Create a new API key. The raw key is only shown in this response."""
+        data: dict[str, Any] = {"name": name}
+        if scopes is not None:
+            data["scopes"] = scopes
+        return await self._request("POST", "/api-keys", json=data)
+
+    async def revoke_api_key(self, key_id: str) -> dict[str, Any]:
+        """Revoke an API key."""
+        return await self._request("DELETE", f"/api-keys/{key_id}")
+
     # -------------------------------------------------------------------------
     # Regulations
     # -------------------------------------------------------------------------

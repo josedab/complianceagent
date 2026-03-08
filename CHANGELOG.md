@@ -10,6 +10,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > **Note:** Features below are under active development and not yet released.
 > See the [Roadmap](docs/guides/roadmap.md) for planned timelines.
 
+### Security & Authentication
+
+- **Token Revocation**: JWT tokens now include JTI (JWT ID); Redis-backed blacklist with in-memory fallback enables immediate token revocation via `POST /auth/logout`
+- **Refresh Token Rotation**: Old refresh tokens are automatically revoked when new ones are issued via `POST /auth/refresh`
+- **Account Lockout**: 5 failed login attempts trigger a 15-minute lockout per email; distributed via Redis sorted sets with in-memory fallback
+- **API Key Authentication**: Dual auth support — endpoints accept both Bearer JWT tokens and `X-API-Key` headers with SHA-256 hash validation, org-scoped access, and usage tracking
+- **API Key Scope Enforcement**: Read/write scope validation on API key requests; `read` scope allows GET/HEAD/OPTIONS, `write` required for mutations
+- **Input Validation Hardening**: Added `Field` constraints (min/max length, patterns, ge/le bounds) across all public-facing schemas (compliance, audit, regulation, requirement, codebase, user)
+- **CORS Configuration**: Production warning when localhost-only origins detected; environment-driven configuration
+
+### New API Endpoints
+
+- `POST /api/v1/auth/logout` — Revoke tokens and clear auth cookies
+- `GET /api/v1/settings/profile` — Get current user profile
+- `PATCH /api/v1/settings/profile` — Update name/email with duplicate checking
+- `POST /api/v1/settings/password` — Change password (revokes all user tokens)
+- `GET /api/v1/settings/notifications` — Get notification preferences (DB-backed)
+- `PUT /api/v1/settings/notifications` — Update notification preferences
+- `POST /api/v1/api-keys` — Generate API key (raw key shown once)
+- `GET /api/v1/api-keys` — List API keys (org-scoped)
+- `DELETE /api/v1/api-keys/{id}` — Revoke API key (soft delete)
+- `GET /health/ready` — Readiness probe checking DB and Redis connectivity
+
+### Frontend
+
+- **Auth Context**: Global `AuthProvider` with `useAuth()` hook providing user state, login/logout, and token refresh across all pages
+- **Route Protection**: Next.js middleware redirects unauthenticated users from `/dashboard/*` to `/login` and authenticated users away from auth pages
+- **Settings Page**: Fully wired to backend — Profile, Notifications, Password, and API Keys tabs all connected to real API endpoints with loading states and error handling
+- **Login Page**: Uses `useAuth()` context instead of direct API calls
+- **Dashboard Layout**: User menu shows real name/email from auth context with logout button; notification bell with dropdown panel
+- **Signup Page**: Fixed API call format (positional args → object)
+
+### Backend Architecture
+
+- **Service Facades**: Created `service.py` entry points for chat, digital_twin, evidence, and pr_bot services following project conventions
+- **NotificationPreferenceRecord**: New ORM model with Alembic migration (005) for persistent notification preferences
+- **Deep Health Checks**: Liveness probe (`/health`, always 200) + readiness probe (`/health/ready`, checks DB/Redis, 503 when degraded)
+- **Repository Pagination**: Added `skip`/`limit` query parameters to repository list endpoint
+
+### Tests
+
+- 12 new backend tests: token revocation (5), account lockout (4), health endpoints (2), password hash security (1)
+- Updated smoke test baseline for new route count (127 known duplicate paths)
+
 ### Changed
 
 - **Code Quality**: Reduced ruff lint errors from 6,729 to 0 across entire backend and test codebase

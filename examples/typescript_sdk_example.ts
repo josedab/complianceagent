@@ -162,6 +162,82 @@ class ComplianceAgentClient {
     });
   }
 
+  async logout(): Promise<void> {
+    await this.request("POST", "/api/v1/auth/logout", {});
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return this.request("POST", "/api/v1/auth/forgot-password", { email });
+  }
+
+  async resetPassword(
+    token: string,
+    newPassword: string
+  ): Promise<{ message: string }> {
+    return this.request("POST", "/api/v1/auth/reset-password", {
+      token,
+      new_password: newPassword,
+    });
+  }
+
+  // --- Settings & Profile ---
+
+  async getProfile(): Promise<{
+    id: string;
+    email: string;
+    full_name: string;
+    is_active: boolean;
+  }> {
+    return this.request("GET", "/api/v1/settings/profile");
+  }
+
+  async updateProfile(data: {
+    full_name?: string;
+    email?: string;
+  }): Promise<{ id: string; email: string; full_name: string }> {
+    return this.request("PATCH", "/api/v1/settings/profile", data);
+  }
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ message: string }> {
+    return this.request("POST", "/api/v1/settings/password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  }
+
+  async getNotificationPreferences(): Promise<Record<string, unknown>> {
+    return this.request("GET", "/api/v1/settings/notifications");
+  }
+
+  async updateNotificationPreferences(
+    prefs: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
+    return this.request("PUT", "/api/v1/settings/notifications", prefs);
+  }
+
+  // --- API Keys ---
+
+  async listApiKeys(): Promise<{
+    items: Array<{ id: string; name: string; prefix: string; scopes: string[] }>;
+    total: number;
+  }> {
+    return this.request("GET", "/api/v1/api-keys");
+  }
+
+  async createApiKey(
+    name: string,
+    scopes?: string[]
+  ): Promise<{ id: string; name: string; key: string; prefix: string }> {
+    return this.request("POST", "/api/v1/api-keys", { name, scopes });
+  }
+
+  async revokeApiKey(keyId: string): Promise<{ message: string }> {
+    return this.request("DELETE", `/api/v1/api-keys/${keyId}`);
+  }
+
   // --- Regulations ---
 
   async listRegulations(filters?: {
