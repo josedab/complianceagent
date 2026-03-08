@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+import structlog
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import decode_token
 from app.models.organization import Organization, OrganizationMember
+from app.models.production_features import APIKeyRecord
 from app.models.user import User
 
 
@@ -22,38 +26,126 @@ if TYPE_CHECKING:
     from app.services.audit.service import AuditService
 
 
-security = HTTPBearer()
+logger = structlog.get_logger(__name__)
+
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    x_api_key: str | None = Header(None),
 ) -> User:
-    """Get the current authenticated user."""
-    token_payload = decode_token(credentials.credentials)
-    if not token_payload:
+    """Get the current authenticated user via JWT or API key.
+
+    Supports two authentication methods:
+    1. Bearer JWT token in the Authorization header
+    2. API key in the X-API-Key header
+
+    JWT is checked first; if absent, falls back to API key lookup.
+    API key requests are validated against the key's scopes.
+    """
+    # --- Path 1: JWT Bearer token ---
+    if credentials and credentials.credentials:
+        token_payload = decode_token(credentials.credentials)
+        if not token_payload:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        result = await db.execute(select(User).where(User.id == UUID(token_payload.sub)))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is inactive",
+            )
+
+        return user
+
+    # --- Path 2: API key ---
+    if x_api_key:
+        key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
+        result = await db.execute(
+            select(APIKeyRecord).where(
+                APIKeyRecord.key_hash == key_hash,
+                APIKeyRecord.status == "active",
+            )
+        )
+        api_key = result.scalar_one_or_none()
+
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid API key",
+            )
+
+        # Check expiration
+        if api_key.expires_at and api_key.expires_at < datetime.now(UTC):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="API key has expired",
+            )
+
+        # Enforce scopes: "read" allows GET/HEAD/OPTIONS; "write" allows all methods
+        key_scopes = set(api_key.scopes or [])
+        method = request.method.upper()
+        is_read = method in ("GET", "HEAD", "OPTIONS")
+        if key_scopes and "write" not in key_scopes and not is_read:
+            if not any(s.startswith("write") for s in key_scopes):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="API key does not have write scope",
+                )
+        if key_scopes and "read" not in key_scopes and is_read:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="API key does not have read scope",
+            )
+
+        # Update usage stats
+        api_key.last_used_at = datetime.now(UTC)
+        api_key.usage_count = (api_key.usage_count or 0) + 1
+
+        # Resolve a user from the API key's organization
+        if api_key.organization_id:
+            member_result = await db.execute(
+                select(OrganizationMember)
+                .where(OrganizationMember.organization_id == api_key.organization_id)
+                .order_by(OrganizationMember.created_at.asc())
+                .limit(1)
+            )
+            member = member_result.scalar_one_or_none()
+            if member:
+                user_result = await db.execute(
+                    select(User).where(User.id == member.user_id, User.is_active.is_(True))
+                )
+                user = user_result.scalar_one_or_none()
+                if user:
+                    logger.debug("auth.api_key", key_prefix=api_key.key_prefix, user=user.email)
+                    return user
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="API key has no associated user",
         )
 
-    result = await db.execute(select(User).where(User.id == UUID(token_payload.sub)))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User is inactive",
-        )
-
-    return user
+    # --- No credentials ---
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def get_current_organization(
