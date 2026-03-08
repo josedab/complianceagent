@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -30,10 +30,14 @@ import {
   Crosshair,
   GitPullRequest,
   Gauge,
+  LogOut,
+  ChevronDown,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { CardErrorBoundary } from '@/components/ErrorBoundary'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { RealTimeProvider, LiveIndicator } from '@/components/ui/RealTime'
+import { useAuth } from '@/contexts/auth'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -69,8 +73,34 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const [sidebarOpen] = useState(true)
+  const { user, logout } = useAuth()
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+  const notifRef = useRef<HTMLDivElement>(null)
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const initials = user?.full_name
+    ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'U'
+  const displayName = user?.full_name || 'User'
+  const displayEmail = user?.email || ''
 
   return (
+    <RealTimeProvider>
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
       <aside
@@ -110,15 +140,43 @@ export default function DashboardLayout({
         </nav>
 
         {/* User */}
-        <div className="border-t border-gray-800 p-4">
-          <div className="flex items-center">
-            <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium">
-              JB
-            </div>
-            {sidebarOpen && (
-              <div className="ml-3">
-                <p className="text-sm font-medium text-white">Jose Baena</p>
-                <p className="text-xs text-gray-400">Admin</p>
+        <div className="border-t border-gray-800 p-4" ref={userMenuRef}>
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex w-full items-center rounded-lg p-1 text-left hover:bg-gray-800 transition-colors"
+            >
+              <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium text-sm">
+                {initials}
+              </div>
+              {sidebarOpen && (
+                <>
+                  <div className="ml-3 flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{displayName}</p>
+                    <p className="text-xs text-gray-400 truncate">{displayEmail}</p>
+                  </div>
+                  <ChevronDown className={clsx('h-4 w-4 text-gray-400 transition-transform', userMenuOpen && 'rotate-180')} />
+                </>
+              )}
+            </button>
+
+            {userMenuOpen && (
+              <div className="absolute bottom-full left-0 mb-2 w-56 rounded-lg bg-gray-800 border border-gray-700 shadow-lg py-1">
+                <Link
+                  href="/dashboard/settings"
+                  onClick={() => setUserMenuOpen(false)}
+                  className="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                >
+                  <Settings className="h-4 w-4 mr-3" />
+                  Settings
+                </Link>
+                <button
+                  onClick={async () => { setUserMenuOpen(false); await logout() }}
+                  className="flex w-full items-center px-4 py-2 text-sm text-red-400 hover:bg-gray-700"
+                >
+                  <LogOut className="h-4 w-4 mr-3" />
+                  Sign out
+                </button>
               </div>
             )}
           </div>
@@ -144,10 +202,38 @@ export default function DashboardLayout({
           {/* Actions */}
           <div className="flex items-center gap-x-4">
             <ThemeToggle />
-            <button className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">
-              <Bell className="h-5 w-5" />
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-            </button>
+            <LiveIndicator className="h-2 w-2" />
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotifOpen(!notifOpen)}
+                className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              >
+                <Bell className="h-5 w-5" />
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+              </button>
+
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-80 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg z-50">
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No new notifications
+                    </div>
+                  </div>
+                  <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700">
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => setNotifOpen(false)}
+                      className="text-xs text-primary-600 hover:text-primary-500"
+                    >
+                      Notification settings →
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -159,5 +245,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </RealTimeProvider>
   )
 }
