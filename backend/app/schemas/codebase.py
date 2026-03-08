@@ -14,10 +14,10 @@ class RepositoryCreate(BaseSchema):
 
     customer_profile_id: UUID
     provider: RepositoryProvider
-    owner: str = Field(..., max_length=255)
-    name: str = Field(..., max_length=255)
-    default_branch: str = "main"
-    installation_id: str | None = None
+    owner: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-zA-Z0-9._-]+$")
+    name: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-zA-Z0-9._-]+$")
+    default_branch: str = Field("main", min_length=1, max_length=255)
+    installation_id: str | None = Field(None, max_length=255)
 
 
 class RepositoryRead(IDSchema, TimestampSchema):

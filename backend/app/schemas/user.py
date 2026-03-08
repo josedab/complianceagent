@@ -54,11 +54,24 @@ class TokenPayload(BaseSchema):
 class RefreshTokenRequest(BaseSchema):
     """Refresh token request body."""
 
-    refresh_token: str
+    refresh_token: str = Field(..., min_length=1, max_length=4096)
 
 
 class LoginRequest(BaseSchema):
     """Login request."""
 
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=1, max_length=200)
+
+
+class ForgotPasswordRequest(BaseSchema):
+    """Forgot password — triggers a reset token email."""
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseSchema):
+    """Reset password with a token."""
+
+    token: str = Field(..., min_length=1, max_length=255)
+    new_password: str = Field(..., min_length=8, max_length=100)

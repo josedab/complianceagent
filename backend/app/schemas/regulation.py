@@ -18,12 +18,12 @@ class RegulatorySourceCreate(BaseSchema):
     """Schema for creating a regulatory source."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    description: str | None = None
-    url: str
+    description: str | None = Field(None, max_length=2000)
+    url: str = Field(..., min_length=1, max_length=2048)
     jurisdiction: Jurisdiction
     framework: RegulatoryFramework | None = None
-    check_interval_hours: int = 24
-    parser_type: str = "html"
+    check_interval_hours: int = Field(24, ge=1, le=720)
+    parser_type: str = Field("html", max_length=50)
     parser_config: dict = Field(default_factory=dict)
 
 
@@ -49,18 +49,18 @@ class RegulationCreate(BaseSchema):
 
     name: str = Field(..., min_length=1, max_length=500)
     short_name: str | None = Field(None, max_length=100)
-    official_reference: str | None = None
+    official_reference: str | None = Field(None, max_length=500)
     jurisdiction: Jurisdiction
     framework: RegulatoryFramework
     status: RegulationStatus = RegulationStatus.EFFECTIVE
     published_date: date | None = None
     effective_date: date | None = None
     enforcement_date: date | None = None
-    source_url: str | None = None
-    content_summary: str | None = None
+    source_url: str | None = Field(None, max_length=2048)
+    content_summary: str | None = Field(None, max_length=10000)
     change_type: ChangeType | None = None
     parent_regulation_id: UUID | None = None
-    tags: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list, max_length=50)
     metadata: dict = Field(default_factory=dict)
 
 

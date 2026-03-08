@@ -12,14 +12,14 @@ from app.schemas.base import BaseSchema
 class FrameworkComplianceStatus(BaseSchema):
     """Compliance status for a single framework."""
 
-    framework: str
+    framework: str = Field(..., max_length=100)
     status: ComplianceStatus
-    compliant_count: int
-    total_count: int
-    compliance_percentage: float
-    critical_gaps: int
-    major_gaps: int
-    minor_gaps: int
+    compliant_count: int = Field(..., ge=0)
+    total_count: int = Field(..., ge=0)
+    compliance_percentage: float = Field(..., ge=0, le=100)
+    critical_gaps: int = Field(..., ge=0)
+    major_gaps: int = Field(..., ge=0)
+    minor_gaps: int = Field(..., ge=0)
     next_deadline: date | None = None
 
 
@@ -28,13 +28,13 @@ class ComplianceStatusResponse(BaseSchema):
 
     organization_id: UUID
     repository_id: UUID | None = None
-    overall_score: float
+    overall_score: float = Field(..., ge=0, le=100)
     overall_status: ComplianceStatus
     frameworks: list[FrameworkComplianceStatus]
-    total_requirements: int
-    compliant_requirements: int
-    pending_actions: int
-    overdue_actions: int
+    total_requirements: int = Field(..., ge=0)
+    compliant_requirements: int = Field(..., ge=0)
+    pending_actions: int = Field(..., ge=0)
+    overdue_actions: int = Field(..., ge=0)
     upcoming_deadlines: list[dict] = Field(default_factory=list)
     recent_changes: list[dict] = Field(default_factory=list)
     assessed_at: datetime
@@ -79,27 +79,27 @@ class CodeGenerationRequest(BaseSchema):
     mapping_id: UUID
     include_tests: bool = True
     include_documentation: bool = True
-    style_guide: str | None = None
-    additional_context: str | None = None
+    style_guide: str | None = Field(None, max_length=500)
+    additional_context: str | None = Field(None, max_length=5000)
 
 
 class GeneratedFile(BaseSchema):
     """A generated or modified file."""
 
-    path: str
-    operation: str  # create, modify, delete
+    path: str = Field(..., max_length=1000)
+    operation: str = Field(..., pattern=r"^(create|modify|delete)$")
     content: str | None = None
     diff: str | None = None
-    language: str | None = None
+    language: str | None = Field(None, max_length=50)
 
 
 class GeneratedTest(BaseSchema):
     """A generated test."""
 
-    path: str
-    test_type: str  # unit, integration, compliance
+    path: str = Field(..., max_length=1000)
+    test_type: str = Field(..., pattern=r"^(unit|integration|compliance)$")
     content: str
-    description: str
+    description: str = Field(..., max_length=1000)
 
 
 class CodeGenerationResponse(BaseSchema):

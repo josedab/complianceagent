@@ -13,27 +13,27 @@ class RequirementCreate(BaseSchema):
     """Schema for creating a requirement."""
 
     regulation_id: UUID
-    reference_id: str = Field(..., max_length=100)
+    reference_id: str = Field(..., min_length=1, max_length=100)
     title: str = Field(..., min_length=1, max_length=500)
-    description: str
+    description: str = Field(..., min_length=1, max_length=10000)
     obligation_type: ObligationType
     category: RequirementCategory
-    subject: str
-    action: str
-    object: str | None = None
-    data_types: list[str] = Field(default_factory=list)
-    processes: list[str] = Field(default_factory=list)
-    systems: list[str] = Field(default_factory=list)
-    roles: list[str] = Field(default_factory=list)
-    timeframe: str | None = None
-    deadline_days: int | None = None
-    source_text: str
+    subject: str = Field(..., min_length=1, max_length=500)
+    action: str = Field(..., min_length=1, max_length=500)
+    object: str | None = Field(None, max_length=500)
+    data_types: list[str] = Field(default_factory=list, max_length=50)
+    processes: list[str] = Field(default_factory=list, max_length=50)
+    systems: list[str] = Field(default_factory=list, max_length=50)
+    roles: list[str] = Field(default_factory=list, max_length=50)
+    timeframe: str | None = Field(None, max_length=200)
+    deadline_days: int | None = Field(None, ge=0, le=3650)
+    source_text: str = Field(..., min_length=1, max_length=50000)
     citations: list[dict] = Field(default_factory=list)
-    penalty_description: str | None = None
-    max_penalty_amount: float | None = None
-    penalty_currency: str | None = None
-    extraction_confidence: float = 0.0
-    tags: list[str] = Field(default_factory=list)
+    penalty_description: str | None = Field(None, max_length=2000)
+    max_penalty_amount: float | None = Field(None, ge=0)
+    penalty_currency: str | None = Field(None, max_length=3, pattern=r"^[A-Z]{3}$")
+    extraction_confidence: float = Field(0.0, ge=0.0, le=1.0)
+    tags: list[str] = Field(default_factory=list, max_length=50)
     metadata: dict = Field(default_factory=dict)
 
 

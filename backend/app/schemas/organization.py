@@ -21,7 +21,7 @@ class OrganizationUpdate(BaseSchema):
     """Schema for updating an organization."""
 
     name: str | None = Field(None, min_length=1, max_length=255)
-    description: str | None = None
+    description: str | None = Field(None, max_length=2000)
     settings: dict | None = None
 
 

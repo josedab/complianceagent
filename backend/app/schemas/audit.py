@@ -19,14 +19,14 @@ class AuditTrailRead(IDSchema, TimestampSchema):
     mapping_id: UUID | None
     compliance_action_id: UUID | None
     event_type: AuditEventType
-    event_description: str
+    event_description: str = Field(..., max_length=10000)
     event_data: dict
-    actor_type: str
-    actor_id: str | None
-    actor_email: str | None
-    ai_model: str | None
-    ai_confidence: float | None
-    entry_hash: str
+    actor_type: str = Field(..., max_length=50)
+    actor_id: str | None = Field(None, max_length=255)
+    actor_email: str | None = Field(None, max_length=255)
+    ai_model: str | None = Field(None, max_length=100)
+    ai_confidence: float | None = Field(None, ge=0, le=1)
+    entry_hash: str = Field(..., max_length=128)
 
 
 class ComplianceActionCreate(BaseSchema):
@@ -37,23 +37,23 @@ class ComplianceActionCreate(BaseSchema):
     repository_id: UUID
     mapping_id: UUID | None = None
     title: str = Field(..., min_length=1, max_length=500)
-    description: str
-    priority: str = "medium"
+    description: str = Field(..., min_length=1, max_length=10000)
+    priority: str = Field("medium", pattern=r"^(critical|high|medium|low)$")
     deadline: datetime | None = None
     assigned_to: UUID | None = None
-    tags: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list, max_length=50)
 
 
 class ComplianceActionUpdate(BaseSchema):
     """Schema for updating a compliance action."""
 
     title: str | None = Field(None, min_length=1, max_length=500)
-    description: str | None = None
+    description: str | None = Field(None, min_length=1, max_length=10000)
     status: ComplianceActionStatus | None = None
-    priority: str | None = None
+    priority: str | None = Field(None, pattern=r"^(critical|high|medium|low)$")
     deadline: datetime | None = None
     assigned_to: UUID | None = None
-    tags: list[str] | None = None
+    tags: list[str] | None = Field(None, max_length=50)
 
 
 class ComplianceActionRead(IDSchema, TimestampSchema):
