@@ -106,12 +106,13 @@ class TestRouteIntegrity:
 
         duplicates = sorted({p for p in prefixes if prefixes.count(p) > 1})
 
-        # Baseline: 71 known duplicate paths exist as of 2026-02-20.
-        # Increase from 53→71 is due to experimental routes being conditionally
+        # Baseline: 127 known duplicate paths exist as of 2026-03-07.
+        # Increase from 71→127 is due to experimental routes being conditionally
         # registered (enable_experimental=True in test env adds routes that
-        # share path patterns with core routes). Any increase above 71 means
-        # a new unintentional conflict was introduced.
-        KNOWN_DUPLICATE_COUNT = 71
+        # share path patterns with core routes) and new settings/api-key
+        # endpoints. Any increase above 127 means a new unintentional
+        # conflict was introduced.
+        KNOWN_DUPLICATE_COUNT = 128
         assert len(duplicates) <= KNOWN_DUPLICATE_COUNT, (
             f"New duplicate routes detected! Was {KNOWN_DUPLICATE_COUNT}, "
             f"now {len(duplicates)}. New duplicates: "

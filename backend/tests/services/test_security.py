@@ -153,6 +153,10 @@ class TestDecodeTokenEdgeCases:
     def test_tampered_token_returns_none(self):
         """Flipping a character in the signature should invalidate the token."""
         token = create_access_token(subject="user-tamper")
-        # Flip last character
-        tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+        # Flip a character in the middle of the signature to avoid base64 padding bits
+        parts = token.rsplit(".", 1)
+        sig = parts[1]
+        mid = len(sig) // 2
+        flipped_char = "A" if sig[mid] != "A" else "B"
+        tampered = parts[0] + "." + sig[:mid] + flipped_char + sig[mid + 1 :]
         assert decode_token(tampered) is None
