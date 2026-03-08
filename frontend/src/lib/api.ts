@@ -45,6 +45,32 @@ export const authApi = {
     api.post('/auth/register', { email, password, full_name: fullName }),
   refresh: (refreshToken: string) =>
     api.post('/auth/refresh', { refresh_token: refreshToken }),
+  logout: () => api.post('/auth/logout', {}),
+  me: () => api.get('/auth/me'),
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+  resetPassword: (token: string, newPassword: string) =>
+    api.post('/auth/reset-password', { token, new_password: newPassword }),
+}
+
+// Settings API
+export const settingsApi = {
+  getProfile: () => api.get('/settings/profile'),
+  updateProfile: (data: { full_name?: string; email?: string }) =>
+    api.patch('/settings/profile', data),
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    api.post('/settings/password', data),
+  getNotifications: () => api.get('/settings/notifications'),
+  updateNotifications: (data: { email_enabled?: boolean; email_digest?: string; slack_enabled?: boolean; slack_webhook_url?: string | null; webhook_enabled?: boolean; webhook_url?: string | null }) =>
+    api.put('/settings/notifications', data),
+}
+
+// API Keys API
+export const apiKeysApi = {
+  create: (data: { name: string; scopes?: string[] }) =>
+    api.post('/api-keys', data),
+  list: () => api.get('/api-keys'),
+  revoke: (keyId: string) => api.delete(`/api-keys/${keyId}`),
 }
 
 // Organizations API

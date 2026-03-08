@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Shield, Eye, EyeOff } from 'lucide-react'
-import { authApi } from '@/lib/api'
+import { useAuth } from '@/contexts/auth'
 
 export default function LoginPage() {
-  const router = useRouter()
+  const { login, error: authError } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -20,11 +19,9 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      await authApi.login(email, password)
-      router.push('/dashboard')
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      setError(error.response?.data?.detail || 'Login failed')
+      await login(email, password)
+    } catch {
+      setError(authError || 'Login failed')
     } finally {
       setLoading(false)
     }

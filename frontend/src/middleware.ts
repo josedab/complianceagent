@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const PROTECTED_PATHS = ['/dashboard']
+const AUTH_PATHS = ['/login', '/signup']
+
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const hasAccessToken = request.cookies.has('access_token')
+
+  // Redirect authenticated users away from auth pages
+  if (AUTH_PATHS.some((p) => pathname.startsWith(p)) && hasAccessToken) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Redirect unauthenticated users to login
+  if (PROTECTED_PATHS.some((p) => pathname.startsWith(p)) && !hasAccessToken) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // CSP headers for all routes
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   const cspHeader = [

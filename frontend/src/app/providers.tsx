@@ -8,6 +8,7 @@ import { ToastProvider } from '@/components/ui/Toast'
 import { CommandPaletteProvider } from '@/components/ui/CommandPalette'
 import { KeyboardShortcutsProvider } from '@/components/ui/KeyboardShortcuts'
 import { OnboardingProvider } from '@/components/ui/OnboardingTour'
+import { AuthProvider } from '@/contexts/auth'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -26,15 +27,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ToastProvider>
-          <KeyboardShortcutsProvider>
-            <CommandPaletteProvider>
-              <OnboardingProvider>
-                <ErrorBoundary>
-                  {children}
-                </ErrorBoundary>
-              </OnboardingProvider>
-            </CommandPaletteProvider>
-          </KeyboardShortcutsProvider>
+          <AuthProvider>
+            <KeyboardShortcutsProvider>
+              <CommandPaletteProvider>
+                <OnboardingProvider>
+                  <ErrorBoundary>
+                    {children}
+                  </ErrorBoundary>
+                </OnboardingProvider>
+              </CommandPaletteProvider>
+            </KeyboardShortcutsProvider>
+          </AuthProvider>
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
