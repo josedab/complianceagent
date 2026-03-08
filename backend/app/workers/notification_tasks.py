@@ -23,9 +23,37 @@ def send_email(to: str, subject: str, body: str, html_body: str | None = None):
 
 
 async def _send_email_async(to: str, subject: str, body: str, html_body: str | None):
-    """Async implementation of email sending."""
-    # Placeholder - would integrate with email service (SendGrid, SES, etc.)
-    logger.info(f"Email sent to {to}")
+    """Async email delivery via SMTP or API provider."""
+    from app.core.config import settings
+    from app.services.notification import EmailChannel, Notification, NotificationType
+
+    smtp_config = {
+        "host": settings.smtp_host,
+        "port": settings.smtp_port,
+        "username": settings.smtp_user,
+        "password": settings.smtp_password,
+        "use_tls": settings.smtp_use_tls,
+        "from_email": settings.smtp_from_email,
+        "api_endpoint": settings.email_api_endpoint or None,
+        "api_key": settings.email_api_key or None,
+    }
+
+    # Skip if no email provider configured
+    if not smtp_config["host"] and not smtp_config["api_endpoint"]:
+        logger.warning("email.no_provider_configured", to=to, subject=subject)
+        return
+
+    try:
+        channel = EmailChannel(smtp_config)
+        notification = Notification(
+            type=NotificationType.COMPLIANCE_ALERT,
+            title=subject,
+            message=body,
+        )
+        await channel.send(notification, {"email": to})
+        logger.info("email.sent", to=to, subject=subject)
+    except Exception:
+        logger.exception("email.send_failed", to=to, subject=subject)
 
 
 @celery_app.task(name="app.workers.notification_tasks.send_slack_notification")

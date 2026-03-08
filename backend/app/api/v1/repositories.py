@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -21,6 +21,8 @@ async def list_repositories(
     member: OrgMember,
     db: DB,
     profile_id: UUID | None = None,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=100, description="Max records to return"),
 ) -> list[Repository]:
     """List repositories for the organization."""
     query = (
@@ -32,7 +34,7 @@ async def list_repositories(
     if profile_id:
         query = query.where(Repository.customer_profile_id == profile_id)
 
-    result = await db.execute(query.order_by(Repository.full_name))
+    result = await db.execute(query.order_by(Repository.full_name).offset(skip).limit(limit))
     return list(result.scalars().all())
 
 

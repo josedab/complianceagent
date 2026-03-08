@@ -63,6 +63,7 @@ from app.api.v1 import (
     ai_safety,
     alerts,
     api_gateway,
+    api_keys,
     api_monetization,
     arch_advisor,
     architecture_advisor,
@@ -236,6 +237,7 @@ from app.api.v1 import (
     self_healing_mesh,
     self_hosted,
     sentiment_analyzer,
+    settings as settings_router,
     simulator,
     sso,
     starter_kits,
@@ -253,6 +255,7 @@ from app.api.v1 import (
     vendor_assessment,
     vendor_risk,
     webhooks,
+    webhooks_outgoing,
     white_label_platform,
     workflow_automation,
     zero_trust_scanner,
@@ -274,6 +277,8 @@ router.include_router(organizations.router, prefix="/organizations", tags=["Orga
 router.include_router(
     org_hierarchy.router, prefix="/org-hierarchy", tags=["Organization Hierarchy"]
 )
+router.include_router(settings_router.router, prefix="/settings", tags=["User Settings"])
+router.include_router(api_keys.router, prefix="/api-keys", tags=["API Key Management"])
 
 # -- 📋 Compliance Core ----------------------------------------------------
 router.include_router(regulations.router, prefix="/regulations", tags=["Regulations"])
@@ -436,6 +441,9 @@ router.include_router(saas_platform.router, prefix="/saas-platform", tags=["SaaS
 router.include_router(self_hosted.router, prefix="/self-hosted", tags=["Self-Hosted Deployment"])
 router.include_router(public_api.router, prefix="/public-api", tags=["Public API & SDK"])
 router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
+router.include_router(
+    webhooks_outgoing.router, prefix="/webhooks/outgoing", tags=["Outgoing Webhooks"]
+)
 
 # -- 📚 Knowledge & Learning -----------------------------------------------
 router.include_router(graph.router, prefix="/graph", tags=["Knowledge Graph"])

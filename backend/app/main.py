@@ -7,11 +7,10 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy import text
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1 import router as api_v1_router
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import ClientDisconnect
-
 from app.core.config import settings
 from app.core.metrics import MetricsMiddleware, get_metrics
 from app.core.middleware import GlobalExceptionHandlerMiddleware, RateLimitMiddleware
@@ -102,15 +101,17 @@ def create_app() -> FastAPI:
     )
 
     # Request body size limit middleware (10 MB default)
-    MAX_BODY_SIZE = 10 * 1024 * 1024  # 10 MB
+    max_body_size = 10 * 1024 * 1024  # 10 MB
 
     class RequestBodySizeLimitMiddleware(BaseHTTPMiddleware):
         async def dispatch(self, request, call_next):
             content_length = request.headers.get("content-length")
-            if content_length and int(content_length) > MAX_BODY_SIZE:
+            if content_length and int(content_length) > max_body_size:
                 return JSONResponse(
                     status_code=413,
-                    content={"error": {"code": "payload_too_large", "message": "Request body too large"}},
+                    content={
+                        "error": {"code": "payload_too_large", "message": "Request body too large"}
+                    },
                 )
             return await call_next(request)
 
@@ -143,7 +144,7 @@ def create_app() -> FastAPI:
     # OpenTelemetry distributed tracing
     _setup_opentelemetry(app)
 
-    # Health check endpoint
+    # Liveness probe — always 200 if the process is running
     @app.get("/health")
     async def health_check() -> dict:
         return {
@@ -151,6 +152,48 @@ def create_app() -> FastAPI:
             "version": settings.app_version,
             "environment": settings.environment,
         }
+
+    # Readiness probe — checks DB and Redis availability
+    @app.get("/health/ready")
+    async def readiness_check() -> JSONResponse:
+        checks: dict[str, dict] = {}
+        overall = "ready"
+
+        # Database probe
+        try:
+            from app.core.database import engine
+
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            checks["database"] = {"status": "up"}
+        except Exception as exc:
+            checks["database"] = {"status": "down", "error": str(exc)[:120]}
+            overall = "degraded"
+
+        # Redis probe
+        try:
+            import redis as redis_lib
+
+            r = redis_lib.Redis.from_url(
+                settings.redis_url, decode_responses=True, socket_connect_timeout=2
+            )
+            r.ping()
+            r.close()
+            checks["redis"] = {"status": "up"}
+        except Exception as exc:
+            checks["redis"] = {"status": "down", "error": str(exc)[:120]}
+            overall = "degraded"
+
+        status_code = 200 if overall == "ready" else 503
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "status": overall,
+                "version": settings.app_version,
+                "environment": settings.environment,
+                "checks": checks,
+            },
+        )
 
     # Prometheus metrics endpoint
     @app.get("/metrics", response_class=PlainTextResponse)
@@ -166,6 +209,43 @@ def create_app() -> FastAPI:
             "version": settings.app_version,
             "docs": f"{settings.api_prefix}/docs" if settings.debug else None,
         }
+
+    # WebSocket endpoint for real-time notifications
+    from fastapi import WebSocket, WebSocketDisconnect
+
+    _ws_clients: set[WebSocket] = set()
+
+    @app.websocket("/ws/notifications")
+    async def ws_notifications(websocket: WebSocket) -> None:
+        """WebSocket endpoint for pushing real-time compliance events."""
+        await websocket.accept()
+        _ws_clients.add(websocket)
+        logger.info("ws.client_connected", total=len(_ws_clients))
+        try:
+            while True:
+                # Keep connection alive; client can send pings
+                data = await websocket.receive_text()
+                if data == "ping":
+                    await websocket.send_json({"type": "pong"})
+        except WebSocketDisconnect:
+            pass
+        finally:
+            _ws_clients.discard(websocket)
+            logger.info("ws.client_disconnected", total=len(_ws_clients))
+
+    async def broadcast_event(event: dict) -> None:
+        """Broadcast a compliance event to all connected WebSocket clients."""
+        dead: list[WebSocket] = []
+        for ws in _ws_clients:
+            try:
+                await ws.send_json(event)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            _ws_clients.discard(ws)
+
+    # Attach broadcast to app state so services can access it
+    app.state.broadcast_event = broadcast_event
 
     return app
 
