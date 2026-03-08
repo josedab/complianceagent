@@ -120,8 +120,37 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
     rate_limit_in_debug: bool = False  # Enable rate limiting even in debug mode
 
+    # Email
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    smtp_from_email: str = "noreply@complianceagent.io"
+    email_api_endpoint: str = ""
+    email_api_key: str = ""
+
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:8000"],
+        description=(
+            "Allowed CORS origins. Override via CORS_ORIGINS env var as a "
+            "JSON array, e.g. '[\"https://app.example.com\"]'."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _validate_cors_origins_in_production(self) -> "Settings":
+        _dev_origins = {"http://localhost:3000", "http://localhost:8000"}
+        if self.environment == "production" and set(self.cors_origins) == _dev_origins:
+            import warnings
+
+            warnings.warn(
+                "CORS_ORIGINS still contains only localhost defaults in production. "
+                "Set CORS_ORIGINS to your actual frontend domain(s).",
+                stacklevel=1,
+            )
+        return self
 
     @model_validator(mode="after")
     def _validate_secret_key_not_default_in_production(self) -> "Settings":
