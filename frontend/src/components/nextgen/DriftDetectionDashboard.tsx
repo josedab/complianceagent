@@ -1,17 +1,24 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Activity, AlertTriangle, CheckCircle, TrendingDown, Bell } from 'lucide-react'
-import { useDriftReport } from '@/hooks/useNextgenApi'
-import type { DriftEvent, DriftBaseline, DriftSeverity } from '@/types/nextgen'
+import { api } from '@/lib/api'
 
-const MOCK_BASELINE: DriftBaseline = {
-  id: 'bl-001', repo: 'acme/payments-api', branch: 'main', score: 92.5, captured_at: '2026-02-10T10:00:00Z',
+type DriftSeverity = 'critical' | 'high' | 'medium' | 'low'
+
+interface DriftEvent {
+  id: string; drift_type: string; severity: DriftSeverity; description: string
+  baseline_score: number; current_score: number; delta: number; detected_at: string
 }
 
-const MOCK_EVENTS: DriftEvent[] = [
-  { id: 'de1', repo: 'acme/payments-api', drift_type: 'regression', severity: 'high', description: 'New API endpoint bypasses GDPR consent check', baseline_score: 92.5, current_score: 78.0, delta: -14.5, detected_at: '2026-02-12T14:30:00Z' },
-  { id: 'de2', repo: 'acme/payments-api', drift_type: 'configuration_change', severity: 'medium', description: 'Encryption algorithm downgraded in config', baseline_score: 92.5, current_score: 85.0, delta: -7.5, detected_at: '2026-02-11T09:15:00Z' },
-  { id: 'de3', repo: 'acme/payments-api', drift_type: 'policy_violation', severity: 'critical', description: 'PHI retention period exceeds 30-day policy', baseline_score: 92.5, current_score: 70.0, delta: -22.5, detected_at: '2026-02-13T08:00:00Z' },
+interface DriftBaseline { score: number; captured_at: string }
+
+const FALLBACK_BASELINE: DriftBaseline = { score: 92.5, captured_at: '2026-02-10T10:00:00Z' }
+
+const FALLBACK_EVENTS: DriftEvent[] = [
+  { id: 'de1', drift_type: 'regression', severity: 'high', description: 'New API endpoint bypasses GDPR consent check', baseline_score: 92.5, current_score: 78.0, delta: -14.5, detected_at: '2026-02-12T14:30:00Z' },
+  { id: 'de2', drift_type: 'configuration_change', severity: 'medium', description: 'Encryption algorithm downgraded in config', baseline_score: 92.5, current_score: 85.0, delta: -7.5, detected_at: '2026-02-11T09:15:00Z' },
+  { id: 'de3', drift_type: 'policy_violation', severity: 'critical', description: 'PHI retention period exceeds 30-day policy', baseline_score: 92.5, current_score: 70.0, delta: -22.5, detected_at: '2026-02-13T08:00:00Z' },
 ]
 
 const severityColors: Record<DriftSeverity, { bg: string; text: string; border: string }> = {
@@ -22,22 +29,66 @@ const severityColors: Record<DriftSeverity, { bg: string; text: string; border: 
 }
 
 export default function DriftDetectionDashboard() {
-  const { data: liveReport } = useDriftReport('current-repo')
+  const [events, setEvents] = useState<DriftEvent[]>(FALLBACK_EVENTS)
+  const [baseline, setBaseline] = useState<DriftBaseline>(FALLBACK_BASELINE)
+  const [loading, setLoading] = useState(true)
+  const [isDemo, setIsDemo] = useState(false)
 
-  const events = liveReport?.events || MOCK_EVENTS
-  const baseline = liveReport?.baseline || MOCK_BASELINE
+  useEffect(() => {
+    api.get('/drift-detection/scans')
+      .then(res => {
+        const data = res.data
+        const scans = data?.items || data?.scans || (Array.isArray(data) ? data : null)
+        if (scans && scans.length > 0) {
+          setEvents(scans.map((s: Record<string, unknown>, i: number) => ({
+            id: s.id || `de${i}`,
+            drift_type: s.drift_type || s.type || 'unknown',
+            severity: (s.severity as DriftSeverity) || 'medium',
+            description: s.description || s.message || 'Drift detected',
+            baseline_score: Number(s.baseline_score ?? 92.5),
+            current_score: Number(s.current_score ?? s.score ?? 85),
+            delta: Number(s.delta ?? -(92.5 - Number(s.current_score ?? s.score ?? 85))),
+            detected_at: (s.detected_at || s.created_at || new Date().toISOString()) as string,
+          })))
+          if (data.baseline) setBaseline(data.baseline)
+          setIsDemo(false)
+        } else {
+          setIsDemo(true)
+        }
+      })
+      .catch(() => { setIsDemo(true) })
+      .finally(() => setLoading(false))
+  }, [])
+
   const currentScore = events.length > 0 ? Math.min(...events.map(e => e.current_score)) : baseline.score
   const criticalCount = events.filter(e => e.severity === 'critical').length
   const highCount = events.filter(e => e.severity === 'high').length
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="card h-24 bg-gray-100 animate-pulse" />)}
+        </div>
+        <div className="card h-48 bg-gray-100 animate-pulse" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      {isDemo && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm">
+          Using demo data — connect backend for live data
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Compliance Drift Detection</h1>
         <p className="text-gray-500">Monitor and auto-remediate compliance regressions</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
           <div className="flex items-center justify-between">
@@ -73,15 +124,14 @@ export default function DriftDetectionDashboard() {
         </div>
       </div>
 
-      {/* Events */}
       <div className="card">
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="h-5 w-5 text-orange-500" />
           <h2 className="text-lg font-semibold text-gray-900">Drift Events</h2>
         </div>
         <div className="space-y-3">
-          {events.sort((a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime()).map(event => {
-            const colors = severityColors[event.severity]
+          {[...events].sort((a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime()).map(event => {
+            const colors = severityColors[event.severity] || severityColors.medium
             return (
               <div key={event.id} className={`p-4 rounded-lg border ${colors.border} ${colors.bg}`}>
                 <div className="flex items-center justify-between mb-2">

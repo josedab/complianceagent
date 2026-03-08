@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Layers, Activity, GitCompare, AlertTriangle, Play, Clock } from 'lucide-react'
+import { api } from '@/lib/api'
 
 interface TwinSnapshot {
   id: string
@@ -20,13 +21,13 @@ interface SimulationResult {
   status: string
 }
 
-const MOCK_SNAPSHOTS: TwinSnapshot[] = [
+const FALLBACK_SNAPSHOTS: TwinSnapshot[] = [
   { id: 'snap-1', repository: 'api-service', overall_score: 87.5, issues_count: 12, timestamp: '2026-02-20T10:00:00Z' },
   { id: 'snap-2', repository: 'auth-service', overall_score: 92.1, issues_count: 5, timestamp: '2026-02-20T09:30:00Z' },
   { id: 'snap-3', repository: 'payment-service', overall_score: 78.3, issues_count: 23, timestamp: '2026-02-20T09:00:00Z' },
 ]
 
-const MOCK_SIMULATIONS: SimulationResult[] = [
+const FALLBACK_SIMULATIONS: SimulationResult[] = [
   { id: 'sim-1', scenario: 'EU AI Act — High-risk classification', before_score: 87.5, after_score: 72.1, delta: -15.4, status: 'completed' },
   { id: 'sim-2', scenario: 'GDPR — New data portability requirements', before_score: 92.1, after_score: 88.5, delta: -3.6, status: 'completed' },
   { id: 'sim-3', scenario: 'PCI-DSS 4.0 — API security mandates', before_score: 78.3, after_score: 65.0, delta: -13.3, status: 'completed' },
@@ -34,9 +35,61 @@ const MOCK_SIMULATIONS: SimulationResult[] = [
 
 export default function DigitalTwinDashboard() {
   const [activeTab, setActiveTab] = useState<'snapshots' | 'simulations'>('snapshots')
+  const [snapshots, setSnapshots] = useState<TwinSnapshot[]>(FALLBACK_SNAPSHOTS)
+  const [simulations, setSimulations] = useState<SimulationResult[]>(FALLBACK_SIMULATIONS)
+  const [loading, setLoading] = useState(true)
+  const [isDemo, setIsDemo] = useState(false)
+
+  useEffect(() => {
+    api.get('/digital-twin/snapshots')
+      .then(res => {
+        const data = res.data
+        const items = data?.items || data?.snapshots || (Array.isArray(data) ? data : null)
+        if (items && items.length > 0) {
+          setSnapshots(items.map((s: Record<string, unknown>, i: number) => ({
+            id: (s.id as string) || `snap-${i}`,
+            repository: (s.repository as string) || 'unknown',
+            overall_score: Number(s.overall_score ?? s.score ?? 0),
+            issues_count: Number(s.issues_count ?? s.issues ?? 0),
+            timestamp: (s.timestamp || s.created_at || new Date().toISOString()) as string,
+          })))
+          if (data?.simulations && Array.isArray(data.simulations)) {
+            setSimulations(data.simulations)
+          }
+          setIsDemo(false)
+        } else {
+          setIsDemo(true)
+        }
+      })
+      .catch(() => { setIsDemo(true) })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="bg-white dark:bg-gray-800 rounded-lg border p-4 h-20 animate-pulse" />)}
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border h-48 animate-pulse" />
+      </div>
+    )
+  }
+
+  const avgScore = snapshots.length > 0
+    ? (snapshots.reduce((a, s) => a + s.overall_score, 0) / snapshots.length).toFixed(1)
+    : '0.0'
+  const totalIssues = snapshots.reduce((a, s) => a + s.issues_count, 0)
 
   return (
     <div className="space-y-6">
+      {isDemo && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm">
+          Using demo data — connect backend for live data
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold">Compliance Digital Twin</h1>
         <p className="text-gray-500 mt-1">Real-time virtual replica of your compliance posture with what-if simulation</p>
@@ -46,19 +99,19 @@ export default function DigitalTwinDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1"><Layers className="w-4 h-4" /> Repositories</div>
-          <div className="text-2xl font-bold">{MOCK_SNAPSHOTS.length}</div>
+          <div className="text-2xl font-bold">{snapshots.length}</div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1"><Activity className="w-4 h-4" /> Avg Score</div>
-          <div className="text-2xl font-bold">{(MOCK_SNAPSHOTS.reduce((a, s) => a + s.overall_score, 0) / MOCK_SNAPSHOTS.length).toFixed(1)}%</div>
+          <div className="text-2xl font-bold">{avgScore}%</div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1"><AlertTriangle className="w-4 h-4" /> Total Issues</div>
-          <div className="text-2xl font-bold">{MOCK_SNAPSHOTS.reduce((a, s) => a + s.issues_count, 0)}</div>
+          <div className="text-2xl font-bold">{totalIssues}</div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500 mb-1"><Play className="w-4 h-4" /> Simulations</div>
-          <div className="text-2xl font-bold">{MOCK_SIMULATIONS.length}</div>
+          <div className="text-2xl font-bold">{simulations.length}</div>
         </div>
       </div>
 
@@ -85,7 +138,7 @@ export default function DigitalTwinDashboard() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_SNAPSHOTS.map(snap => (
+              {snapshots.map(snap => (
                 <tr key={snap.id} className="border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="p-3 font-medium">{snap.repository}</td>
                   <td className="p-3">
@@ -104,7 +157,7 @@ export default function DigitalTwinDashboard() {
 
       {activeTab === 'simulations' && (
         <div className="space-y-3">
-          {MOCK_SIMULATIONS.map(sim => (
+          {simulations.map(sim => (
             <div key={sim.id} className="bg-white dark:bg-gray-800 rounded-lg border p-4">
               <div className="flex justify-between items-start">
                 <div>

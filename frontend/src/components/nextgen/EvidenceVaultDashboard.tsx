@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Lock, FileCheck, Eye, Shield, Download } from 'lucide-react'
-import { useEvidence } from '@/hooks/useNextgenApi'
+import { api } from '@/lib/api'
 import type { EvidenceItem, AuditReport, AuditorSession, ControlFramework } from '@/types/nextgen'
 
-const MOCK_EVIDENCE: EvidenceItem[] = [
+const FALLBACK_EVIDENCE: EvidenceItem[] = [
   { id: 'ev1', evidence_type: 'scan_result', title: 'SAST Scan - Q1 2026', description: 'Static analysis security scan results', content_hash: 'sha256:a1b2c3...', framework: 'soc2', control_id: 'CC6.1', created_at: '2026-02-01T10:00:00Z' },
   { id: 'ev2', evidence_type: 'policy_document', title: 'Data Retention Policy v3.2', description: 'Updated data retention policy', content_hash: 'sha256:d4e5f6...', framework: 'gdpr', control_id: 'Art.5(1)(e)', created_at: '2026-01-15T14:30:00Z' },
   { id: 'ev3', evidence_type: 'test_result', title: 'Penetration Test - Feb 2026', description: 'External penetration test results', content_hash: 'sha256:g7h8i9...', framework: 'pci_dss', control_id: 'Req.11.3', created_at: '2026-02-10T09:00:00Z' },
@@ -13,11 +13,11 @@ const MOCK_EVIDENCE: EvidenceItem[] = [
   { id: 'ev5', evidence_type: 'code_review', title: 'Compliance Code Review - Sprint 24', description: 'Code review for GDPR consent module', content_hash: 'sha256:m3n4o5...', framework: 'soc2', control_id: 'CC8.1', created_at: '2026-02-12T16:00:00Z' },
 ]
 
-const MOCK_REPORT: AuditReport = {
+const FALLBACK_REPORT: AuditReport = {
   framework: 'soc2', total_controls: 61, controls_with_evidence: 48, coverage_percentage: 78.7, generated_at: '2026-02-13T10:00:00Z',
 }
 
-const MOCK_SESSION: AuditorSession = {
+const FALLBACK_SESSION: AuditorSession = {
   id: 'ses-001', auditor_email: 'auditor@deloitte.com', auditor_name: 'Jane Auditor', is_active: true, expires_at: '2026-05-13T10:00:00Z',
 }
 
@@ -27,12 +27,53 @@ const frameworkLabels: Record<ControlFramework, string> = {
 
 export default function EvidenceVaultDashboard() {
   const [selectedFramework, setSelectedFramework] = useState<ControlFramework | 'all'>('all')
-  const { data: liveEvidence } = useEvidence(selectedFramework === 'all' ? undefined : selectedFramework)
-  const evidence = liveEvidence || MOCK_EVIDENCE
+  const [evidence, setEvidence] = useState<EvidenceItem[]>(FALLBACK_EVIDENCE)
+  const [report, setReport] = useState<AuditReport>(FALLBACK_REPORT)
+  const [session, setSession] = useState<AuditorSession>(FALLBACK_SESSION)
+  const [loading, setLoading] = useState(true)
+  const [isDemo, setIsDemo] = useState(false)
+
+  useEffect(() => {
+    api.get('/evidence-vault/evidence')
+      .then(res => {
+        const data = res.data
+        const items = data?.items || data?.evidence || (Array.isArray(data) ? data : null)
+        if (items && items.length > 0) {
+          setEvidence(items)
+          if (data?.report) setReport(data.report)
+          if (data?.session) setSession(data.session)
+          setIsDemo(false)
+        } else {
+          setIsDemo(true)
+        }
+      })
+      .catch(() => { setIsDemo(true) })
+      .finally(() => setLoading(false))
+  }, [])
+
   const filtered = selectedFramework === 'all' ? evidence : evidence.filter(e => e.framework === selectedFramework)
+  const frameworks = Array.from(new Set(evidence.map(e => e.framework)))
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="card h-24 bg-gray-100 animate-pulse" />)}
+        </div>
+        <div className="card h-48 bg-gray-100 animate-pulse" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
+      {isDemo && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm">
+          Using demo data — connect backend for live data
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Evidence Vault & Auditor Portal</h1>
         <p className="text-gray-500">Immutable evidence storage with hash-chain verification</p>
@@ -42,13 +83,13 @@ export default function EvidenceVaultDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
           <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">Total Evidence</p><FileCheck className="h-5 w-5 text-blue-600" /></div>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{MOCK_EVIDENCE.length}</p>
-          <p className="mt-1 text-sm text-gray-500">Across all frameworks</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{evidence.length}</p>
+          <p className="mt-1 text-sm text-gray-500">{frameworks.length} frameworks covered</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">SOC 2 Coverage</p><Shield className="h-5 w-5 text-green-600" /></div>
-          <p className="mt-2 text-3xl font-bold text-green-600">{MOCK_REPORT.coverage_percentage}%</p>
-          <p className="mt-1 text-sm text-gray-500">{MOCK_REPORT.controls_with_evidence}/{MOCK_REPORT.total_controls} controls</p>
+          <p className="mt-2 text-3xl font-bold text-green-600">{report.coverage_percentage}%</p>
+          <p className="mt-1 text-sm text-gray-500">{report.controls_with_evidence}/{report.total_controls} controls</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">Chain Integrity</p><Lock className="h-5 w-5 text-purple-600" /></div>
@@ -58,7 +99,7 @@ export default function EvidenceVaultDashboard() {
         <div className="card">
           <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">Auditor Sessions</p><Eye className="h-5 w-5 text-orange-600" /></div>
           <p className="mt-2 text-3xl font-bold text-gray-900">1</p>
-          <p className="mt-1 text-sm text-gray-500">{MOCK_SESSION.auditor_name}</p>
+          <p className="mt-1 text-sm text-gray-500">{session.auditor_name}</p>
         </div>
       </div>
 
