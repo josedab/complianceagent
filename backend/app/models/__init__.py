@@ -29,6 +29,30 @@ from app.models.pattern_marketplace import (
     PatternVersion,
     PublisherProfile,
 )
+
+# Production Features models
+from app.models.production_features import (
+    AlertPolicyRecord,
+    APIKeyRecord,
+    AuditorSessionRecord,
+    AutoCollectedEvidenceRecord,
+    BenchmarkSubmissionRecord,
+    CertificationReadinessRecord,
+    ChatMessageRecord,
+    ChatSessionRecord,
+    IaCScanResultRecord,
+    KnowledgeGraphEdgeRecord,
+    KnowledgeGraphNodeRecord,
+    LegislativeActivityRecord,
+    MarketplaceCheckRunRecord,
+    MarketplaceInstallRecord,
+    NotificationPreferenceRecord,
+    OAuth2ClientRecord,
+    RegPredictionRecord,
+    RegulatorySignalRecord,
+    WebhookEventRecord,
+    WebhookIntegrationRecord,
+)
 from app.models.regulation import Regulation, RegulatorySource
 from app.models.requirement import Requirement
 
@@ -66,29 +90,6 @@ from app.models.testing import (
     TestSuiteRun,
 )
 from app.models.user import User
-
-# Production Features models
-from app.models.production_features import (
-    AlertPolicyRecord,
-    APIKeyRecord,
-    AuditorSessionRecord,
-    AutoCollectedEvidenceRecord,
-    BenchmarkSubmissionRecord,
-    CertificationReadinessRecord,
-    ChatMessageRecord,
-    ChatSessionRecord,
-    IaCScanResultRecord,
-    KnowledgeGraphEdgeRecord,
-    KnowledgeGraphNodeRecord,
-    LegislativeActivityRecord,
-    MarketplaceCheckRunRecord,
-    MarketplaceInstallRecord,
-    OAuth2ClientRecord,
-    RegPredictionRecord,
-    RegulatorySignalRecord,
-    WebhookEventRecord,
-    WebhookIntegrationRecord,
-)
 
 
 __all__ = [
@@ -160,6 +161,7 @@ __all__ = [
     "LegislativeActivityRecord",
     "MarketplaceCheckRunRecord",
     "MarketplaceInstallRecord",
+    "NotificationPreferenceRecord",
     "OAuth2ClientRecord",
     "RegPredictionRecord",
     "RegulatorySignalRecord",

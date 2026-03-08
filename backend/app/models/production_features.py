@@ -374,3 +374,20 @@ class CertificationReadinessRecord(Base, UUIDMixin, TimestampMixin):
     remediation_priorities: Mapped[dict] = mapped_column(JSONBType, default=list)
     report_data: Mapped[dict] = mapped_column(JSONBType, default=dict)
     generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ─── Notification Preferences ─────────────────────────────────────────────
+
+
+class NotificationPreferenceRecord(Base, UUIDMixin, TimestampMixin):
+    """User notification preferences."""
+
+    __tablename__ = "notification_preferences"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUIDType, unique=True, nullable=False, index=True)
+    email_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    email_digest: Mapped[str] = mapped_column(String(20), default="daily")
+    slack_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    slack_webhook_url: Mapped[str | None] = mapped_column(String(500))
+    webhook_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    webhook_url: Mapped[str | None] = mapped_column(String(2048))
