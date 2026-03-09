@@ -8,7 +8,6 @@ Production-grade with:
 """
 
 import hashlib
-import json
 import secrets
 from datetime import UTC, datetime
 from uuid import UUID
@@ -416,7 +415,7 @@ class ClientSDKService:
                 "title": "Getting Started with ComplianceAgent API",
                 "steps": [
                     {"step": 1, "title": "Create an API Key", "description": "Sign up and create an API key at https://app.complianceagent.ai/settings/api"},
-                    {"step": 2, "title": "Install SDK", "description": "Install the SDK for your language", "options": {rt.value: pkg.install_command for rt, pkg in zip([p.runtime for p in _SDK_PACKAGES], _SDK_PACKAGES)}},
+                    {"step": 2, "title": "Install SDK", "description": "Install the SDK for your language", "options": {rt.value: pkg.install_command for rt, pkg in zip([p.runtime for p in _SDK_PACKAGES], _SDK_PACKAGES, strict=True)}},
                     {"step": 3, "title": "Make Your First Request", "description": "Check your compliance posture score"},
                     {"step": 4, "title": "Explore Endpoints", "description": f"Browse {len(_SDK_ENDPOINTS)} available endpoints across {len(set(e.category for e in _SDK_ENDPOINTS))} categories"},
                 ],

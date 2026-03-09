@@ -1,7 +1,7 @@
 """Scoring data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -73,7 +73,7 @@ class ScoringResult:
     top_gaps: list[GapDetail]
     badge_url: str | None = None
     badge_markdown: str | None = None
-    scored_at: datetime = field(default_factory=datetime.utcnow)
+    scored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     scan_duration_seconds: float = 0.0
     confidence: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)

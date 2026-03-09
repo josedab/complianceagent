@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -50,7 +50,7 @@ class ComplianceDebtItem:
     remediation_cost: float = 500.0
     days_outstanding: int = 0
     assigned_team: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     due_date: datetime | None = None
 
 

@@ -1,7 +1,7 @@
 """Data models for Cross-Repository Compliance Orchestration."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -66,8 +66,8 @@ class CompliancePolicy:
 
     # Status
     is_active: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     created_by: str = ""
 
 
@@ -104,8 +104,8 @@ class ManagedRepository:
     # Metadata
     language: str = ""
     is_active: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -133,7 +133,7 @@ class PolicyViolation:
     waiver_reason: str | None = None
 
     # Metadata
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -141,7 +141,7 @@ class OrganizationDashboard:
     """Dashboard data for organization compliance."""
 
     organization_id: UUID
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Repository summary
     total_repositories: int = 0
@@ -188,7 +188,7 @@ class BatchScanResult:
     results: list[dict[str, Any]] = field(default_factory=list)
 
     # Timing
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     duration_seconds: float = 0.0
 

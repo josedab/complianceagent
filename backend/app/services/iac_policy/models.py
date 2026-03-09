@@ -1,6 +1,5 @@
 """Multi-Cloud IaC Policy Engine models."""
 
-import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
@@ -186,16 +185,15 @@ class IaCScanResult:
                 continue
             seen_rules.add(v.rule_id)
 
-            rule_name = v.rule_id.lower().replace("-", "_")
             lines.extend([
                 f"# {v.description}",
-                f"deny[msg] {{",
-                f'    resource := input.resources[_]',
+                "deny[msg] {",
+                "    resource := input.resources[_]",
                 f'    resource.type == "{v.resource_type}"',
-                f'    # Check for compliance violation: {v.rule_id}',
-                f'    not resource.properties.compliant',
+                f"    # Check for compliance violation: {v.rule_id}",
+                "    not resource.properties.compliant",
                 f'    msg := sprintf("{v.rule_id}: %s - {v.description}", [resource.name])',
-                f"}}",
+                "}",
                 "",
             ])
 

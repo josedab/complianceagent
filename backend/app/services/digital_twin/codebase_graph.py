@@ -150,8 +150,8 @@ class CodebaseGraph:
     repository_id: UUID | None = None
     organization_id: UUID | None = None
     name: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Graph components
     nodes: list[CodeNode] = field(default_factory=list)

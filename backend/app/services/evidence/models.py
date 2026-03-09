@@ -1,7 +1,7 @@
 """Data models for Multi-Framework Evidence Auto-Generator."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -73,7 +73,7 @@ class EvidenceItem:
     source: str = ""  # Where evidence was collected from
     content: str = ""  # Actual evidence content or reference
     content_hash: str = ""  # For integrity verification
-    collected_at: datetime = field(default_factory=datetime.utcnow)
+    collected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     collected_by: str = "system"
     expires_at: datetime | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -100,8 +100,8 @@ class EvidenceCollection:
     evidence: list[EvidenceItem] = field(default_factory=list)
 
     # Tracking
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     validated_at: datetime | None = None
     validated_by: str | None = None
 
@@ -142,7 +142,7 @@ class EvidenceReport:
     gaps: list[dict[str, Any]] = field(default_factory=list)
 
     # Metadata
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     generated_by: str = "system"
     report_format: str = "json"  # json, pdf, excel
 

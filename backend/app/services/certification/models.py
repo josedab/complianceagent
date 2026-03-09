@@ -91,7 +91,7 @@ class Course:
     enrolled_count: int = 0
     completion_rate: float = 0.0
     rating: float = 0.0
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -101,7 +101,7 @@ class Enrollment:
     id: UUID = field(default_factory=uuid4)
     user_id: UUID | None = None
     course_id: UUID | None = None
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     progress_pct: float = 0.0
     current_module: str = ""
     completed_modules: list[str] = field(default_factory=list)
@@ -117,7 +117,7 @@ class Certificate:
     user_id: UUID | None = None
     course_id: UUID | None = None
     certificate_number: str = ""
-    issued_at: datetime = field(default_factory=datetime.utcnow)
+    issued_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime = field(default_factory=lambda: datetime.now(UTC) + timedelta(days=730))
     status: CertificateStatus = CertificateStatus.PASSED
     score: float = 0.0
@@ -136,7 +136,7 @@ class TutorConversation:
     question: str = ""
     answer: str = ""
     context: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -162,4 +162,4 @@ class CourseProgress:
     total_modules: int = 0
     avg_quiz_score: float = 0.0
     time_spent_minutes: int = 0
-    last_activity: datetime = field(default_factory=datetime.utcnow)
+    last_activity: datetime = field(default_factory=lambda: datetime.now(UTC))

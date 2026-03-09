@@ -60,7 +60,7 @@ class MigrationTask:
     related_files: list[str] = field(default_factory=list)
     related_regulations: list[str] = field(default_factory=list)
     acceptance_criteria: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -89,8 +89,8 @@ class MigrationPlan:
     organization_id: UUID | None = None
     name: str = ""
     description: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Plan components
     tasks: list[MigrationTask] = field(default_factory=list)

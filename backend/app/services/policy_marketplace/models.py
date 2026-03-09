@@ -1,7 +1,7 @@
 """Data models for the Compliance-as-Code Policy Marketplace."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -65,8 +65,8 @@ class PolicyPack:
     rating: float = 0.0
     review_count: int = 0
     tags: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -78,7 +78,7 @@ class PolicyPackVersion:
     version: str = "1.0.0"
     changelog: str = ""
     files: list[PolicyFile] = field(default_factory=list)
-    published_at: datetime = field(default_factory=datetime.utcnow)
+    published_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -91,7 +91,7 @@ class PolicyReview:
     rating: float = 5.0
     comment: str = ""
     verified_purchase: bool = False
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -107,7 +107,7 @@ class CreatorProfile:
     total_downloads: int = 0
     total_earnings_usd: float = 0.0
     verified: bool = False
-    joined_at: datetime = field(default_factory=datetime.utcnow)
+    joined_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -120,7 +120,7 @@ class Purchase:
     price_usd: float = 0.0
     creator_payout_usd: float = 0.0
     platform_fee_usd: float = 0.0
-    purchased_at: datetime = field(default_factory=datetime.utcnow)
+    purchased_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass

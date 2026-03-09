@@ -1,7 +1,7 @@
 """Data models for Natural Language Compliance Query Engine."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -66,7 +66,7 @@ class ParsedQuery:
     time_reference: str | None = None  # "last week", "since January", etc.
 
     # Metadata
-    parsed_at: datetime = field(default_factory=datetime.utcnow)
+    parsed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -104,7 +104,7 @@ class QueryAnswer:
     regulation_context: dict[str, Any] = field(default_factory=dict)
 
     # Metadata
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     model_used: str = ""
     tokens_used: int = 0
 
@@ -127,8 +127,8 @@ class ConversationContext:
     topic_focus: str | None = None
 
     # Session
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    last_activity: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    last_activity: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # Intent detection patterns

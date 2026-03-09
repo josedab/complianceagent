@@ -66,7 +66,7 @@ class ParsedQuery:
 
     # Confidence
     confidence: float = 0.0
-    parsed_at: datetime = field(default_factory=datetime.utcnow)
+    parsed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -93,7 +93,7 @@ class QueryResult:
     confidence: float = 0.0
     sources_used: list[str] = field(default_factory=list)
     execution_time_ms: float = 0.0
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -113,8 +113,8 @@ class QuerySession:
     active_regulations: list[str] = field(default_factory=list)
     active_repositories: list[UUID] = field(default_factory=list)
 
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class NaturalLanguageQueryEngine:

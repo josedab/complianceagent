@@ -1,6 +1,5 @@
 """Real-Time Compliance Streaming Protocol models."""
 
-import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

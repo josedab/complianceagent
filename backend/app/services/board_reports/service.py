@@ -5,7 +5,6 @@ traffic-light dashboards, trend analysis, and exportable formats.
 """
 
 import json
-
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any

@@ -608,7 +608,6 @@ class ComplianceSimulator:
         target = scenario.parameters.get("target_company", "Unknown")
         target_size = scenario.parameters.get("target_employees", 100)
         target_jurisdictions = scenario.parameters.get("target_jurisdictions", [])
-        target_frameworks = scenario.parameters.get("target_frameworks", [])
 
         # M&A introduces data consolidation risks
         result.new_issues.append(ComplianceIssue(

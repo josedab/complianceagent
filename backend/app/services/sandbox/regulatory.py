@@ -70,7 +70,7 @@ class SandboxApplication:
     organization_id: UUID | None = None
     provider: SandboxProvider = SandboxProvider.EU_AI_ACT
     status: ApplicationStatus = ApplicationStatus.DRAFT
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     submitted_at: datetime | None = None
 
     # Application details
@@ -139,7 +139,7 @@ class SandboxEvidence:
     title: str = ""
     description: str = ""
     file_reference: str | None = None
-    collected_at: datetime = field(default_factory=datetime.utcnow)
+    collected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     verified: bool = False
     verified_by: str | None = None
 

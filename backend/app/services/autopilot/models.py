@@ -1,6 +1,6 @@
 """Data models for Agentic Compliance Autopilot."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -84,7 +84,7 @@ class ComplianceViolation(BaseModel):
     repository_id: UUID | None = None
     scan_id: UUID | None = None
 
-    detected_at: datetime = Field(default_factory=datetime.utcnow)
+    detected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class RemediationAction(BaseModel):
@@ -138,7 +138,7 @@ class RemediationAction(BaseModel):
     approved_at: datetime | None = None
     rejection_reason: str | None = None
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class RemediationPlan(BaseModel):
@@ -168,8 +168,8 @@ class RemediationPlan(BaseModel):
     # Status
     status: RemediationStatus = RemediationStatus.PENDING
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class AutopilotConfig(BaseModel):
@@ -223,7 +223,7 @@ class RemediationResult(BaseModel):
     error: str | None = None
     rollback_performed: bool = False
 
-    completed_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class AutopilotSession(BaseModel):
@@ -243,7 +243,7 @@ class AutopilotSession(BaseModel):
     config: AutopilotConfig = Field(default_factory=AutopilotConfig)
 
     # Execution
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
 
     # Statistics

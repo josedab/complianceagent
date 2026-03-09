@@ -7,14 +7,12 @@ Production-grade with:
 - Streaming SSE endpoint support
 """
 
-import hashlib
 import json
 import math
 import re
 import time
 from datetime import UTC, datetime
-from typing import Any, AsyncGenerator
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,8 +28,8 @@ from app.services.copilot_chat.models import (
     PersonaView,
     RAGChunk,
     RAGContext,
-    SSEEvent,
     SimplifiedResponse,
+    SSEEvent,
     UserPersona,
     VisualType,
 )
@@ -763,7 +761,7 @@ class CopilotChatService:
         """Compute cosine similarity between two embedding vectors."""
         if not a or not b or len(a) != len(b):
             return 0.0
-        dot = sum(x * y for x, y in zip(a, b))
+        dot = sum(x * y for x, y in zip(a, b, strict=True))
         norm_a = math.sqrt(sum(x * x for x in a))
         norm_b = math.sqrt(sum(x * x for x in b))
         if norm_a == 0 or norm_b == 0:
@@ -863,7 +861,7 @@ class CopilotChatService:
 
             # Extract claims (sentences with specific regulation references)
             claim_pattern = re.compile(
-                r'[^.]*(?:article|section|requirement|control|rule)\s+\d+[^.]*\.',
+                r"[^.]*(?:article|section|requirement|control|rule)\s+\d+[^.]*\.",
                 re.IGNORECASE,
             )
             claims = claim_pattern.findall(response_text)
@@ -931,7 +929,7 @@ class CopilotChatService:
 
         # Build context-aware prompt
         prompt = self._build_persona_prompt(session.persona)
-        context_text = "\n".join(
+        _context_text = "\n".join(
             f"[{c.get('title', '')}]: {c.get('text', '')}"
             for c in rag_context.chunks[:3]
         )

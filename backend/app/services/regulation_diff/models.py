@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 
 
@@ -34,7 +34,7 @@ class RegulationVersion:
     version: str
     title: str
     effective_date: datetime
-    published_date: datetime = field(default_factory=datetime.utcnow)
+    published_date: datetime = field(default_factory=lambda: datetime.now(UTC))
     total_articles: int = 0
     total_words: int = 0
     source_url: str = ""
@@ -57,7 +57,7 @@ class RegulationDiff:
     ai_summary: str = ""
     impact_assessment: str = ""
     changes: list[ArticleChange] = field(default_factory=list)
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -53,7 +53,7 @@ class GovernanceMember:
     reputation_score: float = 50.0
     proposals_created: int = 0
     votes_cast: int = 0
-    joined_at: datetime = field(default_factory=datetime.utcnow)
+    joined_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -66,7 +66,7 @@ class Vote:
     choice: VoteChoice
     voting_power: float
     rationale: str = ""
-    cast_at: datetime = field(default_factory=datetime.utcnow)
+    cast_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -89,7 +89,7 @@ class GovernanceProposal:
     quorum_required: float = 0.6
     approval_threshold: float = 0.66
     voting_period_hours: int = 48
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     voting_ends_at: datetime | None = None
     executed_at: datetime | None = None
     execution_hash: str = ""

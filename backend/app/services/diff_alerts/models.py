@@ -1,7 +1,7 @@
 """Diff alerts data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -103,7 +103,7 @@ class RegulatoryAlert:
 
     # Status tracking
     status: AlertStatus = AlertStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     acknowledged_at: datetime | None = None
     acknowledged_by: UUID | None = None
     resolved_at: datetime | None = None
@@ -123,7 +123,7 @@ class AlertAcknowledgment:
     alert_id: UUID
     user_id: UUID
     organization_id: UUID
-    acknowledged_at: datetime = field(default_factory=datetime.utcnow)
+    acknowledged_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     notes: str | None = None
     action_taken: str | None = None
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -62,7 +62,7 @@ class APISubscription:
     monthly_cost: float = 0.0
     api_key: str = ""
     active: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -76,7 +76,7 @@ class UsageRecord:
     compute_time_ms: float = 0.0
     cost: float = 0.0
     period: str = ""
-    recorded_at: datetime = field(default_factory=datetime.utcnow)
+    recorded_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass

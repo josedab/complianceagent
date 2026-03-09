@@ -1,7 +1,7 @@
 """Data models for Compliance Playbook Generator."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -134,8 +134,8 @@ class Playbook:
     # Metadata
     version: str = "1.0.0"
     author: str = "system"
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     tags: list[str] = field(default_factory=list)
 
 

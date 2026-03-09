@@ -1,7 +1,7 @@
 """Vendor assessment data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -74,8 +74,8 @@ class Vendor:
     contract_expiration: datetime | None = None
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     created_by: UUID | None = None
     notes: str = ""
     metadata: dict = field(default_factory=dict)
@@ -91,7 +91,7 @@ class VendorAssessment:
 
     # Assessment details
     assessment_type: str = "initial"  # initial, periodic, incident
-    assessment_date: datetime = field(default_factory=datetime.utcnow)
+    assessment_date: datetime = field(default_factory=lambda: datetime.now(UTC))
     assessor: str = ""
 
     # Scores (0-100)
@@ -190,7 +190,7 @@ class DependencyScanResult:
     id: UUID = field(default_factory=uuid4)
     repository_id: UUID | None = None
     organization_id: UUID | None = None
-    scan_date: datetime = field(default_factory=datetime.utcnow)
+    scan_date: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Summary
     total_dependencies: int = 0

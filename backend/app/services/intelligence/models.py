@@ -1,7 +1,7 @@
 """Data models for Regulatory Intelligence Feed."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -81,7 +81,7 @@ class RegulatoryUpdate:
     severity: UpdateSeverity = UpdateSeverity.MEDIUM
     effective_date: datetime | None = None
     published_date: datetime | None = None
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     affected_regulations: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     raw_content: str = ""
@@ -105,7 +105,7 @@ class RelevanceScore:
     confidence: float = 0.0
     explanation: str = ""
     matched_criteria: list[str] = field(default_factory=list)
-    scored_at: datetime = field(default_factory=datetime.utcnow)
+    scored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -147,7 +147,7 @@ class IntelligenceAlert:
     read_at: datetime | None = None
     acknowledged_at: datetime | None = None
     acknowledged_by: UUID | None = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -165,7 +165,7 @@ class IntelligenceDigest:
     updates: list[RegulatoryUpdate] = field(default_factory=list)
     alerts: list[IntelligenceAlert] = field(default_factory=list)
     summary: str = ""
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass

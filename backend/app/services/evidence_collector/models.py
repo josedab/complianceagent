@@ -1,7 +1,7 @@
 """Evidence collection data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -67,7 +67,7 @@ class EvidenceItem:
     file_path: str | None = None
     file_size: int = 0
     mime_type: str = "text/plain"
-    collected_at: datetime = field(default_factory=datetime.utcnow)
+    collected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     collected_by: str = "system"
     valid_from: datetime | None = None
     valid_until: datetime | None = None
@@ -128,7 +128,7 @@ class AuditPackage:
     total_controls: int = 0
     controls_with_evidence: int = 0
     coverage_percentage: float = 0.0
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     created_by: UUID | None = None
     completed_at: datetime | None = None
     exported_at: datetime | None = None

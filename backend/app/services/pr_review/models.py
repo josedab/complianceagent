@@ -1,7 +1,7 @@
 """Data models for PR Review service."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -68,7 +68,7 @@ class ComplianceViolation:
     suggestion: str | None = None
     evidence: str | None = None
     confidence: float = 0.0
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -99,7 +99,7 @@ class AutoFix:
     description: str = ""
     confidence: float = 0.0
     status: AutoFixStatus = AutoFixStatus.GENERATED
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     applied_at: datetime | None = None
     commit_sha: str | None = None
     tests_generated: list[str] = field(default_factory=list)
@@ -122,7 +122,7 @@ class PRAnalysisResult:
     files: list[FileDiff] = field(default_factory=list)
     regulations_checked: list[str] = field(default_factory=list)
     analysis_time_ms: float = 0.0
-    analyzed_at: datetime = field(default_factory=datetime.utcnow)
+    analyzed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -157,7 +157,7 @@ class PRReviewResult:
     status: ReviewStatus = ReviewStatus.COMPLETED
     summary: str = ""
     recommendation: str = ""  # approve, request_changes, comment
-    reviewed_at: datetime = field(default_factory=datetime.utcnow)
+    reviewed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     review_time_ms: float = 0.0
     gh_review_id: int | None = None
 

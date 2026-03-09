@@ -8,10 +8,8 @@ Production ML-powered prediction engine with:
 """
 
 import hashlib
-import math
 import re
 from datetime import UTC, datetime
-from uuid import UUID
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -305,12 +303,11 @@ class RegPredictionService:
         diff = recent_avg - older_avg
         if diff > 0.15:
             return MomentumIndicator.ACCELERATING
-        elif diff > 0.05:
+        if diff > 0.05:
             return MomentumIndicator.STEADY
-        elif diff > -0.1:
+        if diff > -0.1:
             return MomentumIndicator.DECELERATING
-        else:
-            return MomentumIndicator.STALLED
+        return MomentumIndicator.STALLED
 
     # ─── Time-Series Prediction ───────────────────────────────────────
 

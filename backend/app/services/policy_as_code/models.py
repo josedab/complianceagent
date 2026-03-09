@@ -1,6 +1,6 @@
 """Data models for Policy-as-Code service."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -77,8 +77,8 @@ class PolicyRule(BaseModel):
     # Testing
     test_cases: list["PolicyTestCase"] = Field(default_factory=list)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PolicyTestCase(BaseModel):
@@ -123,8 +123,8 @@ class PolicyPackage(BaseModel):
     # Metadata
     author: str | None = None
     organization_id: UUID | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def total_rules(self) -> int:
@@ -157,7 +157,7 @@ class PolicyValidationResult(BaseModel):
     tests_passed: int = 0
     test_results: list[PolicyTestResult] = Field(default_factory=list)
 
-    validated_at: datetime = Field(default_factory=datetime.utcnow)
+    validated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class CompliancePolicyTemplate(BaseModel):
@@ -182,7 +182,7 @@ class CompliancePolicyTemplate(BaseModel):
 
     # Metadata
     maintainer: str = "ComplianceAgent"
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ============================================================================

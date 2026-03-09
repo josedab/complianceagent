@@ -1,7 +1,7 @@
 """Data models for Federated Compliance Intelligence Network."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -90,8 +90,8 @@ class ComplianceThreat(BaseModel):
     verified_by_count: int = 0
 
     # Metadata
-    first_seen: datetime = Field(default_factory=datetime.utcnow)
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    first_seen: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(UTC))
     expiry_date: datetime | None = None
 
 
@@ -130,8 +130,8 @@ class CompliancePattern(BaseModel):
     # Sharing
     sharing_level: SharingLevel = SharingLevel.INDUSTRY
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class IntelligenceReport(BaseModel):
@@ -169,7 +169,7 @@ class IntelligenceReport(BaseModel):
     recommendations: list[str] = Field(default_factory=list)
     priority_actions: list[str] = Field(default_factory=list)
 
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class NetworkMember(BaseModel):
@@ -196,8 +196,8 @@ class NetworkMember(BaseModel):
     subscribed_industries: list[str] = Field(default_factory=list)
 
     # Activity
-    joined_at: datetime = Field(default_factory=datetime.utcnow)
-    last_active: datetime = Field(default_factory=datetime.utcnow)
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_active: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     is_active: bool = True
 
@@ -226,8 +226,8 @@ class FederatedNetwork(BaseModel):
     regulations_covered: list[str] = Field(default_factory=list)
     regions_covered: list[str] = Field(default_factory=list)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PrivacyConfig(BaseModel):
@@ -383,8 +383,8 @@ class ContributorScore:
     verified_contributions: int = 0
     accuracy_score: float = 0.0  # 0-1
     reputation_tier: str = "bronze"  # bronze, silver, gold, platinum
-    first_contribution: datetime = field(default_factory=datetime.utcnow)
-    last_contribution: datetime = field(default_factory=datetime.utcnow)
+    first_contribution: datetime = field(default_factory=lambda: datetime.now(UTC))
+    last_contribution: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -415,4 +415,4 @@ class NetworkHealthMetrics:
     network_coverage_industries: int = 0
     network_coverage_regulations: int = 0
     top_contributors: list[ContributorScore] = field(default_factory=list)
-    measured_at: datetime = field(default_factory=datetime.utcnow)
+    measured_at: datetime = field(default_factory=lambda: datetime.now(UTC))

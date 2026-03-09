@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -40,7 +40,7 @@ class PolicyGate:
     action: GateAction = GateAction.WARN
     required_approvers: list[str] = field(default_factory=list)
     enabled: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -54,7 +54,7 @@ class GateEvaluationResult:
     reason: str = ""
     matched_files: list[str] = field(default_factory=list)
     required_approvers: list[str] = field(default_factory=list)
-    evaluated_at: datetime = field(default_factory=datetime.utcnow)
+    evaluated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -70,7 +70,7 @@ class PolicyEvaluationSummary:
     gates_pending: int = 0
     results: list[GateEvaluationResult] = field(default_factory=list)
     can_merge: bool = True
-    evaluated_at: datetime = field(default_factory=datetime.utcnow)
+    evaluated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # Condition matchers: file path patterns and content patterns that trigger gates

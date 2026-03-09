@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -45,7 +45,7 @@ class PredictionMarket:
     resolution_criteria: str = ""
     resolution_date: datetime | None = None
     resolved_outcome: bool | None = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     closes_at: datetime | None = None
 
 
@@ -61,7 +61,7 @@ class MarketPosition:
     cost_basis: float = 0.0
     current_value: float = 0.0
     pnl: float = 0.0
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass

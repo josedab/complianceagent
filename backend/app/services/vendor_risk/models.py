@@ -1,7 +1,7 @@
 """Data models for Vendor Risk Compliance Graph."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -90,8 +90,8 @@ class Vendor:
     dependents: list[str] = field(default_factory=list)  # What depends on this
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -135,7 +135,7 @@ class VendorGraph:
     uncertified_vendors: int = 0
 
     # Metadata
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     source: str = ""  # package.json, requirements.txt, etc.
 
 
@@ -165,7 +165,7 @@ class RiskAssessment:
     required_actions: list[str] = field(default_factory=list)
 
     # Assessment metadata
-    assessed_at: datetime = field(default_factory=datetime.utcnow)
+    assessed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     assessor: str = "system"
 
 

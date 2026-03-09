@@ -1,6 +1,6 @@
 """Models for SBOM (Software Bill of Materials) compliance integration."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -128,7 +128,7 @@ class SBOMDocument(BaseModel):
     version: str
     format: SBOMFormat = SBOMFormat.CYCLONEDX_JSON
     spec_version: str = "1.5"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     created_by: str | None = None
     tool_name: str = "ComplianceAgent"
     tool_version: str = "0.4.0"
@@ -270,7 +270,7 @@ class SBOMComplianceReport(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     sbom_id: UUID
     organization_id: UUID | None = None
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Overall scores
     overall_compliance_score: float

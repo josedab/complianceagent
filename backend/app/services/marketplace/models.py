@@ -1,7 +1,7 @@
 """Data models for Regulatory API Marketplace."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -69,8 +69,8 @@ class APIProduct:
     # Status
     is_active: bool = True
     is_beta: bool = False
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -94,7 +94,7 @@ class APIKey:
 
     # Status
     is_active: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime | None = None
     last_used_at: datetime | None = None
 
@@ -122,7 +122,7 @@ class UsageRecord:
     response_time_ms: float = 0.0
 
     # Metadata
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     ip_address: str = ""
     user_agent: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -140,7 +140,7 @@ class Subscription:
     subscribed_products: list[UUID] = field(default_factory=list)
 
     # Usage
-    current_period_start: datetime = field(default_factory=datetime.utcnow)
+    current_period_start: datetime = field(default_factory=lambda: datetime.now(UTC))
     current_period_end: datetime | None = None
     usage_this_period: int = 0
 
@@ -150,7 +150,7 @@ class Subscription:
 
     # Status
     is_active: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     cancelled_at: datetime | None = None
 
 
@@ -177,7 +177,7 @@ class WhiteLabelConfig:
 
     # Status
     is_active: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass

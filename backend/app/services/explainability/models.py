@@ -1,6 +1,6 @@
 """Models for AI Explainability Layer."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -86,7 +86,7 @@ class ComplianceExplanation(BaseModel):
     alternative_interpretations: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     model_version: str = "1.0.0"
     processing_time_ms: float | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -171,7 +171,7 @@ class DecisionAuditLog(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     organization_id: UUID
     user_id: UUID | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     action_type: str  # analyze, generate, validate, recommend
     input_summary: str
     input_hash: str
@@ -214,7 +214,7 @@ class FairnessMetrics(BaseModel):
     calibration_score: float | None = None
     consistency_score: float = Field(ge=0.0, le=1.0)
     bias_indicators: list[BiasIndicator] = Field(default_factory=list)
-    evaluated_at: datetime = Field(default_factory=datetime.utcnow)
+    evaluated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ExplanationRequest(BaseModel):

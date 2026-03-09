@@ -172,15 +172,15 @@ class GHMarketplaceAppService:
                 account_type=account_type, repos=repos,
             )
             return {"install_id": str(install.id), "account": account}
-        elif action == "deleted":
+        if action == "deleted":
             install = await self.handle_uninstall(github_id=github_id)
             return {"uninstalled": True, "account": account}
-        elif action == "suspend":
+        if action == "suspend":
             inst = self._installs.get(github_id)
             if inst:
                 inst.state = InstallState.SUSPENDED
             return {"suspended": True, "account": account}
-        elif action == "unsuspend":
+        if action == "unsuspend":
             inst = self._installs.get(github_id)
             if inst:
                 inst.state = InstallState.ACTIVE
@@ -269,10 +269,10 @@ class GHMarketplaceAppService:
                 plan=plan_slug,
             )
             return {"install_id": str(install.id), "plan": plan_slug}
-        elif action == "changed":
+        if action == "changed":
             install = await self.change_plan(github_id=github_id, new_plan=plan_slug)
             return {"plan_changed": plan_slug}
-        elif action == "cancelled":
+        if action == "cancelled":
             install = await self.change_plan(github_id=github_id, new_plan="free")
             return {"cancelled": True, "downgraded_to": "free"}
         return {}

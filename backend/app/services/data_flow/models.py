@@ -1,6 +1,6 @@
 """Data models for Cross-Border Data Flow Mapper."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -88,7 +88,7 @@ class DataLocation(BaseModel):
     # Compliance
     certifications: list[str] = Field(default_factory=list)  # e.g., "SOC 2", "ISO 27001"
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class DataFlow(BaseModel):
@@ -130,7 +130,7 @@ class DataFlow(BaseModel):
 
     # Metadata
     detected_from: str | None = None  # e.g., "code analysis", "manual entry"
-    detected_at: datetime = Field(default_factory=datetime.utcnow)
+    detected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     last_reviewed: datetime | None = None
     reviewer: str | None = None
 
@@ -155,7 +155,7 @@ class JurisdictionConflict(BaseModel):
     resolution_options: list[str] = Field(default_factory=list)
     recommended_resolution: str | None = None
 
-    detected_at: datetime = Field(default_factory=datetime.utcnow)
+    detected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class TransferImpactAssessment(BaseModel):
@@ -165,7 +165,7 @@ class TransferImpactAssessment(BaseModel):
     flow_id: UUID
 
     # Assessment details
-    assessment_date: datetime = Field(default_factory=datetime.utcnow)
+    assessment_date: datetime = Field(default_factory=lambda: datetime.now(UTC))
     assessor: str | None = None
 
     # Source country analysis
@@ -233,8 +233,8 @@ class DataFlowMap(BaseModel):
     regions_involved: list[str] = Field(default_factory=list)
     countries_involved: list[str] = Field(default_factory=list)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ============================================================================

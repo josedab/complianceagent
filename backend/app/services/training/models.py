@@ -56,7 +56,7 @@ class Quiz:
     max_attempts: int = 3
     shuffle_questions: bool = True
     show_correct_answers: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -66,7 +66,7 @@ class QuizAttempt:
     id: UUID = field(default_factory=uuid4)
     quiz_id: UUID | None = None
     user_id: UUID | None = None
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     answers: dict[str, list[int]] = field(default_factory=dict)
     score: float = 0.0
@@ -102,8 +102,8 @@ class TrainingModule:
     requirements_covered: list[str] = field(default_factory=list)
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: str = "1.0.0"
 
 
@@ -114,7 +114,7 @@ class TrainingProgress:
     id: UUID = field(default_factory=uuid4)
     user_id: UUID | None = None
     module_id: UUID | None = None
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     sections_completed: list[int] = field(default_factory=list)
     quiz_attempts: list[QuizAttempt] = field(default_factory=list)
@@ -134,7 +134,7 @@ class Certificate:
     module_id: UUID | None = None
     framework: str = ""
     title: str = ""
-    issued_at: datetime = field(default_factory=datetime.utcnow)
+    issued_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime = field(default_factory=lambda: datetime.now(UTC) + timedelta(days=365))
     status: CertificateStatus = CertificateStatus.ACTIVE
     score: float = 0.0

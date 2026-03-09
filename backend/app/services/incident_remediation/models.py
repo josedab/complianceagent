@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -65,7 +65,7 @@ class ComplianceIncident:
     evidence_collected: bool = False
     breach_notification_required: bool = False
     notification_deadline_hours: int = 72
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     remediated_at: datetime | None = None
 
 
@@ -97,5 +97,5 @@ class BreachNotification:
     draft_text: str = ""
     affected_individuals_count: int = 0
     data_categories: list[str] = field(default_factory=list)
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     sent: bool = False

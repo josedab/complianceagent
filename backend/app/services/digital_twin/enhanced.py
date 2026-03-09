@@ -42,7 +42,7 @@ class DriftEvent:
 
     id: UUID = field(default_factory=uuid4)
     drift_type: DriftType = DriftType.SCORE_DEGRADATION
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     snapshot_before_id: UUID | None = None
     snapshot_after_id: UUID | None = None
     severity: str = "medium"
@@ -59,7 +59,7 @@ class BreachImpact:
 
     id: UUID = field(default_factory=uuid4)
     scenario: BreachScenario = BreachScenario.DATA_EXFILTRATION
-    simulated_at: datetime = field(default_factory=datetime.utcnow)
+    simulated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Data impact
     data_types_affected: list[str] = field(default_factory=list)

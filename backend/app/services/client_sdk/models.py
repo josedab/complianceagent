@@ -89,7 +89,7 @@ class GeneratedClient:
 class OAuth2Token:
     """OAuth2 token for SDK authentication."""
     access_token: str = ""
-    token_type: str = "Bearer"
+    token_type: str = "Bearer"  # noqa: S105
     expires_in: int = 3600
     refresh_token: str = ""
     scope: str = "read write"

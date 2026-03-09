@@ -399,7 +399,6 @@ class DriftDetectionService:
         channel: str,
     ) -> WebhookDelivery:
         """Deliver a webhook notification for a drift event to the configured channel."""
-        import httpx
 
         if not hasattr(self, "_webhook_deliveries"):
             self._webhook_deliveries: list[WebhookDelivery] = []

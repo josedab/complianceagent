@@ -1,6 +1,6 @@
 """Data models for AI Model Card Generator."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -312,8 +312,8 @@ class ModelCard(BaseModel):
     contact_info: str | None = None
 
     # Dates
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     training_date: datetime | None = None
 
     # License

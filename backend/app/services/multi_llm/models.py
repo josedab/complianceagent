@@ -1,7 +1,7 @@
 """Multi-LLM Regulatory Parsing Engine models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -219,7 +219,7 @@ class EscalationTicket:
     assigned_to: str | None = None
     resolution: str | None = None
     resolved_obligations: list[dict[str, Any]] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     resolved_at: datetime | None = None
 
 
@@ -233,4 +233,4 @@ class FailoverEvent:
     reason: str = ""
     request_id: UUID = field(default_factory=uuid4)
     latency_ms: float = 0.0
-    occurred_at: datetime = field(default_factory=datetime.utcnow)
+    occurred_at: datetime = field(default_factory=lambda: datetime.now(UTC))

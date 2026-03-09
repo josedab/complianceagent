@@ -1,7 +1,7 @@
 """Portfolio data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -151,8 +151,8 @@ class Portfolio:
     alert_on_critical_gaps: bool = True
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     created_by: UUID | None = None
 
     # Tags for grouping
@@ -177,4 +177,4 @@ class CrossRepoAnalysis:
     # Recommendations
     portfolio_recommendations: list[str] = field(default_factory=list)
 
-    analyzed_at: datetime = field(default_factory=datetime.utcnow)
+    analyzed_at: datetime = field(default_factory=lambda: datetime.now(UTC))

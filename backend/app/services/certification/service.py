@@ -1,7 +1,7 @@
 """AI Compliance Training Certification Program service."""
 
-import json
 import hashlib
+import json
 import secrets
 from datetime import UTC, datetime
 from typing import Any

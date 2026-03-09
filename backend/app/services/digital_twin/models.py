@@ -1,7 +1,7 @@
 """Data models for Compliance Digital Twin."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -55,7 +55,7 @@ class RegulationCompliance:
     critical_count: int = 0
     requirements_met: int = 0
     requirements_total: int = 0
-    last_assessed: datetime = field(default_factory=datetime.utcnow)
+    last_assessed: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -69,7 +69,7 @@ class ComplianceSnapshot:
     description: str = ""
     commit_sha: str | None = None
     branch: str | None = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Compliance state
     overall_score: float = 0.0
@@ -117,7 +117,7 @@ class SimulationScenario:
     description: str = ""
     scenario_type: ScenarioType = ScenarioType.CODE_CHANGE
     created_by: str | None = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # Scenario parameters
     parameters: dict[str, Any] = field(default_factory=dict)
@@ -209,7 +209,7 @@ class SimulationResult:
     baseline_snapshot_id: UUID | None = None
 
     # Timing
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     duration_ms: float = 0.0
 

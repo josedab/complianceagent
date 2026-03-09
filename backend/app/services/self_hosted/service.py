@@ -1,11 +1,10 @@
 """Self-Hosted & Air-Gapped Deployment Service."""
 
 import hashlib
+import json
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
-
-import json
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -349,7 +348,6 @@ class SelfHostedService:
         """Validate a license key using cryptographic verification."""
         import base64
         import hmac
-        import json
 
         SECRET = b"complianceagent-license-secret-key-v1"  # noqa: N806
         errors: list[str] = []

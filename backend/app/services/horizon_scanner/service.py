@@ -5,11 +5,10 @@ sources.  Predicts codebase impact using multi-LLM analysis and surfaces
 advance warnings via timeline and alerts.
 """
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
-
-import json
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession

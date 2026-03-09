@@ -128,7 +128,7 @@ class SaaSPlatformService:
         logger.info(
             "Tenant plan updated",
             tenant_id=str(tenant_id),
-            old_plan=old_plan.value,
+            old_plan=old_plan.value if isinstance(old_plan, TenantPlan) else old_plan,
             new_plan=plan.value,
         )
 

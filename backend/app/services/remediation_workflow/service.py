@@ -1,9 +1,8 @@
 """Automated Compliance Remediation Workflow Service."""
 
+import json
 from datetime import UTC, datetime
 from uuid import UUID
-
-import json
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession

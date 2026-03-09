@@ -1,7 +1,7 @@
 """Prediction models and data structures."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -43,7 +43,7 @@ class RegulatorySignal:
     source_url: str = ""
     source_name: str = ""
     jurisdiction: str = ""
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     relevance_score: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -89,8 +89,8 @@ class PredictedRegulation:
     preparation_recommendations: list[str] = field(default_factory=list)
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     reviewed_by: str | None = None
     status: str = "active"  # active, archived, confirmed, invalidated
 

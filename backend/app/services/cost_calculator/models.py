@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -69,7 +69,7 @@ class CostPrediction:
     risk_score: float
     breakdown: list[CostBreakdownItem] = field(default_factory=list)
     comparable_implementations: list[ComparableImpl] = field(default_factory=list)
-    predicted_at: datetime = field(default_factory=datetime.utcnow)
+    predicted_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -93,7 +93,7 @@ class CostHistory:
     predicted_cost: float
     actual_cost: float
     accuracy_pct: float
-    completed_at: datetime = field(default_factory=datetime.utcnow)
+    completed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -123,4 +123,4 @@ class ExecutiveReport:
     cost_by_regulation: dict[str, float] = field(default_factory=dict)
     three_year_projection: dict[str, float] = field(default_factory=dict)
     recommendations: list[str] = field(default_factory=list)
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
