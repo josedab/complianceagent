@@ -1,6 +1,6 @@
 """Multi-cloud compliance posture analysis for IaC."""
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -200,6 +200,33 @@ CLOUD_COMPLIANCE_RULES: list[ComplianceRule] = [
 ]
 
 
+@dataclass
+class CloudComplianceFinding:
+    """A compliance finding for cloud infrastructure."""
+
+    rule_id: str = ""
+    severity: str = "medium"
+    description: str = ""
+    resource_type: str = ""
+    file_path: str = ""
+    line_number: int = 0
+    regulations: list[str] = field(default_factory=list)
+    remediation: str = ""
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class CloudComplianceReport:
+    """Aggregated compliance report across files."""
+
+    total_files: int = 0
+    findings: list[CloudComplianceFinding] = field(default_factory=list)
+    summary: dict[str, int] = field(default_factory=dict)
+    regulations_checked: list[str] = field(default_factory=list)
+
+
 class CloudComplianceAnalyzer:
     """Analyzer for IaC compliance issues."""
 
@@ -394,6 +421,23 @@ class CloudComplianceAnalyzer:
                         )
                     )
 
+                # Check for privileged containers
+                for container in spec.get("containers", []):
+                    container_sc = container.get("securityContext", {})
+                    if container_sc.get("privileged"):
+                        findings.append(
+                            IaCFinding(
+                                rule_id="K8S-SEC-002",
+                                file_path=file_path,
+                                resource_name=name,
+                                resource_type=f"kubernetes_{kind.lower()}",
+                                severity="critical",
+                                message="Privileged Container: Containers must not run in privileged mode",
+                                regulation="SOC 2, ISO 27001",
+                                remediation="Set securityContext.privileged: false",
+                            )
+                        )
+
             # Check NetworkPolicy
             if kind == "NetworkPolicy":
                 policy_types = doc.get("spec", {}).get("policyTypes", [])
@@ -412,6 +456,70 @@ class CloudComplianceAnalyzer:
                     )
 
         return findings
+
+    def detect_iac_type(self, content: str, filename: str) -> IaCType:
+        """Detect the IaC type from content and filename."""
+        if filename.endswith(".tf"):
+            return IaCType.TERRAFORM
+        if "AWSTemplateFormatVersion" in content:
+            return IaCType.CLOUDFORMATION
+        if "apiVersion" in content and "kind" in content:
+            return IaCType.KUBERNETES
+        return IaCType.TERRAFORM
+
+    async def analyze(
+        self,
+        content: str,
+        filename: str,
+        regulations: list[str] | None = None,
+    ) -> list[CloudComplianceFinding]:
+        """Analyze a single file and return CloudComplianceFindings."""
+        iac_type = self.detect_iac_type(content, filename)
+
+        if iac_type == IaCType.TERRAFORM:
+            iac_findings = self.analyze_terraform(content, filename, regulations)
+        elif iac_type == IaCType.CLOUDFORMATION:
+            iac_findings = self.analyze_cloudformation(content, filename, regulations)
+        elif iac_type == IaCType.KUBERNETES:
+            iac_findings = self.analyze_kubernetes(content, filename, regulations)
+        else:
+            iac_findings = []
+
+        return [
+            CloudComplianceFinding(
+                rule_id=f.rule_id,
+                severity=f.severity,
+                description=f.message,
+                resource_type=f.resource_type,
+                file_path=f.file_path,
+                line_number=f.line_number,
+                regulations=[r.strip() for r in f.regulation.split(",") if r.strip()],
+                remediation=f.remediation,
+            )
+            for f in iac_findings
+        ]
+
+    async def generate_report(
+        self,
+        files: dict[str, str],
+        regulations: list[str] | None = None,
+    ) -> CloudComplianceReport:
+        """Analyze all files and return an aggregated report."""
+        all_findings: list[CloudComplianceFinding] = []
+        for filename, content in files.items():
+            findings = await self.analyze(content, filename, regulations)
+            all_findings.extend(findings)
+
+        summary: dict[str, int] = {}
+        for f in all_findings:
+            summary[f.severity] = summary.get(f.severity, 0) + 1
+
+        return CloudComplianceReport(
+            total_files=len(files),
+            findings=all_findings,
+            summary=summary,
+            regulations_checked=regulations or [],
+        )
 
     def get_rules_by_regulation(self, regulation: str) -> list[ComplianceRule]:
         """Get all rules for a specific regulation."""

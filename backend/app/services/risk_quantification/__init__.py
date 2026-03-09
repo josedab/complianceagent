@@ -2,6 +2,7 @@
 
 from app.services.risk_quantification.models import (
     REGULATION_FINES,
+    ExecutiveRiskReport,
     OrganizationRiskDashboard,
     RegulationFineStructure,
     RepositoryRiskProfile,
@@ -10,6 +11,8 @@ from app.services.risk_quantification.models import (
     RiskSeverity,
     RiskTrend,
     ViolationRisk,
+    ViolationRiskAssessment,
+    WhatIfResult,
     WhatIfScenario,
 )
 from app.services.risk_quantification.service import (
@@ -20,6 +23,7 @@ from app.services.risk_quantification.service import (
 
 __all__ = [
     "REGULATION_FINES",
+    "ExecutiveRiskReport",
     "OrganizationRiskDashboard",
     "RegulationFineStructure",
     "RepositoryRiskProfile",
@@ -29,6 +33,8 @@ __all__ = [
     "RiskSeverity",
     "RiskTrend",
     "ViolationRisk",
+    "ViolationRiskAssessment",
+    "WhatIfResult",
     "WhatIfScenario",
     "get_risk_quantification_service",
 ]

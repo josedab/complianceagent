@@ -737,8 +737,8 @@ class IaCPolicyEngine:
                 continue
 
             # Extract kind and metadata
-            kind_match = re.search(r'kind:\s*(\w+)', doc)
-            name_match = re.search(r'name:\s*(\S+)', doc)
+            kind_match = re.search(r"kind:\s*(\w+)", doc)
+            name_match = re.search(r"name:\s*(\S+)", doc)
 
             if kind_match:
                 kind = kind_match.group(1)
@@ -817,7 +817,7 @@ class IaCPolicyEngine:
         resources: list[ParsedResource] = []
         # Simple regex extraction of resource blocks
         resource_pattern = re.compile(
-            r'^\s{2}(\w+):\s*\n\s{4}Type:\s*(\S+)',
+            r"^\s{2}(\w+):\s*\n\s{4}Type:\s*(\S+)",
             re.MULTILINE,
         )
 
@@ -852,9 +852,7 @@ class IaCPolicyEngine:
 
             # Match by resource type pattern
             if rule.pattern and rule.pattern not in resource.resource_type:
-                if rule.resource_type and rule.resource_type != resource.resource_type:
-                    continue
-                elif not rule.resource_type:
+                if (rule.resource_type and rule.resource_type != resource.resource_type) or not rule.resource_type:
                     continue
 
             # Check required attributes
@@ -965,13 +963,13 @@ class IaCPolicyEngine:
     ) -> dict:
         """Generate auto-fix diff for a violation."""
         fix_templates = {
-            "encrypted": '  encrypted = true',
-            "encryption": '  encryption {\n    enabled = true\n  }',
-            "publicly_accessible": '  publicly_accessible = false',
-            "enable_logging": '  enable_logging = true',
-            "runAsNonRoot": '    runAsNonRoot: true',
-            "readOnlyRootFilesystem": '    readOnlyRootFilesystem: true',
-            "allowPrivilegeEscalation": '    allowPrivilegeEscalation: false',
+            "encrypted": "  encrypted = true",
+            "encryption": "  encryption {\n    enabled = true\n  }",
+            "publicly_accessible": "  publicly_accessible = false",
+            "enable_logging": "  enable_logging = true",
+            "runAsNonRoot": "    runAsNonRoot: true",
+            "readOnlyRootFilesystem": "    readOnlyRootFilesystem: true",
+            "allowPrivilegeEscalation": "    allowPrivilegeEscalation: false",
         }
 
         fix_lines = []
@@ -1195,11 +1193,11 @@ class IaCPolicyEngine:
                 f"# Rule: {rule.id} - {rule.name}",
                 f"# Framework: {rule.framework} | Severity: {rule.severity.value}",
                 f"deny_{rule_name}[msg] {{",
-                f'    resource := input.resources[_]',
+                "    resource := input.resources[_]",
                 f'    resource.type == "{rule.pattern}"',
-                f'    not resource.config.compliant_{rule_name}',
+                f"    not resource.config.compliant_{rule_name}",
                 f'    msg := "{rule.id}: {rule.description}"',
-                f"}}",
+                "}",
                 "",
             ])
 

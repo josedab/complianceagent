@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import difflib
+import hashlib
 from datetime import UTC, datetime
 
 import structlog
@@ -162,24 +164,47 @@ _DIFFS: list[RegulationDiff] = [
 ]
 
 
+def _classify_severity(ratio: float) -> ChangeSeverity:
+    """Classify change severity based on the similarity ratio."""
+    if ratio < 0.3:
+        return ChangeSeverity.CRITICAL
+    if ratio < 0.6:
+        return ChangeSeverity.MAJOR
+    if ratio < 0.85:
+        return ChangeSeverity.MINOR
+    return ChangeSeverity.CLARIFICATION
+
+
 class RegulationDiffService:
-    """Service for regulation changelog diff viewing."""
+    """Service for regulation changelog diff viewing and text comparison."""
+
+    def __init__(self) -> None:
+        self._custom_versions: list[RegulationVersion] = []
+        self._custom_diffs: list[RegulationDiff] = []
+
+    def _all_versions(self) -> list[RegulationVersion]:
+        return _VERSIONS + self._custom_versions
+
+    def _all_diffs(self) -> list[RegulationDiff]:
+        return _DIFFS + self._custom_diffs
 
     async def list_versions(self, regulation: str | None = None) -> list[RegulationVersion]:
+        versions = self._all_versions()
         if regulation:
-            return [v for v in _VERSIONS if v.regulation.lower() == regulation.lower()]
-        return list(_VERSIONS)
+            return [v for v in versions if v.regulation.lower() == regulation.lower()]
+        return list(versions)
 
     async def get_version(self, version_id: str) -> RegulationVersion | None:
-        return next((v for v in _VERSIONS if v.id == version_id), None)
+        return next((v for v in self._all_versions() if v.id == version_id), None)
 
     async def list_diffs(self, regulation: str | None = None) -> list[RegulationDiff]:
+        diffs = self._all_diffs()
         if regulation:
-            return [d for d in _DIFFS if d.regulation.lower() == regulation.lower()]
-        return list(_DIFFS)
+            return [d for d in diffs if d.regulation.lower() == regulation.lower()]
+        return list(diffs)
 
     async def get_diff(self, diff_id: str) -> RegulationDiff | None:
-        return next((d for d in _DIFFS if d.id == diff_id), None)
+        return next((d for d in self._all_diffs() if d.id == diff_id), None)
 
     async def compare_versions(
         self, from_version_id: str, to_version_id: str
@@ -191,8 +216,159 @@ class RegulationDiffService:
         return next(
             (
                 d
-                for d in _DIFFS
+                for d in self._all_diffs()
                 if d.from_version == v_from.version and d.to_version == v_to.version
             ),
             None,
         )
+
+    async def add_version(self, version: RegulationVersion) -> RegulationVersion:
+        """Register a custom regulation version."""
+        if not version.hash:
+            version.hash = hashlib.sha256(version.version.encode()).hexdigest()[:16]
+        self._custom_versions.append(version)
+        logger.info(
+            "regulation_diff.version_added",
+            id=version.id,
+            regulation=version.regulation,
+        )
+        return version
+
+    async def compute_text_diff(
+        self,
+        old_text: str,
+        new_text: str,
+        regulation: str,
+        from_version: str,
+        to_version: str,
+        section_delimiter: str = "\n\n",
+    ) -> RegulationDiff:
+        """Compute a structured diff between two regulation text bodies.
+
+        Splits both texts into sections (paragraphs by default) and uses
+        difflib.SequenceMatcher to identify additions, deletions, and
+        modifications with severity classification.
+        """
+        old_sections = [s.strip() for s in old_text.split(section_delimiter) if s.strip()]
+        new_sections = [s.strip() for s in new_text.split(section_delimiter) if s.strip()]
+
+        matcher = difflib.SequenceMatcher(None, old_sections, new_sections)
+        changes: list[ArticleChange] = []
+        articles_added = 0
+        articles_removed = 0
+        articles_modified = 0
+        critical_count = 0
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "equal":
+                continue
+
+            if tag == "delete":
+                for idx in range(i1, i2):
+                    label = f"Section {idx + 1}"
+                    sev = ChangeSeverity.MAJOR
+                    changes.append(
+                        ArticleChange(
+                            article=label,
+                            section="Removed",
+                            change_type=ChangeType.DELETION,
+                            severity=sev,
+                            old_text=old_sections[idx][:500],
+                            summary=f"Section removed: {old_sections[idx][:80]}…",
+                        )
+                    )
+                    articles_removed += 1
+                    if sev == ChangeSeverity.CRITICAL:
+                        critical_count += 1
+
+            elif tag == "insert":
+                for idx in range(j1, j2):
+                    label = f"Section {idx + 1}"
+                    sev = ChangeSeverity.MAJOR
+                    changes.append(
+                        ArticleChange(
+                            article=label,
+                            section="Added",
+                            change_type=ChangeType.ADDITION,
+                            severity=sev,
+                            new_text=new_sections[idx][:500],
+                            summary=f"New section: {new_sections[idx][:80]}…",
+                        )
+                    )
+                    articles_added += 1
+
+            elif tag == "replace":
+                for old_idx, new_idx in zip(range(i1, i2), range(j1, j2), strict=False):
+                    ratio = difflib.SequenceMatcher(
+                        None, old_sections[old_idx], new_sections[new_idx]
+                    ).ratio()
+                    sev = _classify_severity(ratio)
+                    changes.append(
+                        ArticleChange(
+                            article=f"Section {old_idx + 1}",
+                            section="Modified",
+                            change_type=ChangeType.MODIFICATION,
+                            severity=sev,
+                            old_text=old_sections[old_idx][:500],
+                            new_text=new_sections[new_idx][:500],
+                            summary=f"Modified ({int((1 - ratio) * 100)}% changed)",
+                        )
+                    )
+                    articles_modified += 1
+                    if sev == ChangeSeverity.CRITICAL:
+                        critical_count += 1
+                # Handle unmatched leftovers
+                extra_old = list(range(i1 + (j2 - j1), i2))
+                extra_new = list(range(j1 + (i2 - i1), j2))
+                for idx in extra_old:
+                    changes.append(
+                        ArticleChange(
+                            article=f"Section {idx + 1}",
+                            section="Removed",
+                            change_type=ChangeType.DELETION,
+                            severity=ChangeSeverity.MAJOR,
+                            old_text=old_sections[idx][:500],
+                            summary=f"Section removed: {old_sections[idx][:80]}…",
+                        )
+                    )
+                    articles_removed += 1
+                for idx in extra_new:
+                    changes.append(
+                        ArticleChange(
+                            article=f"Section {idx + 1}",
+                            section="Added",
+                            change_type=ChangeType.ADDITION,
+                            severity=ChangeSeverity.MAJOR,
+                            new_text=new_sections[idx][:500],
+                            summary=f"New section: {new_sections[idx][:80]}…",
+                        )
+                    )
+                    articles_added += 1
+
+        diff_id = hashlib.sha256(f"{regulation}:{from_version}:{to_version}".encode()).hexdigest()[
+            :12
+        ]
+
+        diff = RegulationDiff(
+            id=f"computed-{diff_id}",
+            regulation=regulation,
+            from_version=from_version,
+            to_version=to_version,
+            total_changes=len(changes),
+            critical_changes=critical_count,
+            articles_added=articles_added,
+            articles_removed=articles_removed,
+            articles_modified=articles_modified,
+            changes=changes,
+            generated_at=datetime.now(UTC),
+        )
+
+        self._custom_diffs.append(diff)
+
+        logger.info(
+            "regulation_diff.computed",
+            regulation=regulation,
+            total_changes=len(changes),
+            critical=critical_count,
+        )
+        return diff

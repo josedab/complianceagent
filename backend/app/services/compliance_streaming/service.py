@@ -170,8 +170,8 @@ class ComplianceStreamingService:
             if webhook.event_types and event.event_type.value not in webhook.event_types:
                 continue
 
-            # Format payload based on target
-            formatted = self._format_webhook_payload(webhook, event)
+            # Format and deliver payload (delivery itself is async in production)
+            self._format_webhook_payload(webhook, event)
 
             # In production, this would make async HTTP requests
             webhook.delivery_count += 1
@@ -197,7 +197,7 @@ class ComplianceStreamingService:
                     },
                 ],
             }
-        elif webhook.target == WebhookTarget.PAGERDUTY:
+        if webhook.target == WebhookTarget.PAGERDUTY:
             return {
                 "routing_key": webhook.secret,
                 "event_action": "trigger",
@@ -208,7 +208,7 @@ class ComplianceStreamingService:
                     "custom_details": event.payload,
                 },
             }
-        elif webhook.target == WebhookTarget.TEAMS:
+        if webhook.target == WebhookTarget.TEAMS:
             return {
                 "@type": "MessageCard",
                 "summary": f"ComplianceAgent: {event.event_type.value}",
@@ -221,13 +221,12 @@ class ComplianceStreamingService:
                     "text": json.dumps(event.payload, indent=2)[:500],
                 }],
             }
-        else:
-            return {
-                "event_type": event.event_type.value,
-                "channel": event.channel,
-                "payload": event.payload,
-                "timestamp": event.timestamp.isoformat() if event.timestamp else None,
-            }
+        return {
+            "event_type": event.event_type.value,
+            "channel": event.channel,
+            "payload": event.payload,
+            "timestamp": event.timestamp.isoformat() if event.timestamp else None,
+        }
 
     def list_webhooks(self, active_only: bool = True) -> list[WebhookIntegration]:
         """List webhook integrations."""
@@ -293,15 +292,7 @@ class ComplianceStreamingService:
                 continue
 
             fired = False
-            if policy.operator == "lt" and metric_value < policy.threshold:
-                fired = True
-            elif policy.operator == "gt" and metric_value > policy.threshold:
-                fired = True
-            elif policy.operator == "eq" and metric_value == policy.threshold:
-                fired = True
-            elif policy.operator == "lte" and metric_value <= policy.threshold:
-                fired = True
-            elif policy.operator == "gte" and metric_value >= policy.threshold:
+            if (policy.operator == "lt" and metric_value < policy.threshold) or (policy.operator == "gt" and metric_value > policy.threshold) or (policy.operator == "eq" and metric_value == policy.threshold) or (policy.operator == "lte" and metric_value <= policy.threshold) or (policy.operator == "gte" and metric_value >= policy.threshold):
                 fired = True
 
             if fired:

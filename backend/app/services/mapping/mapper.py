@@ -1,84 +1,35 @@
-"""Codebase mapping service using AI."""
+"""Codebase mapping service using AI via CopilotClient."""
 
 from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 
+from app.agents.copilot import create_copilot_client
+from app.core.exceptions import CopilotError
 from app.models.codebase import CodebaseMapping, ComplianceStatus, Repository
 from app.models.requirement import Requirement
 
 
 logger = structlog.get_logger()
 
-
-MAPPING_SYSTEM_PROMPT = """You are an expert compliance engineer mapping regulatory requirements to code.
-
-Your task is to analyze a codebase and identify:
-1. Code that handles regulated data or processes
-2. Existing compliance implementations
-3. Gaps where requirements are not yet met
-
-Be thorough but avoid false positives. When uncertain, flag for human review."""
-
-
-MAPPING_PROMPT = """Map this regulatory requirement to the codebase.
-
-**Requirement**:
-- ID: {requirement_id}
-- Title: {requirement_title}
-- Description: {requirement_description}
-- Category: {requirement_category}
-- Data Types: {data_types}
-- Processes: {processes}
-
-**Repository**: {repository_name}
-**Languages**: {languages}
-
-**Codebase Structure**:
-{codebase_structure}
-
-**Sample Files** (relevant to the requirement):
-{sample_files}
-
-Analyze the codebase and provide:
-
-1. **affected_files**: List of files that handle regulated data/processes
-   - path: file path
-   - relevance: 0.0 to 1.0 relevance score
-   - functions: list of relevant functions
-   - classes: list of relevant classes
-
-2. **existing_implementations**: Existing compliance code found
-   - path: file path
-   - description: what it implements
-   - coverage: partial or full
-
-3. **gaps**: Compliance gaps identified
-   - severity: critical, major, or minor
-   - description: what's missing
-   - file_path: where it should be implemented (optional)
-   - suggestion: how to fix it
-
-4. **data_flows**: Data flow paths affected
-   - name: flow name
-   - entry_point: where data enters
-   - data_touched: what data is processed
-   - compliance_status: compliant, partial, or non_compliant
-
-5. **estimated_effort_hours**: Estimated implementation effort
-6. **estimated_effort_description**: Human-readable effort description
-7. **risk_level**: high, medium, or low
-8. **confidence**: Your confidence in this mapping (0.0 to 1.0)
-
-Return as JSON."""
+_FALLBACK_RESPONSE: dict[str, Any] = {
+    "affected_files": [],
+    "existing_implementations": [],
+    "gaps": [],
+    "data_flows": [],
+    "estimated_effort_hours": 8.0,
+    "estimated_effort_description": "AI analysis unavailable — manual review required",
+    "risk_level": "medium",
+    "confidence": 0.0,
+}
 
 
 class CodebaseMappingService:
-    """Service for mapping requirements to codebases."""
+    """Service for mapping requirements to codebases using CopilotClient."""
 
-    def __init__(self):
-        pass
+    def __init__(self, copilot_factory=create_copilot_client):
+        self._copilot_factory = copilot_factory
 
     async def map_requirement(
         self,
@@ -94,24 +45,23 @@ class CodebaseMappingService:
             repository=repository.full_name,
         )
 
-        # Build prompt
-        prompt = MAPPING_PROMPT.format(
-            requirement_id=requirement.reference_id,
-            requirement_title=requirement.title,
-            requirement_description=requirement.description,
-            requirement_category=requirement.category.value,
-            data_types=", ".join(requirement.data_types),
-            processes=", ".join(requirement.processes),
-            repository_name=repository.full_name,
-            languages=", ".join(repository.languages),
-            codebase_structure=self._format_structure(codebase_structure),
-            sample_files=self._format_sample_files(sample_files or {}),
+        requirement_dict = {
+            "reference_id": requirement.reference_id,
+            "title": requirement.title,
+            "description": requirement.description,
+            "category": requirement.category.value,
+            "data_types": requirement.data_types,
+            "processes": requirement.processes,
+        }
+        structure_text = self._format_structure(codebase_structure)
+
+        mapping_result = await self._call_ai(
+            requirement_dict=requirement_dict,
+            codebase_structure=structure_text,
+            sample_files=sample_files or {},
+            languages=repository.languages,
         )
 
-        # Call AI for mapping (placeholder)
-        mapping_result = await self._call_ai(prompt)
-
-        # Create mapping record
         mapping = self._create_mapping(requirement, repository, mapping_result)
 
         logger.info(
@@ -123,23 +73,36 @@ class CodebaseMappingService:
 
         return mapping
 
-    async def _call_ai(self, prompt: str) -> dict[str, Any]:
-        """Call AI for mapping analysis.
-
-        Stub returning placeholder data. The real AI-powered implementation
-        is in app.agents.copilot.CopilotClient.map_requirement_to_code().
-        """
-        logger.warning("AI mapping not yet implemented - returning placeholder")
-        return {
-            "affected_files": [],
-            "existing_implementations": [],
-            "gaps": [],
-            "data_flows": [],
-            "estimated_effort_hours": 8.0,
-            "estimated_effort_description": "Requires manual analysis",
-            "risk_level": "medium",
-            "confidence": 0.0,
-        }
+    async def _call_ai(
+        self,
+        requirement_dict: dict[str, Any],
+        codebase_structure: str,
+        sample_files: dict[str, str],
+        languages: list[str],
+    ) -> dict[str, Any]:
+        """Delegate to CopilotClient.map_requirement_to_code() with fallback."""
+        try:
+            client = self._copilot_factory()
+            async with client:
+                result = await client.map_requirement_to_code(
+                    requirement=requirement_dict,
+                    codebase_structure=codebase_structure,
+                    sample_files=sample_files,
+                    languages=languages,
+                )
+            if result.get("confidence", 0) > 0:
+                return result
+            logger.warning("Copilot returned zero-confidence mapping, using fallback")
+            return _FALLBACK_RESPONSE
+        except CopilotError as exc:
+            logger.warning(
+                "Copilot mapping failed, returning fallback",
+                error=str(exc),
+            )
+            return _FALLBACK_RESPONSE
+        except Exception as exc:
+            logger.exception("Unexpected error during AI mapping", error=str(exc))
+            return _FALLBACK_RESPONSE
 
     def _create_mapping(
         self,
@@ -186,17 +149,8 @@ class CodebaseMappingService:
         )
 
     def _format_structure(self, structure: dict[str, Any]) -> str:
-        """Format codebase structure for prompt."""
-        lines = []
-        for path in structure:
-            lines.append(f"- {path}")
-        return "\n".join(lines[:100])  # Limit
-
-    def _format_sample_files(self, files: dict[str, str]) -> str:
-        """Format sample files for prompt."""
-        lines = []
-        for path, content in files.items():
-            lines.append(f"### {path}\n```\n{content[:2000]}\n```\n")
+        """Format codebase structure for the AI prompt."""
+        lines = [f"- {path}" for path in list(structure)[:100]]
         return "\n".join(lines)
 
     def _extract_functions(self, affected_files: list[dict]) -> list[dict]:

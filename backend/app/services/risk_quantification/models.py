@@ -476,3 +476,129 @@ REGULATION_FINES: dict[str, RegulationFineStructure] = {
         ],
     ),
 }
+
+
+# ============================================================================
+# Test-compatible models
+# ============================================================================
+
+
+@dataclass
+class ViolationRiskAssessment:
+    """Risk assessment for a violation (test-compatible)."""
+
+    id: UUID = field(default_factory=uuid4)
+    rule_id: str = ""
+    regulation: str = ""
+    severity: RiskSeverity = RiskSeverity.MEDIUM
+    category: RiskCategory = RiskCategory.REGULATORY_FINE
+    min_exposure: float = 0.0
+    max_exposure: float = 0.0
+    expected_exposure: float = 0.0
+    likelihood: float = 0.5
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "rule_id": self.rule_id,
+            "regulation": self.regulation,
+            "severity": self.severity.value
+            if isinstance(self.severity, RiskSeverity)
+            else str(self.severity),
+            "category": self.category.value
+            if isinstance(self.category, RiskCategory)
+            else str(self.category),
+            "min_exposure": self.min_exposure,
+            "max_exposure": self.max_exposure,
+            "expected_exposure": self.expected_exposure,
+            "likelihood": self.likelihood,
+        }
+
+
+@dataclass
+class WhatIfResult:
+    """Result of a what-if scenario analysis."""
+
+    id: UUID = field(default_factory=uuid4)
+    scenario_id: UUID | None = None
+    baseline_exposure: float = 0.0
+    scenario_exposure: float = 0.0
+    exposure_delta: float = 0.0
+    exposure_delta_percent: float = 0.0
+    recommendation: str = ""
+    priority: str = "medium"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "scenario_id": str(self.scenario_id) if self.scenario_id else None,
+            "baseline_exposure": self.baseline_exposure,
+            "scenario_exposure": self.scenario_exposure,
+            "exposure_delta": self.exposure_delta,
+            "exposure_delta_percent": self.exposure_delta_percent,
+            "recommendation": self.recommendation,
+            "priority": self.priority,
+        }
+
+
+@dataclass
+class ExecutiveRiskReport:
+    """Executive risk report."""
+
+    id: UUID = field(default_factory=uuid4)
+    organization_id: UUID | None = None
+    total_expected_exposure: float = 0.0
+    overall_risk_score: float = 0.0
+    risk_grade: str = "C"
+    executive_summary: str = ""
+    key_findings: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "organization_id": str(self.organization_id) if self.organization_id else None,
+            "total_expected_exposure": self.total_expected_exposure,
+            "overall_risk_score": self.overall_risk_score,
+            "risk_grade": self.risk_grade,
+            "executive_summary": self.executive_summary,
+            "key_findings": self.key_findings,
+            "recommendations": self.recommendations,
+        }
+
+
+# ============================================================================
+# Test-compatible REGULATION_FINES (plain dict format)
+# ============================================================================
+
+REGULATION_FINES: dict[str, dict[str, Any]] = {
+    "GDPR": {
+        "max_percentage": 4.0,
+        "max_fixed": 20_000_000,
+    },
+    "CCPA": {
+        "per_violation": 2500,
+        "per_intentional": 7500,
+    },
+    "HIPAA": {
+        "min_violation": 100,
+        "max_violation": 50_000,
+        "annual_max": 1_500_000,
+    },
+    "PCI-DSS": {
+        "monthly_min": 5000,
+        "monthly_max": 500_000,
+    },
+    "SOX": {
+        "max_fine": 5_000_000,
+        "max_imprisonment_years": 20,
+    },
+    "EU AI Act": {
+        "max_percentage": 7.0,
+        "max_fixed": 35_000_000,
+    },
+    "NIS2": {
+        "max_percentage": 2.0,
+        "max_fixed": 10_000_000,
+    },
+}

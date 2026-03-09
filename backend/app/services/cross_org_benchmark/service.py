@@ -4,6 +4,7 @@ import hashlib
 import math
 import random
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,23 +33,72 @@ MIN_ORG_THRESHOLD = 50
 
 # Seed anonymized benchmark data (simulating differential privacy aggregates)
 _INDUSTRY_BENCHMARKS: dict[str, dict] = {
-    "fintech": {"avg": 82.5, "median": 84.0, "top_q": 92.0, "bot_q": 73.0, "std": 8.5, "count": 340},
-    "healthtech": {"avg": 78.0, "median": 79.5, "top_q": 89.0, "bot_q": 68.0, "std": 9.0, "count": 210},
+    "fintech": {
+        "avg": 82.5,
+        "median": 84.0,
+        "top_q": 92.0,
+        "bot_q": 73.0,
+        "std": 8.5,
+        "count": 340,
+    },
+    "healthtech": {
+        "avg": 78.0,
+        "median": 79.5,
+        "top_q": 89.0,
+        "bot_q": 68.0,
+        "std": 9.0,
+        "count": 210,
+    },
     "saas": {"avg": 76.0, "median": 77.0, "top_q": 88.0, "bot_q": 65.0, "std": 9.5, "count": 520},
-    "ecommerce": {"avg": 74.5, "median": 75.0, "top_q": 86.0, "bot_q": 63.0, "std": 10.0, "count": 180},
-    "insurtech": {"avg": 80.0, "median": 81.0, "top_q": 90.0, "bot_q": 70.0, "std": 8.0, "count": 95},
+    "ecommerce": {
+        "avg": 74.5,
+        "median": 75.0,
+        "top_q": 86.0,
+        "bot_q": 63.0,
+        "std": 10.0,
+        "count": 180,
+    },
+    "insurtech": {
+        "avg": 80.0,
+        "median": 81.0,
+        "top_q": 90.0,
+        "bot_q": 70.0,
+        "std": 8.0,
+        "count": 95,
+    },
     "edtech": {"avg": 71.0, "median": 72.0, "top_q": 84.0, "bot_q": 60.0, "std": 10.5, "count": 75},
     "ai_ml": {"avg": 68.5, "median": 69.0, "top_q": 82.0, "bot_q": 57.0, "std": 11.0, "count": 150},
-    "government": {"avg": 85.0, "median": 86.0, "top_q": 94.0, "bot_q": 76.0, "std": 7.5, "count": 60},
+    "government": {
+        "avg": 85.0,
+        "median": 86.0,
+        "top_q": 94.0,
+        "bot_q": 76.0,
+        "std": 7.5,
+        "count": 60,
+    },
 }
 
 # Seed data for size-based benchmarks
 _SIZE_BENCHMARKS: dict[str, dict] = {
-    "startup": {"avg": 65.0, "median": 66.0, "top_q": 78.0, "bot_q": 54.0, "std": 12.0, "count": 280},
+    "startup": {
+        "avg": 65.0,
+        "median": 66.0,
+        "top_q": 78.0,
+        "bot_q": 54.0,
+        "std": 12.0,
+        "count": 280,
+    },
     "small": {"avg": 71.0, "median": 72.0, "top_q": 83.0, "bot_q": 60.0, "std": 10.0, "count": 350},
     "medium": {"avg": 77.0, "median": 78.0, "top_q": 88.0, "bot_q": 67.0, "std": 9.0, "count": 420},
     "large": {"avg": 82.0, "median": 83.0, "top_q": 91.0, "bot_q": 73.0, "std": 8.0, "count": 310},
-    "enterprise": {"avg": 86.0, "median": 87.0, "top_q": 95.0, "bot_q": 78.0, "std": 7.0, "count": 270},
+    "enterprise": {
+        "avg": 86.0,
+        "median": 87.0,
+        "top_q": 95.0,
+        "bot_q": 78.0,
+        "std": 7.0,
+        "count": 270,
+    },
 }
 
 # Seed data for framework-specific benchmarks
@@ -142,7 +192,10 @@ class CrossOrgBenchmarkService:
             industry=Industry(industry),
             org_size=OrgSize(org_size),
             overall_score=_apply_laplace_noise(overall_score, self._epsilon),
-            framework_scores={k: _apply_laplace_noise(v, self._epsilon) for k, v in (framework_scores or {}).items()},
+            framework_scores={
+                k: _apply_laplace_noise(v, self._epsilon)
+                for k, v in (framework_scores or {}).items()
+            },
             frameworks=list((framework_scores or {}).keys()),
             privacy_level=PrivacyLevel(privacy_level),
             contributed_at=datetime.now(UTC),
@@ -163,8 +216,14 @@ class CrossOrgBenchmarkService:
         """Submit anonymized benchmark data with differential privacy."""
         config = privacy_config or self._privacy_config
         noised = _apply_laplace_noise(overall_score, config.epsilon, config.sensitivity)
-        noised_fw = {k: _apply_laplace_noise(v, config.epsilon, config.sensitivity) for k, v in (framework_scores or {}).items()}
-        noised_ca = {k: _apply_laplace_noise(v, config.epsilon, config.sensitivity) for k, v in (control_area_scores or {}).items()}
+        noised_fw = {
+            k: _apply_laplace_noise(v, config.epsilon, config.sensitivity)
+            for k, v in (framework_scores or {}).items()
+        }
+        noised_ca = {
+            k: _apply_laplace_noise(v, config.epsilon, config.sensitivity)
+            for k, v in (control_area_scores or {}).items()
+        }
 
         submission = BenchmarkSubmission(
             industry=Industry(industry),
@@ -188,7 +247,9 @@ class CrossOrgBenchmarkService:
         org_size: str = "medium",
     ) -> BenchmarkResult:
         ind = Industry(industry)
-        bench = _INDUSTRY_BENCHMARKS.get(industry, {"avg": 75.0, "median": 76.0, "top_q": 88.0, "count": 50})
+        bench = _INDUSTRY_BENCHMARKS.get(
+            industry, {"avg": 75.0, "median": 76.0, "top_q": 88.0, "count": 50}
+        )
 
         # Calculate percentile
         avg = bench["avg"]
@@ -198,11 +259,15 @@ class CrossOrgBenchmarkService:
 
         suggestions = []
         if your_score < avg:
-            suggestions.append(f"Your score ({your_score}) is below the {industry} average ({avg}). Focus on closing critical gaps.")
+            suggestions.append(
+                f"Your score ({your_score}) is below the {industry} average ({avg}). Focus on closing critical gaps."
+            )
         if your_score < bench["median"]:
             suggestions.append("Prioritize the top 3 findings to reach the industry median.")
         if your_score >= bench["top_q"]:
-            suggestions.append("Excellent! You're in the top quartile. Consider contributing best practices.")
+            suggestions.append(
+                "Excellent! You're in the top quartile. Consider contributing best practices."
+            )
 
         fw_comparisons = [
             {"framework": "GDPR", "your_score": your_score * 1.02, "industry_avg": avg * 0.98},
@@ -236,7 +301,9 @@ class CrossOrgBenchmarkService:
         size_bench = _SIZE_BENCHMARKS.get(org_size, {"avg": 77.0, "std": 9.0, "count": 300})
 
         # Global percentile across all participants
-        global_avg = sum(v["avg"] * v["count"] for v in _INDUSTRY_BENCHMARKS.values()) / max(1, sum(v["count"] for v in _INDUSTRY_BENCHMARKS.values()))
+        global_avg = sum(v["avg"] * v["count"] for v in _INDUSTRY_BENCHMARKS.values()) / max(
+            1, sum(v["count"] for v in _INDUSTRY_BENCHMARKS.values())
+        )
         global_std = 10.0
         overall_pct = _compute_percentile(your_score, global_avg, global_std)
 
@@ -261,13 +328,12 @@ class CrossOrgBenchmarkService:
             "size": size_bench.get("count", 0),
             "peer_group": peer_count,
         }
-        for fw in (framework_scores or {}):
+        for fw in framework_scores or {}:
             fb = _FRAMEWORK_BENCHMARKS.get(fw, {"count": 0})
             sample_sizes[f"framework_{fw}"] = fb.get("count", 0)
 
         significant = all(
-            _meets_threshold(sample_sizes.get(k, 0))
-            for k in ["industry", "size", "peer_group"]
+            _meets_threshold(sample_sizes.get(k, 0)) for k in ["industry", "size", "peer_group"]
         )
 
         return PercentileRanking(
@@ -287,8 +353,14 @@ class CrossOrgBenchmarkService:
         frameworks: list[str] | None = None,
     ) -> PeerGroup:
         """Find peer group ('companies like you') based on industry, size, and frameworks."""
-        ind_bench = _INDUSTRY_BENCHMARKS.get(industry, {"avg": 75.0, "median": 76.0, "top_q": 88.0, "bot_q": 64.0, "std": 10.0, "count": 50})
-        size_bench = _SIZE_BENCHMARKS.get(org_size, {"avg": 77.0, "median": 78.0, "top_q": 88.0, "bot_q": 67.0, "std": 9.0, "count": 300})
+        ind_bench = _INDUSTRY_BENCHMARKS.get(
+            industry,
+            {"avg": 75.0, "median": 76.0, "top_q": 88.0, "bot_q": 64.0, "std": 10.0, "count": 50},
+        )
+        size_bench = _SIZE_BENCHMARKS.get(
+            org_size,
+            {"avg": 77.0, "median": 78.0, "top_q": 88.0, "bot_q": 67.0, "std": 9.0, "count": 300},
+        )
 
         # Peer group is the intersection — estimate count and blend stats
         peer_count = min(ind_bench.get("count", 0), size_bench.get("count", 0)) // 3
@@ -344,16 +416,18 @@ class CrossOrgBenchmarkService:
                 priority = ImprovementPriority.LOW
 
             area_label = area.replace("_", " ").title()
-            recommendations.append(PeerRecommendation(
-                area=area,
-                priority=priority,
-                your_score=round(your_area_score, 1),
-                peer_avg_score=peer_avg,
-                gap=gap,
-                recommendation=f"Improve {area_label}: your score ({your_area_score:.0f}) is {gap:.0f} points below peer average ({peer_avg:.0f}). "
-                               f"{bench['adoption'] * 100:.0f}% of similar organizations have implemented stronger controls here.",
-                peer_adoption_rate=bench["adoption"],
-            ))
+            recommendations.append(
+                PeerRecommendation(
+                    area=area,
+                    priority=priority,
+                    your_score=round(your_area_score, 1),
+                    peer_avg_score=peer_avg,
+                    gap=gap,
+                    recommendation=f"Improve {area_label}: your score ({your_area_score:.0f}) is {gap:.0f} points below peer average ({peer_avg:.0f}). "
+                    f"{bench['adoption'] * 100:.0f}% of similar organizations have implemented stronger controls here.",
+                    peer_adoption_rate=bench["adoption"],
+                )
+            )
 
         # Sort by gap descending (biggest improvement opportunities first)
         recommendations.sort(key=lambda r: r.gap, reverse=True)
@@ -369,11 +443,19 @@ class CrossOrgBenchmarkService:
     ) -> InsightsDashboard:
         """Generate a full insights dashboard with rankings, peer group, and recommendations."""
         rankings = await self.compute_percentile_rankings(
-            your_score, industry, org_size, framework_scores,
+            your_score,
+            industry,
+            org_size,
+            framework_scores,
         )
-        peer_group = await self.get_peer_group(industry, org_size, list((framework_scores or {}).keys()))
+        peer_group = await self.get_peer_group(
+            industry, org_size, list((framework_scores or {}).keys())
+        )
         recommendations = await self.get_peer_recommendations(
-            your_score, industry, org_size, control_area_scores,
+            your_score,
+            industry,
+            org_size,
+            control_area_scores,
         )
 
         # Classify strengths and weaknesses
@@ -381,9 +463,13 @@ class CrossOrgBenchmarkService:
         weaknesses: list[str] = []
 
         if rankings.industry_percentile >= 75:
-            strengths.append(f"Top quartile in {industry} industry (P{rankings.industry_percentile:.0f})")
+            strengths.append(
+                f"Top quartile in {industry} industry (P{rankings.industry_percentile:.0f})"
+            )
         elif rankings.industry_percentile < 25:
-            weaknesses.append(f"Bottom quartile in {industry} industry (P{rankings.industry_percentile:.0f})")
+            weaknesses.append(
+                f"Bottom quartile in {industry} industry (P{rankings.industry_percentile:.0f})"
+            )
 
         if rankings.size_percentile >= 75:
             strengths.append(f"Top quartile among {org_size}-sized organizations")
@@ -397,7 +483,11 @@ class CrossOrgBenchmarkService:
                 weaknesses.append(f"{fw} compliance needs improvement (P{pct:.0f})")
 
         # Improvement priorities (top recommendations filtered to actionable)
-        improvement_priorities = [r for r in recommendations if r.priority in (ImprovementPriority.CRITICAL, ImprovementPriority.HIGH)]
+        improvement_priorities = [
+            r
+            for r in recommendations
+            if r.priority in (ImprovementPriority.CRITICAL, ImprovementPriority.HIGH)
+        ]
         if not improvement_priorities:
             improvement_priorities = recommendations[:3]
 
@@ -436,13 +526,22 @@ class CrossOrgBenchmarkService:
         bench = _INDUSTRY_BENCHMARKS.get(industry, {"avg": 75.0})
         avg = bench["avg"]
         data_points = [
-            {"date": f"2026-02-{15 + i}", "industry_avg": round(avg + i * 0.2, 1), "your_score": round(85.0 + i * 0.3, 1)}
+            {
+                "date": f"2026-02-{15 + i}",
+                "industry_avg": round(avg + i * 0.2, 1),
+                "your_score": round(85.0 + i * 0.3, 1),
+            }
             for i in range(7)
         ]
-        return BenchmarkTrend(period=period, data_points=data_points, your_trend="improving", industry_trend="stable")
+        return BenchmarkTrend(
+            period=period, data_points=data_points, your_trend="improving", industry_trend="stable"
+        )
 
     def list_industries(self) -> list[dict]:
-        return [{"industry": k, "avg_score": v["avg"], "participants": v["count"]} for k, v in _INDUSTRY_BENCHMARKS.items()]
+        return [
+            {"industry": k, "avg_score": v["avg"], "participants": v["count"]}
+            for k, v in _INDUSTRY_BENCHMARKS.items()
+        ]
 
     def get_stats(self) -> BenchmarkStats:
         by_ind: dict[str, int] = {}
@@ -450,8 +549,12 @@ class CrossOrgBenchmarkService:
         for p in self._profiles:
             by_ind[p.industry.value] = by_ind.get(p.industry.value, 0) + 1
             by_size[p.org_size.value] = by_size.get(p.org_size.value, 0) + 1
-        total_participants = sum(v["count"] for v in _INDUSTRY_BENCHMARKS.values()) + len(self._profiles)
-        global_avg = sum(v["avg"] * v["count"] for v in _INDUSTRY_BENCHMARKS.values()) / max(1, sum(v["count"] for v in _INDUSTRY_BENCHMARKS.values()))
+        total_participants = sum(v["count"] for v in _INDUSTRY_BENCHMARKS.values()) + len(
+            self._profiles
+        )
+        global_avg = sum(v["avg"] * v["count"] for v in _INDUSTRY_BENCHMARKS.values()) / max(
+            1, sum(v["count"] for v in _INDUSTRY_BENCHMARKS.values())
+        )
         return BenchmarkStats(
             total_participants=total_participants,
             by_industry=by_ind,
@@ -460,7 +563,9 @@ class CrossOrgBenchmarkService:
             data_freshness_hours=2.0,
         )
 
-    def check_minimum_threshold(self, industry: str | None = None, org_size: str | None = None) -> dict:
+    def check_minimum_threshold(
+        self, industry: str | None = None, org_size: str | None = None
+    ) -> dict:
         """Check if there are enough organizations for meaningful benchmarks."""
         results: dict[str, Any] = {"minimum_required": MIN_ORG_THRESHOLD}
 
