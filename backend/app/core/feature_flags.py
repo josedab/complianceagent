@@ -7,9 +7,11 @@ Flags can be configured via environment variables with the prefix FEATURE_FLAG_.
 from __future__ import annotations
 
 import os
-import structlog
 from enum import Enum
 from typing import Any
+
+import structlog
+
 
 logger = structlog.get_logger()
 

@@ -27,6 +27,7 @@ dependencies = [
     "pydantic-settings>=2.1.0",
     "PyJWT>=2.8.0",
     "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.0,<5.0",
     "python-multipart>=0.0.6",
     "httpx>=0.26.0",
     "redis>=5.0.1",
@@ -68,6 +69,9 @@ dev = [
     "factory-boy>=3.3.0",
     "respx>=0.20.0",
     "bandit[toml]>=1.7.0",
+]
+enterprise = [
+    "signxml>=4.0.0",
 ]
 
 [build-system]

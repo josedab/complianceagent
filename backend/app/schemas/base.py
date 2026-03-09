@@ -29,14 +29,42 @@ class IDSchema(BaseSchema):
     id: UUID
 
 
-class PaginatedResponse(BaseSchema):
-    """Paginated response wrapper."""
+class PaginatedResponse[T](BaseModel):
+    """Paginated response wrapper with cursor support.
 
-    items: list
+    Supports both offset-based (page/page_size) and cursor-based (next_cursor)
+    pagination. Use ``paginate()`` helper to build responses from SQLAlchemy queries.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    items: list[T]
     total: int
     page: int
     page_size: int
     total_pages: int
+    has_next: bool = False
+    has_previous: bool = False
+    next_cursor: str | None = None
+
+
+def paginate(
+    items: list,
+    total: int,
+    page: int,
+    page_size: int,
+) -> PaginatedResponse:
+    """Build a PaginatedResponse from a list of items and total count."""
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        has_next=page < total_pages,
+        has_previous=page > 1,
+    )
 
 
 class MessageResponse(BaseSchema):

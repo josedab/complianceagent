@@ -157,12 +157,20 @@ token_blacklist = TokenBlacklist()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    # Bcrypt only processes the first 72 bytes; truncate to match hashing behaviour
+    return pwd_context.verify(
+        plain_password.encode("utf-8")[:72].decode("utf-8", errors="ignore"), hashed_password
+    )
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password."""
-    return pwd_context.hash(password)
+    """Hash a password using bcrypt.
+
+    Bcrypt has a hard 72-byte input limit. Passwords are truncated to 72
+    bytes before hashing to avoid ValueError from the bcrypt backend.
+    """
+    truncated = password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+    return pwd_context.hash(truncated)
 
 
 def create_access_token(
