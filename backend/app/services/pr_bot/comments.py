@@ -354,3 +354,58 @@ class CommentService:
             resp = await client.post(url, json=payload, headers=headers, timeout=30)
             resp.raise_for_status()
             return resp.json()
+
+
+# ---------------------------------------------------------------------------
+# Test-compatible alias
+# ---------------------------------------------------------------------------
+
+
+class CommentGenerator:
+    """Comment generator (test-compatible interface)."""
+
+    def __init__(self) -> None:
+        pass
+
+    def generate_summary_comment(self, result: Any) -> str:
+        violations = getattr(result, "violations_found", 0)
+        critical = getattr(result, "critical_count", 0)
+        high = getattr(result, "high_count", 0)
+        medium = getattr(result, "medium_count", 0)
+
+        if violations == 0:
+            return "## 🛡️ ComplianceAgent Analysis\n\n✅ No compliance violations found. Great job!"
+
+        lines = [
+            "## 🛡️ ComplianceAgent Analysis",
+            "",
+            f"Found **{violations}** compliance violations:",
+            "",
+            "| Severity | Count |",
+            "|----------|-------|",
+            f"| Critical 🔴 | {critical} |",
+            f"| High 🟠 | {high} |",
+            f"| Medium 🟡 | {medium} |",
+        ]
+        return "\n".join(lines)
+
+    def generate_inline_comment(self, violation: dict) -> str:
+        rule_id = violation.get("rule_id", "")
+        severity = violation.get("severity", "")
+        message = violation.get("message", "")
+        framework = violation.get("framework", "")
+        article = violation.get("article", "")
+        quick_fix = violation.get("quick_fix", "")
+
+        severity_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵"}.get(
+            severity, "⚪"
+        )
+
+        lines = [
+            f"{severity_icon} **{severity.upper()}** - {framework} {article}",
+            "",
+            f"**{rule_id}**: {message}",
+        ]
+        if quick_fix:
+            lines.extend(["", f"💡 **Quick Fix**: {quick_fix}"])
+        return "\n".join(lines)

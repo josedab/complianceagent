@@ -84,6 +84,9 @@ class ComplianceViolation:
     severity: str = "warning"
     message: str = ""
     location: CodeLocation | None = None
+    file_path: str = ""
+    start_line: int = 0
+    end_line: int = 0
     original_code: str = ""
     confidence: float = 0.0
     detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -141,6 +144,7 @@ class AgentAction:
     """An action performed or proposed by the agent."""
 
     id: UUID = field(default_factory=uuid4)
+    session_id: UUID | None = None
     action_type: AgentActionType = AgentActionType.ANALYZE
     description: str = ""
     target_files: list[str] = field(default_factory=list)
@@ -148,6 +152,7 @@ class AgentAction:
     proposed_fixes: list[ProposedFix] = field(default_factory=list)
     requires_approval: bool = True
     approved: bool = False
+    rejection_reason: str | None = None
     executed: bool = False
     result: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -156,6 +161,7 @@ class AgentAction:
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": str(self.id),
+            "session_id": str(self.session_id) if self.session_id else None,
             "action_type": self.action_type.value,
             "description": self.description,
             "target_files": self.target_files,
@@ -163,6 +169,7 @@ class AgentAction:
             "proposed_fixes": [f.to_dict() for f in self.proposed_fixes],
             "requires_approval": self.requires_approval,
             "approved": self.approved,
+            "rejection_reason": self.rejection_reason,
             "executed": self.executed,
             "result": self.result,
             "created_at": self.created_at.isoformat(),
@@ -339,6 +346,24 @@ class RefactorPlan:
             "breaking_change_risk": self.breaking_change_risk,
             "test_coverage_gaps": self.test_coverage_gaps,
             "diff_preview": self.diff_preview,
+        }
+
+
+@dataclass
+class AnalysisResult:
+    """Result of a compliance analysis."""
+
+    violations_found: int = 0
+    fixes_applied: int = 0
+    issues_created: int = 0
+    prs_created: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "violations_found": self.violations_found,
+            "fixes_applied": self.fixes_applied,
+            "issues_created": self.issues_created,
+            "prs_created": self.prs_created,
         }
 
 
