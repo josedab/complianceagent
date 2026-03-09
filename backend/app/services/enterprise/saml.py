@@ -84,7 +84,12 @@ class SAMLService:
         saml_response: str,
         config: SAMLConfig,
     ) -> SAMLAssertion:
-        """Parse and validate SAML response."""
+        """Parse and validate SAML response.
+
+        Validates: XML structure, status code, issuer match, time window,
+        and (when signxml is available) XML digital signature against the
+        IdP certificate.
+        """
         try:
             decoded = base64.b64decode(saml_response)
             root = DefusedET.fromstring(decoded)
@@ -95,14 +100,19 @@ class SAMLService:
         ns = {
             "samlp": "urn:oasis:names:tc:SAML:2.0:protocol",
             "saml": "urn:oasis:names:tc:SAML:2.0:assertion",
+            "ds": "http://www.w3.org/2000/09/xmldsig#",
         }
 
+        # Validate status
         status = root.find(".//samlp:StatusCode", ns)
         if status is not None:
             status_value = status.get("Value", "")
             if "Success" not in status_value:
                 msg = f"SAML authentication failed: {status_value}"
                 raise ValueError(msg)
+
+        # Validate XML signature if signxml is available
+        self._verify_signature(decoded, config.certificate)
 
         assertion = root.find(".//saml:Assertion", ns)
         if assertion is None:
@@ -111,6 +121,12 @@ class SAMLService:
 
         subject = assertion.find(".//saml:Subject/saml:NameID", ns)
         subject_id = subject.text if subject is not None else ""
+
+        # Validate audience restriction
+        audience = assertion.find(".//saml:Conditions/saml:AudienceRestriction/saml:Audience", ns)
+        if audience is not None and audience.text != self.sp_entity_id:
+            msg = f"Invalid audience: {audience.text}, expected {self.sp_entity_id}"
+            raise ValueError(msg)
 
         conditions = assertion.find(".//saml:Conditions", ns)
         not_before = conditions.get("NotBefore") if conditions is not None else None
@@ -133,6 +149,10 @@ class SAMLService:
             msg = f"Invalid issuer: {issuer_value}"
             raise ValueError(msg)
 
+        # Extract session index for SLO
+        authn_stmt = assertion.find(".//saml:AuthnStatement", ns)
+        session_index = authn_stmt.get("SessionIndex") if authn_stmt is not None else None
+
         issued_at = datetime.now(UTC)
         valid_until = datetime.now(UTC)
 
@@ -150,11 +170,37 @@ class SAMLService:
             subject_id=subject_id,
             email=attributes.get("email", subject_id),
             attributes=attributes,
-            session_index=None,
+            session_index=session_index,
             issued_at=issued_at,
             valid_until=valid_until,
             issuer=issuer_value,
         )
+
+    @staticmethod
+    def _verify_signature(xml_bytes: bytes, certificate_pem: str) -> None:
+        """Verify XML digital signature against the IdP certificate.
+
+        Uses signxml when available; logs a warning and continues when
+        the library is not installed (dev/test environments).
+        """
+        if not certificate_pem.strip():
+            logger.warning("saml.no_certificate_configured — skipping signature verification")
+            return
+        try:
+            from lxml import etree as lxml_etree
+            from signxml import XMLVerifier
+
+            root = lxml_etree.fromstring(xml_bytes)
+            XMLVerifier().verify(root, x509_cert=certificate_pem)
+            logger.debug("saml.signature_verified")
+        except ImportError:
+            logger.warning(
+                "saml.signxml_not_installed — "
+                "install signxml and lxml for production SAML signature verification"
+            )
+        except Exception as exc:
+            msg = f"SAML signature verification failed: {exc}"
+            raise ValueError(msg) from exc
 
     def generate_metadata(self) -> str:
         """Generate SP metadata XML."""
