@@ -1,7 +1,11 @@
 """Health score calculation engine."""
 
+import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
+
+import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.health_score.models import (
     DEFAULT_WEIGHTS,
@@ -14,10 +18,11 @@ from app.services.health_score.models import (
 )
 
 
+logger = structlog.get_logger()
+
+
 def _deterministic_float(seed: str, min_val: float = 0.0, max_val: float = 1.0) -> float:
     """Generate a deterministic float from a seed string."""
-    import hashlib
-
     h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
     return min_val + (h / 0xFFFFFFFF) * (max_val - min_val)
 
@@ -28,12 +33,13 @@ def _deterministic_int(seed: str, min_val: int = 0, max_val: int = 100) -> int:
 
 
 class ScoreCalculator:
-    """Calculates compliance health scores."""
+    """Calculates compliance health scores with optional DB persistence."""
 
-    def __init__(self):
+    def __init__(self, db_session: AsyncSession | None = None):
         self._scores: dict[UUID, HealthScore] = {}
         self._history: dict[UUID, list[ScoreHistory]] = {}
         self._weights = DEFAULT_WEIGHTS.copy()
+        self._db = db_session
 
     async def calculate_score(
         self,
@@ -353,8 +359,8 @@ class ScoreCalculator:
 
         return recommendations[:5]
 
-    def _record_history(self, score: HealthScore):
-        """Record score in history."""
+    def _record_history(self, score: HealthScore) -> None:
+        """Record score in in-memory history (DB persistence via save_score)."""
         if score.repository_id not in self._history:
             self._history[score.repository_id] = []
 
@@ -371,9 +377,50 @@ class ScoreCalculator:
 
         self._history[score.repository_id].append(record)
 
-        # Keep only last 100 records
+        # Keep only last 100 records in memory
         if len(self._history[score.repository_id]) > 100:
             self._history[score.repository_id] = self._history[score.repository_id][-100:]
+
+    async def save_score_to_db(self, score: HealthScore) -> None:
+        """Persist a health score to the health_scores table (migration 007)."""
+        if self._db is None:
+            return
+        try:
+            from sqlalchemy import text
+
+            await self._db.execute(
+                text(
+                    "INSERT INTO health_scores "
+                    "(id, repository_id, overall_score, grade, calculated_at, "
+                    " trend, trend_delta, regulations_checked, "
+                    " category_scores, total_controls, passing_controls, "
+                    " failing_controls, not_applicable_controls, recommendations) "
+                    "VALUES "
+                    "(:id, :repo_id, :score, :grade, :calc_at, "
+                    " :trend, :trend_delta, :regs, "
+                    " :cats, :total, :passing, :failing, :na, :recs)"
+                ),
+                {
+                    "id": str(score.id),
+                    "repo_id": str(score.repository_id),
+                    "score": score.overall_score,
+                    "grade": score.grade.value,
+                    "calc_at": score.calculated_at,
+                    "trend": score.trend.value if score.trend else "stable",
+                    "trend_delta": score.trend_delta,
+                    "regs": score.regulations_checked,
+                    "cats": {k: v.score for k, v in score.category_scores.items()},
+                    "total": score.total_controls,
+                    "passing": score.passing_controls,
+                    "failing": score.failing_controls,
+                    "na": score.not_applicable_controls,
+                    "recs": score.recommendations,
+                },
+            )
+            await self._db.flush()
+            logger.info("health_score.persisted", repository_id=str(score.repository_id))
+        except Exception as exc:
+            logger.debug("health_score.db_persist_skipped", reason=str(exc)[:120])
 
     async def get_history(
         self,
@@ -404,9 +451,11 @@ class ScoreCalculator:
 _calculator: ScoreCalculator | None = None
 
 
-def get_score_calculator() -> ScoreCalculator:
-    """Get singleton calculator instance."""
+def get_score_calculator(db_session: AsyncSession | None = None) -> ScoreCalculator:
+    """Get calculator instance, optionally with a DB session for persistence."""
     global _calculator
     if _calculator is None:
-        _calculator = ScoreCalculator()
+        _calculator = ScoreCalculator(db_session=db_session)
+    elif db_session is not None:
+        _calculator._db = db_session
     return _calculator
