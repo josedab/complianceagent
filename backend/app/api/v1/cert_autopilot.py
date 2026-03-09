@@ -311,7 +311,7 @@ async def get_auditor_view(session_id: str, access_token: str, db: DB) -> dict:
 async def list_auditor_sessions(db: DB) -> list[dict]:
     svc = CertAutopilotService(db=db)
     sessions = svc.list_auditor_sessions()
-    return [{"id": str(s.id), "auditor_name": s.auditor_name, "framework": s.framework, "active": s.active, "expires_at": s.expires_at.isoformat() if hasattr(s, 'expires_at') and s.expires_at else None} for s in sessions]
+    return [{"id": str(s.id), "auditor_name": s.auditor_name, "framework": s.framework, "active": s.active, "expires_at": s.expires_at.isoformat() if hasattr(s, "expires_at") and s.expires_at else None} for s in sessions]
 
 
 @router.delete("/auditor-portal/sessions/{session_id}", summary="Revoke auditor session")

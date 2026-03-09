@@ -1043,8 +1043,9 @@ async def calculate_blast_radius(
 @router.get("/executive-dashboard", summary="Get executive dashboard")
 async def get_executive_dashboard(db: DB, organization_id: str | None = None) -> dict:
     """Get executive dashboard with score trends, top risks, and scenario summaries."""
-    from app.services.digital_twin.simulator import get_compliance_simulator
     from uuid import UUID as PyUUID
+
+    from app.services.digital_twin.simulator import get_compliance_simulator
     simulator = get_compliance_simulator()
     org_id = PyUUID(organization_id) if organization_id else None
     dashboard = await simulator.get_executive_dashboard(organization_id=org_id)
@@ -1062,8 +1063,9 @@ async def get_executive_dashboard(db: DB, organization_id: str | None = None) ->
 @router.post("/scenarios/compare", summary="Compare multiple scenarios")
 async def compare_scenarios(result_ids: list[str], db: DB) -> dict:
     """Side-by-side comparison of multiple simulation results."""
-    from app.services.digital_twin.simulator import get_compliance_simulator
     from uuid import UUID as PyUUID
+
+    from app.services.digital_twin.simulator import get_compliance_simulator
     simulator = get_compliance_simulator()
     ids = [PyUUID(rid) for rid in result_ids]
     comparison = await simulator.compare_scenarios(ids)

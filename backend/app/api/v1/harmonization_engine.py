@@ -1,6 +1,5 @@
 """API endpoints for Regulatory Harmonization Engine."""
 
-from typing import Any
 
 import structlog
 from fastapi import APIRouter
@@ -8,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
 from app.services.harmonization_engine import HarmonizationEngineService
+
 
 logger = structlog.get_logger()
 router = APIRouter()

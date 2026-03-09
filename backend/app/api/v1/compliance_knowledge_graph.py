@@ -3,7 +3,7 @@
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB

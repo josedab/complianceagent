@@ -246,21 +246,106 @@ class ArchitectureOverview(BaseModel):
 
 # Services known to use real DB queries (self.db.execute/self.db.add)
 _DB_BACKED = [
-    "audit", "audit_reports", "audit_autopilot", "autopilot", "benchmarking",
-    "billing", "blockchain_audit", "certification", "chat", "chatbot",
+    "audit",
+    "audit_reports",
+    "audit_autopilot",
+    "autopilot",
+    "benchmarking",
+    "billing",
+    "blockchain_audit",
+    "certification",
+    "chat",
+    "chatbot",
 ]
 
 # Services known to make real HTTP calls
 _HTTP_CALLING = ["github", "gitlab", "monitoring", "notification"]
 
 _V3_V9_SERVICES = {
-    "v3": ["mcp_server", "github_app", "reg_change_stream", "compliance_sdk", "compliance_copilot", "auto_remediation", "multi_scm", "compliance_badge", "regulation_diff_viz", "compliance_export"],
-    "v4": ["agents_marketplace", "saas_onboarding", "code_review_agent", "reg_prediction", "compliance_observability", "nl_compliance_query", "twin_simulation", "cross_org_benchmark", "evidence_generation", "cost_benefit_analyzer"],
-    "v5": ["knowledge_fabric", "self_healing_mesh", "ide_extension", "compliance_data_lake", "policy_dsl", "realtime_feed", "compliance_gnn", "cert_pipeline", "api_gateway", "workflow_automation"],
-    "v6": ["gh_marketplace_app", "compliance_streaming", "client_sdk", "multi_llm_parser", "compliance_testing", "arch_advisor", "incident_war_room", "compliance_debt", "draft_reg_simulator", "gamification_engine"],
-    "v7": ["data_mesh_federation", "agent_swarm", "compliance_editor", "graph_explorer", "pipeline_builder", "pia_generator", "contract_analyzer", "mobile_backend", "marketplace_revenue", "localization_engine"],
-    "v8": ["autonomous_os", "trust_network", "compliance_api_standard", "digital_marketplace", "regulatory_simulation", "legal_copilot", "regulatory_intel_feed", "white_label_platform", "cross_cloud_mesh", "esg_sustainability"],
-    "v9": ["telemetry_mesh", "knowledge_assistant", "digital_passport", "scenario_planner", "regulatory_filing", "cicd_runtime", "multi_org_orchestrator", "training_simulator", "harmonization_engine", "plugin_ecosystem"],
+    "v3": [
+        "mcp_server",
+        "github_app",
+        "reg_change_stream",
+        "compliance_sdk",
+        "compliance_copilot",
+        "auto_remediation",
+        "multi_scm",
+        "compliance_badge",
+        "regulation_diff_viz",
+        "compliance_export",
+    ],
+    "v4": [
+        "agents_marketplace",
+        "saas_onboarding",
+        "code_review_agent",
+        "reg_prediction",
+        "compliance_observability",
+        "nl_compliance_query",
+        "twin_simulation",
+        "cross_org_benchmark",
+        "evidence_generation",
+        "cost_benefit_analyzer",
+    ],
+    "v5": [
+        "knowledge_fabric",
+        "self_healing_mesh",
+        "ide_extension",
+        "compliance_data_lake",
+        "policy_dsl",
+        "realtime_feed",
+        "compliance_gnn",
+        "cert_pipeline",
+        "api_gateway",
+        "workflow_automation",
+    ],
+    "v6": [
+        "gh_marketplace_app",
+        "compliance_streaming",
+        "client_sdk",
+        "multi_llm_parser",
+        "compliance_testing",
+        "arch_advisor",
+        "incident_war_room",
+        "compliance_debt",
+        "draft_reg_simulator",
+        "gamification_engine",
+    ],
+    "v7": [
+        "data_mesh_federation",
+        "agent_swarm",
+        "compliance_editor",
+        "graph_explorer",
+        "pipeline_builder",
+        "pia_generator",
+        "contract_analyzer",
+        "mobile_backend",
+        "marketplace_revenue",
+        "localization_engine",
+    ],
+    "v8": [
+        "autonomous_os",
+        "trust_network",
+        "compliance_api_standard",
+        "digital_marketplace",
+        "regulatory_simulation",
+        "legal_copilot",
+        "regulatory_intel_feed",
+        "white_label_platform",
+        "cross_cloud_mesh",
+        "esg_sustainability",
+    ],
+    "v9": [
+        "telemetry_mesh",
+        "knowledge_assistant",
+        "digital_passport",
+        "scenario_planner",
+        "regulatory_filing",
+        "cicd_runtime",
+        "multi_org_orchestrator",
+        "training_simulator",
+        "harmonization_engine",
+        "plugin_ecosystem",
+    ],
 }
 
 
@@ -290,4 +375,76 @@ async def architecture_overview() -> ArchitectureOverview:
         in_memory=all_in_memory,
         http_calling=_HTTP_CALLING,
         service_generations={k: len(v) for k, v in _V3_V9_SERVICES.items()},
+    )
+
+
+class RuntimeServiceCheck(BaseModel):
+    """Result of a runtime service import check."""
+
+    name: str
+    importable: bool
+    module: str
+    tier: str = "unknown"
+    error: str | None = None
+
+
+class RuntimeHealthResponse(BaseModel):
+    """Runtime health check of all registered services."""
+
+    total_checked: int
+    healthy: int
+    unhealthy: int
+    services: list[RuntimeServiceCheck]
+
+
+@router.get(
+    "/services/runtime",
+    response_model=RuntimeHealthResponse,
+    summary="Runtime service health",
+)
+async def runtime_service_health() -> RuntimeHealthResponse:
+    """Check which services are importable at runtime.
+
+    Performs a live import check for each core service module,
+    surfacing any import errors that would prevent the service
+    from being used.
+    """
+    import importlib
+
+    from app.core.feature_flags import registry
+
+    checks: list[RuntimeServiceCheck] = []
+
+    for name, svc_status, _desc in _SERVICES:
+        module_path = f"app.services.{name}"
+        flag = registry.get(name)
+        tier = flag.tier.value if flag else "unknown"
+
+        try:
+            importlib.import_module(module_path)
+            checks.append(
+                RuntimeServiceCheck(
+                    name=name,
+                    importable=True,
+                    module=module_path,
+                    tier=tier,
+                )
+            )
+        except Exception as exc:
+            checks.append(
+                RuntimeServiceCheck(
+                    name=name,
+                    importable=False,
+                    module=module_path,
+                    tier=tier,
+                    error=str(exc)[:200],
+                )
+            )
+
+    healthy = sum(1 for c in checks if c.importable)
+    return RuntimeHealthResponse(
+        total_checked=len(checks),
+        healthy=healthy,
+        unhealthy=len(checks) - healthy,
+        services=checks,
     )

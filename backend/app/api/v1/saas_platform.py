@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentUser
-from app.models.saas_tenant import TenantPlan
+from app.models.saas_tenant import TenantPlan, TenantStatus
 from app.services.saas_platform import (
     TenantConfig,
     get_saas_platform_service,
@@ -167,8 +167,8 @@ async def get_tenant(
         id=str(tenant.id),
         name=tenant.name,
         slug=tenant.slug,
-        plan=tenant.plan.value,
-        status=tenant.status.value,
+        plan=tenant.plan.value if isinstance(tenant.plan, TenantPlan) else tenant.plan,
+        status=tenant.status.value if isinstance(tenant.status, TenantStatus) else tenant.status,
         domain=tenant.domain,
         settings=tenant.settings,
         resource_limits=tenant.resource_limits,
@@ -211,8 +211,8 @@ async def update_tenant_plan(
         id=str(tenant.id),
         name=tenant.name,
         slug=tenant.slug,
-        plan=tenant.plan.value,
-        status=tenant.status.value,
+        plan=tenant.plan.value if isinstance(tenant.plan, TenantPlan) else tenant.plan,
+        status=tenant.status.value if isinstance(tenant.status, TenantStatus) else tenant.status,
         domain=tenant.domain,
         settings=tenant.settings,
         resource_limits=tenant.resource_limits,
