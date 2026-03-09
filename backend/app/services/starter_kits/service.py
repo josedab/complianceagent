@@ -10,6 +10,8 @@ from uuid import UUID
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.starter_kits.gdpr_kit import create_gdpr_kit
+from app.services.starter_kits.hipaa_kit import create_hipaa_kit
 from app.services.starter_kits.models import (
     CodeTemplate,
     ConfigTemplate,
@@ -17,11 +19,9 @@ from app.services.starter_kits.models import (
     StarterKit,
     TemplateLanguage,
 )
-
-from app.services.starter_kits.gdpr_kit import create_gdpr_kit
-from app.services.starter_kits.hipaa_kit import create_hipaa_kit
 from app.services.starter_kits.pci_kit import create_pci_kit
 from app.services.starter_kits.soc2_kit import create_soc2_kit
+
 
 logger = structlog.get_logger()
 

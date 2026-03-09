@@ -3,8 +3,6 @@
 from app.services.starter_kits.gdpr_kit import _audit_logger_template
 from app.services.starter_kits.models import (
     CodeTemplate,
-    ConfigTemplate,
-    DocumentTemplate,
     StarterKit,
     TemplateCategory,
     TemplateLanguage,

@@ -3,7 +3,6 @@
 from app.services.starter_kits.models import (
     CodeTemplate,
     ConfigTemplate,
-    DocumentTemplate,
     StarterKit,
     TemplateCategory,
     TemplateLanguage,

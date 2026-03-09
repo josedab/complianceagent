@@ -109,7 +109,7 @@ Implements 164.312(a) Access Control and 164.312(d) Person Authentication.
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional, Set
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 class AccessLevel(str, Enum):
@@ -350,7 +350,7 @@ BREAK_GLASS = "break_glass"
 class PHIAuditEntry:
 """Audit entry for PHI access."""
 id: UUID = field(default_factory=uuid4)
-timestamp: datetime = field(default_factory=datetime.utcnow)
+timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 user_id: str = ""
 patient_id: str = ""
 action: PHIAuditAction = PHIAuditAction.VIEW

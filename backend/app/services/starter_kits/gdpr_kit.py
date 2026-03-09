@@ -137,7 +137,7 @@ This module provides functionality for managing user consent in accordance with
 GDPR Article 7 requirements for valid consent.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from enum import Enum
 from typing import Optional
 from dataclasses import dataclass, field
@@ -170,7 +170,7 @@ status: ConsentStatus = ConsentStatus.PENDING
 version: str = "1.0"
 ip_address: Optional[str] = None
 user_agent: Optional[str] = None
-timestamp: datetime = field(default_factory=datetime.utcnow)
+timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 withdrawal_timestamp: Optional[datetime] = None
 
 
@@ -338,7 +338,7 @@ id: UUID = field(default_factory=uuid4)
 user_id: str = ""
 request_type: DSARType = DSARType.ACCESS
 status: DSARStatus = DSARStatus.RECEIVED
-received_at: datetime = field(default_factory=datetime.utcnow)
+received_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 deadline: datetime = field(default_factory=lambda: datetime.now(UTC) + timedelta(days=30))
 completed_at: Optional[datetime] = None
 response_data: Optional[dict] = None
@@ -590,7 +590,7 @@ ACCESS_DENIED = "access_denied"
 class AuditEntry:
 """Immutable audit log entry."""
 id: UUID = field(default_factory=uuid4)
-timestamp: datetime = field(default_factory=datetime.utcnow)
+timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 user_id: str = ""
 action: AuditAction = AuditAction.READ
 resource_type: str = ""

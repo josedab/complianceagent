@@ -1,6 +1,6 @@
 # Backend Service Implementation Status
 
-> Last updated: 2026-02-21
+> Last updated: 2026-03-08
 > This document tracks the implementation status of all service modules.
 
 ## Summary
@@ -40,7 +40,7 @@
 
 | Service | Status | LOC | Notes |
 |---------|--------|-----|-------|
-| ai_observatory | 🔨 Stub (synthetic data) | 451 | `import random`; synthetic AI monitoring metrics |
+| ai_observatory | 🔨 Stub (synthetic data) | 451 | Deterministic synthetic AI monitoring metrics |
 | api_monetization | 🔨 Stub (synthetic data) | 189 | Hardcoded API catalog, in-memory pricing |
 | architecture_advisor | ✅ Implemented | 656 | Compliance architecture analysis, DB queries |
 | audit | ✅ Implemented | 331 | Hash chain verification, real DB queries |
@@ -57,11 +57,11 @@
 | cicd | ✅ Implemented | 812 | CI/CD compliance checks, DB storage |
 | cloud | ✅ Implemented | 418 | Multi-cloud compliance posture rules |
 | compliance_cloning | 🔨 Stub (synthetic data) | 235 | Hardcoded reference repos, in-memory |
-| compliance_intel | 🔨 Stub (synthetic data) | 306 | `import random`; synthetic intelligence data |
+| compliance_intel | 🔨 Stub (synthetic data) | 306 | Deterministic synthetic intelligence data |
 | compliance_sandbox | ✅ Implemented | 1120 | Compliance sandbox with DB persistence |
-| compliance_training | 🔨 Stub (synthetic data) | 397 | `import random`; synthetic training progress data |
+| compliance_training | 🔨 Stub (synthetic data) | 397 | Deterministic synthetic training progress data |
 | copilot_chat | ✅ Implemented | 813 | Copilot chat integration, DB queries |
-| cost_attribution | 🔨 Stub (synthetic data) | 335 | `import random`; synthetic cost attribution |
+| cost_attribution | 🔨 Stub (synthetic data) | 335 | Deterministic synthetic cost attribution |
 | cost_calculator | 🔨 Stub (synthetic data) | 712 | Static base estimates, formula-only calculations |
 | cross_border_transfer | ✅ Implemented | 523 | Cross-border data transfer compliance, DB |
 | dao_governance | 🔨 Stub (synthetic data) | 308 | In-memory proposals with seed data |
@@ -82,11 +82,11 @@
 | gitlab | ✅ Implemented | 884 | GitLab API integration via HTTP |
 | graph | 🔨 Stub (synthetic data) | 298 | Deprecated; in-memory (see knowledge_graph) |
 | health_benchmarking | ✅ Implemented | 601 | Health benchmarking with DB queries |
-| health_score | 🔨 Stub (synthetic data) | 1331 | `import random`; synthetic health score metrics |
+| health_score | 🔨 Stub (synthetic data) | 1331 | Deterministic hash-based scoring with DB persistence |
 | iac_scanner | ✅ Implemented | 996 | Infrastructure-as-Code scanner, DB |
 | ide | ✅ Implemented | 1544 | IDE integration service, DB queries |
 | ide_agent | ✅ Implemented | 1289 | IDE agent service, DB queries |
-| impact_heatmap | 🔨 Stub (synthetic data) | 708 | `import random`; synthetic heatmap values |
+| impact_heatmap | 🔨 Stub (synthetic data) | 708 | Deterministic synthetic heatmap values |
 | impact_simulator | ✅ Implemented | 616 | Impact simulation with DB persistence |
 | impact_timeline | ✅ Implemented | 280 | Impact timeline tracking, DB queries |
 | incident_playbook | ✅ Implemented | 582 | Incident response playbooks, DB |
@@ -96,7 +96,7 @@
 | intelligence | ✅ Implemented | 1533 | Compliance intelligence feeds via HTTP |
 | knowledge_graph | ✅ Implemented | 781 | DB-backed graph from regulations/requirements, deterministic layout |
 | legal | 📋 Planned (empty/minimal) | 0 | Empty directory, no files |
-| mapping | 🔨 Stub (synthetic data) | 224 | AI prompt templates defined, no client integration |
+| mapping | ✅ Implemented | 224 | AI-powered codebase mapping via CopilotClient |
 | marketplace | ✅ Implemented | 1192 | Marketplace integration via HTTP |
 | marketplace_app | ✅ Implemented | 507 | Marketplace app management, DB queries |
 | model_cards | 🔨 Stub (synthetic data) | 1111 | In-memory card generation, no external calls |
@@ -128,7 +128,7 @@
 | query_engine | ✅ Implemented | 1856 | NL compliance query engine, DB |
 | radar | 📋 Planned (empty/minimal) | 0 | Empty directory, no files |
 | regulation_diff | 🔨 Stub (synthetic data) | 201 | Hardcoded regulation versions, in-memory |
-| regulation_test_gen | 🔨 Stub (synthetic data) | 343 | `import random`; synthetic test case generation |
+| regulation_test_gen | 🔨 Stub (synthetic data) | 343 | Deterministic synthetic test case generation |
 | remediation_workflow | ✅ Implemented | 578 | Remediation workflows, DB persistence |
 | risk_quantification | ✅ Implemented | 1206 | Risk quantification engine, DB |
 | saas_platform | ✅ Implemented | 467 | SaaS platform management, DB queries |
@@ -136,10 +136,10 @@
 | sbom | ✅ Implemented | 1384 | Software Bill of Materials, DB |
 | scoring | ✅ Implemented | 382 | Compliance scoring, DB + HTTP |
 | self_hosted | ✅ Implemented | 678 | Self-hosted deployment service, DB |
-| sentiment_analyzer | 🔨 Stub (synthetic data) | 363 | `import random`; synthetic sentiment analysis |
+| sentiment_analyzer | 🔨 Stub (synthetic data) | 363 | Deterministic synthetic sentiment analysis |
 | simulator | ✅ Implemented | 774 | Compliance simulator, DB queries |
 | starter_kits | ✅ Implemented | 2249 | Starter kit templates, DB + HTTP |
-| stress_testing | 🔨 Stub (synthetic data) | 312 | `import random`; synthetic stress test results |
+| stress_testing | 🔨 Stub (synthetic data) | 312 | Deterministic synthetic stress test results |
 | telemetry | ✅ Implemented | 527 | DB-backed telemetry metrics, no random |
 | templates | ✅ Implemented | 1318 | Template management via HTTP |
 | testing | ✅ Implemented | 652 | Compliance testing framework, DB |
@@ -147,7 +147,7 @@
 | vendor | 🔨 Stub (synthetic data) | 299 | Deprecated; in-memory (see vendor_risk, vendor_assessment) |
 | vendor_assessment | ✅ Implemented | 962 | Vendor compliance assessment, DB |
 | vendor_risk | 🔨 Stub (synthetic data) | 1055 | In-memory dependency scanning, no real lookups |
-| zero_trust_scanner | 🔨 Stub (synthetic data) | 418 | `import random`; synthetic scan findings |
+| zero_trust_scanner | 🔨 Stub (synthetic data) | 418 | Deterministic synthetic scan findings |
 
 ## v3 Services (MCP & Multi-SCM)
 

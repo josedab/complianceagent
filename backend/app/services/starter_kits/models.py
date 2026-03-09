@@ -1,7 +1,7 @@
 """Starter kit data models."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -109,8 +109,8 @@ class StarterKit:
     supported_languages: list[TemplateLanguage] = field(default_factory=list)
 
     # Metadata
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     download_count: int = 0
 
     # Installation instructions
