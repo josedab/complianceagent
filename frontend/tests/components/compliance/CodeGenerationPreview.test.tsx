@@ -7,17 +7,17 @@ const mockGeneratedCode = {
       path: 'src/example.ts',
       content: 'console.log("hello");',
       language: 'typescript',
-      operation: 'new' as const,
+      operation: 'create' as const,
     },
   ],
   tests: [],
   documentation: '',
   warnings: [],
-  complianceNotes: [],
-  pullRequestSuggestion: {
+  compliance_notes: [],
+  confidence: 0.95,
+  pr_suggestion: {
     title: 'Test PR',
-    description: 'Test description',
-    branch: 'feature/test',
+    body: 'Test description',
   },
 };
 
@@ -28,9 +28,9 @@ describe('CodeGenerationPreview', () => {
   });
 
   it('renders file tabs and file cards', () => {
-    // TODO: Verify Files/Tests/Documentation tabs render and file cards show operation badges (New/Modified/Deleted)
     render(<CodeGenerationPreview generatedCode={mockGeneratedCode} />);
-    expect(screen.getByText('Files')).toBeInTheDocument();
+    // Tab text includes count e.g. "Files (2)" — match the prefix
+    expect(screen.getByText(/^Files/)).toBeInTheDocument();
   });
 
   it('calls onApprove and onReject callbacks', () => {

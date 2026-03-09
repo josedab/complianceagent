@@ -84,15 +84,19 @@ class TestGHMarketplaceApp:
     @pytest.mark.asyncio
     async def test_run_check_clean(self, marketplace_app_svc: GHMarketplaceAppService):
         await marketplace_app_svc.handle_install(1, "org")
-        check = await marketplace_app_svc.run_check(1, "org/repo", pr_number=42, diff_content="result = compute()")
+        check = await marketplace_app_svc.run_check(
+            1, "org/repo", pr_number=42, diff_content="result = compute()"
+        )
         assert check.conclusion == "success"
         assert check.violations == 0
 
     @pytest.mark.asyncio
     async def test_run_check_with_violations(self, marketplace_app_svc: GHMarketplaceAppService):
         await marketplace_app_svc.handle_install(1, "org")
-        check = await marketplace_app_svc.run_check(1, "org/repo", diff_content="save(personal_data)")
-        assert check.conclusion == "failure"
+        check = await marketplace_app_svc.run_check(
+            1, "org/repo", diff_content="save(personal_data)"
+        )
+        assert check.conclusion == "neutral"
         assert check.violations > 0
 
     @pytest.mark.asyncio
@@ -115,7 +119,9 @@ class TestGHMarketplaceApp:
 class TestComplianceStreaming:
     @pytest.mark.asyncio
     async def test_publish_event(self, streaming_svc: ComplianceStreamingService):
-        event = await streaming_svc.publish("score_change", "compliance.posture", payload={"score": 85.0})
+        event = await streaming_svc.publish(
+            "score_change", "compliance.posture", payload={"score": 85.0}
+        )
         assert event.event_type == StreamEventType.SCORE_CHANGE
         assert event.timestamp is not None
 
@@ -157,7 +163,7 @@ class TestClientSDK:
     @pytest.mark.asyncio
     async def test_list_packages(self, sdk_svc: ClientSDKService):
         pkgs = sdk_svc.list_packages()
-        assert len(pkgs) == 3
+        assert len(pkgs) == 4
         runtimes = {p.runtime for p in pkgs}
         assert SDKRuntime.PYTHON in runtimes
 
@@ -176,7 +182,7 @@ class TestClientSDK:
     async def test_stats(self, sdk_svc: ClientSDKService):
         stats = sdk_svc.get_stats()
         assert stats.total_endpoints >= 10
-        assert stats.packages_available == 3
+        assert stats.packages_available == 4
 
 
 # ── Feature 4: Multi-LLM Parser ─────────────────────────────────────────
@@ -185,20 +191,26 @@ class TestClientSDK:
 class TestMultiLLMParser:
     @pytest.mark.asyncio
     async def test_parse_with_consensus(self, llm_parser_svc: MultiLLMParserService):
-        result = await llm_parser_svc.parse_legal_text("The data controller must ensure data protection.")
+        result = await llm_parser_svc.parse_legal_text(
+            "The data controller must ensure data protection."
+        )
         assert result.status in (ParseStatus.SUCCESS, ParseStatus.PARTIAL, ParseStatus.DIVERGENT)
         assert len(result.provider_results) >= 3
         assert result.agreement_rate > 0
 
     @pytest.mark.asyncio
     async def test_parse_with_majority_vote(self, llm_parser_svc: MultiLLMParserService):
-        result = await llm_parser_svc.parse_legal_text("Organizations shall implement encryption.", strategy="majority_vote")
+        result = await llm_parser_svc.parse_legal_text(
+            "Organizations shall implement encryption.", strategy="majority_vote"
+        )
         assert result.strategy == ConsensusStrategy.MAJORITY_VOTE
         assert len(result.consensus_requirements) > 0
 
     @pytest.mark.asyncio
     async def test_parse_extracts_obligations(self, llm_parser_svc: MultiLLMParserService):
-        result = await llm_parser_svc.parse_legal_text("Controllers must document processing. Processors should maintain records.")
+        result = await llm_parser_svc.parse_legal_text(
+            "Controllers must document processing. Processors should maintain records."
+        )
         obligations = {r["obligation"] for r in result.consensus_requirements}
         assert "mandatory" in obligations  # from "must"
 
@@ -285,7 +297,9 @@ class TestArchAdvisor:
 class TestIncidentWarRoom:
     @pytest.mark.asyncio
     async def test_create_incident(self, war_room_svc: IncidentWarRoomService):
-        incident = await war_room_svc.create_incident("Data breach detected", "critical", "PII leaked", "GDPR")
+        incident = await war_room_svc.create_incident(
+            "Data breach detected", "critical", "PII leaked", "GDPR"
+        )
         assert incident.severity.value == "critical"
         assert incident.notification_deadline is not None
 
@@ -298,13 +312,17 @@ class TestIncidentWarRoom:
     @pytest.mark.asyncio
     async def test_add_timeline(self, war_room_svc: IncidentWarRoomService):
         incident = await war_room_svc.create_incident("Test", "medium", "test description")
-        updated = await war_room_svc.add_timeline_entry(str(incident.id), "admin", "Investigated root cause", "Found issue")
+        updated = await war_room_svc.add_timeline_entry(
+            str(incident.id), "admin", "Investigated root cause", "Found issue"
+        )
         assert updated is not None
 
     @pytest.mark.asyncio
     async def test_generate_post_mortem(self, war_room_svc: IncidentWarRoomService):
         incident = await war_room_svc.create_incident("Test incident", "high", "serious breach")
-        await war_room_svc.add_timeline_entry(str(incident.id), "team", "Fixed vulnerability", "Patched")
+        await war_room_svc.add_timeline_entry(
+            str(incident.id), "team", "Fixed vulnerability", "Patched"
+        )
         pm = await war_room_svc.generate_post_mortem(str(incident.id))
         assert pm is not None
 
@@ -321,9 +339,15 @@ class TestComplianceDebt:
     @pytest.mark.asyncio
     async def test_add_and_sort_by_roi(self, debt_svc: ComplianceDebtService):
         await debt_svc.add_debt_item(
-            title="Test debt", description="Test", framework="GDPR",
-            rule_id="test-001", file_path="src/test.py",
-            severity="high", risk_cost_usd=50000, remediation_cost_usd=5000, repo="org/api",
+            title="Test debt",
+            description="Test",
+            framework="GDPR",
+            rule_id="test-001",
+            file_path="src/test.py",
+            severity="high",
+            risk_cost_usd=50000,
+            remediation_cost_usd=5000,
+            repo="org/api",
         )
         items = await debt_svc.list_debt(sort_by_roi=True)
         assert len(items) > 0

@@ -1,6 +1,6 @@
 """Integration tests for the compliance pipeline."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.copilot import CopilotMessage
 from app.agents.orchestrator import ComplianceOrchestrator
 from app.models import Organization, Regulation, Repository, Requirement
-from app.models.regulation import RegulationStatus
+from app.models.codebase import RepositoryProvider
+from app.models.regulation import RegulationStatus, RegulatoryFramework
+from app.models.requirement import ObligationType, RequirementCategory
 
 
 @pytest_asyncio.fixture
@@ -18,15 +20,13 @@ async def test_regulation(db_session: AsyncSession, test_organization: Organizat
     """Create a test regulation."""
     regulation = Regulation(
         id=uuid4(),
-        organization_id=test_organization.id,
         name="Test Data Protection Regulation",
-        description="Test regulation for data protection compliance",
+        content_summary="Test regulation for data protection compliance",
         source_url="https://example.com/regulation",
-        jurisdiction="US",
-        industry="Technology",
-        status=RegulationStatus.ACTIVE,
-        version="1.0",
-        full_text="Organizations must ensure data protection...",
+        jurisdiction="us_federal",
+        framework=RegulatoryFramework.GDPR,
+        status=RegulationStatus.EFFECTIVE,
+        version=1,
     )
     db_session.add(regulation)
     await db_session.commit()
@@ -43,12 +43,14 @@ async def test_requirement(
     requirement = Requirement(
         id=uuid4(),
         regulation_id=test_regulation.id,
+        reference_id="SEC-4.2",
         title="Data Encryption Requirement",
         description="All personal data must be encrypted at rest",
-        obligation_type="must",
-        priority="high",
-        section_reference="Section 4.2",
-        full_text="Personal data must be encrypted using AES-256 or equivalent.",
+        obligation_type=ObligationType.MUST,
+        category=RequirementCategory.SECURITY,
+        subject="data controller",
+        action="encrypt personal data",
+        source_text="Personal data must be encrypted using AES-256 or equivalent.",
     )
     db_session.add(requirement)
     await db_session.commit()
@@ -64,11 +66,13 @@ async def test_repository(
     """Create a test repository."""
     repository = Repository(
         id=uuid4(),
-        organization_id=test_organization.id,
+        customer_profile_id=uuid4(),
+        provider=RepositoryProvider.GITHUB,
+        owner="testorg",
         name="test-app",
-        url="https://github.com/testorg/test-app",
+        full_name="testorg/test-app",
+        clone_url="https://github.com/testorg/test-app",
         default_branch="main",
-        scan_patterns=["**/*.py", "**/*.js"],
         is_active=True,
     )
     db_session.add(repository)
@@ -81,12 +85,16 @@ class TestCompliancePipeline:
     """Integration tests for the compliance processing pipeline."""
 
     @pytest.mark.asyncio
-    async def test_orchestrator_initialization(self, mock_copilot_client: MagicMock):
+    async def test_orchestrator_initialization(
+        self, db_session: AsyncSession, mock_copilot_client: MagicMock
+    ):
         """Test orchestrator can be initialized."""
-        with patch("app.agents.orchestrator.CopilotClient") as MockClient:
-            MockClient.return_value = mock_copilot_client
-            orchestrator = ComplianceOrchestrator()
-            assert orchestrator is not None
+        orchestrator = ComplianceOrchestrator(
+            db=db_session,
+            organization_id=uuid4(),
+            copilot=mock_copilot_client,
+        )
+        assert orchestrator is not None
 
     @pytest.mark.asyncio
     async def test_regulation_text_analysis(self, mock_copilot_client: MagicMock):
@@ -205,7 +213,7 @@ class TestPipelineErrorHandling:
         mock_client = MagicMock()
         mock_client.analyze_legal_text = AsyncMock(
             side_effect=CopilotParsingError(
-                "Failed to parse response", raw_response="invalid json {{"
+                "Failed to parse response", raw_content="invalid json {{"
             )
         )
 
@@ -242,19 +250,18 @@ class TestComplianceFixtures:
     ):
         """Test that regulations and requirements are properly linked."""
         assert test_requirement.regulation_id == test_regulation.id
-        assert test_requirement.obligation_type == "must"
-        assert test_requirement.priority == "high"
+        assert test_requirement.obligation_type == ObligationType.MUST
+        assert test_requirement.category == RequirementCategory.SECURITY
 
     @pytest.mark.asyncio
     async def test_repository_scanning_setup(
         self,
         test_repository: Repository,
-        test_organization: Organization,
     ):
         """Test that repository is properly configured for scanning."""
-        assert test_repository.organization_id == test_organization.id
+        assert test_repository.customer_profile_id is not None
         assert test_repository.is_active is True
-        assert "**/*.py" in test_repository.scan_patterns
+        assert test_repository.provider == RepositoryProvider.GITHUB
 
     @pytest.mark.asyncio
     async def test_full_pipeline_mock(
@@ -291,7 +298,7 @@ class TestComplianceFixtures:
         # Simulate pipeline steps
         # Step 1: Map requirement to code
         mapping_result = await mock_copilot_client.map_requirement_to_code(
-            requirement_text=test_requirement.full_text,
+            requirement_text=test_requirement.source_text,
             code_files={"src/main.py": "# Original code"},
         )
 
@@ -300,7 +307,7 @@ class TestComplianceFixtures:
         # Step 2: Generate fix for non-compliant mapping
         fix_result = await mock_copilot_client.generate_compliant_code(
             code="# Original code",
-            requirement=test_requirement.full_text,
+            requirement=test_requirement.source_text,
             context={"gaps": mapping_result["mappings"][0]["gaps"]},
         )
 
@@ -398,15 +405,14 @@ class TestEndToEndCompliance:
 
         # Get files
         files = await mock_github_client.list_files(
-            repo=test_repository.url,
+            repo=test_repository.clone_url,
             path="src",
-            patterns=test_repository.scan_patterns,
         )
         assert len(files) == 2
 
         # Map to compliance
         mapping_result = await mock_copilot_client.map_requirement_to_code(
-            requirement_text=test_requirement.full_text,
+            requirement_text=test_requirement.source_text,
             code_files={f["path"]: "code" for f in files},
         )
 

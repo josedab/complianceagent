@@ -5,6 +5,7 @@ interface TestRow {
   id: string;
   name: string;
   status: string;
+  [key: string]: unknown;
 }
 
 const columns = [
@@ -15,6 +16,7 @@ const columns = [
 const sampleData: TestRow[] = [
   { id: '1', name: 'Item A', status: 'Active' },
   { id: '2', name: 'Item B', status: 'Inactive' },
+  { id: '3', name: 'Widget C', status: 'Active' },
 ];
 
 describe('DataTable', () => {
@@ -24,15 +26,18 @@ describe('DataTable', () => {
     expect(screen.getByText('Status')).toBeInTheDocument();
   });
 
-  it('renders row data correctly', () => {
-    // TODO: Verify each row's cell content matches the provided data
+  it('renders all row data correctly', () => {
     render(<DataTable data={sampleData} columns={columns} />);
+    // Verify each row's name cell content matches provided data
     expect(screen.getByText('Item A')).toBeInTheDocument();
     expect(screen.getByText('Item B')).toBeInTheDocument();
+    expect(screen.getByText('Widget C')).toBeInTheDocument();
+    // Verify status values render (Active appears twice)
+    expect(screen.getAllByText('Active')).toHaveLength(2);
+    expect(screen.getByText('Inactive')).toBeInTheDocument();
   });
 
-  it('handles search filtering when searchable is enabled', () => {
-    // TODO: Enable searchable prop, type in the search input, and verify rows are filtered accordingly
+  it('filters rows when searching with searchable enabled', () => {
     render(
       <DataTable
         data={sampleData}
@@ -41,5 +46,40 @@ describe('DataTable', () => {
         searchKeys={['name']}
       />
     );
+
+    // Find the search input and type a query
+    const searchInput = screen.getByRole('textbox');
+    fireEvent.change(searchInput, { target: { value: 'Widget' } });
+
+    // Only "Widget C" should remain visible
+    expect(screen.getByText('Widget C')).toBeInTheDocument();
+    expect(screen.queryByText('Item A')).not.toBeInTheDocument();
+    expect(screen.queryByText('Item B')).not.toBeInTheDocument();
+  });
+
+  it('shows all rows when search is cleared', () => {
+    render(
+      <DataTable
+        data={sampleData}
+        columns={columns}
+        searchable
+        searchKeys={['name']}
+      />
+    );
+
+    const searchInput = screen.getByRole('textbox');
+    // Filter then clear
+    fireEvent.change(searchInput, { target: { value: 'Item' } });
+    expect(screen.queryByText('Widget C')).not.toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: '' } });
+    expect(screen.getByText('Item A')).toBeInTheDocument();
+    expect(screen.getByText('Widget C')).toBeInTheDocument();
+  });
+
+  it('renders empty state when no data provided', () => {
+    render(<DataTable data={[]} columns={columns} />);
+    // Should show some indication of no data
+    expect(screen.queryByText('Item A')).not.toBeInTheDocument();
   });
 });

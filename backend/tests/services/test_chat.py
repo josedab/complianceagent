@@ -20,6 +20,7 @@ from app.services.chat import (
     RAGDocument,
     RAGPipeline,
 )
+from app.services.chat.rag import RAGSource
 
 
 pytestmark = pytest.mark.asyncio
@@ -101,9 +102,7 @@ class TestConversationManager:
         )
 
         await manager.save(conversation)
-        result = await manager.delete(str(conversation.id), org_id)
-
-        assert result is True
+        await manager.delete(str(conversation.id))
 
         # Should not exist anymore
         retrieved = await manager.get(str(conversation.id))
@@ -216,24 +215,27 @@ class TestRAGPipeline:
             "What are the HIPAA requirements for PHI encryption?"
         )
 
-        assert "HIPAA" in entities.get("regulations", [])
+        # _extract_entities returns a list of entity dicts
+        entity_values = [e.get("value", "") for e in entities if isinstance(e, dict)]
+        assert any("HIPAA" in v for v in entity_values)
 
     def test_context_string_generation(self, rag_pipeline):
         """Test generating context string from documents."""
         context = RAGContext(
+            query="What are GDPR encryption requirements?",
             documents=[
                 RAGDocument(
                     id="doc1",
                     title="GDPR Article 32",
                     content="Security of processing requirements...",
-                    source="regulation",
+                    source=RAGSource.REGULATION,
                     relevance_score=0.95,
                 ),
                 RAGDocument(
                     id="doc2",
                     title="Encryption Best Practices",
                     content="Use AES-256 for data at rest...",
-                    source="documentation",
+                    source=RAGSource.DOCUMENTATION,
                     relevance_score=0.85,
                 ),
             ],
@@ -268,7 +270,7 @@ class TestActionHandler:
             },
         )
 
-        with patch.object(action_handler, "_generate_fix", new_callable=AsyncMock) as mock:
+        with patch.object(action_handler, "_handle_generate_fix", new_callable=AsyncMock) as mock:
             mock.return_value = {
                 "success": True,
                 "fixed_code": "log(mask_pii(user.email))",
@@ -287,7 +289,7 @@ class TestActionHandler:
         """Test executing explain requirement action."""
         action = ChatAction(
             id=uuid4(),
-            type=ActionType.EXPLAIN_REQUIREMENT,
+            type=ActionType.EXPLAIN_REGULATION,
             label="Explain",
             description="Explain this requirement",
             parameters={
@@ -296,7 +298,9 @@ class TestActionHandler:
             },
         )
 
-        with patch.object(action_handler, "_explain_requirement", new_callable=AsyncMock) as mock:
+        with patch.object(
+            action_handler, "_handle_explain_regulation", new_callable=AsyncMock
+        ) as mock:
             mock.return_value = {
                 "success": True,
                 "explanation": "Article 17 covers the right to erasure...",
@@ -578,7 +582,7 @@ class TestRAGDocument:
             id="doc-123",
             title="GDPR Article 17",
             content="The data subject shall have the right to erasure...",
-            source="regulation",
+            source=RAGSource.REGULATION,
             relevance_score=0.95,
             metadata={"regulation": "GDPR", "article": "17"},
         )

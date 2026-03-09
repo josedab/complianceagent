@@ -28,7 +28,7 @@ def sample_event_data(organization_id):
     """Create sample audit event data."""
     return AuditEventData(
         organization_id=organization_id,
-        event_type=AuditEventType.MAPPING_CREATED,
+        event_type=AuditEventType.CODEBASE_MAPPED,
         event_description="Created new compliance mapping",
         event_data={"file": "src/api/users.py", "requirement_id": "GDPR-7.1"},
         actor_type="user",
@@ -51,7 +51,7 @@ class TestAuditService:
 
         assert entry.id is not None
         assert entry.organization_id == sample_event_data.organization_id
-        assert entry.event_type == AuditEventType.MAPPING_CREATED
+        assert entry.event_type == AuditEventType.CODEBASE_MAPPED
         assert entry.event_description == "Created new compliance mapping"
         assert entry.actor_email == "test@example.com"
 
@@ -72,7 +72,7 @@ class TestAuditService:
         # Create first entry
         event1 = AuditEventData(
             organization_id=organization_id,
-            event_type=AuditEventType.MAPPING_CREATED,
+            event_type=AuditEventType.CODEBASE_MAPPED,
             event_description="First event",
         )
         entry1 = await audit_service.log(event1)
@@ -80,7 +80,7 @@ class TestAuditService:
         # Create second entry
         event2 = AuditEventData(
             organization_id=organization_id,
-            event_type=AuditEventType.MAPPING_UPDATED,
+            event_type=AuditEventType.COMPLIANCE_STATUS_CHANGED,
             event_description="Second event",
         )
         entry2 = await audit_service.log(event2)
@@ -107,7 +107,7 @@ class TestAuditService:
 
             await audit_service.log_event(
                 organization_id=organization_id,
-                event_type=AuditEventType.MAPPING_CREATED,
+                event_type=AuditEventType.CODEBASE_MAPPED,
                 event_description="Test event",
             )
 
@@ -138,7 +138,7 @@ class TestAuditService:
         """Test that request metadata (IP, user agent) is stored."""
         event = AuditEventData(
             organization_id=organization_id,
-            event_type=AuditEventType.MAPPING_CREATED,
+            event_type=AuditEventType.CODEBASE_MAPPED,
             event_description="Created mapping via API",
             ip_address="192.168.1.100",
             user_agent="Mozilla/5.0",
@@ -161,7 +161,7 @@ class TestAuditService:
 
         event = AuditEventData(
             organization_id=organization_id,
-            event_type=AuditEventType.MAPPING_CREATED,
+            event_type=AuditEventType.CODEBASE_MAPPED,
             event_description="Created mapping",
             regulation_id=regulation_id,
             requirement_id=requirement_id,
@@ -197,7 +197,7 @@ class TestAuditServiceVerification:
         for i in range(3):
             event = AuditEventData(
                 organization_id=organization_id,
-                event_type=AuditEventType.MAPPING_CREATED,
+                event_type=AuditEventType.CODEBASE_MAPPED,
                 event_description=f"Event {i}",
             )
             await audit_service.log(event)
@@ -218,7 +218,7 @@ class TestAuditServiceExport:
         for i in range(2):
             event = AuditEventData(
                 organization_id=organization_id,
-                event_type=AuditEventType.MAPPING_CREATED,
+                event_type=AuditEventType.CODEBASE_MAPPED,
                 event_description=f"Event {i}",
             )
             await audit_service.log(event)

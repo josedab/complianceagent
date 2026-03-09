@@ -1,31 +1,54 @@
 import { renderHook, waitFor, act } from '@testing-library/react'
 
 // Declare mocks inside the factory function to avoid hoisting issues
-jest.mock('@/lib/api', () => ({
-  complianceApi: {
-    getStatus: jest.fn(),
-  },
-  regulationsApi: {
-    list: jest.fn(),
-  },
-  auditApi: {
-    listActions: jest.fn(),
-    listTrail: jest.fn(),
-    getAction: jest.fn(),
-    updateAction: jest.fn(),
-  },
-  repositoriesApi: {
-    list: jest.fn(),
-    create: jest.fn(),
-    delete: jest.fn(),
-  },
-  mappingsApi: {
-    list: jest.fn().mockResolvedValue({ data: [] }),
-  },
-  requirementsApi: {
-    list: jest.fn().mockResolvedValue({ data: [] }),
-  },
-}))
+jest.mock('@/lib/api', () => {
+  class MockApiError extends Error {
+    status: number
+    code: string
+    constructor(status: number, message: string, code: string = 'unknown') {
+      super(message)
+      this.name = 'ApiError'
+      this.status = status
+      this.code = code
+    }
+    get isUnauthorized() { return this.status === 401 }
+    get isForbidden() { return this.status === 403 }
+    get isRateLimited() { return this.status === 429 }
+    get isServerError() { return this.status >= 500 }
+  }
+
+  return {
+    ApiError: MockApiError,
+    toApiError: (err: unknown) => {
+      if (err instanceof MockApiError) return err
+      if (err instanceof Error) return new MockApiError(0, err.message, 'network_error')
+      return new MockApiError(0, 'An unexpected error occurred', 'unknown')
+    },
+    complianceApi: {
+      getStatus: jest.fn(),
+    },
+    regulationsApi: {
+      list: jest.fn(),
+    },
+    auditApi: {
+      listActions: jest.fn(),
+      listTrail: jest.fn(),
+      getAction: jest.fn(),
+      updateAction: jest.fn(),
+    },
+    repositoriesApi: {
+      list: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    },
+    mappingsApi: {
+      list: jest.fn().mockResolvedValue({ data: [] }),
+    },
+    requirementsApi: {
+      list: jest.fn().mockResolvedValue({ data: [] }),
+    },
+  }
+})
 
 // Import after mocking
 import { complianceApi, regulationsApi, auditApi, repositoriesApi } from '@/lib/api'

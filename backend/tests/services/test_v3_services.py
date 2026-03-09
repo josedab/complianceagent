@@ -44,6 +44,8 @@ class TestTelemetryService:
     @pytest.mark.asyncio
     async def test_get_time_series(self, db_session):
         service = TelemetryService(db=db_session)
+        # Record a metric first so time series has data
+        await service.record_metric(MetricType.COMPLIANCE_SCORE, 88.0, framework="gdpr")
         series = await service.get_time_series(MetricType.COMPLIANCE_SCORE, period="24h")
         assert len(series.data_points) > 0
 

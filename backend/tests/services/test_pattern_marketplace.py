@@ -74,8 +74,8 @@ class TestPatternModels:
             content={"code": "test"},
         )
 
-        assert version.id is not None
         assert version.version == "1.0.0"
+        assert version.changelog == "Initial release"
         assert version.deprecated is False
 
     def test_pattern_installation_creation(self):

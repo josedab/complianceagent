@@ -4,12 +4,10 @@ import pytest
 
 from app.services.templates.registry import (
     ComplianceTemplate,
+    TemplateCategory,
     TemplateParameter,
     TemplateRegistry,
 )
-
-
-pytestmark = pytest.mark.asyncio
 
 
 class TestTemplateRegistry:
@@ -25,36 +23,37 @@ class TestTemplateRegistry:
         templates = registry.list_templates()
 
         assert len(templates) >= 5
-        template_ids = [t.template_id for t in templates]
-        assert "gdpr-consent-banner" in template_ids
-        assert "hipaa-phi-handler" in template_ids
-        assert "gdpr-dsar-handler" in template_ids
-        assert "compliance-audit-logging" in template_ids
-        assert "pci-card-tokenization" in template_ids
+        template_names = [t.name for t in templates]
+        assert "GDPR Consent Manager" in template_names
+        assert "HIPAA PHI Handler" in template_names
+        assert "Data Subject Access Request Handler" in template_names
+        assert "Compliance Audit Logger" in template_names
+        assert "PCI-DSS Tokenization" in template_names
 
     def test_list_templates_by_regulation(self, registry):
         """Test filtering templates by regulation."""
-        gdpr_templates = registry.list_templates(regulation="gdpr")
+        gdpr_templates = registry.list_templates(regulation="GDPR")
 
         assert len(gdpr_templates) >= 2
         for template in gdpr_templates:
-            assert "gdpr" in [r.lower() for r in template.regulations]
+            assert "GDPR" in template.regulations
 
     def test_list_templates_by_category(self, registry):
         """Test filtering templates by category."""
-        consent_templates = registry.list_templates(category="consent")
+        consent_templates = registry.list_templates(category=TemplateCategory.CONSENT)
 
         assert len(consent_templates) >= 1
         for template in consent_templates:
-            assert template.category.lower() == "consent"
+            assert template.category == TemplateCategory.CONSENT
 
     def test_get_template(self, registry):
         """Test retrieving specific template."""
-        template = registry.get_template("gdpr-consent-banner")
+        # Find the consent template by name, then look up by ID
+        consent = next(t for t in registry.list_templates() if t.name == "GDPR Consent Manager")
+        template = registry.get_template(str(consent.id))
 
         assert template is not None
-        assert template.template_id == "gdpr-consent-banner"
-        assert template.name == "GDPR Consent Banner"
+        assert template.name == "GDPR Consent Manager"
         assert "GDPR" in template.regulations
         assert len(template.parameters) > 0
         assert "typescript" in template.code or "python" in template.code
@@ -67,23 +66,23 @@ class TestTemplateRegistry:
 
     def test_gdpr_consent_template_structure(self, registry):
         """Test GDPR consent template structure."""
-        template = registry.get_template("gdpr-consent-banner")
+        template = next(t for t in registry.list_templates() if t.name == "GDPR Consent Manager")
 
         assert template is not None
 
         # Check parameters
         param_names = [p.name for p in template.parameters]
-        assert "cookie_domain" in param_names
-        assert "consent_version" in param_names
+        assert "storage_backend" in param_names
+        assert "custom_purposes" in param_names
 
         # Check code languages
         assert "typescript" in template.code
         code = template.code["typescript"]
-        assert "ConsentBanner" in code or "consent" in code.lower()
+        assert "ConsentManager" in code or "consent" in code.lower()
 
     def test_hipaa_phi_template_structure(self, registry):
         """Test HIPAA PHI handler template structure."""
-        template = registry.get_template("hipaa-phi-handler")
+        template = next(t for t in registry.list_templates() if t.name == "HIPAA PHI Handler")
 
         assert template is not None
         assert "HIPAA" in template.regulations
@@ -94,7 +93,7 @@ class TestTemplateRegistry:
 
     def test_audit_logging_template_structure(self, registry):
         """Test audit logging template structure."""
-        template = registry.get_template("compliance-audit-logging")
+        template = next(t for t in registry.list_templates() if t.name == "Compliance Audit Logger")
 
         assert template is not None
         # Should support multiple regulations
@@ -102,48 +101,42 @@ class TestTemplateRegistry:
 
     def test_pci_tokenization_template_structure(self, registry):
         """Test PCI tokenization template structure."""
-        template = registry.get_template("pci-card-tokenization")
+        template = next(t for t in registry.list_templates() if t.name == "PCI-DSS Tokenization")
 
         assert template is not None
         assert "PCI-DSS" in template.regulations
 
-    async def test_generate_template(self, registry):
-        """Test generating template code."""
-        params = {
-            "cookie_domain": "example.com",
-            "consent_version": "1.0",
-        }
+    def test_get_template_code(self, registry):
+        """Test getting template code."""
+        consent = next(t for t in registry.list_templates() if t.name == "GDPR Consent Manager")
 
-        result = await registry.generate(
-            template_id="gdpr-consent-banner",
+        result = registry.get_template_code(
+            template_id=str(consent.id),
             language="typescript",
-            parameters=params,
         )
 
         assert result is not None
-        assert "code" in result
-        assert "example.com" in result["code"]
+        assert "consent" in result.lower()
 
-    async def test_generate_template_not_found(self, registry):
-        """Test generating with non-existent template."""
-        result = await registry.generate(
+    def test_get_template_code_not_found(self, registry):
+        """Test getting code for non-existent template."""
+        result = registry.get_template_code(
             template_id="non-existent",
             language="python",
-            parameters={},
         )
 
-        assert result is None or "error" in result
+        assert result is None
 
-    async def test_generate_template_unsupported_language(self, registry):
-        """Test generating with unsupported language."""
-        result = await registry.generate(
-            template_id="gdpr-consent-banner",
+    def test_get_template_code_unsupported_language(self, registry):
+        """Test getting code for unsupported language."""
+        consent = next(t for t in registry.list_templates() if t.name == "GDPR Consent Manager")
+
+        result = registry.get_template_code(
+            template_id=str(consent.id),
             language="cobol",
-            parameters={},
         )
 
-        # Should return None or error for unsupported language
-        assert result is None or "error" in result
+        assert result is None
 
 
 class TestComplianceTemplate:
@@ -152,15 +145,14 @@ class TestComplianceTemplate:
     def test_template_creation(self):
         """Test creating a template."""
         template = ComplianceTemplate(
-            template_id="test-template",
             name="Test Template",
             description="A test template",
-            category="testing",
+            category=TemplateCategory.CONSENT,
             regulations=["TEST-REG"],
             parameters=[
                 TemplateParameter(
                     name="test_param",
-                    param_type="string",
+                    type="string",
                     description="A test parameter",
                     required=True,
                 )
@@ -169,7 +161,7 @@ class TestComplianceTemplate:
             version="1.0.0",
         )
 
-        assert template.template_id == "test-template"
+        assert template.id is not None
         assert len(template.parameters) == 1
         assert "python" in template.code
 
@@ -181,7 +173,7 @@ class TestTemplateParameter:
         """Test creating a parameter."""
         param = TemplateParameter(
             name="api_key",
-            param_type="string",
+            type="string",
             description="API key for service",
             required=True,
             default=None,
@@ -194,7 +186,7 @@ class TestTemplateParameter:
         """Test parameter with default value."""
         param = TemplateParameter(
             name="timeout",
-            param_type="number",
+            type="number",
             description="Request timeout",
             required=False,
             default=30,

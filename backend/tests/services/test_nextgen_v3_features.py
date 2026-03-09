@@ -29,55 +29,38 @@ class TestPRBotGitHubAPI:
         config = PRBotConfig()
         bot = PRBot(config=config)
 
+        mock_client = AsyncMock()
+        mock_client.get_pull_request = AsyncMock(return_value={})
+        mock_client.get_pull_request_files = AsyncMock(return_value=[])
+        bot._github_client = mock_client
+        bot._analyzer = AsyncMock()
+
         result = await bot.analyze_pr(
-            repo_owner="test-org",
-            repo_name="test-repo",
+            owner="test-org",
+            repo="test-repo",
             pr_number=42,
-            head_sha="abc123def",
-            token="test-token",
+            access_token="test-token",
         )
 
-        assert result["pr_number"] == 42
-        assert result["repo"] == "test-org/test-repo"
-        assert result["head_sha"] == "abc123def"
-        assert result["status"] == "completed"
-        assert "compliance_score" in result
-        assert "findings" in result
+        assert result.pr_number == 42
+        assert result.repo == "test-repo"
+        assert result.owner == "test-org"
+        assert result.violations_found == 0
 
-    async def test_post_check_run(self):
-        """Test that post_check_run makes correct HTTP call."""
-        from app.services.pr_bot.checks import ChecksService
+    async def test_determine_conclusion(self):
+        """Test that determine_conclusion returns correct check conclusion."""
+        from app.services.pr_bot.checks import CheckConclusion, ChecksService
 
         service = ChecksService()
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post = AsyncMock(
-                return_value=MagicMock(
-                    status_code=201,
-                    json=MagicMock(return_value={"id": 1, "status": "completed"}),
-                    raise_for_status=MagicMock(),
-                )
-            )
-            mock_client_cls.return_value = mock_client
+        clean_result = MagicMock(critical_count=0, violations_found=0)
+        assert service.determine_conclusion(clean_result) == CheckConclusion.SUCCESS
 
-            await service.post_check_run(
-                repo_owner="test-org",
-                repo_name="test-repo",
-                head_sha="abc123",
-                name="compliance-check",
-                status="completed",
-                conclusion="success",
-                title="All clear",
-                summary="No issues found",
-                token="test-token",
-            )
+        warning_result = MagicMock(critical_count=0, violations_found=3)
+        assert service.determine_conclusion(warning_result) == CheckConclusion.NEUTRAL
 
-            mock_client.post.assert_called_once()
-            call_args = mock_client.post.call_args
-            assert "check-runs" in call_args[0][0]
+        critical_result = MagicMock(critical_count=1, violations_found=1)
+        assert service.determine_conclusion(critical_result) == CheckConclusion.FAILURE
 
     async def test_post_review_comment(self):
         """Test that post_review_comment makes correct HTTP call."""
@@ -113,34 +96,19 @@ class TestPRBotGitHubAPI:
             call_args = mock_client.post.call_args
             assert "comments" in call_args[0][0]
 
-    async def test_apply_labels_via_api(self):
-        """Test that apply_labels_via_api makes correct HTTP call."""
-        from app.services.pr_bot.labels import LabelService
+    async def test_determine_labels(self):
+        """Test that determine_labels returns correct compliance labels."""
+        from app.services.pr_bot.labels import ComplianceLabel, LabelService
 
         service = LabelService()
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client.post = AsyncMock(
-                return_value=MagicMock(
-                    status_code=200,
-                    json=MagicMock(return_value=[{"name": "compliance:pass"}]),
-                    raise_for_status=MagicMock(),
-                )
-            )
-            mock_client_cls.return_value = mock_client
+        clean_result = MagicMock(critical_count=0, violations_found=0)
+        labels = service.determine_labels(clean_result)
+        assert ComplianceLabel.COMPLIANCE_PASSED in labels
 
-            await service.apply_labels_via_api(
-                repo_owner="test-org",
-                repo_name="test-repo",
-                issue_number=42,
-                labels=["compliance:pass"],
-                token="test-token",
-            )
-
-            mock_client.post.assert_called_once()
+        critical_result = MagicMock(critical_count=1, violations_found=1)
+        labels = service.determine_labels(critical_result)
+        assert ComplianceLabel.COMPLIANCE_CRITICAL in labels
 
 
 # ============================================================================

@@ -73,9 +73,8 @@ describe('ErrorBoundary', () => {
     const retryButton = screen.getByRole('button', { name: /try again/i });
     fireEvent.click(retryButton);
 
-    // Note: In a real app, the component would re-render successfully
-    // For this test, we verify the retry button exists and is clickable
-    expect(retryButton).toBeInTheDocument();
+    // After retry, the child should render successfully (error UI gone)
+    expect(screen.getByTestId('recovered')).toBeInTheDocument();
   });
 
   it('shows Dashboard link in error UI', () => {
