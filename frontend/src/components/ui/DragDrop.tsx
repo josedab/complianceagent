@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import * as React from 'react'
+import * as React from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -12,7 +12,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
   type UniqueIdentifier,
-} from '@dnd-kit/core'
+} from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
@@ -21,41 +21,37 @@ import {
   verticalListSortingStrategy,
   horizontalListSortingStrategy,
   rectSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { clsx } from 'clsx'
-import { GripVertical } from 'lucide-react'
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { clsx } from 'clsx';
+import { GripVertical } from 'lucide-react';
 
-type SortingStrategy = 'vertical' | 'horizontal' | 'grid'
+type SortingStrategy = 'vertical' | 'horizontal' | 'grid';
 
 interface DragDropListProps<T extends { id: string }> {
-  items: T[]
-  onReorder: (items: T[]) => void
-  renderItem: (item: T, isDragging: boolean) => React.ReactNode
-  strategy?: SortingStrategy
-  className?: string
-  itemClassName?: string
-  showDragHandle?: boolean
-  disabled?: boolean
+  items: T[];
+  onReorder: (items: T[]) => void;
+  renderItem: (item: T, isDragging: boolean) => React.ReactNode;
+  strategy?: SortingStrategy;
+  className?: string;
+  itemClassName?: string;
+  showDragHandle?: boolean;
+  disabled?: boolean;
 }
 
 // Hook for sortable item functionality
 function useSortableItem(id: string, disabled?: boolean) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id, disabled })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled,
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     cursor: disabled ? 'default' : 'grab',
-  }
+  };
 
   return {
     ref: setNodeRef,
@@ -63,16 +59,16 @@ function useSortableItem(id: string, disabled?: boolean) {
     attributes,
     listeners,
     isDragging,
-  }
+  };
 }
 
 // Sortable item wrapper component
 interface SortableItemProps {
-  id: string
-  children: React.ReactNode
-  className?: string
-  showDragHandle?: boolean
-  disabled?: boolean
+  id: string;
+  children: React.ReactNode;
+  className?: string;
+  showDragHandle?: boolean;
+  disabled?: boolean;
 }
 
 export function SortableItem({
@@ -82,21 +78,18 @@ export function SortableItem({
   showDragHandle = true,
   disabled = false,
 }: SortableItemProps) {
-  const { ref, style, attributes, listeners, isDragging } = useSortableItem(id, disabled)
+  const { ref, style, attributes, listeners, isDragging } = useSortableItem(id, disabled);
 
   return (
     <div
       ref={ref}
       style={style}
-      className={clsx(
-        'relative group',
-        isDragging && 'z-10 shadow-lg',
-        className
-      )}
+      className={clsx('relative group', isDragging && 'z-10 shadow-lg', className)}
     >
       {showDragHandle && !disabled ? (
         <div className="flex items-center gap-2">
           <button
+            type="button"
             {...attributes}
             {...listeners}
             className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-grab active:cursor-grabbing touch-none"
@@ -112,7 +105,7 @@ export function SortableItem({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // Main drag-drop list component
@@ -126,7 +119,7 @@ export function DragDropList<T extends { id: string }>({
   showDragHandle = true,
   disabled = false,
 }: DragDropListProps<T>) {
-  const [activeId, setActiveId] = React.useState<UniqueIdentifier | null>(null)
+  const [activeId, setActiveId] = React.useState<UniqueIdentifier | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -137,43 +130,43 @@ export function DragDropList<T extends { id: string }>({
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
-  )
+  );
 
   const sortingStrategy = React.useMemo(() => {
     switch (strategy) {
       case 'horizontal':
-        return horizontalListSortingStrategy
+        return horizontalListSortingStrategy;
       case 'grid':
-        return rectSortingStrategy
+        return rectSortingStrategy;
       default:
-        return verticalListSortingStrategy
+        return verticalListSortingStrategy;
     }
-  }, [strategy])
+  }, [strategy]);
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id)
-  }
+    setActiveId(event.active.id);
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveId(null)
-    const { active, over } = event
+    setActiveId(null);
+    const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = items.findIndex((item) => item.id === active.id)
-      const newIndex = items.findIndex((item) => item.id === over.id)
-      const newItems = arrayMove(items, oldIndex, newIndex)
-      onReorder(newItems)
+      const oldIndex = items.findIndex((item) => item.id === active.id);
+      const newIndex = items.findIndex((item) => item.id === over.id);
+      const newItems = arrayMove(items, oldIndex, newIndex);
+      onReorder(newItems);
     }
-  }
+  };
 
-  const activeItem = activeId ? items.find((item) => item.id === activeId) : null
+  const activeItem = activeId ? items.find((item) => item.id === activeId) : null;
 
   const containerClass = clsx(
     strategy === 'horizontal' && 'flex flex-row gap-2',
     strategy === 'grid' && 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4',
     strategy === 'vertical' && 'flex flex-col gap-2',
     className
-  )
+  );
 
   return (
     <DndContext
@@ -201,25 +194,23 @@ export function DragDropList<T extends { id: string }>({
       {/* Drag overlay for better visual feedback */}
       <DragOverlay>
         {activeItem ? (
-          <div className="opacity-90 shadow-xl">
-            {renderItem(activeItem, true)}
-          </div>
+          <div className="opacity-90 shadow-xl">{renderItem(activeItem, true)}</div>
         ) : null}
       </DragOverlay>
     </DndContext>
-  )
+  );
 }
 
 // Pre-built draggable card component
 interface DraggableCardProps {
-  id: string
-  title: string
-  subtitle?: string
-  icon?: React.ReactNode
-  badge?: React.ReactNode
-  actions?: React.ReactNode
-  onClick?: () => void
-  className?: string
+  id: string;
+  title: string;
+  subtitle?: string;
+  icon?: React.ReactNode;
+  badge?: React.ReactNode;
+  actions?: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
 }
 
 export function DraggableCard({
@@ -241,9 +232,7 @@ export function DraggableCard({
       onClick={onClick}
     >
       {icon && (
-        <div className="flex-shrink-0 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-          {icon}
-        </div>
+        <div className="flex-shrink-0 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">{icon}</div>
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -256,22 +245,22 @@ export function DraggableCard({
       </div>
       {actions && <div className="flex-shrink-0">{actions}</div>}
     </div>
-  )
+  );
 }
 
 // Example: Sortable regulations list
 interface Regulation {
-  id: string
-  name: string
-  description: string
-  status: 'active' | 'inactive'
-  priority: number
+  id: string;
+  name: string;
+  description: string;
+  status: 'active' | 'inactive';
+  priority: number;
 }
 
 interface SortableRegulationsProps {
-  regulations: Regulation[]
-  onReorder: (regulations: Regulation[]) => void
-  onSelect?: (regulation: Regulation) => void
+  regulations: Regulation[];
+  onReorder: (regulations: Regulation[]) => void;
+  onSelect?: (regulation: Regulation) => void;
 }
 
 export function SortableRegulations({
@@ -307,21 +296,21 @@ export function SortableRegulations({
         />
       )}
     />
-  )
+  );
 }
 
 // Example: Sortable action items
 interface ActionItem {
-  id: string
-  title: string
-  severity: 'critical' | 'high' | 'medium' | 'low'
-  repository: string
+  id: string;
+  title: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  repository: string;
 }
 
 interface SortableActionsProps {
-  actions: ActionItem[]
-  onReorder: (actions: ActionItem[]) => void
-  onSelect?: (action: ActionItem) => void
+  actions: ActionItem[];
+  onReorder: (actions: ActionItem[]) => void;
+  onSelect?: (action: ActionItem) => void;
 }
 
 const severityColors: Record<ActionItem['severity'], string> = {
@@ -329,13 +318,9 @@ const severityColors: Record<ActionItem['severity'], string> = {
   high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-}
+};
 
-export function SortableActions({
-  actions,
-  onReorder,
-  onSelect,
-}: SortableActionsProps) {
+export function SortableActions({ actions, onReorder, onSelect }: SortableActionsProps) {
   return (
     <DragDropList
       items={actions}
@@ -349,7 +334,12 @@ export function SortableActions({
           subtitle={action.repository}
           onClick={() => onSelect?.(action)}
           badge={
-            <span className={clsx('px-2 py-0.5 text-xs rounded-full capitalize', severityColors[action.severity])}>
+            <span
+              className={clsx(
+                'px-2 py-0.5 text-xs rounded-full capitalize',
+                severityColors[action.severity]
+              )}
+            >
               {action.severity}
             </span>
           }
@@ -357,22 +347,22 @@ export function SortableActions({
         />
       )}
     />
-  )
+  );
 }
 
 // Kanban-style board for actions
 interface KanbanColumn<T extends { id: string }> {
-  id: string
-  title: string
-  items: T[]
+  id: string;
+  title: string;
+  items: T[];
 }
 
 interface KanbanBoardProps<T extends { id: string }> {
-  columns: KanbanColumn<T>[]
-  onReorder: (columnId: string, items: T[]) => void
-  onMoveItem?: (itemId: string, fromColumn: string, toColumn: string) => void
-  renderItem: (item: T) => React.ReactNode
-  className?: string
+  columns: KanbanColumn<T>[];
+  onReorder: (columnId: string, items: T[]) => void;
+  onMoveItem?: (itemId: string, fromColumn: string, toColumn: string) => void;
+  renderItem: (item: T) => React.ReactNode;
+  className?: string;
 }
 
 export function KanbanBoard<T extends { id: string }>({
@@ -390,9 +380,7 @@ export function KanbanBoard<T extends { id: string }>({
         >
           <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center justify-between">
             {column.title}
-            <span className="text-sm font-normal text-gray-500">
-              {column.items.length}
-            </span>
+            <span className="text-sm font-normal text-gray-500">{column.items.length}</span>
           </h3>
           <DragDropList
             items={column.items}
@@ -404,5 +392,5 @@ export function KanbanBoard<T extends { id: string }>({
         </div>
       ))}
     </div>
-  )
+  );
 }

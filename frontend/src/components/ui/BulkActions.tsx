@@ -1,24 +1,24 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import { X, Trash2, CheckCircle, Archive, Tag, MoreHorizontal, Loader2 } from 'lucide-react'
-import { clsx } from 'clsx'
+import * as React from 'react';
+import { X, Trash2, CheckCircle, Archive, Tag, MoreHorizontal, Loader2 } from 'lucide-react';
+import { clsx } from 'clsx';
 
 interface BulkAction {
-  id: string
-  label: string
-  icon: React.ReactNode
-  variant?: 'default' | 'danger'
-  onClick: (selectedIds: string[]) => void | Promise<void>
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  variant?: 'default' | 'danger';
+  onClick: (selectedIds: string[]) => void | Promise<void>;
 }
 
 interface BulkActionsBarProps {
-  selectedCount: number
-  totalCount: number
-  onClearSelection: () => void
-  onSelectAll: () => void
-  actions: BulkAction[]
-  className?: string
+  selectedCount: number;
+  totalCount: number;
+  onClearSelection: () => void;
+  onSelectAll: () => void;
+  actions: BulkAction[];
+  className?: string;
 }
 
 export function BulkActionsBar({
@@ -29,33 +29,33 @@ export function BulkActionsBar({
   actions,
   className,
 }: BulkActionsBarProps) {
-  const [loadingAction, setLoadingAction] = React.useState<string | null>(null)
-  const [showMore, setShowMore] = React.useState(false)
-  const moreRef = React.useRef<HTMLDivElement>(null)
+  const [loadingAction, setLoadingAction] = React.useState<string | null>(null);
+  const [showMore, setShowMore] = React.useState(false);
+  const moreRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setShowMore(false)
+        setShowMore(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  if (selectedCount === 0) return null
+  if (selectedCount === 0) return null;
 
-  const visibleActions = actions.slice(0, 3)
-  const overflowActions = actions.slice(3)
+  const visibleActions = actions.slice(0, 3);
+  const overflowActions = actions.slice(3);
 
   const handleAction = async (action: BulkAction, ids: string[]) => {
-    setLoadingAction(action.id)
+    setLoadingAction(action.id);
     try {
-      await action.onClick(ids)
+      await action.onClick(ids);
     } finally {
-      setLoadingAction(null)
+      setLoadingAction(null);
     }
-  }
+  };
 
   return (
     <div
@@ -70,17 +70,18 @@ export function BulkActionsBar({
       {/* Selection info */}
       <div className="flex items-center gap-3 border-r border-gray-700 pr-4">
         <button
+          type="button"
           onClick={onClearSelection}
           className="p-1 hover:bg-gray-800 rounded transition-colors"
           title="Clear selection"
+          aria-label="Clear selection"
         >
           <X className="h-4 w-4" />
         </button>
-        <span className="text-sm font-medium">
-          {selectedCount} selected
-        </span>
+        <span className="text-sm font-medium">{selectedCount} selected</span>
         {selectedCount < totalCount && (
           <button
+            type="button"
             onClick={onSelectAll}
             className="text-sm text-primary-400 hover:text-primary-300 transition-colors"
           >
@@ -93,14 +94,13 @@ export function BulkActionsBar({
       <div className="flex items-center gap-2">
         {visibleActions.map((action) => (
           <button
+            type="button"
             key={action.id}
             onClick={() => handleAction(action, [])}
             disabled={loadingAction !== null}
             className={clsx(
               'flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-              action.variant === 'danger'
-                ? 'hover:bg-red-500/20 text-red-400'
-                : 'hover:bg-gray-800'
+              action.variant === 'danger' ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-gray-800'
             )}
           >
             {loadingAction === action.id ? (
@@ -115,6 +115,7 @@ export function BulkActionsBar({
         {overflowActions.length > 0 && (
           <div ref={moreRef} className="relative">
             <button
+              type="button"
               onClick={() => setShowMore(!showMore)}
               className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
             >
@@ -124,10 +125,11 @@ export function BulkActionsBar({
               <div className="absolute bottom-full right-0 mb-2 w-48 bg-gray-800 rounded-lg shadow-lg py-1">
                 {overflowActions.map((action) => (
                   <button
+                    type="button"
                     key={action.id}
                     onClick={() => {
-                      handleAction(action, [])
-                      setShowMore(false)
+                      handleAction(action, []);
+                      setShowMore(false);
                     }}
                     disabled={loadingAction !== null}
                     className={clsx(
@@ -151,7 +153,7 @@ export function BulkActionsBar({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 // Predefined actions factory
@@ -184,45 +186,48 @@ export const bulkActionPresets = {
     icon: <Tag className="h-4 w-4" />,
     onClick: onTag,
   }),
-}
+};
 
 // Hook for managing bulk selection state
 export function useBulkSelection<T extends { id: string }>(
   items: T[],
   getItemId: (item: T) => string = (item) => item.id
 ) {
-  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
 
-  const toggleItem = React.useCallback((item: T) => {
-    const id = getItemId(item)
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }, [getItemId])
+  const toggleItem = React.useCallback(
+    (item: T) => {
+      const id = getItemId(item);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      });
+    },
+    [getItemId]
+  );
 
   const selectAll = React.useCallback(() => {
-    setSelectedIds(new Set(items.map(getItemId)))
-  }, [items, getItemId])
+    setSelectedIds(new Set(items.map(getItemId)));
+  }, [items, getItemId]);
 
   const clearSelection = React.useCallback(() => {
-    setSelectedIds(new Set())
-  }, [])
+    setSelectedIds(new Set());
+  }, []);
 
   const isSelected = React.useCallback(
     (item: T) => selectedIds.has(getItemId(item)),
     [selectedIds, getItemId]
-  )
+  );
 
   const selectedItems = React.useMemo(
     () => items.filter((item) => selectedIds.has(getItemId(item))),
     [items, selectedIds, getItemId]
-  )
+  );
 
   return {
     selectedIds,
@@ -233,5 +238,5 @@ export function useBulkSelection<T extends { id: string }>(
     clearSelection,
     isSelected,
     setSelectedIds,
-  }
+  };
 }

@@ -1,25 +1,25 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import { Search, X, FileText, GitBranch, AlertTriangle, History, Loader2 } from 'lucide-react'
-import { clsx } from 'clsx'
-import { useRouter } from 'next/navigation'
+import * as React from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { Search, X, FileText, GitBranch, AlertTriangle, History, Loader2 } from 'lucide-react';
+import { clsx } from 'clsx';
+import { useRouter } from 'next/navigation';
 
-type SearchResultType = 'regulation' | 'repository' | 'issue' | 'audit'
+type SearchResultType = 'regulation' | 'repository' | 'issue' | 'audit';
 
 interface SearchResult {
-  id: string
-  type: SearchResultType
-  title: string
-  subtitle?: string
-  metadata?: Record<string, string>
-  href: string
+  id: string;
+  type: SearchResultType;
+  title: string;
+  subtitle?: string;
+  metadata?: Record<string, string>;
+  href: string;
 }
 
 interface GlobalSearchProps {
-  placeholder?: string
-  className?: string
+  placeholder?: string;
+  className?: string;
 }
 
 const typeIcons: Record<SearchResultType, React.ReactNode> = {
@@ -27,31 +27,31 @@ const typeIcons: Record<SearchResultType, React.ReactNode> = {
   repository: <GitBranch className="h-4 w-4" />,
   issue: <AlertTriangle className="h-4 w-4" />,
   audit: <History className="h-4 w-4" />,
-}
+};
 
 const typeLabels: Record<SearchResultType, string> = {
   regulation: 'Regulation',
   repository: 'Repository',
   issue: 'Issue',
   audit: 'Audit Entry',
-}
+};
 
 const typeColors: Record<SearchResultType, string> = {
   regulation: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30',
   repository: 'text-purple-500 bg-purple-100 dark:bg-purple-900/30',
   issue: 'text-yellow-500 bg-yellow-100 dark:bg-yellow-900/30',
   audit: 'text-gray-500 bg-gray-100 dark:bg-gray-800',
-}
+};
 
 // Mock search function - replace with real API call
 async function performSearch(query: string): Promise<SearchResult[]> {
   // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300))
-  
-  if (!query.trim()) return []
-  
-  const q = query.toLowerCase()
-  
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  if (!query.trim()) return [];
+
+  const q = query.toLowerCase();
+
   // Mock results
   const allResults: SearchResult[] = [
     {
@@ -110,123 +110,125 @@ async function performSearch(query: string): Promise<SearchResult[]> {
       metadata: { severity: 'High' },
       href: '/dashboard/actions/issue-2',
     },
-  ]
-  
+  ];
+
   return allResults.filter(
-    (r) =>
-      r.title.toLowerCase().includes(q) ||
-      r.subtitle?.toLowerCase().includes(q)
-  )
+    (r) => r.title.toLowerCase().includes(q) || r.subtitle?.toLowerCase().includes(q)
+  );
 }
 
-export function GlobalSearch({ placeholder = 'Search everything...', className }: GlobalSearchProps) {
-  const [open, setOpen] = React.useState(false)
-  const [query, setQuery] = React.useState('')
-  const [results, setResults] = React.useState<SearchResult[]>([])
-  const [loading, setLoading] = React.useState(false)
-  const [selectedIndex, setSelectedIndex] = React.useState(0)
-  const [activeFilter, setActiveFilter] = React.useState<SearchResultType | 'all'>('all')
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const router = useRouter()
-  
+export function GlobalSearch({
+  placeholder = 'Search everything...',
+  className,
+}: GlobalSearchProps) {
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+  const [results, setResults] = React.useState<SearchResult[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [activeFilter, setActiveFilter] = React.useState<SearchResultType | 'all'>('all');
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
   // Debounced search
   React.useEffect(() => {
     if (!query.trim()) {
-      setResults([])
-      return
+      setResults([]);
+      return;
     }
-    
-    setLoading(true)
+
+    setLoading(true);
     const timer = setTimeout(async () => {
-      const searchResults = await performSearch(query)
-      setResults(searchResults)
-      setLoading(false)
-      setSelectedIndex(0)
-    }, 200)
-    
-    return () => clearTimeout(timer)
-  }, [query])
-  
+      const searchResults = await performSearch(query);
+      setResults(searchResults);
+      setLoading(false);
+      setSelectedIndex(0);
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
   // Reset state when opening
   React.useEffect(() => {
     if (open) {
-      setQuery('')
-      setResults([])
-      setSelectedIndex(0)
-      setActiveFilter('all')
-      setTimeout(() => inputRef.current?.focus(), 0)
+      setQuery('');
+      setResults([]);
+      setSelectedIndex(0);
+      setActiveFilter('all');
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
-  }, [open])
-  
+  }, [open]);
+
   // Keyboard shortcut to open
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
-        const target = e.target as HTMLElement
+        const target = e.target as HTMLElement;
         if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
-          e.preventDefault()
-          setOpen(true)
+          e.preventDefault();
+          setOpen(true);
         }
       }
-    }
-    
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
-  
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const filteredResults = React.useMemo(() => {
-    if (activeFilter === 'all') return results
-    return results.filter((r) => r.type === activeFilter)
-  }, [results, activeFilter])
-  
+    if (activeFilter === 'all') return results;
+    return results.filter((r) => r.type === activeFilter);
+  }, [results, activeFilter]);
+
   const handleSelect = (result: SearchResult) => {
-    setOpen(false)
-    router.push(result.href)
-  }
-  
+    setOpen(false);
+    router.push(result.href);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'ArrowDown':
-        e.preventDefault()
-        setSelectedIndex((i) => Math.min(i + 1, filteredResults.length - 1))
-        break
+        e.preventDefault();
+        setSelectedIndex((i) => Math.min(i + 1, filteredResults.length - 1));
+        break;
       case 'ArrowUp':
-        e.preventDefault()
-        setSelectedIndex((i) => Math.max(i - 1, 0))
-        break
+        e.preventDefault();
+        setSelectedIndex((i) => Math.max(i - 1, 0));
+        break;
       case 'Enter':
-        e.preventDefault()
+        e.preventDefault();
         if (filteredResults[selectedIndex]) {
-          handleSelect(filteredResults[selectedIndex])
+          handleSelect(filteredResults[selectedIndex]);
         }
-        break
+        break;
     }
-  }
-  
+  };
+
   const filters: Array<{ value: SearchResultType | 'all'; label: string }> = [
     { value: 'all', label: 'All' },
     { value: 'regulation', label: 'Regulations' },
     { value: 'repository', label: 'Repositories' },
     { value: 'issue', label: 'Issues' },
     { value: 'audit', label: 'Audit' },
-  ]
-  
+  ];
+
   // Group results by type
   const groupedResults = React.useMemo(() => {
-    const groups: Partial<Record<SearchResultType, SearchResult[]>> = {}
+    const groups: Partial<Record<SearchResultType, SearchResult[]>> = {};
     for (const result of filteredResults) {
       if (!groups[result.type]) {
-        groups[result.type] = []
+        groups[result.type] = [];
       }
-      groups[result.type]!.push(result)
+      groups[result.type]!.push(result);
     }
-    return groups
-  }, [filteredResults])
-  
+    return groups;
+  }, [filteredResults]);
+
   return (
     <>
       {/* Trigger */}
       <button
+        type="button"
         onClick={() => setOpen(true)}
         data-search-input
         className={clsx(
@@ -242,7 +244,7 @@ export function GlobalSearch({ placeholder = 'Search everything...', className }
           /
         </kbd>
       </button>
-      
+
       {/* Dialog */}
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
@@ -267,11 +269,12 @@ export function GlobalSearch({ placeholder = 'Search everything...', className }
                 <X className="h-4 w-4" />
               </Dialog.Close>
             </div>
-            
+
             {/* Filters */}
             <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
               {filters.map((filter) => (
                 <button
+                  type="button"
                   key={filter.value}
                   onClick={() => setActiveFilter(filter.value)}
                   className={clsx(
@@ -285,7 +288,7 @@ export function GlobalSearch({ placeholder = 'Search everything...', className }
                 </button>
               ))}
             </div>
-            
+
             {/* Results */}
             <div className="max-h-96 overflow-y-auto">
               {query && filteredResults.length === 0 && !loading && (
@@ -294,25 +297,26 @@ export function GlobalSearch({ placeholder = 'Search everything...', className }
                   <p className="text-sm mt-1">Try different keywords or filters</p>
                 </div>
               )}
-              
+
               {!query && (
                 <div className="px-4 py-8 text-center text-gray-500">
                   <p>Start typing to search</p>
                   <p className="text-sm mt-1">Search regulations, repositories, issues, and more</p>
                 </div>
               )}
-              
+
               {Object.entries(groupedResults).map(([type, items]) => (
                 <div key={type}>
                   <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">
                     {typeLabels[type as SearchResultType]}
                   </div>
                   {items!.map((result) => {
-                    const globalIndex = filteredResults.indexOf(result)
-                    const isSelected = globalIndex === selectedIndex
-                    
+                    const globalIndex = filteredResults.indexOf(result);
+                    const isSelected = globalIndex === selectedIndex;
+
                     return (
                       <button
+                        type="button"
                         key={result.id}
                         onClick={() => handleSelect(result)}
                         className={clsx(
@@ -339,12 +343,12 @@ export function GlobalSearch({ placeholder = 'Search everything...', className }
                           </div>
                         )}
                       </button>
-                    )
+                    );
                   })}
                 </div>
               ))}
             </div>
-            
+
             {/* Footer */}
             <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500">
               <div className="flex items-center gap-4">
@@ -367,5 +371,5 @@ export function GlobalSearch({ placeholder = 'Search everything...', className }
         </Dialog.Portal>
       </Dialog.Root>
     </>
-  )
+  );
 }

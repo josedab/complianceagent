@@ -1,83 +1,81 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import { Download, FileText, Table, Loader2 } from 'lucide-react'
-import { clsx } from 'clsx'
+import * as React from 'react';
+import { Download, FileText, Table, Loader2 } from 'lucide-react';
+import { clsx } from 'clsx';
 
-type ExportFormat = 'csv' | 'json' | 'pdf'
+type ExportFormat = 'csv' | 'json' | 'pdf';
 
 interface ExportConfig<T> {
-  data: T[]
-  filename: string
+  data: T[];
+  filename: string;
   columns?: Array<{
-    key: keyof T
-    header: string
-    format?: (value: unknown) => string
-  }>
-  title?: string
-  includeTimestamp?: boolean
+    key: keyof T;
+    header: string;
+    format?: (value: unknown) => string;
+  }>;
+  title?: string;
+  includeTimestamp?: boolean;
 }
 
 // CSV Export
 function exportToCSV<T>(config: ExportConfig<T>): void {
-  const { data, filename, columns, includeTimestamp = true } = config
+  const { data, filename, columns, includeTimestamp = true } = config;
 
-  if (data.length === 0) return
+  if (data.length === 0) return;
 
-  const headers = columns
-    ? columns.map((c) => c.header)
-    : Object.keys(data[0] as object)
+  const headers = columns ? columns.map((c) => c.header) : Object.keys(data[0] as object);
 
   const rows = data.map((item) => {
     if (columns) {
       return columns.map((col) => {
-        const value = item[col.key]
-        const formatted = col.format ? col.format(value) : String(value ?? '')
+        const value = item[col.key];
+        const formatted = col.format ? col.format(value) : String(value ?? '');
         // Escape quotes and wrap in quotes if contains comma
-        return `"${formatted.replace(/"/g, '""')}"`
-      })
+        return `"${formatted.replace(/"/g, '""')}"`;
+      });
     }
-    return Object.values(item as object).map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
-  })
+    return Object.values(item as object).map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`);
+  });
 
-  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
+  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
 
-  const timestamp = includeTimestamp ? `_${new Date().toISOString().split('T')[0]}` : ''
-  downloadFile(csvContent, `${filename}${timestamp}.csv`, 'text/csv')
+  const timestamp = includeTimestamp ? `_${new Date().toISOString().split('T')[0]}` : '';
+  downloadFile(csvContent, `${filename}${timestamp}.csv`, 'text/csv');
 }
 
 // JSON Export
 function exportToJSON<T>(config: ExportConfig<T>): void {
-  const { data, filename, includeTimestamp = true } = config
+  const { data, filename, includeTimestamp = true } = config;
 
   const exportData = {
     exportedAt: new Date().toISOString(),
     totalRecords: data.length,
     data,
-  }
+  };
 
-  const jsonContent = JSON.stringify(exportData, null, 2)
-  const timestamp = includeTimestamp ? `_${new Date().toISOString().split('T')[0]}` : ''
-  downloadFile(jsonContent, `${filename}${timestamp}.json`, 'application/json')
+  const jsonContent = JSON.stringify(exportData, null, 2);
+  const timestamp = includeTimestamp ? `_${new Date().toISOString().split('T')[0]}` : '';
+  downloadFile(jsonContent, `${filename}${timestamp}.json`, 'application/json');
 }
 
 // PDF Export (creates a printable HTML that opens in new window)
 function exportToPDF<T>(config: ExportConfig<T>): void {
-  const { data, columns, title = 'Report' } = config
+  const { data, columns, title = 'Report' } = config;
 
-  const headers = columns ? columns.map((c) => c.header) : Object.keys((data[0] as object) || {})
+  const headers = columns ? columns.map((c) => c.header) : Object.keys((data[0] as object) || {});
 
   const tableRows = data
     .map((item) => {
       const cells = columns
         ? columns.map((col) => {
-            const value = item[col.key]
-            return col.format ? col.format(value) : String(value ?? '')
+            const value = item[col.key];
+            return col.format ? col.format(value) : String(value ?? '');
           })
-        : Object.values(item as object).map((v) => String(v ?? ''))
-      return `<tr>${cells.map((c) => `<td style="border:1px solid #ddd;padding:8px;">${escapeHtml(c)}</td>`).join('')}</tr>`
+        : Object.values(item as object).map((v) => String(v ?? ''));
+      return `<tr>${cells.map((c) => `<td style="border:1px solid #ddd;padding:8px;">${escapeHtml(c)}</td>`).join('')}</tr>`;
     })
-    .join('')
+    .join('');
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -104,7 +102,7 @@ function exportToPDF<T>(config: ExportConfig<T>): void {
         <p>Generated: ${new Date().toLocaleString()}</p>
         <p>Total Records: ${data.length}</p>
       </div>
-      <button onclick="window.print()" style="padding:10px 20px;cursor:pointer;margin-bottom:20px;">
+      <button type="button" onclick="window.print()" style="padding:10px 20px;cursor:pointer;margin-bottom:20px;">
         Print / Save as PDF
       </button>
       <table>
@@ -117,37 +115,37 @@ function exportToPDF<T>(config: ExportConfig<T>): void {
       </table>
     </body>
     </html>
-  `
+  `;
 
-  const blob = new Blob([htmlContent], { type: 'text/html' })
-  const url = URL.createObjectURL(blob)
-  window.open(url, '_blank')
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  const blob = new Blob([htmlContent], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function downloadFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function escapeHtml(str: string): string {
-  const div = document.createElement('div')
-  div.textContent = str
-  return div.innerHTML
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 interface ExportButtonProps<T> {
-  config: ExportConfig<T>
-  format?: ExportFormat
-  className?: string
-  children?: React.ReactNode
+  config: ExportConfig<T>;
+  format?: ExportFormat;
+  className?: string;
+  children?: React.ReactNode;
 }
 
 export function ExportButton<T>({
@@ -156,38 +154,39 @@ export function ExportButton<T>({
   className,
   children,
 }: ExportButtonProps<T>) {
-  const [exporting, setExporting] = React.useState(false)
+  const [exporting, setExporting] = React.useState(false);
 
   const handleExport = async () => {
-    setExporting(true)
+    setExporting(true);
     try {
       // Small delay for UI feedback
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       switch (format) {
         case 'csv':
-          exportToCSV(config)
-          break
+          exportToCSV(config);
+          break;
         case 'json':
-          exportToJSON(config)
-          break
+          exportToJSON(config);
+          break;
         case 'pdf':
-          exportToPDF(config)
-          break
+          exportToPDF(config);
+          break;
       }
     } finally {
-      setExporting(false)
+      setExporting(false);
     }
-  }
+  };
 
   const icons = {
     csv: <Table className="h-4 w-4" />,
     json: <FileText className="h-4 w-4" />,
     pdf: <FileText className="h-4 w-4" />,
-  }
+  };
 
   return (
     <button
+      type="button"
       onClick={handleExport}
       disabled={exporting || config.data.length === 0}
       className={clsx(
@@ -197,63 +196,57 @@ export function ExportButton<T>({
         className
       )}
     >
-      {exporting ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        icons[format]
-      )}
+      {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : icons[format]}
       {children || `Export ${format.toUpperCase()}`}
     </button>
-  )
+  );
 }
 
 interface ExportDropdownProps<T> {
-  config: ExportConfig<T>
-  className?: string
+  config: ExportConfig<T>;
+  className?: string;
 }
 
-export function ExportDropdown<T>({
-  config,
-  className,
-}: ExportDropdownProps<T>) {
-  const [open, setOpen] = React.useState(false)
-  const [exporting, setExporting] = React.useState<ExportFormat | null>(null)
-  const dropdownRef = React.useRef<HTMLDivElement>(null)
+export function ExportDropdown<T>({ config, className }: ExportDropdownProps<T>) {
+  const [open, setOpen] = React.useState(false);
+  const [exporting, setExporting] = React.useState<ExportFormat | null>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false)
+        setOpen(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleExport = async (format: ExportFormat) => {
-    setExporting(format)
+    setExporting(format);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100));
       switch (format) {
         case 'csv':
-          exportToCSV(config)
-          break
+          exportToCSV(config);
+          break;
         case 'json':
-          exportToJSON(config)
-          break
+          exportToJSON(config);
+          break;
         case 'pdf':
-          exportToPDF(config)
-          break
+          exportToPDF(config);
+          break;
       }
     } finally {
-      setExporting(null)
-      setOpen(false)
+      setExporting(null);
+      setOpen(false);
     }
-  }
+  };
 
   return (
     <div ref={dropdownRef} className={clsx('relative', className)}>
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         disabled={config.data.length === 0}
         className={clsx(
@@ -269,6 +262,7 @@ export function ExportDropdown<T>({
       {open && (
         <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white shadow-lg border border-gray-200 py-1 z-50">
           <button
+            type="button"
             onClick={() => handleExport('csv')}
             disabled={exporting !== null}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -281,6 +275,7 @@ export function ExportDropdown<T>({
             Export as CSV
           </button>
           <button
+            type="button"
             onClick={() => handleExport('json')}
             disabled={exporting !== null}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -293,6 +288,7 @@ export function ExportDropdown<T>({
             Export as JSON
           </button>
           <button
+            type="button"
             onClick={() => handleExport('pdf')}
             disabled={exporting !== null}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -307,8 +303,8 @@ export function ExportDropdown<T>({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // Utility exports for direct use
-export { exportToCSV, exportToJSON, exportToPDF }
+export { exportToCSV, exportToJSON, exportToPDF };

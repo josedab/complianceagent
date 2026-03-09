@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import { useRouter } from 'next/navigation'
+import * as React from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { useRouter } from 'next/navigation';
 import {
   Search,
   Home,
@@ -16,67 +16,69 @@ import {
   Download,
   Keyboard,
   ArrowRight,
-} from 'lucide-react'
-import { clsx } from 'clsx'
+} from 'lucide-react';
+import { clsx } from 'clsx';
 
 type CommandAction = {
-  id: string
-  title: string
-  subtitle?: string
-  icon: React.ReactNode
-  shortcut?: string[]
-  action: () => void
-  section: 'navigation' | 'actions' | 'settings'
-}
+  id: string;
+  title: string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  shortcut?: string[];
+  action: () => void;
+  section: 'navigation' | 'actions' | 'settings';
+};
 
 interface CommandPaletteContextValue {
-  open: boolean
-  setOpen: (open: boolean) => void
-  registerAction: (action: CommandAction) => void
-  unregisterAction: (id: string) => void
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  registerAction: (action: CommandAction) => void;
+  unregisterAction: (id: string) => void;
 }
 
-const CommandPaletteContext = React.createContext<CommandPaletteContextValue | undefined>(undefined)
+const CommandPaletteContext = React.createContext<CommandPaletteContextValue | undefined>(
+  undefined
+);
 
 export function useCommandPalette() {
-  const context = React.useContext(CommandPaletteContext)
+  const context = React.useContext(CommandPaletteContext);
   if (!context) {
-    throw new Error('useCommandPalette must be used within a CommandPaletteProvider')
+    throw new Error('useCommandPalette must be used within a CommandPaletteProvider');
   }
-  return context
+  return context;
 }
 
 export function CommandPaletteProvider({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = React.useState(false)
-  const [customActions, setCustomActions] = React.useState<CommandAction[]>([])
+  const [open, setOpen] = React.useState(false);
+  const [customActions, setCustomActions] = React.useState<CommandAction[]>([]);
 
   const registerAction = React.useCallback((action: CommandAction) => {
-    setCustomActions((prev) => [...prev.filter((a) => a.id !== action.id), action])
-  }, [])
+    setCustomActions((prev) => [...prev.filter((a) => a.id !== action.id), action]);
+  }, []);
 
   const unregisterAction = React.useCallback((id: string) => {
-    setCustomActions((prev) => prev.filter((a) => a.id !== id))
-  }, [])
+    setCustomActions((prev) => prev.filter((a) => a.id !== id));
+  }, []);
 
   // Global keyboard shortcut
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setOpen((prev) => !prev)
+        e.preventDefault();
+        setOpen((prev) => !prev);
       }
-    }
+    };
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <CommandPaletteContext.Provider value={{ open, setOpen, registerAction, unregisterAction }}>
       {children}
       <CommandPaletteDialog open={open} onOpenChange={setOpen} customActions={customActions} />
     </CommandPaletteContext.Provider>
-  )
+  );
 }
 
 function CommandPaletteDialog({
@@ -84,14 +86,14 @@ function CommandPaletteDialog({
   onOpenChange,
   customActions,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  customActions: CommandAction[]
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  customActions: CommandAction[];
 }) {
-  const router = useRouter()
-  const [query, setQuery] = React.useState('')
-  const [selectedIndex, setSelectedIndex] = React.useState(0)
-  const inputRef = React.useRef<HTMLInputElement>(null)
+  const router = useRouter();
+  const [query, setQuery] = React.useState('');
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   const baseActions: CommandAction[] = React.useMemo(
     () => [
@@ -149,7 +151,7 @@ function CommandPaletteDialog({
         subtitle: 'Add a new GitHub repository',
         icon: <Plus className="h-4 w-4" />,
         action: () => {
-          router.push('/dashboard/repositories')
+          router.push('/dashboard/repositories');
           // Could open a modal here
         },
         section: 'actions',
@@ -161,7 +163,7 @@ function CommandPaletteDialog({
         icon: <RefreshCw className="h-4 w-4" />,
         action: () => {
           // Trigger scan
-          console.log('Triggering scan...')
+          console.log('Triggering scan...');
         },
         section: 'actions',
       },
@@ -180,84 +182,83 @@ function CommandPaletteDialog({
         shortcut: ['?'],
         action: () => {
           // Show shortcuts modal
-          console.log('Show shortcuts')
+          console.log('Show shortcuts');
         },
         section: 'settings',
       },
     ],
     [router]
-  )
+  );
 
   const allActions = React.useMemo(
     () => [...baseActions, ...customActions],
     [baseActions, customActions]
-  )
+  );
 
   const filteredActions = React.useMemo(() => {
-    if (!query) return allActions
-    const q = query.toLowerCase()
+    if (!query) return allActions;
+    const q = query.toLowerCase();
     return allActions.filter(
       (action) =>
-        action.title.toLowerCase().includes(q) ||
-        action.subtitle?.toLowerCase().includes(q)
-    )
-  }, [allActions, query])
+        action.title.toLowerCase().includes(q) || action.subtitle?.toLowerCase().includes(q)
+    );
+  }, [allActions, query]);
 
   const groupedActions = React.useMemo(() => {
     const groups: Record<string, CommandAction[]> = {
       navigation: [],
       actions: [],
       settings: [],
-    }
+    };
     filteredActions.forEach((action) => {
-      groups[action.section].push(action)
-    })
-    return groups
-  }, [filteredActions])
+      groups[action.section].push(action);
+    });
+    return groups;
+  }, [filteredActions]);
 
   // Reset selection when query changes
   React.useEffect(() => {
-    setSelectedIndex(0)
-  }, [query])
+    setSelectedIndex(0);
+  }, [query]);
 
   // Reset state when dialog opens
   React.useEffect(() => {
     if (open) {
-      setQuery('')
-      setSelectedIndex(0)
-      setTimeout(() => inputRef.current?.focus(), 0)
+      setQuery('');
+      setSelectedIndex(0);
+      setTimeout(() => inputRef.current?.focus(), 0);
     }
-  }, [open])
+  }, [open]);
 
   const executeAction = (action: CommandAction) => {
-    onOpenChange(false)
-    action.action()
-  }
+    onOpenChange(false);
+    action.action();
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'ArrowDown':
-        e.preventDefault()
-        setSelectedIndex((i) => Math.min(i + 1, filteredActions.length - 1))
-        break
+        e.preventDefault();
+        setSelectedIndex((i) => Math.min(i + 1, filteredActions.length - 1));
+        break;
       case 'ArrowUp':
-        e.preventDefault()
-        setSelectedIndex((i) => Math.max(i - 1, 0))
-        break
+        e.preventDefault();
+        setSelectedIndex((i) => Math.max(i - 1, 0));
+        break;
       case 'Enter':
-        e.preventDefault()
+        e.preventDefault();
         if (filteredActions[selectedIndex]) {
-          executeAction(filteredActions[selectedIndex])
+          executeAction(filteredActions[selectedIndex]);
         }
-        break
+        break;
       case 'Escape':
-        e.preventDefault()
-        onOpenChange(false)
-        break
+        e.preventDefault();
+        onOpenChange(false);
+        break;
     }
-  }
+  };
 
-  let currentIndex = 0
+  let currentIndex = 0;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -295,7 +296,7 @@ function CommandPaletteDialog({
                 {groupedActions.navigation.length > 0 && (
                   <CommandGroup title="Navigation">
                     {groupedActions.navigation.map((action) => {
-                      const index = currentIndex++
+                      const index = currentIndex++;
                       return (
                         <CommandItem
                           key={action.id}
@@ -303,14 +304,14 @@ function CommandPaletteDialog({
                           selected={index === selectedIndex}
                           onSelect={() => executeAction(action)}
                         />
-                      )
+                      );
                     })}
                   </CommandGroup>
                 )}
                 {groupedActions.actions.length > 0 && (
                   <CommandGroup title="Actions">
                     {groupedActions.actions.map((action) => {
-                      const index = currentIndex++
+                      const index = currentIndex++;
                       return (
                         <CommandItem
                           key={action.id}
@@ -318,14 +319,14 @@ function CommandPaletteDialog({
                           selected={index === selectedIndex}
                           onSelect={() => executeAction(action)}
                         />
-                      )
+                      );
                     })}
                   </CommandGroup>
                 )}
                 {groupedActions.settings.length > 0 && (
                   <CommandGroup title="Settings">
                     {groupedActions.settings.map((action) => {
-                      const index = currentIndex++
+                      const index = currentIndex++;
                       return (
                         <CommandItem
                           key={action.id}
@@ -333,7 +334,7 @@ function CommandPaletteDialog({
                           selected={index === selectedIndex}
                           onSelect={() => executeAction(action)}
                         />
-                      )
+                      );
                     })}
                   </CommandGroup>
                 )}
@@ -363,7 +364,7 @@ function CommandPaletteDialog({
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  )
+  );
 }
 
 function CommandGroup({ title, children }: { title: string; children: React.ReactNode }) {
@@ -374,7 +375,7 @@ function CommandGroup({ title, children }: { title: string; children: React.Reac
       </div>
       {children}
     </div>
-  )
+  );
 }
 
 function CommandItem({
@@ -382,12 +383,13 @@ function CommandItem({
   selected,
   onSelect,
 }: {
-  action: CommandAction
-  selected: boolean
-  onSelect: () => void
+  action: CommandAction;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   return (
     <button
+      type="button"
       onClick={onSelect}
       className={clsx(
         'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors',
@@ -396,22 +398,15 @@ function CommandItem({
           : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
       )}
     >
-      <span className={clsx(selected ? 'text-primary-600' : 'text-gray-400')}>
-        {action.icon}
-      </span>
+      <span className={clsx(selected ? 'text-primary-600' : 'text-gray-400')}>{action.icon}</span>
       <div className="flex-1 min-w-0">
         <div className="font-medium truncate">{action.title}</div>
-        {action.subtitle && (
-          <div className="text-sm text-gray-500 truncate">{action.subtitle}</div>
-        )}
+        {action.subtitle && <div className="text-sm text-gray-500 truncate">{action.subtitle}</div>}
       </div>
       {action.shortcut && (
         <div className="flex items-center gap-1">
           {action.shortcut.map((key, i) => (
-            <kbd
-              key={i}
-              className="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 rounded"
-            >
+            <kbd key={i} className="px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 rounded">
               {key}
             </kbd>
           ))}
@@ -419,15 +414,16 @@ function CommandItem({
       )}
       {selected && <ArrowRight className="h-4 w-4 text-primary-500" />}
     </button>
-  )
+  );
 }
 
 // Trigger button component
 export function CommandPaletteTrigger({ className }: { className?: string }) {
-  const { setOpen } = useCommandPalette()
+  const { setOpen } = useCommandPalette();
 
   return (
     <button
+      type="button"
       onClick={() => setOpen(true)}
       className={clsx(
         'flex items-center gap-2 px-3 py-1.5 text-sm text-gray-500 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors',
@@ -440,5 +436,5 @@ export function CommandPaletteTrigger({ className }: { className?: string }) {
         ⌘K
       </kbd>
     </button>
-  )
+  );
 }

@@ -1,29 +1,29 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
-import { clsx } from 'clsx'
-import { X, ArrowRight, ArrowLeft, Check, Sparkles } from 'lucide-react'
+import * as React from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { clsx } from 'clsx';
+import { X, ArrowRight, ArrowLeft, Check, Sparkles } from 'lucide-react';
 
 interface TourStep {
-  id: string
-  title: string
-  description: string
-  target?: string // CSS selector for element to highlight
-  position?: 'top' | 'bottom' | 'left' | 'right' | 'center'
+  id: string;
+  title: string;
+  description: string;
+  target?: string; // CSS selector for element to highlight
+  position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
   action?: {
-    label: string
-    onClick?: () => void
-    href?: string
-  }
+    label: string;
+    onClick?: () => void;
+    href?: string;
+  };
 }
 
 interface OnboardingTourProps {
-  steps: TourStep[]
-  storageKey?: string
-  onComplete?: () => void
-  onSkip?: () => void
-  forceShow?: boolean
+  steps: TourStep[];
+  storageKey?: string;
+  onComplete?: () => void;
+  onSkip?: () => void;
+  forceShow?: boolean;
 }
 
 // Default onboarding steps for ComplianceAgent
@@ -31,13 +31,15 @@ export const defaultOnboardingSteps: TourStep[] = [
   {
     id: 'welcome',
     title: 'Welcome to ComplianceAgent! 🎉',
-    description: 'Let\'s take a quick tour to help you get started with regulatory compliance monitoring.',
+    description:
+      "Let's take a quick tour to help you get started with regulatory compliance monitoring.",
     position: 'center',
   },
   {
     id: 'repositories',
     title: 'Connect Your Repositories',
-    description: 'Start by connecting your GitHub repositories. We\'ll scan them for compliance issues automatically.',
+    description:
+      "Start by connecting your GitHub repositories. We'll scan them for compliance issues automatically.",
     target: '[data-tour="repositories"]',
     position: 'right',
     action: {
@@ -48,7 +50,8 @@ export const defaultOnboardingSteps: TourStep[] = [
   {
     id: 'regulations',
     title: 'Configure Regulations',
-    description: 'Choose the regulations that apply to your organization, like GDPR, HIPAA, or SOC 2.',
+    description:
+      'Choose the regulations that apply to your organization, like GDPR, HIPAA, or SOC 2.',
     target: '[data-tour="regulations"]',
     position: 'right',
     action: {
@@ -59,7 +62,7 @@ export const defaultOnboardingSteps: TourStep[] = [
   {
     id: 'actions',
     title: 'Review Compliance Actions',
-    description: 'When issues are found, you\'ll see actionable items here with suggested fixes.',
+    description: "When issues are found, you'll see actionable items here with suggested fixes.",
     target: '[data-tour="actions"]',
     position: 'right',
   },
@@ -72,34 +75,35 @@ export const defaultOnboardingSteps: TourStep[] = [
   },
   {
     id: 'complete',
-    title: 'You\'re All Set!',
-    description: 'Explore the dashboard to see your compliance status at a glance. Happy monitoring!',
+    title: "You're All Set!",
+    description:
+      'Explore the dashboard to see your compliance status at a glance. Happy monitoring!',
     position: 'center',
   },
-]
+];
 
 function TourSpotlight({ target }: { target?: string }) {
-  const [rect, setRect] = React.useState<DOMRect | null>(null)
-  
+  const [rect, setRect] = React.useState<DOMRect | null>(null);
+
   React.useEffect(() => {
     if (!target) {
-      setRect(null)
-      return
+      setRect(null);
+      return;
     }
-    
-    const element = document.querySelector(target)
+
+    const element = document.querySelector(target);
     if (element) {
-      setRect(element.getBoundingClientRect())
-      
+      setRect(element.getBoundingClientRect());
+
       // Scroll element into view
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [target])
-  
-  if (!target || !rect) return null
-  
-  const padding = 8
-  
+  }, [target]);
+
+  if (!target || !rect) return null;
+
+  const padding = 8;
+
   return (
     <div
       className="absolute rounded-lg ring-4 ring-primary-500 ring-opacity-50 z-40 pointer-events-none transition-all duration-300"
@@ -110,7 +114,7 @@ function TourSpotlight({ target }: { target?: string }) {
         height: rect.height + padding * 2,
       }}
     />
-  )
+  );
 }
 
 export function OnboardingTour({
@@ -120,64 +124,64 @@ export function OnboardingTour({
   onSkip,
   forceShow = false,
 }: OnboardingTourProps) {
-  const [isOpen, setIsOpen] = React.useState(false)
-  const [currentStep, setCurrentStep] = React.useState(0)
-  
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [currentStep, setCurrentStep] = React.useState(0);
+
   // Check if onboarding was completed
   React.useEffect(() => {
     if (forceShow) {
-      setIsOpen(true)
-      return
+      setIsOpen(true);
+      return;
     }
-    
-    const completed = localStorage.getItem(storageKey)
+
+    const completed = localStorage.getItem(storageKey);
     if (!completed) {
       // Delay showing to let the page render
-      const timer = setTimeout(() => setIsOpen(true), 500)
-      return () => clearTimeout(timer)
+      const timer = setTimeout(() => setIsOpen(true), 500);
+      return () => clearTimeout(timer);
     }
-  }, [storageKey, forceShow])
-  
-  const step = steps[currentStep]
-  const isFirstStep = currentStep === 0
-  const isLastStep = currentStep === steps.length - 1
-  const isCenterPosition = step.position === 'center' || !step.target
-  
+  }, [storageKey, forceShow]);
+
+  const step = steps[currentStep];
+  const isFirstStep = currentStep === 0;
+  const isLastStep = currentStep === steps.length - 1;
+  const isCenterPosition = step.position === 'center' || !step.target;
+
   const handleNext = () => {
     if (isLastStep) {
-      handleComplete()
+      handleComplete();
     } else {
-      setCurrentStep((s) => s + 1)
+      setCurrentStep((s) => s + 1);
     }
-  }
-  
+  };
+
   const handlePrev = () => {
-    setCurrentStep((s) => Math.max(0, s - 1))
-  }
-  
+    setCurrentStep((s) => Math.max(0, s - 1));
+  };
+
   const handleComplete = () => {
-    localStorage.setItem(storageKey, 'true')
-    setIsOpen(false)
-    onComplete?.()
-  }
-  
+    localStorage.setItem(storageKey, 'true');
+    setIsOpen(false);
+    onComplete?.();
+  };
+
   const handleSkip = () => {
-    localStorage.setItem(storageKey, 'true')
-    setIsOpen(false)
-    onSkip?.()
-  }
-  
-  if (!isOpen) return null
-  
+    localStorage.setItem(storageKey, 'true');
+    setIsOpen(false);
+    onSkip?.();
+  };
+
+  if (!isOpen) return null;
+
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
       <Dialog.Portal>
         {/* Overlay with cutout for target element */}
         <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-        
+
         {/* Spotlight on target element */}
         <TourSpotlight target={step.target} />
-        
+
         {/* Tour dialog */}
         <Dialog.Content
           className={clsx(
@@ -192,7 +196,7 @@ export function OnboardingTour({
           <Dialog.Close className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
             <X className="h-4 w-4" />
           </Dialog.Close>
-          
+
           {/* Step indicator */}
           <div className="flex items-center gap-1 mb-4">
             {steps.map((_, index) => (
@@ -203,13 +207,13 @@ export function OnboardingTour({
                   index === currentStep
                     ? 'w-6 bg-primary-500'
                     : index < currentStep
-                    ? 'w-2 bg-primary-300'
-                    : 'w-2 bg-gray-200 dark:bg-gray-700'
+                      ? 'w-2 bg-primary-300'
+                      : 'w-2 bg-gray-200 dark:bg-gray-700'
                 )}
               />
             ))}
           </div>
-          
+
           {/* Content */}
           <div className="mb-6">
             {isCenterPosition && currentStep === 0 && (
@@ -226,7 +230,7 @@ export function OnboardingTour({
               {step.description}
             </Dialog.Description>
           </div>
-          
+
           {/* Action button */}
           {step.action && (
             <div className="mb-6">
@@ -240,6 +244,7 @@ export function OnboardingTour({
                 </a>
               ) : (
                 <button
+                  type="button"
                   onClick={step.action.onClick}
                   className="inline-flex items-center gap-2 text-primary-600 dark:text-primary-400 font-medium hover:underline"
                 >
@@ -249,19 +254,21 @@ export function OnboardingTour({
               )}
             </div>
           )}
-          
+
           {/* Navigation */}
           <div className="flex items-center justify-between">
             <button
+              type="button"
               onClick={handleSkip}
               className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
             >
               Skip tour
             </button>
-            
+
             <div className="flex items-center gap-2">
               {!isFirstStep && (
                 <button
+                  type="button"
                   onClick={handlePrev}
                   className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
                 >
@@ -270,6 +277,7 @@ export function OnboardingTour({
                 </button>
               )}
               <button
+                type="button"
                 onClick={handleNext}
                 className="flex items-center gap-1 px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
               >
@@ -290,37 +298,37 @@ export function OnboardingTour({
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  )
+  );
 }
 
 // Context to control tour programmatically
 interface TourContextValue {
-  startTour: () => void
-  resetTour: () => void
+  startTour: () => void;
+  resetTour: () => void;
 }
 
-const TourContext = React.createContext<TourContextValue | undefined>(undefined)
+const TourContext = React.createContext<TourContextValue | undefined>(undefined);
 
 export function OnboardingProvider({
   children,
   steps = defaultOnboardingSteps,
   storageKey = 'complianceagent-onboarding-complete',
 }: {
-  children: React.ReactNode
-  steps?: TourStep[]
-  storageKey?: string
+  children: React.ReactNode;
+  steps?: TourStep[];
+  storageKey?: string;
 }) {
-  const [forceShow, setForceShow] = React.useState(false)
-  
+  const [forceShow, setForceShow] = React.useState(false);
+
   const startTour = React.useCallback(() => {
-    localStorage.removeItem(storageKey)
-    setForceShow(true)
-  }, [storageKey])
-  
+    localStorage.removeItem(storageKey);
+    setForceShow(true);
+  }, [storageKey]);
+
   const resetTour = React.useCallback(() => {
-    localStorage.removeItem(storageKey)
-  }, [storageKey])
-  
+    localStorage.removeItem(storageKey);
+  }, [storageKey]);
+
   return (
     <TourContext.Provider value={{ startTour, resetTour }}>
       {children}
@@ -332,13 +340,13 @@ export function OnboardingProvider({
         onSkip={() => setForceShow(false)}
       />
     </TourContext.Provider>
-  )
+  );
 }
 
 export function useTour() {
-  const context = React.useContext(TourContext)
+  const context = React.useContext(TourContext);
   if (!context) {
-    throw new Error('useTour must be used within an OnboardingProvider')
+    throw new Error('useTour must be used within an OnboardingProvider');
   }
-  return context
+  return context;
 }
