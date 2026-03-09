@@ -3,8 +3,11 @@ export interface PaginatedResponse<T> {
   items: T[];
   total: number;
   page: number;
-  per_page: number;
-  pages: number;
+  page_size: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+  next_cursor?: string | null;
 }
 
 // Auth Types

@@ -1,6 +1,79 @@
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+// Warn if using default API URL in non-development builds
+if (
+  typeof window !== 'undefined' &&
+  !process.env.NEXT_PUBLIC_API_URL &&
+  process.env.NODE_ENV === 'production'
+) {
+  console.error(
+    '[ComplianceAgent] NEXT_PUBLIC_API_URL is not set. ' +
+      'API calls will target http://localhost:8000 which will fail in production. ' +
+      'Set NEXT_PUBLIC_API_URL in your environment variables.'
+  )
+}
+
+try {
+  new URL(API_BASE_URL)
+} catch {
+  console.error(
+    `[ComplianceAgent] NEXT_PUBLIC_API_URL is not a valid URL: "${API_BASE_URL}". ` +
+      'Falling back to http://localhost:8000.'
+  )
+}
+
+/**
+ * Structured API error with HTTP status code for differentiated handling.
+ */
+export class ApiError extends Error {
+  status: number
+  code: string
+
+  constructor(status: number, message: string, code: string = 'unknown') {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+  }
+
+  get isUnauthorized() {
+    return this.status === 401
+  }
+  get isForbidden() {
+    return this.status === 403
+  }
+  get isNotFound() {
+    return this.status === 404
+  }
+  get isRateLimited() {
+    return this.status === 429
+  }
+  get isServerError() {
+    return this.status >= 500
+  }
+}
+
+/**
+ * Convert an unknown error (typically from axios) into an ApiError.
+ */
+export function toApiError(err: unknown): ApiError {
+  if (err instanceof ApiError) return err
+  if (err instanceof AxiosError && err.response) {
+    const data = err.response.data as Record<string, unknown> | undefined
+    const detail =
+      (data?.error as Record<string, string>)?.message ||
+      (data?.detail as string) ||
+      err.message
+    const code = (data?.error as Record<string, string>)?.code || 'unknown'
+    return new ApiError(err.response.status, detail, code)
+  }
+  if (err instanceof Error) {
+    return new ApiError(0, err.message, 'network_error')
+  }
+  return new ApiError(0, 'An unexpected error occurred', 'unknown')
+}
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,

@@ -8,7 +8,9 @@ import {
   mappingsApi,
   auditApi,
   requirementsApi,
+  toApiError,
 } from '@/lib/api';
+import type { ApiError } from '@/lib/api';
 import type {
   ComplianceStats,
   FrameworkStatus,
@@ -29,7 +31,7 @@ function useApiCall<T>(
 ) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -38,7 +40,7 @@ function useApiCall<T>(
       const response = await apiCall();
       setData(response.data);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('An error occurred'));
+      setError(toApiError(err));
     } finally {
       setLoading(false);
     }
@@ -59,7 +61,7 @@ export function useDashboardStats() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [deadlines, setDeadlines] = useState<UpcomingDeadline[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -129,8 +131,9 @@ export function useDashboardStats() {
       setDeadlines(deadlineList);
 
     } catch (err) {
-      console.error('Dashboard fetch error:', err);
-      setError(err instanceof Error ? err : new Error('Failed to fetch dashboard data'));
+      const apiError = toApiError(err);
+      console.error('Dashboard fetch error:', apiError.message, `(status: ${apiError.status})`);
+      setError(apiError);
       // Set fallback data for demo purposes
       setStats({
         overall_score: 87,
@@ -238,7 +241,7 @@ export function useAuditTrail(params?: { regulation_id?: string; event_type?: st
 // Mutation hooks
 export function useCreateRepository() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
 
   const createRepository = async (data: {
     platform: string;
@@ -252,9 +255,9 @@ export function useCreateRepository() {
       const response = await repositoriesApi.create(data);
       return response.data;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to create repository');
-      setError(error);
-      throw error;
+      const apiError = toApiError(err);
+      setError(apiError);
+      throw apiError;
     } finally {
       setLoading(false);
     }
@@ -265,7 +268,7 @@ export function useCreateRepository() {
 
 export function useAnalyzeRepository() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
 
   const analyzeRepository = async (id: string) => {
     setLoading(true);
@@ -274,9 +277,9 @@ export function useAnalyzeRepository() {
       const response = await repositoriesApi.analyze(id);
       return response.data;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to analyze repository');
-      setError(error);
-      throw error;
+      const apiError = toApiError(err);
+      setError(apiError);
+      throw apiError;
     } finally {
       setLoading(false);
     }
@@ -287,7 +290,7 @@ export function useAnalyzeRepository() {
 
 export function useUpdateAction() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
 
   const updateAction = async (id: string, data: Partial<ComplianceAction>) => {
     setLoading(true);
@@ -296,9 +299,9 @@ export function useUpdateAction() {
       const response = await auditApi.updateAction(id, data);
       return response.data;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to update action');
-      setError(error);
-      throw error;
+      const apiError = toApiError(err);
+      setError(apiError);
+      throw apiError;
     } finally {
       setLoading(false);
     }
@@ -309,7 +312,7 @@ export function useUpdateAction() {
 
 export function useGenerateCode() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
 
   const generateCode = async (mappingId: string, options?: { include_tests?: boolean }) => {
     setLoading(true);
@@ -318,9 +321,9 @@ export function useGenerateCode() {
       const response = await complianceApi.generateCode(mappingId, options);
       return response.data;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to generate code');
-      setError(error);
-      throw error;
+      const apiError = toApiError(err);
+      setError(apiError);
+      throw apiError;
     } finally {
       setLoading(false);
     }
