@@ -1,5 +1,6 @@
 """Database models."""
 
+# Critical Persistence models
 # Architecture Review models
 from app.models.architecture_review import (
     ArchitectureReview,
@@ -8,6 +9,14 @@ from app.models.architecture_review import (
 from app.models.audit import AuditTrail, ComplianceAction
 from app.models.base import TimestampMixin, UUIDMixin
 from app.models.codebase import CodebaseMapping, Repository
+from app.models.critical_persistence import (
+    CertControlGapRecord,
+    CertificationRunRecord,
+    EvidenceGenerationRecord,
+    RemediationApprovalRecord,
+    RemediationFixRecord,
+    RemediationPipelineRecord,
+)
 from app.models.customer_profile import CustomerProfile
 
 # IDE Agent models
@@ -18,6 +27,10 @@ from app.models.ide_agent import (
     IDEAgentSession,
     IDEAgentViolation,
 )
+from app.models.ide_learning import IDERuleEventRecord, TeamSuppressionRecord
+
+# Notification models
+from app.models.notification import NotificationRecord
 from app.models.organization import Organization, OrganizationMember
 
 # Pattern Marketplace models
@@ -71,6 +84,17 @@ from app.models.saas_tenant import (
     TenantUsageRecord,
 )
 
+# Secondary Persistence models
+from app.models.secondary_persistence import (
+    DriftAlertRecord,
+    DriftBaselineRecord,
+    DriftEventRecord,
+    EvidenceVaultRecord,
+    MCPExecutionRecord,
+    PostureScoreRecord,
+    SelfHealingEventRecord,
+)
+
 # Strategic Features models
 from app.models.strategic_features import (
     AuditWorkspaceRecord,
@@ -91,8 +115,44 @@ from app.models.testing import (
 )
 from app.models.user import User
 
+# User State models
+from app.models.user_state import (
+    AgentMarketplaceRecord,
+    CopilotSessionRecord,
+    GamificationEventRecord,
+    GamificationProfileRecord,
+    TrustAttestationRecord,
+    WorkflowDefinitionRecord,
+    WorkflowExecutionRecord,
+)
 
-__all__ = [
+
+__all__ = [  # noqa: RUF022 - grouped by domain for discoverability
+    # Critical Persistence
+    "CertControlGapRecord",
+    "CertificationRunRecord",
+    "EvidenceGenerationRecord",
+    "RemediationApprovalRecord",
+    "RemediationFixRecord",
+    "RemediationPipelineRecord",
+    # Notification
+    "NotificationRecord",
+    # Secondary Persistence
+    "DriftAlertRecord",
+    "DriftBaselineRecord",
+    "DriftEventRecord",
+    "EvidenceVaultRecord",
+    "MCPExecutionRecord",
+    "PostureScoreRecord",
+    "SelfHealingEventRecord",
+    # User State
+    "AgentMarketplaceRecord",
+    "CopilotSessionRecord",
+    "GamificationEventRecord",
+    "GamificationProfileRecord",
+    "TrustAttestationRecord",
+    "WorkflowDefinitionRecord",
+    "WorkflowExecutionRecord",
     # Architecture Review
     "ArchitectureReview",
     "ArchitectureRiskRecord",
@@ -119,6 +179,7 @@ __all__ = [
     # IDE Agent
     "IDEAgentSession",
     "IDEAgentViolation",
+    "IDERuleEventRecord",
     "ImpactPredictionRecord",
     "Organization",
     "OrganizationMember",
@@ -138,6 +199,7 @@ __all__ = [
     # SaaS Tenant
     "SaasTenant",
     "TenantUsageRecord",
+    "TeamSuppressionRecord",
     "TestSuiteRun",
     # Base
     "TimestampMixin",
