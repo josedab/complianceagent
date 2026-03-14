@@ -101,3 +101,11 @@ class InvalidRegulationError(ValidationError):
 
 class InvalidRequirementError(ValidationError):
     """Invalid requirement data."""
+
+
+class NotificationError(ComplianceAgentError):
+    """Failed to send or persist a notification."""
+
+
+class ResourceNotFoundError(ComplianceAgentError):
+    """Requested resource was not found."""

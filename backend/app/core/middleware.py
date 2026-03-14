@@ -387,9 +387,7 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
         key = f"{self.key_prefix}{client_id}"
 
         try:
-            is_limited, remaining, reset_time = await self._check_rate_limit(
-                key, effective_limit
-            )
+            is_limited, remaining, reset_time = await self._check_rate_limit(key, effective_limit)
 
             if is_limited:
                 logger.warning(
@@ -420,9 +418,7 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
             logger.exception("Rate limiting error", error=str(e))
             return await call_next(request)
 
-    async def _check_rate_limit(
-        self, key: str, limit: int | None = None
-    ) -> tuple[bool, int, int]:
+    async def _check_rate_limit(self, key: str, limit: int | None = None) -> tuple[bool, int, int]:
         """Check if rate limit is exceeded. Returns (is_limited, remaining, reset_time)."""
         effective_limit = limit if limit is not None else self.calls
         now = time.time()

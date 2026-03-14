@@ -77,6 +77,11 @@ class Settings(BaseSettings):
             return f"http://{self.elasticsearch_user}:{self.elasticsearch_password}@{self.elasticsearch_host}:{self.elasticsearch_port}"
         return f"http://{self.elasticsearch_host}:{self.elasticsearch_port}"
 
+    # HIPAA Encryption (PHI Storage)
+    kms_key_id: str = Field(default="", description="AWS KMS key ID for envelope encryption of PHI")
+    hipaa_encryption_enabled: bool = False
+    phi_storage_bucket: str = ""
+
     # S3 / MinIO
     s3_endpoint_url: str | None = "http://localhost:9000"
     s3_access_key: str = "minioadmin"
