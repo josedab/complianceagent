@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 import httpx
 import structlog
 
+from app.core.exceptions import NotificationError
+
 
 logger = structlog.get_logger()
 
@@ -332,10 +334,48 @@ class InAppChannel(NotificationChannel):
 
     async def send(self, notification: Notification, config: dict[str, str]) -> bool:
         """Store notification in database for in-app display."""
-        logger.info(
-            "In-app notification created", title=notification.title, type=notification.type.value
-        )
-        return True
+        if self.db_session is None:
+            from app.core.config import settings
+
+            if settings.environment in ("development", "test"):
+                logger.warning(
+                    "in-app notification skipped: no db session", type=notification.type.value
+                )
+                return True
+            raise NotificationError("in-app channel requires database session")
+        if not notification.organization_id or not notification.user_id:
+            logger.warning(
+                "in-app notification skipped: missing user/org", type=notification.type.value
+            )
+            return False
+        import uuid as _uuid
+
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.models.notification import NotificationRecord
+
+        try:
+            record = NotificationRecord(
+                organization_id=_uuid.UUID(str(notification.organization_id)),
+                user_id=_uuid.UUID(str(notification.user_id)),
+                notification_type=notification.type.value,
+                title=notification.title,
+                message=notification.message,
+                priority=notification.priority.value,
+                notification_metadata=notification.metadata or {},
+                action_url=notification.action_url,
+            )
+            self.db_session.add(record)
+            await self.db_session.flush()
+            logger.info(
+                "in-app notification persisted",
+                record_id=str(record.id),
+                type=notification.type.value,
+            )
+            return True
+        except SQLAlchemyError as exc:
+            logger.exception("in-app notification persist failed", error=str(exc))
+            raise NotificationError("failed to persist notification") from exc
 
     def validate_config(self, config: dict[str, str]) -> bool:
         """In-app always valid."""
