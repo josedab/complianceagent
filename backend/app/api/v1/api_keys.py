@@ -168,9 +168,7 @@ async def revoke_api_key(key_id: str, user: CurrentUser, db: DB) -> dict:
 
     org_ids = [m.organization_id for m in (user.memberships or [])]
 
-    result = await db.execute(
-        select(APIKeyRecord).where(APIKeyRecord.id == uid)
-    )
+    result = await db.execute(select(APIKeyRecord).where(APIKeyRecord.id == uid))
     record = result.scalar_one_or_none()
 
     if not record or (record.organization_id and record.organization_id not in org_ids):

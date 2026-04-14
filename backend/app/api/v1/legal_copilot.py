@@ -93,9 +93,7 @@ async def generate_dpa(request: GenerateDPARequest, db: DB) -> DocumentSchema:
     status_code=status.HTTP_201_CREATED,
     summary="Generate legal memo",
 )
-async def generate_legal_memo(
-    request: GenerateLegalMemoRequest, db: DB
-) -> DocumentSchema:
+async def generate_legal_memo(request: GenerateLegalMemoRequest, db: DB) -> DocumentSchema:
     """Generate a legal memorandum."""
     service = LegalCopilotService(db=db)
     doc = await service.generate_legal_memo(
@@ -137,24 +135,16 @@ async def review_contract_clause(
 
 
 @router.post("/documents/{document_id}/approve", summary="Approve document")
-async def approve_document(
-    document_id: UUID, request: ApproveDocumentRequest, db: DB
-) -> dict:
+async def approve_document(document_id: UUID, request: ApproveDocumentRequest, db: DB) -> dict:
     """Approve a legal document."""
     service = LegalCopilotService(db=db)
-    ok = await service.approve_document(
-        document_id=document_id, reviewer=request.reviewer
-    )
+    ok = await service.approve_document(document_id=document_id, reviewer=request.reviewer)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return {"status": "approved", "document_id": str(document_id)}
 
 
-@router.get(
-    "/documents", response_model=list[DocumentSchema], summary="List documents"
-)
+@router.get("/documents", response_model=list[DocumentSchema], summary="List documents")
 async def list_documents(db: DB) -> list[DocumentSchema]:
     """List all legal documents."""
     service = LegalCopilotService(db=db)

@@ -104,16 +104,12 @@ async def discover_resources(account_id: UUID, db: DB) -> DiscoveryResultSchema:
     service = CrossCloudMeshService(db=db)
     result = await service.discover_resources(account_id=account_id)
     if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
     return DiscoveryResultSchema(
         account_id=str(result.account_id),
         resources_found=result.resources_found,
         resource_types=result.resource_types,
-        completed_at=result.completed_at.isoformat()
-        if result.completed_at
-        else None,
+        completed_at=result.completed_at.isoformat() if result.completed_at else None,
     )
 
 
@@ -127,9 +123,7 @@ async def scan_account(account_id: UUID, db: DB) -> ScanResultSchema:
     service = CrossCloudMeshService(db=db)
     result = await service.scan_account(account_id=account_id)
     if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
     return ScanResultSchema(
         account_id=str(result.account_id),
         findings=result.findings,
@@ -138,9 +132,7 @@ async def scan_account(account_id: UUID, db: DB) -> ScanResultSchema:
         medium=result.medium,
         low=result.low,
         compliance_score=result.compliance_score,
-        completed_at=result.completed_at.isoformat()
-        if result.completed_at
-        else None,
+        completed_at=result.completed_at.isoformat() if result.completed_at else None,
     )
 
 

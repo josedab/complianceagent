@@ -49,7 +49,9 @@ async def list_providers(db: DB) -> list[dict]:
 
 @router.put("/providers/{provider}/toggle")
 async def toggle_provider(
-    provider: str, request: ToggleProviderRequest, db: DB,
+    provider: str,
+    request: ToggleProviderRequest,
+    db: DB,
 ) -> dict:
     """Enable or disable an LLM provider."""
     svc = MultiLLMParserService()

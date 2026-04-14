@@ -53,9 +53,7 @@ async def get_spec(version: str, db: DB) -> SpecSchema:
     service = ComplianceAPIStandardService(db=db)
     spec = service.get_spec(version=version)
     if not spec:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Spec version not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Spec version not found")
     return SpecSchema(
         version=spec.version,
         title=spec.title,
@@ -86,9 +84,7 @@ async def list_versions(db: DB) -> list[VersionSchema]:
     status_code=status.HTTP_201_CREATED,
     summary="Check conformance",
 )
-async def check_conformance(
-    request: CheckConformanceRequest, db: DB
-) -> ConformanceResultSchema:
+async def check_conformance(request: CheckConformanceRequest, db: DB) -> ConformanceResultSchema:
     """Check API conformance against the compliance standard."""
     service = ComplianceAPIStandardService(db=db)
     result = await service.check_conformance(api_base_url=request.api_base_url)

@@ -148,7 +148,9 @@ async def get_repo_node(repo_name: str, db: DB) -> RepoNodeResponse:
 
 
 @router.get(
-    "/dependencies", response_model=list[DependencyEdgeResponse], summary="List cross-repo dependencies"
+    "/dependencies",
+    response_model=list[DependencyEdgeResponse],
+    summary="List cross-repo dependencies",
 )
 async def list_dependencies(db: DB) -> list[DependencyEdgeResponse]:
     """List all cross-repository compliance dependencies."""

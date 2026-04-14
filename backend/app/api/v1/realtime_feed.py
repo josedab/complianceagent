@@ -63,7 +63,9 @@ class FeedStatsSchema(BaseModel):
 
 
 @router.get("/feed", response_model=list[FeedItemSchema], summary="List feed items")
-async def list_feed(db: DB, limit: int = 50, event_type: str | None = None, severity: str | None = None) -> list[FeedItemSchema]:
+async def list_feed(
+    db: DB, limit: int = 50, event_type: str | None = None, severity: str | None = None
+) -> list[FeedItemSchema]:
     service = RealtimeFeedService(db=db)
     items = service.list_feed(limit=limit, event_type=event_type, severity=severity)
     return [
@@ -83,31 +85,59 @@ async def list_feed(db: DB, limit: int = 50, event_type: str | None = None, seve
     ]
 
 
-@router.post("/feed", response_model=FeedItemSchema, status_code=status.HTTP_201_CREATED, summary="Publish feed item")
+@router.post(
+    "/feed",
+    response_model=FeedItemSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Publish feed item",
+)
 async def publish(request: PublishRequest, db: DB) -> FeedItemSchema:
     service = RealtimeFeedService(db=db)
     i = await service.publish(
-        event_type=request.event_type, source=request.source, repo=request.repo,
-        framework=request.framework, severity=request.severity, title=request.title,
-        detail=request.detail, metadata=request.metadata,
+        event_type=request.event_type,
+        source=request.source,
+        repo=request.repo,
+        framework=request.framework,
+        severity=request.severity,
+        title=request.title,
+        detail=request.detail,
+        metadata=request.metadata,
     )
     return FeedItemSchema(
-        id=str(i.id), event_type=i.event_type, source=i.source, repo=i.repo,
-        framework=i.framework, severity=i.severity, title=i.title, detail=i.detail,
-        metadata=i.metadata, created_at=i.created_at.isoformat() if i.created_at else None,
+        id=str(i.id),
+        event_type=i.event_type,
+        source=i.source,
+        repo=i.repo,
+        framework=i.framework,
+        severity=i.severity,
+        title=i.title,
+        detail=i.detail,
+        metadata=i.metadata,
+        created_at=i.created_at.isoformat() if i.created_at else None,
     )
 
 
-@router.post("/subscribe", response_model=SubscriptionSchema, status_code=status.HTTP_201_CREATED, summary="Subscribe to feed")
+@router.post(
+    "/subscribe",
+    response_model=SubscriptionSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Subscribe to feed",
+)
 async def subscribe(request: SubscribeRequest, db: DB) -> SubscriptionSchema:
     service = RealtimeFeedService(db=db)
     s = await service.subscribe(
-        user_id=request.user_id, event_types=request.event_types,
-        frameworks=request.frameworks, severity_min=request.severity_min,
+        user_id=request.user_id,
+        event_types=request.event_types,
+        frameworks=request.frameworks,
+        severity_min=request.severity_min,
     )
     return SubscriptionSchema(
-        id=str(s.id), user_id=s.user_id, event_types=s.event_types,
-        frameworks=s.frameworks, severity_min=s.severity_min, active=s.active,
+        id=str(s.id),
+        user_id=s.user_id,
+        event_types=s.event_types,
+        frameworks=s.frameworks,
+        severity_min=s.severity_min,
+        active=s.active,
     )
 
 
@@ -125,7 +155,9 @@ async def get_stats(db: DB) -> FeedStatsSchema:
     service = RealtimeFeedService(db=db)
     s = service.get_stats()
     return FeedStatsSchema(
-        total_items=s.total_items, total_subscriptions=s.total_subscriptions,
-        active_subscriptions=s.active_subscriptions, by_event_type=s.by_event_type,
+        total_items=s.total_items,
+        total_subscriptions=s.total_subscriptions,
+        active_subscriptions=s.active_subscriptions,
+        by_event_type=s.by_event_type,
         by_severity=s.by_severity,
     )

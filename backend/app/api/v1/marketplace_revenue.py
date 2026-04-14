@@ -83,7 +83,12 @@ class MarketplaceStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.post("/listings", response_model=ListingSchema, status_code=status.HTTP_201_CREATED, summary="Create listing")
+@router.post(
+    "/listings",
+    response_model=ListingSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create listing",
+)
 async def create_listing(request: CreateListingRequest, db: DB) -> ListingSchema:
     service = MarketplaceRevenueService(db=db)
     listing = await service.create_listing(
@@ -94,14 +99,23 @@ async def create_listing(request: CreateListingRequest, db: DB) -> ListingSchema
     )
     logger.info("listing_created", agent_slug=request.agent_slug, author=request.author)
     return ListingSchema(
-        id=str(listing.id), agent_slug=listing.agent_slug, author=listing.author,
-        revenue_model=listing.revenue_model, price_usd=listing.price_usd,
-        total_revenue=listing.total_revenue, transactions_count=listing.transactions_count,
+        id=str(listing.id),
+        agent_slug=listing.agent_slug,
+        author=listing.author,
+        revenue_model=listing.revenue_model,
+        price_usd=listing.price_usd,
+        total_revenue=listing.total_revenue,
+        transactions_count=listing.transactions_count,
         created_at=listing.created_at.isoformat() if listing.created_at else None,
     )
 
 
-@router.post("/transactions", response_model=TransactionSchema, status_code=status.HTTP_201_CREATED, summary="Record transaction")
+@router.post(
+    "/transactions",
+    response_model=TransactionSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record transaction",
+)
 async def record_transaction(request: RecordTransactionRequest, db: DB) -> TransactionSchema:
     service = MarketplaceRevenueService(db=db)
     txn = await service.record_transaction(
@@ -112,12 +126,19 @@ async def record_transaction(request: RecordTransactionRequest, db: DB) -> Trans
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
     logger.info("transaction_recorded", listing_id=request.listing_id, amount=request.amount)
     return TransactionSchema(
-        id=str(txn.id), listing_id=txn.listing_id, amount=txn.amount,
+        id=str(txn.id),
+        listing_id=txn.listing_id,
+        amount=txn.amount,
         created_at=txn.created_at.isoformat() if txn.created_at else None,
     )
 
 
-@router.post("/payouts", response_model=PayoutSchema, status_code=status.HTTP_201_CREATED, summary="Generate payout")
+@router.post(
+    "/payouts",
+    response_model=PayoutSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate payout",
+)
 async def generate_payout(request: GeneratePayoutRequest, db: DB) -> PayoutSchema:
     service = MarketplaceRevenueService(db=db)
     payout = await service.generate_payout(
@@ -126,14 +147,19 @@ async def generate_payout(request: GeneratePayoutRequest, db: DB) -> PayoutSchem
     )
     logger.info("payout_generated", author=request.author, period=request.period)
     return PayoutSchema(
-        id=str(payout.id), author=payout.author, period=payout.period,
-        amount=payout.amount, status=payout.status,
+        id=str(payout.id),
+        author=payout.author,
+        period=payout.period,
+        amount=payout.amount,
+        status=payout.status,
         created_at=payout.created_at.isoformat() if payout.created_at else None,
     )
 
 
 @router.post("/reports", response_model=RevenueReportSchema, summary="Generate revenue report")
-async def generate_revenue_report(request: GenerateRevenueReportRequest, db: DB) -> RevenueReportSchema:
+async def generate_revenue_report(
+    request: GenerateRevenueReportRequest, db: DB
+) -> RevenueReportSchema:
     service = MarketplaceRevenueService(db=db)
     report = await service.generate_revenue_report(period=request.period)
     logger.info("revenue_report_generated", period=request.period)
@@ -152,9 +178,13 @@ async def list_listings(db: DB) -> list[ListingSchema]:
     listings = await service.list_listings()
     return [
         ListingSchema(
-            id=str(l.id), agent_slug=l.agent_slug, author=l.author,
-            revenue_model=l.revenue_model, price_usd=l.price_usd,
-            total_revenue=l.total_revenue, transactions_count=l.transactions_count,
+            id=str(l.id),
+            agent_slug=l.agent_slug,
+            author=l.author,
+            revenue_model=l.revenue_model,
+            price_usd=l.price_usd,
+            total_revenue=l.total_revenue,
+            transactions_count=l.transactions_count,
             created_at=l.created_at.isoformat() if l.created_at else None,
         )
         for l in listings

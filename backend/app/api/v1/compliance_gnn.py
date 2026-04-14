@@ -66,13 +66,20 @@ class GNNStatsSchema(BaseModel):
 async def predict(request: PredictRequest, db: DB) -> PredictionSchema:
     service = ComplianceGNNService(db=db)
     p = await service.predict(
-        repo=request.repo, framework=request.framework,
-        include_neighbors=request.include_neighbors, threshold=request.threshold,
+        repo=request.repo,
+        framework=request.framework,
+        include_neighbors=request.include_neighbors,
+        threshold=request.threshold,
     )
     return PredictionSchema(
-        id=str(p.id), repo=p.repo, framework=p.framework, risk_score=p.risk_score,
-        predicted_violations=p.predicted_violations, contributing_factors=p.contributing_factors,
-        confidence=p.confidence, model_version=p.model_version,
+        id=str(p.id),
+        repo=p.repo,
+        framework=p.framework,
+        risk_score=p.risk_score,
+        predicted_violations=p.predicted_violations,
+        contributing_factors=p.contributing_factors,
+        confidence=p.confidence,
+        model_version=p.model_version,
     )
 
 
@@ -81,13 +88,19 @@ async def get_graph(db: DB) -> GraphSchema:
     service = ComplianceGNNService(db=db)
     g = service.get_graph()
     return GraphSchema(
-        total_nodes=g.total_nodes, total_edges=g.total_edges,
-        node_types=g.node_types, edge_types=g.edge_types,
+        total_nodes=g.total_nodes,
+        total_edges=g.total_edges,
+        node_types=g.node_types,
+        edge_types=g.edge_types,
     )
 
 
-@router.get("/graph/{node_id}/neighbors", response_model=list[NeighborSchema], summary="Get node neighbors")
-async def get_neighbors(node_id: str, db: DB, edge_type: str | None = None, limit: int = 20) -> list[NeighborSchema]:
+@router.get(
+    "/graph/{node_id}/neighbors", response_model=list[NeighborSchema], summary="Get node neighbors"
+)
+async def get_neighbors(
+    node_id: str, db: DB, edge_type: str | None = None, limit: int = 20
+) -> list[NeighborSchema]:
     service = ComplianceGNNService(db=db)
     neighbors = service.get_neighbors(node_id=node_id, edge_type=edge_type, limit=limit)
     if neighbors is None:
@@ -95,8 +108,11 @@ async def get_neighbors(node_id: str, db: DB, edge_type: str | None = None, limi
     return [
         NeighborSchema(
             node=GraphNodeSchema(
-                id=str(n.node.id), node_type=n.node.node_type, label=n.node.label,
-                properties=n.node.properties, edges_count=n.node.edges_count,
+                id=str(n.node.id),
+                node_type=n.node.node_type,
+                label=n.node.label,
+                properties=n.node.properties,
+                edges_count=n.node.edges_count,
             ),
             edge_type=n.edge_type,
             weight=n.weight,
@@ -110,7 +126,10 @@ async def get_stats(db: DB) -> GNNStatsSchema:
     service = ComplianceGNNService(db=db)
     s = service.get_stats()
     return GNNStatsSchema(
-        total_predictions=s.total_predictions, total_nodes=s.total_nodes,
-        total_edges=s.total_edges, model_version=s.model_version,
-        accuracy=s.accuracy, by_framework=s.by_framework,
+        total_predictions=s.total_predictions,
+        total_nodes=s.total_nodes,
+        total_edges=s.total_edges,
+        model_version=s.model_version,
+        accuracy=s.accuracy,
+        by_framework=s.by_framework,
     )

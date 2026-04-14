@@ -241,7 +241,9 @@ async def get_readiness(journey_id: UUID, db: DB) -> ReadinessDashboardResponse:
 
 class AutoCollectRequest(BaseModel):
     journey_id: str = Field(..., description="Certification journey ID")
-    source_types: list[str] = Field(default_factory=lambda: ["git_commit", "ci_cd_pipeline", "access_log", "cloud_config"])
+    source_types: list[str] = Field(
+        default_factory=lambda: ["git_commit", "ci_cd_pipeline", "access_log", "cloud_config"]
+    )
 
 
 class AuditorSessionRequest(BaseModel):
@@ -252,7 +254,9 @@ class AuditorSessionRequest(BaseModel):
     expires_hours: int = Field(default=72, description="Session expiration in hours")
 
 
-@router.post("/journeys/{journey_id}/auto-collect", summary="Auto-collect evidence from all sources")
+@router.post(
+    "/journeys/{journey_id}/auto-collect", summary="Auto-collect evidence from all sources"
+)
 async def auto_collect_evidence(journey_id: str, request: AutoCollectRequest, db: DB) -> dict:
     svc = CertAutopilotService(db=db)
     results = []
@@ -271,29 +275,51 @@ async def auto_collect_evidence(journey_id: str, request: AutoCollectRequest, db
     return {"collected": len(results), "source_types": request.source_types}
 
 
-@router.get("/journeys/{journey_id}/auto-collection-stats", summary="Get auto-collection statistics")
+@router.get(
+    "/journeys/{journey_id}/auto-collection-stats", summary="Get auto-collection statistics"
+)
 async def get_auto_collection_stats(journey_id: str, db: DB) -> dict:
     svc = CertAutopilotService(db=db)
     stats = svc.get_auto_collection_stats(journey_id=journey_id)
     return stats
 
 
-@router.post("/journeys/{journey_id}/gap-analysis/enhanced", summary="Run enhanced control mapping gap analysis")
+@router.post(
+    "/journeys/{journey_id}/gap-analysis/enhanced",
+    summary="Run enhanced control mapping gap analysis",
+)
 async def run_enhanced_gap_analysis(journey_id: str, db: DB) -> dict:
     svc = CertAutopilotService(db=db)
     gaps = svc.run_control_mapping_gap_analysis(journey_id=journey_id)
-    return {"total_gaps": len(gaps), "gaps": [{"control_id": g.control_id, "control_name": g.control_name, "status": g.status.value, "auto_collectible": g.auto_collectible} for g in gaps]}
+    return {
+        "total_gaps": len(gaps),
+        "gaps": [
+            {
+                "control_id": g.control_id,
+                "control_name": g.control_name,
+                "status": g.status.value,
+                "auto_collectible": g.auto_collectible,
+            }
+            for g in gaps
+        ],
+    }
 
 
 @router.post("/auditor-portal/sessions", summary="Create auditor portal session")
 async def create_auditor_session(request: AuditorSessionRequest, db: DB) -> dict:
     svc = CertAutopilotService(db=db)
     session, token = await svc.create_auditor_session(
-        auditor_name=request.auditor_name, auditor_email=request.auditor_email,
-        auditor_firm=request.auditor_firm, framework=request.framework,
+        auditor_name=request.auditor_name,
+        auditor_email=request.auditor_email,
+        auditor_firm=request.auditor_firm,
+        framework=request.framework,
         expires_hours=request.expires_hours,
     )
-    return {"session_id": str(session.id), "access_token": token, "expires_at": session.expires_at.isoformat() if session.expires_at else None}
+    return {
+        "session_id": str(session.id),
+        "access_token": token,
+        "expires_at": session.expires_at.isoformat() if session.expires_at else None,
+    }
 
 
 @router.get("/auditor-portal/sessions/{session_id}", summary="Get auditor view")
@@ -302,6 +328,7 @@ async def get_auditor_view(session_id: str, access_token: str, db: DB) -> dict:
     valid = svc.validate_auditor_session(session_id=session_id, access_token=access_token)
     if not valid:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=403, detail="Invalid or expired session")
     view = svc.get_auditor_view(session_id=session_id)
     return view
@@ -311,7 +338,18 @@ async def get_auditor_view(session_id: str, access_token: str, db: DB) -> dict:
 async def list_auditor_sessions(db: DB) -> list[dict]:
     svc = CertAutopilotService(db=db)
     sessions = svc.list_auditor_sessions()
-    return [{"id": str(s.id), "auditor_name": s.auditor_name, "framework": s.framework, "active": s.active, "expires_at": s.expires_at.isoformat() if hasattr(s, "expires_at") and s.expires_at else None} for s in sessions]
+    return [
+        {
+            "id": str(s.id),
+            "auditor_name": s.auditor_name,
+            "framework": s.framework,
+            "active": s.active,
+            "expires_at": s.expires_at.isoformat()
+            if hasattr(s, "expires_at") and s.expires_at
+            else None,
+        }
+        for s in sessions
+    ]
 
 
 @router.delete("/auditor-portal/sessions/{session_id}", summary="Revoke auditor session")

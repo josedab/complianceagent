@@ -53,7 +53,11 @@ async def create_passport(request: PassportCreateRequest, db: DB) -> dict:
     }
 
 
-@router.post("/passports/{passport_id}/credentials", status_code=status.HTTP_201_CREATED, summary="Add a credential")
+@router.post(
+    "/passports/{passport_id}/credentials",
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a credential",
+)
 async def add_credential(passport_id: UUID, request: CredentialAddRequest, db: DB) -> dict:
     """Add a credential to an existing passport."""
     service = DigitalPassportService(db=db)

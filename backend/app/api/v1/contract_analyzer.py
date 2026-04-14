@@ -1,6 +1,5 @@
 """API endpoints for Contract Analyzer."""
 
-
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -53,7 +52,12 @@ class ContractStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.post("/analyze", response_model=AnalysisSchema, status_code=status.HTTP_201_CREATED, summary="Analyze contract")
+@router.post(
+    "/analyze",
+    response_model=AnalysisSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Analyze contract",
+)
 async def analyze_contract(request: AnalyzeContractRequest, db: DB) -> AnalysisSchema:
     service = ContractAnalyzerService(db=db)
     analysis = await service.analyze_contract(
@@ -64,17 +68,23 @@ async def analyze_contract(request: AnalyzeContractRequest, db: DB) -> AnalysisS
     )
     logger.info("contract_analyzed", contract_name=request.contract_name, vendor=request.vendor)
     return AnalysisSchema(
-        id=str(analysis.id), contract_name=analysis.contract_name,
-        contract_type=analysis.contract_type, vendor=analysis.vendor,
+        id=str(analysis.id),
+        contract_name=analysis.contract_name,
+        contract_type=analysis.contract_type,
+        vendor=analysis.vendor,
         risk_score=analysis.risk_score,
         clauses=[
             ClauseSchema(
-                id=str(c.id), clause_type=c.clause_type, text=c.text,
-                risk_level=c.risk_level, recommendation=c.recommendation,
+                id=str(c.id),
+                clause_type=c.clause_type,
+                text=c.text,
+                risk_level=c.risk_level,
+                recommendation=c.recommendation,
             )
             for c in analysis.clauses
         ],
-        summary=analysis.summary, status=analysis.status,
+        summary=analysis.summary,
+        status=analysis.status,
         created_at=analysis.created_at.isoformat() if analysis.created_at else None,
     )
 
@@ -85,17 +95,23 @@ async def list_analyses(db: DB) -> list[AnalysisSchema]:
     analyses = await service.list_analyses()
     return [
         AnalysisSchema(
-            id=str(a.id), contract_name=a.contract_name,
-            contract_type=a.contract_type, vendor=a.vendor,
+            id=str(a.id),
+            contract_name=a.contract_name,
+            contract_type=a.contract_type,
+            vendor=a.vendor,
             risk_score=a.risk_score,
             clauses=[
                 ClauseSchema(
-                    id=str(c.id), clause_type=c.clause_type, text=c.text,
-                    risk_level=c.risk_level, recommendation=c.recommendation,
+                    id=str(c.id),
+                    clause_type=c.clause_type,
+                    text=c.text,
+                    risk_level=c.risk_level,
+                    recommendation=c.recommendation,
                 )
                 for c in a.clauses
             ],
-            summary=a.summary, status=a.status,
+            summary=a.summary,
+            status=a.status,
             created_at=a.created_at.isoformat() if a.created_at else None,
         )
         for a in analyses
@@ -109,17 +125,23 @@ async def get_analysis(analysis_id: str, db: DB) -> AnalysisSchema:
     if not analysis:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
     return AnalysisSchema(
-        id=str(analysis.id), contract_name=analysis.contract_name,
-        contract_type=analysis.contract_type, vendor=analysis.vendor,
+        id=str(analysis.id),
+        contract_name=analysis.contract_name,
+        contract_type=analysis.contract_type,
+        vendor=analysis.vendor,
         risk_score=analysis.risk_score,
         clauses=[
             ClauseSchema(
-                id=str(c.id), clause_type=c.clause_type, text=c.text,
-                risk_level=c.risk_level, recommendation=c.recommendation,
+                id=str(c.id),
+                clause_type=c.clause_type,
+                text=c.text,
+                risk_level=c.risk_level,
+                recommendation=c.recommendation,
             )
             for c in analysis.clauses
         ],
-        summary=analysis.summary, status=analysis.status,
+        summary=analysis.summary,
+        status=analysis.status,
         created_at=analysis.created_at.isoformat() if analysis.created_at else None,
     )
 

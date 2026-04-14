@@ -1,6 +1,5 @@
 """API endpoints for Compliance Knowledge Fabric."""
 
-
 import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -49,9 +48,22 @@ async def search(request: SearchRequest, db: DB) -> SearchResponseSchema:
     service = KnowledgeFabricService(db=db)
     r = await service.search(query=request.query, scope=request.scope, limit=request.limit)
     return SearchResponseSchema(
-        id=str(r.id), query=r.query,
-        results=[SearchResultSchema(result_type=s.result_type.value, title=s.title, snippet=s.snippet, relevance_score=s.relevance_score, source=s.source) for s in r.results],
-        total_count=r.total_count, rag_answer=r.rag_answer, sources_cited=r.sources_cited, execution_time_ms=r.execution_time_ms,
+        id=str(r.id),
+        query=r.query,
+        results=[
+            SearchResultSchema(
+                result_type=s.result_type.value,
+                title=s.title,
+                snippet=s.snippet,
+                relevance_score=s.relevance_score,
+                source=s.source,
+            )
+            for s in r.results
+        ],
+        total_count=r.total_count,
+        rag_answer=r.rag_answer,
+        sources_cited=r.sources_cited,
+        execution_time_ms=r.execution_time_ms,
     )
 
 
@@ -59,7 +71,12 @@ async def search(request: SearchRequest, db: DB) -> SearchResponseSchema:
 async def get_stats(db: DB) -> EmbeddingStatsSchema:
     service = KnowledgeFabricService(db=db)
     s = service.get_embedding_stats()
-    return EmbeddingStatsSchema(total_documents=s.total_documents, by_type=s.by_type, index_size_mb=s.index_size_mb, embedding_model=s.embedding_model)
+    return EmbeddingStatsSchema(
+        total_documents=s.total_documents,
+        by_type=s.by_type,
+        index_size_mb=s.index_size_mb,
+        embedding_model=s.embedding_model,
+    )
 
 
 @router.get("/history", summary="Get search history")

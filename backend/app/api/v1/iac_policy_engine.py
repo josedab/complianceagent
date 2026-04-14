@@ -137,6 +137,7 @@ async def scan_terraform(request: ScanRequest, db: DB) -> ScanResultResponse:
 
     service = IacPolicyEngineService(db=db)
     from app.services.iac_policy.models import CloudProvider
+
     result = await service.scan_terraform(provider=CloudProvider.AWS)
     return ScanResultResponse(**_serialize(result))
 
@@ -239,7 +240,10 @@ async def get_scan_history(db: DB) -> ScanHistoryResponse:
 
 class ScanContentRequest(BaseModel):
     content: str = Field(..., description="Raw IaC content to scan")
-    iac_format: str = Field(default="terraform_hcl", description="Format: terraform_hcl, kubernetes_yaml, cloudformation")
+    iac_format: str = Field(
+        default="terraform_hcl",
+        description="Format: terraform_hcl, kubernetes_yaml, cloudformation",
+    )
     file_path: str = Field(default="main.tf", description="File path for context")
 
 

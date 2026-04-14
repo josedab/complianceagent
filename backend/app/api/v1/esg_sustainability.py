@@ -128,9 +128,7 @@ async def get_carbon_footprint(period: str, db: DB) -> CarbonFootprintSchema:
 async def generate_report(request: GenerateReportRequest, db: DB) -> ReportSchema:
     """Generate an ESG sustainability report."""
     service = ESGSustainabilityService(db=db)
-    report = await service.generate_report(
-        title=request.title, frameworks=request.frameworks
-    )
+    report = await service.generate_report(title=request.title, frameworks=request.frameworks)
     return ReportSchema(
         id=str(report.id),
         title=report.title,
@@ -138,9 +136,7 @@ async def generate_report(request: GenerateReportRequest, db: DB) -> ReportSchem
         metrics_count=report.metrics_count,
         esg_score=report.esg_score,
         sections=report.sections,
-        generated_at=report.generated_at.isoformat()
-        if report.generated_at
-        else None,
+        generated_at=report.generated_at.isoformat() if report.generated_at else None,
     )
 
 

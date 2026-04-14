@@ -184,7 +184,12 @@ async def list_pr_comments(
     svc = GHMarketplaceAppService()
     comments = svc.list_pr_comments(repo=repo)
     return [
-        {"id": str(c.id), "repo": c.repo, "pr_number": c.pr_number,
-         "body": c.body, "posted": c.posted}
+        {
+            "id": str(c.id),
+            "repo": c.repo,
+            "pr_number": c.pr_number,
+            "body": c.body,
+            "posted": c.posted,
+        }
         for c in comments
     ]

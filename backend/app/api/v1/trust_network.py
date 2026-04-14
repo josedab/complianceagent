@@ -54,9 +54,7 @@ class StatsSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Create attestation",
 )
-async def create_attestation(
-    request: CreateAttestationRequest, db: DB
-) -> AttestationSchema:
+async def create_attestation(request: CreateAttestationRequest, db: DB) -> AttestationSchema:
     """Create a new trust attestation."""
     service = TrustNetworkService(db=db)
     att = await service.create_attestation(
@@ -89,9 +87,7 @@ async def list_attestations(
 ) -> list[AttestationSchema]:
     """List attestations with optional filters."""
     service = TrustNetworkService(db=db)
-    atts = service.list_attestations(
-        org_name=org_name, attestation_type=attestation_type
-    )
+    atts = service.list_attestations(org_name=org_name, attestation_type=attestation_type)
     return [
         AttestationSchema(
             id=str(a.id),
@@ -113,9 +109,7 @@ async def verify_attestation(attestation_id: UUID, db: DB) -> dict:
     service = TrustNetworkService(db=db)
     ok = await service.verify_attestation(attestation_id)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Attestation not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attestation not found")
     return {"status": "verified", "attestation_id": str(attestation_id)}
 
 
@@ -125,9 +119,7 @@ async def revoke_attestation(attestation_id: UUID, db: DB) -> dict:
     service = TrustNetworkService(db=db)
     ok = await service.revoke_attestation(attestation_id)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Attestation not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attestation not found")
     return {"status": "revoked", "attestation_id": str(attestation_id)}
 
 

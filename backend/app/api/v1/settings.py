@@ -143,9 +143,7 @@ async def get_notification_preferences(user: CurrentUser, db: DB) -> dict:
     from app.models.production_features import NotificationPreferenceRecord
 
     result = await db.execute(
-        select(NotificationPreferenceRecord).where(
-            NotificationPreferenceRecord.user_id == user.id
-        )
+        select(NotificationPreferenceRecord).where(NotificationPreferenceRecord.user_id == user.id)
     )
     record = result.scalar_one_or_none()
 
@@ -170,9 +168,7 @@ async def update_notification_preferences(
     from app.models.production_features import NotificationPreferenceRecord
 
     result = await db.execute(
-        select(NotificationPreferenceRecord).where(
-            NotificationPreferenceRecord.user_id == user.id
-        )
+        select(NotificationPreferenceRecord).where(NotificationPreferenceRecord.user_id == user.id)
     )
     record = result.scalar_one_or_none()
 

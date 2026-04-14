@@ -320,15 +320,16 @@ async def forgot_password(body: ForgotPasswordRequest, db: DB) -> dict:
             reset_url=f"/reset-password?token={token}",
         )
 
-    return {"message": "If that email exists, a password reset link has been sent.", "success": True}
+    return {
+        "message": "If that email exists, a password reset link has been sent.",
+        "success": True,
+    }
 
 
 @router.post("/reset-password", response_model=MessageResponse)
 async def reset_password(body: ResetPasswordRequest, db: DB) -> dict:
     """Reset password using a token from forgot-password."""
-    result = await db.execute(
-        select(User).where(User.password_reset_token == body.token)
-    )
+    result = await db.execute(select(User).where(User.password_reset_token == body.token))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -354,4 +355,7 @@ async def reset_password(body: ResetPasswordRequest, db: DB) -> dict:
     revoke_all_user_tokens(str(user.id))
     logger.info("auth.password_reset_completed", user_id=str(user.id))
 
-    return {"message": "Password has been reset. Please log in with your new password.", "success": True}
+    return {
+        "message": "Password has been reset. Please log in with your new password.",
+        "success": True,
+    }

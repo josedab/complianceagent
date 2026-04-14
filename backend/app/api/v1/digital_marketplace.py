@@ -116,9 +116,7 @@ async def search_assets(
 ) -> list[AssetSchema]:
     """Search marketplace assets with optional filters."""
     service = DigitalMarketplaceService(db=db)
-    assets = service.search_assets(
-        query=query, asset_type=asset_type, framework=framework
-    )
+    assets = service.search_assets(query=query, asset_type=asset_type, framework=framework)
     return [
         AssetSchema(
             id=str(a.id),
@@ -142,42 +140,30 @@ async def search_assets(
     status_code=status.HTTP_201_CREATED,
     summary="Purchase asset",
 )
-async def purchase_asset(
-    asset_id: UUID, request: PurchaseAssetRequest, db: DB
-) -> PurchaseSchema:
+async def purchase_asset(asset_id: UUID, request: PurchaseAssetRequest, db: DB) -> PurchaseSchema:
     """Purchase a marketplace asset."""
     service = DigitalMarketplaceService(db=db)
-    purchase = await service.purchase_asset(
-        asset_id=asset_id, buyer_org=request.buyer_org
-    )
+    purchase = await service.purchase_asset(asset_id=asset_id, buyer_org=request.buyer_org)
     if not purchase:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
     return PurchaseSchema(
         id=str(purchase.id),
         asset_id=str(purchase.asset_id),
         buyer_org=purchase.buyer_org,
         status=purchase.status,
-        purchased_at=purchase.purchased_at.isoformat()
-        if purchase.purchased_at
-        else None,
+        purchased_at=purchase.purchased_at.isoformat() if purchase.purchased_at else None,
     )
 
 
 @router.post("/assets/{asset_id}/rate", summary="Rate asset")
-async def rate_asset(
-    asset_id: UUID, request: RateAssetRequest, db: DB
-) -> dict:
+async def rate_asset(asset_id: UUID, request: RateAssetRequest, db: DB) -> dict:
     """Rate a marketplace asset."""
     service = DigitalMarketplaceService(db=db)
     ok = await service.rate_asset(
         asset_id=asset_id, rating=request.rating, reviewer=request.reviewer
     )
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
     return {"status": "rated", "asset_id": str(asset_id), "rating": request.rating}
 
 
@@ -197,9 +183,7 @@ async def generate_report(request: GenerateReportRequest, db: DB) -> ReportSchem
         total_revenue=report.total_revenue,
         total_transactions=report.total_transactions,
         top_assets=report.top_assets,
-        generated_at=report.generated_at.isoformat()
-        if report.generated_at
-        else None,
+        generated_at=report.generated_at.isoformat() if report.generated_at else None,
     )
 
 

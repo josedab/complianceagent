@@ -34,7 +34,9 @@ async def fuzz_policy(policy_slug: str, request: FuzzPolicyRequest, db: DB) -> d
     """Fuzz-test a compliance policy."""
     svc = ComplianceTestingService()
     return await svc.fuzz_policy(
-        db, policy_slug=policy_slug, iterations=request.iterations,
+        db,
+        policy_slug=policy_slug,
+        iterations=request.iterations,
     )
 
 

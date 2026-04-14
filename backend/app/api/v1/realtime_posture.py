@@ -154,7 +154,11 @@ async def record_posture_event(request: PostureEventRequest, db: DB) -> PostureE
         organization_id=str(request.organization_id),
         details=request.details or {},
     )
-    return PostureEventResponse(**event) if isinstance(event, dict) else PostureEventResponse(**_serialize(event))
+    return (
+        PostureEventResponse(**event)
+        if isinstance(event, dict)
+        else PostureEventResponse(**_serialize(event))
+    )
 
 
 @router.get("/events", response_model=PostureEventListResponse, summary="List posture events")

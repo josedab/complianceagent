@@ -132,8 +132,10 @@ class PercentileRankingRequest(BaseModel):
 async def compute_percentile_rankings(request: PercentileRankingRequest, db: DB) -> dict:
     svc = CrossOrgBenchmarkService(db)
     ranking = svc.compute_percentile_rankings(
-        org_hash=request.organization_hash, industry=request.industry,
-        company_size=request.company_size, frameworks=request.frameworks,
+        org_hash=request.organization_hash,
+        industry=request.industry,
+        company_size=request.company_size,
+        frameworks=request.frameworks,
     )
     return {
         "overall_percentile": ranking.overall_percentile,
@@ -149,7 +151,8 @@ async def compute_percentile_rankings(request: PercentileRankingRequest, db: DB)
 async def get_peer_group(request: PercentileRankingRequest, db: DB) -> dict:
     svc = CrossOrgBenchmarkService(db)
     group = svc.get_peer_group(
-        industry=request.industry, company_size=request.company_size,
+        industry=request.industry,
+        company_size=request.company_size,
         frameworks=request.frameworks,
     )
     return {
@@ -166,18 +169,31 @@ async def get_peer_group(request: PercentileRankingRequest, db: DB) -> dict:
 async def get_peer_recommendations(request: PercentileRankingRequest, db: DB) -> list[dict]:
     svc = CrossOrgBenchmarkService(db)
     recs = svc.get_peer_recommendations(
-        org_hash=request.organization_hash, industry=request.industry,
-        company_size=request.company_size, frameworks=request.frameworks,
+        org_hash=request.organization_hash,
+        industry=request.industry,
+        company_size=request.company_size,
+        frameworks=request.frameworks,
     )
-    return [{"area": r.area, "gap_size": r.gap_size, "peer_avg": r.peer_avg, "recommendation": r.recommendation, "priority": r.priority.value} for r in recs]
+    return [
+        {
+            "area": r.area,
+            "gap_size": r.gap_size,
+            "peer_avg": r.peer_avg,
+            "recommendation": r.recommendation,
+            "priority": r.priority.value,
+        }
+        for r in recs
+    ]
 
 
 @router.post("/insights-dashboard", summary="Get insights dashboard")
 async def get_insights_dashboard(request: PercentileRankingRequest, db: DB) -> dict:
     svc = CrossOrgBenchmarkService(db)
     dashboard = svc.get_insights_dashboard(
-        org_hash=request.organization_hash, industry=request.industry,
-        company_size=request.company_size, frameworks=request.frameworks,
+        org_hash=request.organization_hash,
+        industry=request.industry,
+        company_size=request.company_size,
+        frameworks=request.frameworks,
     )
     return {
         "rankings": {
@@ -186,7 +202,9 @@ async def get_insights_dashboard(request: PercentileRankingRequest, db: DB) -> d
         },
         "strengths": dashboard.strengths,
         "weaknesses": dashboard.weaknesses,
-        "recommendations": [{"area": r.area, "recommendation": r.recommendation} for r in dashboard.recommendations],
+        "recommendations": [
+            {"area": r.area, "recommendation": r.recommendation} for r in dashboard.recommendations
+        ],
         "data_quality_warnings": dashboard.data_quality_warnings,
     }
 

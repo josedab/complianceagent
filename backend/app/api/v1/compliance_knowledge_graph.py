@@ -61,7 +61,10 @@ async def semantic_search(request: SemanticSearchRequest, db: DB) -> dict:
     # Build graph if not already built
     graphs = list(kg_svc._graphs.values())
     if not graphs:
-        return {"results": [], "message": "No graph built yet. Build a graph first via the knowledge graph service."}
+        return {
+            "results": [],
+            "message": "No graph built yet. Build a graph first via the knowledge graph service.",
+        }
 
     graph = graphs[0]
     node_types = [NodeType(nt) for nt in request.node_types] if request.node_types else None

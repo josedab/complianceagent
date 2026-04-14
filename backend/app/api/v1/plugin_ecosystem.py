@@ -42,7 +42,9 @@ async def register_plugin(request: PluginRegisterRequest, db: DB) -> dict:
     }
 
 
-@router.post("/plugins/{plugin_id}/install", status_code=status.HTTP_201_CREATED, summary="Install plugin")
+@router.post(
+    "/plugins/{plugin_id}/install", status_code=status.HTTP_201_CREATED, summary="Install plugin"
+)
 async def install_plugin(plugin_id: str, request: PluginInstallRequest, db: DB) -> dict:
     """Install a plugin by its manifest ID."""
     service = PluginEcosystemService(db=db)

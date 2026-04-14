@@ -69,9 +69,7 @@ class StatsSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Run simulation",
 )
-async def run_simulation(
-    request: RunSimulationRequest, db: DB
-) -> SimulationResultSchema:
+async def run_simulation(request: RunSimulationRequest, db: DB) -> SimulationResultSchema:
     """Run a regulatory simulation."""
     service = RegulatorySimulationService(db=db)
     result = await service.run_simulation(
@@ -89,9 +87,7 @@ async def run_simulation(
         risk_score=result.risk_score,
         confidence_interval=result.confidence_interval,
         outcomes=result.outcomes,
-        completed_at=result.completed_at.isoformat()
-        if result.completed_at
-        else None,
+        completed_at=result.completed_at.isoformat() if result.completed_at else None,
     )
 
 
@@ -101,9 +97,7 @@ async def run_simulation(
     status_code=status.HTTP_201_CREATED,
     summary="Generate forecast",
 )
-async def generate_forecast(
-    request: GenerateForecastRequest, db: DB
-) -> ForecastSchema:
+async def generate_forecast(request: GenerateForecastRequest, db: DB) -> ForecastSchema:
     """Generate a regulatory forecast."""
     service = RegulatorySimulationService(db=db)
     forecast = await service.generate_forecast(regulation=request.regulation)
@@ -114,9 +108,7 @@ async def generate_forecast(
         probability_of_change=forecast.probability_of_change,
         impact_score=forecast.impact_score,
         recommendations=forecast.recommendations,
-        generated_at=forecast.generated_at.isoformat()
-        if forecast.generated_at
-        else None,
+        generated_at=forecast.generated_at.isoformat() if forecast.generated_at else None,
     )
 
 

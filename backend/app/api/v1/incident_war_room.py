@@ -53,7 +53,9 @@ async def advance_phase(incident_id: str, db: DB) -> dict:
 
 @router.post("/incidents/{incident_id}/timeline")
 async def add_timeline_entry(
-    incident_id: str, request: AddTimelineEntryRequest, db: DB,
+    incident_id: str,
+    request: AddTimelineEntryRequest,
+    db: DB,
 ) -> dict:
     """Add a timeline entry to an incident."""
     svc = IncidentWarRoomService()

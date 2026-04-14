@@ -107,9 +107,7 @@ async def list_events(db: DB) -> list[EventSchema]:
 
 
 @router.get("/decisions", response_model=list[DecisionSchema], summary="List decisions")
-async def list_decisions(
-    db: DB, decision_type: str | None = None
-) -> list[DecisionSchema]:
+async def list_decisions(db: DB, decision_type: str | None = None) -> list[DecisionSchema]:
     """List autonomous decisions with optional type filter."""
     service = AutonomousOSService(db=db)
     decisions = service.list_decisions(decision_type=decision_type)

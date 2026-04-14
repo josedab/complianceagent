@@ -1,6 +1,5 @@
 """API endpoints for Privacy Impact Assessment (PIA) Generator."""
 
-
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -58,18 +57,32 @@ class PIAStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.post("/assessments", response_model=PIASchema, status_code=status.HTTP_201_CREATED, summary="Generate PIA")
+@router.post(
+    "/assessments",
+    response_model=PIASchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate PIA",
+)
 async def generate_pia(request: GeneratePIARequest, db: DB) -> PIASchema:
     service = PIAGeneratorService(db=db)
     pia = await service.generate_pia(repo=request.repo, title=request.title)
     logger.info("pia_generated", repo=request.repo, title=request.title)
     return PIASchema(
-        id=str(pia.id), repo=pia.repo, title=pia.title, status=pia.status,
+        id=str(pia.id),
+        repo=pia.repo,
+        title=pia.title,
+        status=pia.status,
         findings=[
-            PIAFindingSchema(category=f.category, description=f.description, severity=f.severity, recommendation=f.recommendation)
+            PIAFindingSchema(
+                category=f.category,
+                description=f.description,
+                severity=f.severity,
+                recommendation=f.recommendation,
+            )
             for f in pia.findings
         ],
-        risk_score=pia.risk_score, approved_by=pia.approved_by,
+        risk_score=pia.risk_score,
+        approved_by=pia.approved_by,
         approved_at=pia.approved_at.isoformat() if pia.approved_at else None,
         created_at=pia.created_at.isoformat() if pia.created_at else None,
     )
@@ -96,17 +109,28 @@ async def export_pia(assessment_id: str, request: ExportPIARequest, db: DB) -> d
 
 
 @router.get("/assessments", response_model=list[PIASchema], summary="List PIAs")
-async def list_pias(db: DB, status_filter: str | None = Query(None, alias="status")) -> list[PIASchema]:
+async def list_pias(
+    db: DB, status_filter: str | None = Query(None, alias="status")
+) -> list[PIASchema]:
     service = PIAGeneratorService(db=db)
     pias = await service.list_pias(status_filter=status_filter)
     return [
         PIASchema(
-            id=str(p.id), repo=p.repo, title=p.title, status=p.status,
+            id=str(p.id),
+            repo=p.repo,
+            title=p.title,
+            status=p.status,
             findings=[
-                PIAFindingSchema(category=f.category, description=f.description, severity=f.severity, recommendation=f.recommendation)
+                PIAFindingSchema(
+                    category=f.category,
+                    description=f.description,
+                    severity=f.severity,
+                    recommendation=f.recommendation,
+                )
                 for f in p.findings
             ],
-            risk_score=p.risk_score, approved_by=p.approved_by,
+            risk_score=p.risk_score,
+            approved_by=p.approved_by,
             approved_at=p.approved_at.isoformat() if p.approved_at else None,
             created_at=p.created_at.isoformat() if p.created_at else None,
         )

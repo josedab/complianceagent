@@ -1,6 +1,5 @@
 """API endpoints for Regulatory Harmonization Engine."""
 
-
 import structlog
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -50,7 +49,9 @@ class HarmonizationStatsSchema(BaseModel):
     avg_deduplication_pct: float
 
 
-@router.post("/analyze", response_model=HarmonizationResultSchema, summary="Analyze framework overlap")
+@router.post(
+    "/analyze", response_model=HarmonizationResultSchema, summary="Analyze framework overlap"
+)
 async def analyze_overlap(request: AnalyzeRequest, db: DB) -> HarmonizationResultSchema:
     service = HarmonizationEngineService(db=db)
     result = await service.analyze_overlap(request.frameworks)
@@ -65,7 +66,9 @@ async def analyze_overlap(request: AnalyzeRequest, db: DB) -> HarmonizationResul
     )
 
 
-@router.get("/controls/{framework}", response_model=list[ControlSchema], summary="List framework controls")
+@router.get(
+    "/controls/{framework}", response_model=list[ControlSchema], summary="List framework controls"
+)
 async def list_controls(framework: str, db: DB) -> list[ControlSchema]:
     service = HarmonizationEngineService(db=db)
     controls = await service.list_controls(framework)

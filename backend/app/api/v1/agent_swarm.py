@@ -51,7 +51,12 @@ class SwarmStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.post("/sessions", response_model=SwarmSessionSchema, status_code=status.HTTP_201_CREATED, summary="Launch agent swarm")
+@router.post(
+    "/sessions",
+    response_model=SwarmSessionSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Launch agent swarm",
+)
 async def launch_swarm(request: LaunchSwarmRequest, db: DB) -> SwarmSessionSchema:
     service = AgentSwarmService(db=db)
     session = await service.launch_swarm(
@@ -61,8 +66,11 @@ async def launch_swarm(request: LaunchSwarmRequest, db: DB) -> SwarmSessionSchem
     )
     logger.info("swarm_launched", repo=request.repo, frameworks=request.frameworks)
     return SwarmSessionSchema(
-        id=str(session.id), repo=session.repo, frameworks=session.frameworks,
-        files=session.files, status=session.status,
+        id=str(session.id),
+        repo=session.repo,
+        frameworks=session.frameworks,
+        files=session.files,
+        status=session.status,
         agents=[
             AgentSchema(id=str(a.id), role=a.role, status=a.status, findings_count=a.findings_count)
             for a in session.agents
@@ -78,10 +86,15 @@ async def list_sessions(db: DB) -> list[SwarmSessionSchema]:
     sessions = await service.list_sessions()
     return [
         SwarmSessionSchema(
-            id=str(s.id), repo=s.repo, frameworks=s.frameworks,
-            files=s.files, status=s.status,
+            id=str(s.id),
+            repo=s.repo,
+            frameworks=s.frameworks,
+            files=s.files,
+            status=s.status,
             agents=[
-                AgentSchema(id=str(a.id), role=a.role, status=a.status, findings_count=a.findings_count)
+                AgentSchema(
+                    id=str(a.id), role=a.role, status=a.status, findings_count=a.findings_count
+                )
                 for a in s.agents
             ],
             findings=s.findings,
@@ -91,15 +104,20 @@ async def list_sessions(db: DB) -> list[SwarmSessionSchema]:
     ]
 
 
-@router.get("/sessions/{session_id}", response_model=SwarmSessionSchema, summary="Get swarm session")
+@router.get(
+    "/sessions/{session_id}", response_model=SwarmSessionSchema, summary="Get swarm session"
+)
 async def get_session(session_id: str, db: DB) -> SwarmSessionSchema:
     service = AgentSwarmService(db=db)
     session = await service.get_session(session_id=session_id)
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
     return SwarmSessionSchema(
-        id=str(session.id), repo=session.repo, frameworks=session.frameworks,
-        files=session.files, status=session.status,
+        id=str(session.id),
+        repo=session.repo,
+        frameworks=session.frameworks,
+        files=session.files,
+        status=session.status,
         agents=[
             AgentSchema(id=str(a.id), role=a.role, status=a.status, findings_count=a.findings_count)
             for a in session.agents

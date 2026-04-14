@@ -217,15 +217,29 @@ async def get_prediction(prediction_id: str, db: DB) -> dict:
     p = service.get_prediction(prediction_id)
     if not p:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="Prediction not found")
     return {
-        "id": str(p.id), "title": p.title, "description": p.description,
-        "jurisdiction": p.jurisdiction, "affected_frameworks": p.affected_frameworks,
-        "confidence": p.confidence.value, "confidence_score": p.confidence_score,
-        "impact_severity": p.impact_severity.value, "momentum": p.momentum.value,
+        "id": str(p.id),
+        "title": p.title,
+        "description": p.description,
+        "jurisdiction": p.jurisdiction,
+        "affected_frameworks": p.affected_frameworks,
+        "confidence": p.confidence.value,
+        "confidence_score": p.confidence_score,
+        "impact_severity": p.impact_severity.value,
+        "momentum": p.momentum.value,
         "predicted_effective_date": p.predicted_effective_date,
         "prediction_horizon_months": p.prediction_horizon_months,
-        "time_series": [{"date": ts.prediction_date, "value": ts.value, "lower": ts.lower_bound, "upper": ts.upper_bound} for ts in p.time_series],
+        "time_series": [
+            {
+                "date": ts.prediction_date,
+                "value": ts.value,
+                "lower": ts.lower_bound,
+                "upper": ts.upper_bound,
+            }
+            for ts in p.time_series
+        ],
         "feature_importance": p.feature_importance,
         "preparation_tasks": p.preparation_tasks,
     }
@@ -235,41 +249,77 @@ async def get_prediction(prediction_id: str, db: DB) -> dict:
 async def create_prediction(request: CreatePredictionRequest, db: DB) -> dict:
     service = RegPredictionService(db=db)
     p = await service.create_prediction(
-        title=request.title, description=request.description,
-        jurisdiction=request.jurisdiction, affected_frameworks=request.affected_frameworks,
-        confidence_score=request.confidence_score, impact_severity=request.impact_severity,
+        title=request.title,
+        description=request.description,
+        jurisdiction=request.jurisdiction,
+        affected_frameworks=request.affected_frameworks,
+        confidence_score=request.confidence_score,
+        impact_severity=request.impact_severity,
         predicted_effective_date=request.predicted_effective_date,
         prediction_horizon_months=request.prediction_horizon_months,
         preparation_tasks=request.preparation_tasks,
     )
-    return {"id": str(p.id), "title": p.title, "confidence_score": p.confidence_score, "momentum": p.momentum.value}
+    return {
+        "id": str(p.id),
+        "title": p.title,
+        "confidence_score": p.confidence_score,
+        "momentum": p.momentum.value,
+    }
 
 
-@router.post("/legislative-activities", status_code=status.HTTP_201_CREATED, summary="Ingest legislative activity")
+@router.post(
+    "/legislative-activities",
+    status_code=status.HTTP_201_CREATED,
+    summary="Ingest legislative activity",
+)
 async def ingest_legislative_activity(request: LegislativeActivityRequest, db: DB) -> dict:
     service = RegPredictionService(db=db)
     activity = await service.ingest_legislative_activity(
-        committee=request.committee, jurisdiction=request.jurisdiction,
-        activity_type=request.activity_type, title=request.title,
-        related_bills=request.related_bills, outcome=request.outcome,
+        committee=request.committee,
+        jurisdiction=request.jurisdiction,
+        activity_type=request.activity_type,
+        title=request.title,
+        related_bills=request.related_bills,
+        outcome=request.outcome,
     )
-    return {"id": str(activity.id), "committee": activity.committee, "signal_strength": activity.signal_strength}
+    return {
+        "id": str(activity.id),
+        "committee": activity.committee,
+        "signal_strength": activity.signal_strength,
+    }
 
 
 @router.get("/legislative-activities", summary="List legislative activities")
-async def list_activities(db: DB, jurisdiction: str | None = None, committee: str | None = None) -> list[dict]:
+async def list_activities(
+    db: DB, jurisdiction: str | None = None, committee: str | None = None
+) -> list[dict]:
     service = RegPredictionService(db=db)
     activities = service.list_activities(jurisdiction=jurisdiction, committee=committee)
-    return [{"id": str(a.id), "committee": a.committee, "jurisdiction": a.jurisdiction, "title": a.title, "activity_type": a.activity_type, "signal_strength": a.signal_strength} for a in activities]
+    return [
+        {
+            "id": str(a.id),
+            "committee": a.committee,
+            "jurisdiction": a.jurisdiction,
+            "title": a.title,
+            "activity_type": a.activity_type,
+            "signal_strength": a.signal_strength,
+        }
+        for a in activities
+    ]
 
 
-@router.post("/global-precedents", status_code=status.HTTP_201_CREATED, summary="Add global precedent")
+@router.post(
+    "/global-precedents", status_code=status.HTTP_201_CREATED, summary="Add global precedent"
+)
 async def add_global_precedent(request: GlobalPrecedentRequest, db: DB) -> dict:
     service = RegPredictionService(db=db)
     prec = await service.add_global_precedent(
-        origin_jurisdiction=request.origin_jurisdiction, regulation_name=request.regulation_name,
-        adopted_by=request.adopted_by, adoption_lag_months=request.adoption_lag_months,
-        adaptation_level=request.adaptation_level, key_differences=request.key_differences,
+        origin_jurisdiction=request.origin_jurisdiction,
+        regulation_name=request.regulation_name,
+        adopted_by=request.adopted_by,
+        adoption_lag_months=request.adoption_lag_months,
+        adaptation_level=request.adaptation_level,
+        key_differences=request.key_differences,
     )
     return {"id": str(prec.id), "regulation": prec.regulation_name, "adopted_by": prec.adopted_by}
 
@@ -278,4 +328,13 @@ async def add_global_precedent(request: GlobalPrecedentRequest, db: DB) -> dict:
 async def list_precedents(db: DB, origin: str | None = None) -> list[dict]:
     service = RegPredictionService(db=db)
     precs = service.list_precedents(origin=origin)
-    return [{"id": str(p.id), "origin": p.origin_jurisdiction, "regulation": p.regulation_name, "adopted_by": p.adopted_by, "lag_months": p.adoption_lag_months} for p in precs]
+    return [
+        {
+            "id": str(p.id),
+            "origin": p.origin_jurisdiction,
+            "regulation": p.regulation_name,
+            "adopted_by": p.adopted_by,
+            "lag_months": p.adoption_lag_months,
+        }
+        for p in precs
+    ]

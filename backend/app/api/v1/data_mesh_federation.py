@@ -59,7 +59,12 @@ class FederationStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.post("/nodes", response_model=NodeSchema, status_code=status.HTTP_201_CREATED, summary="Join federation")
+@router.post(
+    "/nodes",
+    response_model=NodeSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Join federation",
+)
 async def join_federation(request: JoinFederationRequest, db: DB) -> NodeSchema:
     service = DataMeshFederationService(db=db)
     node = await service.join_federation(
@@ -69,8 +74,11 @@ async def join_federation(request: JoinFederationRequest, db: DB) -> NodeSchema:
     )
     logger.info("node_joined_federation", org_name=request.org_name, role=request.role)
     return NodeSchema(
-        id=str(node.id), org_name=node.org_name, endpoint_url=node.endpoint_url,
-        role=node.role, status=node.status,
+        id=str(node.id),
+        org_name=node.org_name,
+        endpoint_url=node.endpoint_url,
+        role=node.role,
+        status=node.status,
         joined_at=node.joined_at.isoformat() if node.joined_at else None,
     )
 
@@ -81,15 +89,23 @@ async def list_nodes(db: DB) -> list[NodeSchema]:
     nodes = await service.list_nodes()
     return [
         NodeSchema(
-            id=str(n.id), org_name=n.org_name, endpoint_url=n.endpoint_url,
-            role=n.role, status=n.status,
+            id=str(n.id),
+            org_name=n.org_name,
+            endpoint_url=n.endpoint_url,
+            role=n.role,
+            status=n.status,
             joined_at=n.joined_at.isoformat() if n.joined_at else None,
         )
         for n in nodes
     ]
 
 
-@router.post("/insights", response_model=InsightSchema, status_code=status.HTTP_201_CREATED, summary="Share insight")
+@router.post(
+    "/insights",
+    response_model=InsightSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Share insight",
+)
 async def share_insight(request: ShareInsightRequest, db: DB) -> InsightSchema:
     service = DataMeshFederationService(db=db)
     insight = await service.share_insight(
@@ -100,8 +116,12 @@ async def share_insight(request: ShareInsightRequest, db: DB) -> InsightSchema:
     )
     logger.info("insight_shared", node_id=request.node_id, insight_type=request.insight_type)
     return InsightSchema(
-        id=str(insight.id), node_id=insight.node_id, insight_type=insight.insight_type,
-        data=insight.data, proof_type=insight.proof_type, verified=insight.verified,
+        id=str(insight.id),
+        node_id=insight.node_id,
+        insight_type=insight.insight_type,
+        data=insight.data,
+        proof_type=insight.proof_type,
+        verified=insight.verified,
         created_at=insight.created_at.isoformat() if insight.created_at else None,
     )
 
@@ -112,8 +132,12 @@ async def get_network_insights(db: DB) -> list[InsightSchema]:
     insights = await service.get_network_insights()
     return [
         InsightSchema(
-            id=str(i.id), node_id=i.node_id, insight_type=i.insight_type,
-            data=i.data, proof_type=i.proof_type, verified=i.verified,
+            id=str(i.id),
+            node_id=i.node_id,
+            insight_type=i.insight_type,
+            data=i.data,
+            proof_type=i.proof_type,
+            verified=i.verified,
             created_at=i.created_at.isoformat() if i.created_at else None,
         )
         for i in insights

@@ -125,6 +125,7 @@ async def create_scenario(request: CreateScenarioRequest, db: DB) -> ScenarioRes
 
     service = RegSimulatorService(db=db)
     from app.services.reg_simulator.models import SimulationScenario as ScenarioModel
+
     scenario_obj = ScenarioModel(
         regulation=request.regulation,
         change_description=request.change_description,

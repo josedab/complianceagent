@@ -186,6 +186,7 @@ from app.api.v1 import (
     news_ticker,
     nl_compliance_query,
     nl_query,
+    notifications,
     orchestration,
     org_hierarchy,
     organizations,
@@ -280,6 +281,7 @@ router.include_router(
 )
 router.include_router(settings_router.router, prefix="/settings", tags=["User Settings"])
 router.include_router(api_keys.router, prefix="/api-keys", tags=["API Key Management"])
+router.include_router(notifications.router)
 
 # -- 📋 Compliance Core ----------------------------------------------------
 router.include_router(regulations.router, prefix="/regulations", tags=["Regulations"])
@@ -637,9 +639,7 @@ if settings.enable_experimental:
     )
 
 # -- 🔮 Next-Gen v3 Features (10 new capabilities) --------------------------
-router.include_router(
-    mcp_server.router, prefix="/mcp-server", tags=["Compliance MCP Server"]
-)
+router.include_router(mcp_server.router, prefix="/mcp-server", tags=["Compliance MCP Server"])
 router.include_router(
     github_app.router, prefix="/github-app", tags=["GitHub App One-Click Install"]
 )
@@ -661,9 +661,7 @@ router.include_router(
     prefix="/auto-remediation",
     tags=["Compliance Drift Auto-Remediation"],
 )
-router.include_router(
-    multi_scm.router, prefix="/multi-scm", tags=["Multi-SCM Support"]
-)
+router.include_router(multi_scm.router, prefix="/multi-scm", tags=["Multi-SCM Support"])
 router.include_router(
     compliance_badge.router,
     prefix="/compliance-badge",
@@ -941,13 +939,39 @@ router.include_router(
 )
 
 # -- ⚡ Next-Gen v9 Features (10 new capabilities) --------------------------
-router.include_router(telemetry_mesh.router, prefix="/telemetry-mesh", tags=["Compliance Telemetry Mesh"])
-router.include_router(knowledge_assistant.router, prefix="/knowledge-assistant", tags=["Compliance Knowledge Assistant"])
-router.include_router(digital_passport.router, prefix="/digital-passport", tags=["Regulatory Digital Passport"])
-router.include_router(scenario_planner.router, prefix="/scenario-planner", tags=["Compliance Scenario Planner"])
-router.include_router(regulatory_filing.router, prefix="/regulatory-filing", tags=["Automated Regulatory Filing"])
-router.include_router(cicd_runtime.router, prefix="/cicd-runtime", tags=["Compliance-Aware CI/CD Runtime"])
-router.include_router(multi_org_orchestrator.router, prefix="/multi-org-orchestrator", tags=["Multi-Org Compliance Orchestrator"])
-router.include_router(training_simulator.router, prefix="/training-simulator", tags=["Compliance Training Simulator"])
-router.include_router(harmonization_engine.router, prefix="/harmonization-engine", tags=["Regulatory Harmonization Engine"])
-router.include_router(plugin_ecosystem.router, prefix="/plugin-ecosystem", tags=["Compliance Plugin Ecosystem"])
+router.include_router(
+    telemetry_mesh.router, prefix="/telemetry-mesh", tags=["Compliance Telemetry Mesh"]
+)
+router.include_router(
+    knowledge_assistant.router,
+    prefix="/knowledge-assistant",
+    tags=["Compliance Knowledge Assistant"],
+)
+router.include_router(
+    digital_passport.router, prefix="/digital-passport", tags=["Regulatory Digital Passport"]
+)
+router.include_router(
+    scenario_planner.router, prefix="/scenario-planner", tags=["Compliance Scenario Planner"]
+)
+router.include_router(
+    regulatory_filing.router, prefix="/regulatory-filing", tags=["Automated Regulatory Filing"]
+)
+router.include_router(
+    cicd_runtime.router, prefix="/cicd-runtime", tags=["Compliance-Aware CI/CD Runtime"]
+)
+router.include_router(
+    multi_org_orchestrator.router,
+    prefix="/multi-org-orchestrator",
+    tags=["Multi-Org Compliance Orchestrator"],
+)
+router.include_router(
+    training_simulator.router, prefix="/training-simulator", tags=["Compliance Training Simulator"]
+)
+router.include_router(
+    harmonization_engine.router,
+    prefix="/harmonization-engine",
+    tags=["Regulatory Harmonization Engine"],
+)
+router.include_router(
+    plugin_ecosystem.router, prefix="/plugin-ecosystem", tags=["Compliance Plugin Ecosystem"]
+)

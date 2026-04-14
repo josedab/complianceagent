@@ -63,26 +63,45 @@ class GraphStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.post("/views", response_model=GraphViewSchema, status_code=status.HTTP_201_CREATED, summary="Create graph view")
+@router.post(
+    "/views",
+    response_model=GraphViewSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create graph view",
+)
 async def create_view(request: CreateViewRequest, db: DB) -> GraphViewSchema:
     service = GraphExplorerService(db=db)
     view = await service.create_view(mode=request.mode, filters=request.filters)
     logger.info("graph_view_created", mode=request.mode)
     return GraphViewSchema(
-        id=str(view.id), mode=view.mode, filters=view.filters,
+        id=str(view.id),
+        mode=view.mode,
+        filters=view.filters,
         nodes=[
-            NodeSchema(id=str(n.id), label=n.label, node_type=n.node_type, properties=n.properties, connections=n.connections)
+            NodeSchema(
+                id=str(n.id),
+                label=n.label,
+                node_type=n.node_type,
+                properties=n.properties,
+                connections=n.connections,
+            )
             for n in view.nodes
         ],
         edges=[
-            EdgeSchema(source=e.source, target=e.target, relationship=e.relationship, weight=e.weight)
+            EdgeSchema(
+                source=e.source, target=e.target, relationship=e.relationship, weight=e.weight
+            )
             for e in view.edges
         ],
         created_at=view.created_at.isoformat() if view.created_at else None,
     )
 
 
-@router.get("/views/{view_id}/drilldown/{node_id}", response_model=DrilldownSchema, summary="Drilldown into node")
+@router.get(
+    "/views/{view_id}/drilldown/{node_id}",
+    response_model=DrilldownSchema,
+    summary="Drilldown into node",
+)
 async def drilldown(view_id: str, node_id: str, db: DB) -> DrilldownSchema:
     service = GraphExplorerService(db=db)
     result = await service.drilldown(view_id=view_id, node_id=node_id)
@@ -90,15 +109,26 @@ async def drilldown(view_id: str, node_id: str, db: DB) -> DrilldownSchema:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="View or node not found")
     return DrilldownSchema(
         node=NodeSchema(
-            id=str(result.node.id), label=result.node.label, node_type=result.node.node_type,
-            properties=result.node.properties, connections=result.node.connections,
+            id=str(result.node.id),
+            label=result.node.label,
+            node_type=result.node.node_type,
+            properties=result.node.properties,
+            connections=result.node.connections,
         ),
         neighbors=[
-            NodeSchema(id=str(n.id), label=n.label, node_type=n.node_type, properties=n.properties, connections=n.connections)
+            NodeSchema(
+                id=str(n.id),
+                label=n.label,
+                node_type=n.node_type,
+                properties=n.properties,
+                connections=n.connections,
+            )
             for n in result.neighbors
         ],
         edges=[
-            EdgeSchema(source=e.source, target=e.target, relationship=e.relationship, weight=e.weight)
+            EdgeSchema(
+                source=e.source, target=e.target, relationship=e.relationship, weight=e.weight
+            )
             for e in result.edges
         ],
         depth=result.depth,
@@ -106,13 +136,18 @@ async def drilldown(view_id: str, node_id: str, db: DB) -> DrilldownSchema:
 
 
 @router.get("/search", response_model=list[NodeSchema], summary="Search graph nodes")
-async def search_nodes(db: DB, query: str = Query(..., description="Search query")) -> list[NodeSchema]:
+async def search_nodes(
+    db: DB, query: str = Query(..., description="Search query")
+) -> list[NodeSchema]:
     service = GraphExplorerService(db=db)
     nodes = await service.search_nodes(query=query)
     return [
         NodeSchema(
-            id=str(n.id), label=n.label, node_type=n.node_type,
-            properties=n.properties, connections=n.connections,
+            id=str(n.id),
+            label=n.label,
+            node_type=n.node_type,
+            properties=n.properties,
+            connections=n.connections,
         )
         for n in nodes
     ]

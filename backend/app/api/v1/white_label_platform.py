@@ -120,9 +120,7 @@ async def get_partner_analytics(partner_id: UUID, db: DB) -> AnalyticsSchema:
     service = WhiteLabelPlatformService(db=db)
     analytics = service.get_partner_analytics(partner_id=partner_id)
     if not analytics:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Partner not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Partner not found")
     return AnalyticsSchema(
         partner_id=str(analytics.partner_id),
         active_users=analytics.active_users,
@@ -139,9 +137,7 @@ async def suspend_instance(instance_id: UUID, db: DB) -> dict:
     service = WhiteLabelPlatformService(db=db)
     ok = await service.suspend_instance(instance_id=instance_id)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Instance not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instance not found")
     return {"status": "suspended", "instance_id": str(instance_id)}
 
 
@@ -164,9 +160,7 @@ async def list_partners(db: DB) -> list[PartnerSchema]:
     ]
 
 
-@router.get(
-    "/instances", response_model=list[InstanceSchema], summary="List instances"
-)
+@router.get("/instances", response_model=list[InstanceSchema], summary="List instances")
 async def list_instances(db: DB) -> list[InstanceSchema]:
     """List all tenant instances."""
     service = WhiteLabelPlatformService(db=db)

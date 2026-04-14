@@ -60,17 +60,30 @@ class GatewayStatsSchema(BaseModel):
     by_client: dict[str, int]
 
 
-@router.post("/clients", response_model=ClientSchema, status_code=status.HTTP_201_CREATED, summary="Create API client")
+@router.post(
+    "/clients",
+    response_model=ClientSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create API client",
+)
 async def create_client(request: CreateClientRequest, db: DB) -> ClientSchema:
     service = APIGatewayService(db=db)
     c = await service.create_client(
-        name=request.name, description=request.description, scopes=request.scopes,
-        rate_limit_per_minute=request.rate_limit_per_minute, webhook_url=request.webhook_url,
+        name=request.name,
+        description=request.description,
+        scopes=request.scopes,
+        rate_limit_per_minute=request.rate_limit_per_minute,
+        webhook_url=request.webhook_url,
     )
     return ClientSchema(
-        id=str(c.id), name=c.name, description=c.description, api_key=c.api_key,
-        scopes=c.scopes, rate_limit_per_minute=c.rate_limit_per_minute,
-        webhook_url=c.webhook_url, active=c.active,
+        id=str(c.id),
+        name=c.name,
+        description=c.description,
+        api_key=c.api_key,
+        scopes=c.scopes,
+        rate_limit_per_minute=c.rate_limit_per_minute,
+        webhook_url=c.webhook_url,
+        active=c.active,
         created_at=c.created_at.isoformat() if c.created_at else None,
     )
 
@@ -81,9 +94,14 @@ async def list_clients(db: DB, active_only: bool = False) -> list[ClientSchema]:
     clients = service.list_clients(active_only=active_only)
     return [
         ClientSchema(
-            id=str(c.id), name=c.name, description=c.description, api_key=c.api_key,
-            scopes=c.scopes, rate_limit_per_minute=c.rate_limit_per_minute,
-            webhook_url=c.webhook_url, active=c.active,
+            id=str(c.id),
+            name=c.name,
+            description=c.description,
+            api_key=c.api_key,
+            scopes=c.scopes,
+            rate_limit_per_minute=c.rate_limit_per_minute,
+            webhook_url=c.webhook_url,
+            active=c.active,
             created_at=c.created_at.isoformat() if c.created_at else None,
         )
         for c in clients
@@ -99,15 +117,19 @@ async def delete_client(client_id: str, db: DB) -> dict:
     return {"status": "deleted", "client_id": client_id}
 
 
-@router.get("/rate-limit/{client_id}", response_model=RateLimitSchema, summary="Get rate limit status")
+@router.get(
+    "/rate-limit/{client_id}", response_model=RateLimitSchema, summary="Get rate limit status"
+)
 async def get_rate_limit(client_id: str, db: DB) -> RateLimitSchema:
     service = APIGatewayService(db=db)
     r = service.get_rate_limit(client_id)
     if not r:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
     return RateLimitSchema(
-        client_id=str(r.client_id), limit_per_minute=r.limit_per_minute,
-        remaining=r.remaining, reset_at=r.reset_at.isoformat() if r.reset_at else None,
+        client_id=str(r.client_id),
+        limit_per_minute=r.limit_per_minute,
+        remaining=r.remaining,
+        reset_at=r.reset_at.isoformat() if r.reset_at else None,
         total_requests=r.total_requests,
     )
 
@@ -117,8 +139,11 @@ async def get_portal(db: DB) -> PortalSchema:
     service = APIGatewayService(db=db)
     p = service.get_portal()
     return PortalSchema(
-        total_clients=p.total_clients, active_clients=p.active_clients,
-        endpoints=p.endpoints, api_version=p.api_version, docs_url=p.docs_url,
+        total_clients=p.total_clients,
+        active_clients=p.active_clients,
+        endpoints=p.endpoints,
+        api_version=p.api_version,
+        docs_url=p.docs_url,
     )
 
 
@@ -127,8 +152,11 @@ async def get_stats(db: DB) -> GatewayStatsSchema:
     service = APIGatewayService(db=db)
     s = service.get_stats()
     return GatewayStatsSchema(
-        total_clients=s.total_clients, active_clients=s.active_clients,
-        total_requests=s.total_requests, requests_today=s.requests_today,
-        rate_limited_count=s.rate_limited_count, by_endpoint=s.by_endpoint,
+        total_clients=s.total_clients,
+        active_clients=s.active_clients,
+        total_requests=s.total_requests,
+        requests_today=s.requests_today,
+        rate_limited_count=s.rate_limited_count,
+        by_endpoint=s.by_endpoint,
         by_client=s.by_client,
     )

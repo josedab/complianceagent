@@ -1,6 +1,5 @@
 """API endpoints for Mobile Backend."""
 
-
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -69,7 +68,12 @@ class MobileStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.post("/devices", response_model=DeviceSchema, status_code=status.HTTP_201_CREATED, summary="Register device")
+@router.post(
+    "/devices",
+    response_model=DeviceSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register device",
+)
 async def register_device(request: RegisterDeviceRequest, db: DB) -> DeviceSchema:
     service = MobileBackendService(db=db)
     device = await service.register_device(
@@ -79,8 +83,11 @@ async def register_device(request: RegisterDeviceRequest, db: DB) -> DeviceSchem
     )
     logger.info("device_registered", user_id=request.user_id, platform=request.platform)
     return DeviceSchema(
-        id=str(device.id), user_id=device.user_id, platform=device.platform,
-        device_token=device.device_token, active=device.active,
+        id=str(device.id),
+        user_id=device.user_id,
+        platform=device.platform,
+        device_token=device.device_token,
+        active=device.active,
         registered_at=device.registered_at.isoformat() if device.registered_at else None,
     )
 
@@ -95,7 +102,12 @@ async def unregister_device(device_id: str, db: DB) -> dict:
     return {"status": "unregistered", "device_id": device_id}
 
 
-@router.post("/notifications", response_model=NotificationSchema, status_code=status.HTTP_201_CREATED, summary="Send notification")
+@router.post(
+    "/notifications",
+    response_model=NotificationSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Send notification",
+)
 async def send_notification(request: SendNotificationRequest, db: DB) -> NotificationSchema:
     service = MobileBackendService(db=db)
     notification = await service.send_notification(
@@ -105,12 +117,17 @@ async def send_notification(request: SendNotificationRequest, db: DB) -> Notific
         body=request.body,
         priority=request.priority,
     )
-    logger.info("notification_sent", user_id=request.user_id, notification_type=request.notification_type)
+    logger.info(
+        "notification_sent", user_id=request.user_id, notification_type=request.notification_type
+    )
     return NotificationSchema(
-        id=str(notification.id), user_id=notification.user_id,
+        id=str(notification.id),
+        user_id=notification.user_id,
         notification_type=notification.notification_type,
-        title=notification.title, body=notification.body,
-        priority=notification.priority, read=notification.read,
+        title=notification.title,
+        body=notification.body,
+        priority=notification.priority,
+        read=notification.read,
         sent_at=notification.sent_at.isoformat() if notification.sent_at else None,
     )
 
@@ -131,14 +148,23 @@ async def get_dashboard(user_id: str, db: DB) -> DashboardSchema:
     )
 
 
-@router.get("/notifications/{user_id}", response_model=list[NotificationSchema], summary="List user notifications")
+@router.get(
+    "/notifications/{user_id}",
+    response_model=list[NotificationSchema],
+    summary="List user notifications",
+)
 async def list_notifications(user_id: str, db: DB) -> list[NotificationSchema]:
     service = MobileBackendService(db=db)
     notifications = await service.list_notifications(user_id=user_id)
     return [
         NotificationSchema(
-            id=str(n.id), user_id=n.user_id, notification_type=n.notification_type,
-            title=n.title, body=n.body, priority=n.priority, read=n.read,
+            id=str(n.id),
+            user_id=n.user_id,
+            notification_type=n.notification_type,
+            title=n.title,
+            body=n.body,
+            priority=n.priority,
+            read=n.read,
             sent_at=n.sent_at.isoformat() if n.sent_at else None,
         )
         for n in notifications

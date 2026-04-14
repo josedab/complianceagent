@@ -98,9 +98,7 @@ async def get_feed(db: DB) -> list[FeedItemSchema]:
 async def subscribe(request: SubscribeRequest, db: DB) -> SubscriptionSchema:
     """Subscribe a user to the regulatory intel feed."""
     service = RegulatoryIntelFeedService(db=db)
-    sub = await service.subscribe(
-        user_id=request.user_id, preferences=request.preferences
-    )
+    sub = await service.subscribe(user_id=request.user_id, preferences=request.preferences)
     return SubscriptionSchema(
         id=str(sub.id),
         user_id=sub.user_id,
@@ -119,18 +117,14 @@ async def subscribe(request: SubscribeRequest, db: DB) -> SubscriptionSchema:
 async def generate_digest(request: GenerateDigestRequest, db: DB) -> DigestSchema:
     """Generate a personalized regulatory digest."""
     service = RegulatoryIntelFeedService(db=db)
-    digest = await service.generate_digest(
-        user_id=request.user_id, period=request.period
-    )
+    digest = await service.generate_digest(user_id=request.user_id, period=request.period)
     return DigestSchema(
         id=str(digest.id),
         user_id=digest.user_id,
         period=digest.period,
         items_count=digest.items_count,
         highlights=digest.highlights,
-        generated_at=digest.generated_at.isoformat()
-        if digest.generated_at
-        else None,
+        generated_at=digest.generated_at.isoformat() if digest.generated_at else None,
     )
 
 

@@ -1,6 +1,5 @@
 """API endpoints for Localization Engine."""
 
-
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -51,13 +50,17 @@ class LocalizationStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.get("/translations/{language}", response_model=list[TranslationSchema], summary="Get translations")
+@router.get(
+    "/translations/{language}", response_model=list[TranslationSchema], summary="Get translations"
+)
 async def get_translations(language: str, db: DB) -> list[TranslationSchema]:
     service = LocalizationEngineService(db=db)
     translations = await service.get_translations(language=language)
     return [
         TranslationSchema(
-            key=t.key, value=t.value, language=t.language,
+            key=t.key,
+            value=t.value,
+            language=t.language,
             updated_at=t.updated_at.isoformat() if t.updated_at else None,
         )
         for t in translations
@@ -70,20 +73,29 @@ async def list_languages(db: DB) -> list[LanguageSchema]:
     languages = await service.list_languages()
     return [
         LanguageSchema(
-            code=lang.code, name=lang.name, total_keys=lang.total_keys,
-            translated_keys=lang.translated_keys, completion_percentage=lang.completion_percentage,
+            code=lang.code,
+            name=lang.name,
+            total_keys=lang.total_keys,
+            translated_keys=lang.translated_keys,
+            completion_percentage=lang.completion_percentage,
         )
         for lang in languages
     ]
 
 
-@router.get("/missing/{language}", response_model=list[MissingTranslationSchema], summary="Get missing translations")
+@router.get(
+    "/missing/{language}",
+    response_model=list[MissingTranslationSchema],
+    summary="Get missing translations",
+)
 async def get_missing_translations(language: str, db: DB) -> list[MissingTranslationSchema]:
     service = LocalizationEngineService(db=db)
     missing = await service.get_missing_translations(language=language)
     return [
         MissingTranslationSchema(
-            key=m.key, default_value=m.default_value, source_language=m.source_language,
+            key=m.key,
+            default_value=m.default_value,
+            source_language=m.source_language,
         )
         for m in missing
     ]

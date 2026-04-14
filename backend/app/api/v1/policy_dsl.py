@@ -63,40 +63,94 @@ class DSLStatsSchema(BaseModel):
     compilations: dict[str, int]
 
 
-@router.post("/policies", response_model=PolicySchema, status_code=status.HTTP_201_CREATED, summary="Create policy")
+@router.post(
+    "/policies",
+    response_model=PolicySchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create policy",
+)
 async def create_policy(request: CreatePolicyRequest, db: DB) -> PolicySchema:
     service = PolicyDSLService(db=db)
     try:
-        p = await service.create_policy(name=request.name, slug=request.slug, dsl_source=request.dsl_source, framework=request.framework, severity=request.severity, author=request.author)
+        p = await service.create_policy(
+            name=request.name,
+            slug=request.slug,
+            dsl_source=request.dsl_source,
+            framework=request.framework,
+            severity=request.severity,
+            author=request.author,
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
-    return PolicySchema(id=str(p.id), name=p.name, slug=p.slug, framework=p.framework, severity=p.severity.value, status=p.status.value, dsl_source=p.dsl_source, conditions=p.conditions, actions=p.actions)
+    return PolicySchema(
+        id=str(p.id),
+        name=p.name,
+        slug=p.slug,
+        framework=p.framework,
+        severity=p.severity.value,
+        status=p.status.value,
+        dsl_source=p.dsl_source,
+        conditions=p.conditions,
+        actions=p.actions,
+    )
 
 
 @router.get("/policies", response_model=list[PolicySchema], summary="List policies")
-async def list_policies(db: DB, framework: str | None = None, policy_status: str | None = None) -> list[PolicySchema]:
+async def list_policies(
+    db: DB, framework: str | None = None, policy_status: str | None = None
+) -> list[PolicySchema]:
     service = PolicyDSLService(db=db)
     s = PolicyStatus(policy_status) if policy_status else None
     policies = service.list_policies(framework=framework, status=s)
-    return [PolicySchema(id=str(p.id), name=p.name, slug=p.slug, framework=p.framework, severity=p.severity.value, status=p.status.value, dsl_source=p.dsl_source, conditions=p.conditions, actions=p.actions) for p in policies]
+    return [
+        PolicySchema(
+            id=str(p.id),
+            name=p.name,
+            slug=p.slug,
+            framework=p.framework,
+            severity=p.severity.value,
+            status=p.status.value,
+            dsl_source=p.dsl_source,
+            conditions=p.conditions,
+            actions=p.actions,
+        )
+        for p in policies
+    ]
 
 
 @router.post("/compile", response_model=CompileResultSchema, summary="Compile policy")
 async def compile_policy(request: CompileRequest, db: DB) -> CompileResultSchema:
     service = PolicyDSLService(db=db)
     c = await service.compile_policy(slug=request.slug, output_format=request.output_format)
-    return CompileResultSchema(output_format=c.output_format.value, compiled_code=c.compiled_code, errors=c.errors, warnings=c.warnings)
+    return CompileResultSchema(
+        output_format=c.output_format.value,
+        compiled_code=c.compiled_code,
+        errors=c.errors,
+        warnings=c.warnings,
+    )
 
 
 @router.post("/validate", response_model=ValidationSchema, summary="Validate DSL")
 async def validate_dsl(dsl_source: str, db: DB) -> ValidationSchema:
     service = PolicyDSLService(db=db)
     v = service.validate_dsl(dsl_source)
-    return ValidationSchema(valid=v.valid, errors=v.errors, warnings=v.warnings, parsed_conditions=v.parsed_conditions, parsed_actions=v.parsed_actions)
+    return ValidationSchema(
+        valid=v.valid,
+        errors=v.errors,
+        warnings=v.warnings,
+        parsed_conditions=v.parsed_conditions,
+        parsed_actions=v.parsed_actions,
+    )
 
 
 @router.get("/stats", response_model=DSLStatsSchema, summary="Get DSL stats")
 async def get_stats(db: DB) -> DSLStatsSchema:
     service = PolicyDSLService(db=db)
     s = service.get_stats()
-    return DSLStatsSchema(total_policies=s.total_policies, active_policies=s.active_policies, by_framework=s.by_framework, by_severity=s.by_severity, compilations=s.compilations)
+    return DSLStatsSchema(
+        total_policies=s.total_policies,
+        active_policies=s.active_policies,
+        by_framework=s.by_framework,
+        by_severity=s.by_severity,
+        compilations=s.compilations,
+    )

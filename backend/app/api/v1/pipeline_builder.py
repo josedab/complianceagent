@@ -64,7 +64,12 @@ class PipelineStatsSchema(BaseModel):
 # --- Endpoints ---
 
 
-@router.post("/pipelines", response_model=PipelineSchema, status_code=status.HTTP_201_CREATED, summary="Create pipeline")
+@router.post(
+    "/pipelines",
+    response_model=PipelineSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create pipeline",
+)
 async def create_pipeline(request: CreatePipelineRequest, db: DB) -> PipelineSchema:
     service = PipelineBuilderService(db=db)
     pipeline = await service.create_pipeline(
@@ -75,15 +80,23 @@ async def create_pipeline(request: CreatePipelineRequest, db: DB) -> PipelineSch
     )
     logger.info("pipeline_created", name=request.name, target=request.target)
     return PipelineSchema(
-        id=str(pipeline.id), name=pipeline.name, target=pipeline.target,
+        id=str(pipeline.id),
+        name=pipeline.name,
+        target=pipeline.target,
         repo=pipeline.repo,
         steps=[StepSchema(name=s.name, action=s.action, config=s.config) for s in pipeline.steps],
-        status=pipeline.status, config=pipeline.config,
+        status=pipeline.status,
+        config=pipeline.config,
         created_at=pipeline.created_at.isoformat() if pipeline.created_at else None,
     )
 
 
-@router.post("/pipelines/from-template", response_model=PipelineSchema, status_code=status.HTTP_201_CREATED, summary="Create from template")
+@router.post(
+    "/pipelines/from-template",
+    response_model=PipelineSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create from template",
+)
 async def create_from_template(request: CreateFromTemplateRequest, db: DB) -> PipelineSchema:
     service = PipelineBuilderService(db=db)
     pipeline = await service.create_from_template(
@@ -94,10 +107,13 @@ async def create_from_template(request: CreateFromTemplateRequest, db: DB) -> Pi
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     logger.info("pipeline_from_template", template_id=request.template_id, repo=request.repo)
     return PipelineSchema(
-        id=str(pipeline.id), name=pipeline.name, target=pipeline.target,
+        id=str(pipeline.id),
+        name=pipeline.name,
+        target=pipeline.target,
         repo=pipeline.repo,
         steps=[StepSchema(name=s.name, action=s.action, config=s.config) for s in pipeline.steps],
-        status=pipeline.status, config=pipeline.config,
+        status=pipeline.status,
+        config=pipeline.config,
         created_at=pipeline.created_at.isoformat() if pipeline.created_at else None,
     )
 
@@ -128,9 +144,13 @@ async def list_pipelines(db: DB) -> list[PipelineSchema]:
     pipelines = await service.list_pipelines()
     return [
         PipelineSchema(
-            id=str(p.id), name=p.name, target=p.target, repo=p.repo,
+            id=str(p.id),
+            name=p.name,
+            target=p.target,
+            repo=p.repo,
             steps=[StepSchema(name=s.name, action=s.action, config=s.config) for s in p.steps],
-            status=p.status, config=p.config,
+            status=p.status,
+            config=p.config,
             created_at=p.created_at.isoformat() if p.created_at else None,
         )
         for p in pipelines
@@ -143,7 +163,10 @@ async def list_templates(db: DB) -> list[TemplateSchema]:
     templates = await service.list_templates()
     return [
         TemplateSchema(
-            id=str(t.id), name=t.name, description=t.description, target=t.target,
+            id=str(t.id),
+            name=t.name,
+            description=t.description,
+            target=t.target,
             steps=[StepSchema(name=s.name, action=s.action, config=s.config) for s in t.steps],
         )
         for t in templates
