@@ -234,27 +234,19 @@ class LocalizationEngineService:
         log.info("translations.get")
 
         entries_map = self._translations.get(language.value, {})
-        entries = [
-            e for e in entries_map.values() if e.context == namespace
-        ]
-        translated = [
-            e for e in entries if e.status == TranslationStatus.TRANSLATED
-        ]
+        entries = [e for e in entries_map.values() if e.context == namespace]
+        translated = [e for e in entries if e.status == TranslationStatus.TRANSLATED]
 
         return TranslationBundle(
             language=language,
             entries=entries,
             total_keys=len(entries),
             translated_keys=len(translated),
-            coverage_pct=(
-                len(translated) / len(entries) * 100 if entries else 0.0
-            ),
+            coverage_pct=(len(translated) / len(entries) * 100 if entries else 0.0),
             last_exported=None,
         )
 
-    async def translate_key(
-        self, key: str, language: Language
-    ) -> TranslationEntry:
+    async def translate_key(self, key: str, language: Language) -> TranslationEntry:
         """Get or create a translation for a specific key."""
         log = logger.bind(key=key, language=language.value)
 
@@ -284,9 +276,7 @@ class LocalizationEngineService:
         """List all supported locale configurations."""
         return list(_LOCALE_CONFIGS)
 
-    async def get_missing_translations(
-        self, language: Language
-    ) -> list[str]:
+    async def get_missing_translations(self, language: Language) -> list[str]:
         """Get keys missing translations for a given language."""
         entries = self._translations.get(language.value, {})
         missing: list[str] = []
@@ -296,9 +286,7 @@ class LocalizationEngineService:
                 missing.append(key)
         return missing
 
-    async def export_bundle(
-        self, language: Language, format: str = "json"
-    ) -> dict:
+    async def export_bundle(self, language: Language, format: str = "json") -> dict:
         """Export a translation bundle in the specified format."""
         log = logger.bind(language=language.value, format=format)
         log.info("bundle.export")
@@ -317,9 +305,7 @@ class LocalizationEngineService:
             "exported_at": datetime.now(UTC).isoformat(),
         }
 
-    async def import_translations(
-        self, language: Language, entries: list[dict]
-    ) -> int:
+    async def import_translations(self, language: Language, entries: list[dict]) -> int:
         """Import translation entries for a language."""
         log = logger.bind(language=language.value, count=len(entries))
         log.info("translations.import.start")
@@ -359,13 +345,9 @@ class LocalizationEngineService:
 
         for lang_code, entries in self._translations.items():
             translated = sum(
-                1
-                for e in entries.values()
-                if e.status == TranslationStatus.TRANSLATED
+                1 for e in entries.values() if e.status == TranslationStatus.TRANSLATED
             )
-            by_language[lang_code] = (
-                translated / len(entries) * 100 if entries else 0.0
-            )
+            by_language[lang_code] = translated / len(entries) * 100 if entries else 0.0
             for entry in entries.values():
                 total_entries += 1
                 if entry.status == TranslationStatus.MACHINE_TRANSLATED:
@@ -378,9 +360,7 @@ class LocalizationEngineService:
             languages_supported=languages,
             by_language=by_language,
             machine_translated_pct=(
-                machine_translated / total_entries * 100
-                if total_entries
-                else 0.0
+                machine_translated / total_entries * 100 if total_entries else 0.0
             ),
             needs_review=needs_review,
         )

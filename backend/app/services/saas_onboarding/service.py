@@ -19,10 +19,42 @@ from app.services.saas_onboarding.models import (
 logger = structlog.get_logger()
 
 PLAN_LIMITS: dict[SaaSPlan, dict] = {
-    SaaSPlan.FREE: {"max_repos": 3, "max_scans": 10, "max_api": 60, "ai": False, "sso": False, "policies": False, "support": "community"},
-    SaaSPlan.TEAM: {"max_repos": 25, "max_scans": 100, "max_api": 300, "ai": True, "sso": False, "policies": False, "support": "email"},
-    SaaSPlan.BUSINESS: {"max_repos": 100, "max_scans": 500, "max_api": 1000, "ai": True, "sso": True, "policies": True, "support": "priority"},
-    SaaSPlan.ENTERPRISE: {"max_repos": -1, "max_scans": -1, "max_api": 5000, "ai": True, "sso": True, "policies": True, "support": "dedicated"},
+    SaaSPlan.FREE: {
+        "max_repos": 3,
+        "max_scans": 10,
+        "max_api": 60,
+        "ai": False,
+        "sso": False,
+        "policies": False,
+        "support": "community",
+    },
+    SaaSPlan.TEAM: {
+        "max_repos": 25,
+        "max_scans": 100,
+        "max_api": 300,
+        "ai": True,
+        "sso": False,
+        "policies": False,
+        "support": "email",
+    },
+    SaaSPlan.BUSINESS: {
+        "max_repos": 100,
+        "max_scans": 500,
+        "max_api": 1000,
+        "ai": True,
+        "sso": True,
+        "policies": True,
+        "support": "priority",
+    },
+    SaaSPlan.ENTERPRISE: {
+        "max_repos": -1,
+        "max_scans": -1,
+        "max_api": 5000,
+        "ai": True,
+        "sso": True,
+        "policies": True,
+        "support": "dedicated",
+    },
 }
 
 
@@ -70,7 +102,9 @@ class SaaSOnboardingService:
         logger.info("Tenant created", slug=slug, plan=plan, region=region)
         return tenant
 
-    async def advance_onboarding(self, slug: str, step: str, data: dict | None = None) -> OnboardingProgress | None:
+    async def advance_onboarding(
+        self, slug: str, step: str, data: dict | None = None
+    ) -> OnboardingProgress | None:
         tenant = self._tenants.get(slug)
         progress = self._progress.get(slug)
         if not tenant or not progress:
@@ -89,7 +123,9 @@ class SaaSOnboardingService:
             tenant.repos_connected = data.get("repo_count", 0)
         elif step == "first_scan" and data:
             tenant.first_scan_score = data.get("score")
-            progress.time_to_first_scan_seconds = (datetime.now(UTC) - (progress.started_at or datetime.now(UTC))).total_seconds()
+            progress.time_to_first_scan_seconds = (
+                datetime.now(UTC) - (progress.started_at or datetime.now(UTC))
+            ).total_seconds()
         elif step == "completed":
             tenant.onboarding_completed = True
             progress.completed_at = datetime.now(UTC)
@@ -131,7 +167,9 @@ class SaaSOnboardingService:
         results = list(self._tenants.values())
         if plan:
             results = [t for t in results if t.plan == plan]
-        return sorted(results, key=lambda t: t.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda t: t.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     def get_metrics(self) -> SaaSMetrics:
         tenants = list(self._tenants.values())
@@ -142,7 +180,9 @@ class SaaSOnboardingService:
         completed = [p for p in self._progress.values() if p.completed_at]
         avg_time = 0.0
         if completed:
-            times = [p.time_to_first_scan_seconds for p in completed if p.time_to_first_scan_seconds]
+            times = [
+                p.time_to_first_scan_seconds for p in completed if p.time_to_first_scan_seconds
+            ]
             avg_time = round(sum(times) / len(times) / 60, 1) if times else 0.0
         return SaaSMetrics(
             total_tenants=len(tenants),

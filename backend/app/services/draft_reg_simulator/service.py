@@ -1,6 +1,5 @@
 """Draft Regulation Impact Simulator Service."""
 
-
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,10 +15,45 @@ from app.services.draft_reg_simulator.models import (
 logger = structlog.get_logger()
 
 _FRAMEWORK_KEYWORDS: dict[str, list[str]] = {
-    "GDPR": ["personal data", "data subject", "consent", "erasure", "portability", "processing", "controller", "processor", "dpo", "privacy"],
-    "HIPAA": ["health", "phi", "protected health", "medical", "patient", "healthcare", "covered entity", "hipaa"],
-    "PCI-DSS": ["payment", "card", "cardholder", "pan", "tokenization", "merchant", "acquirer", "pci"],
-    "SOC2": ["availability", "confidentiality", "processing integrity", "trust service", "service organization"],
+    "GDPR": [
+        "personal data",
+        "data subject",
+        "consent",
+        "erasure",
+        "portability",
+        "processing",
+        "controller",
+        "processor",
+        "dpo",
+        "privacy",
+    ],
+    "HIPAA": [
+        "health",
+        "phi",
+        "protected health",
+        "medical",
+        "patient",
+        "healthcare",
+        "covered entity",
+        "hipaa",
+    ],
+    "PCI-DSS": [
+        "payment",
+        "card",
+        "cardholder",
+        "pan",
+        "tokenization",
+        "merchant",
+        "acquirer",
+        "pci",
+    ],
+    "SOC2": [
+        "availability",
+        "confidentiality",
+        "processing integrity",
+        "trust service",
+        "service organization",
+    ],
 }
 
 _SEED_DRAFTS: list[dict] = [
@@ -166,5 +200,7 @@ class DraftRegSimulatorService:
             by_status=by_status,
             by_jurisdiction=by_jurisdiction,
             total_analyses=len(analyses),
-            avg_effort_hours=round(sum(effort_hours) / len(effort_hours), 1) if effort_hours else 0.0,
+            avg_effort_hours=round(sum(effort_hours) / len(effort_hours), 1)
+            if effort_hours
+            else 0.0,
         )

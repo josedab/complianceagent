@@ -33,50 +33,242 @@ class HarmonizationEngineService:
     def _seed_controls(self) -> None:
         """Seed control mappings for major frameworks."""
         self._controls["GDPR"] = [
-            FrameworkControl("GDPR", "GDPR-AC-1", "Access Management", ControlCategory.access_control, "Manage access to personal data"),
-            FrameworkControl("GDPR", "GDPR-AC-2", "Authentication Controls", ControlCategory.access_control, "Strong authentication for data access"),
-            FrameworkControl("GDPR", "GDPR-EN-1", "Data Encryption at Rest", ControlCategory.encryption, "Encrypt personal data at rest"),
-            FrameworkControl("GDPR", "GDPR-EN-2", "Data Encryption in Transit", ControlCategory.encryption, "Encrypt personal data in transit"),
-            FrameworkControl("GDPR", "GDPR-LG-1", "Processing Activity Logs", ControlCategory.logging, "Log all processing activities"),
-            FrameworkControl("GDPR", "GDPR-LG-2", "Consent Tracking", ControlCategory.logging, "Track and log consent records"),
-            FrameworkControl("GDPR", "GDPR-IR-1", "Breach Notification", ControlCategory.incident_response, "72-hour breach notification"),
-            FrameworkControl("GDPR", "GDPR-DP-1", "Data Minimization", ControlCategory.data_protection, "Collect only necessary data"),
+            FrameworkControl(
+                "GDPR",
+                "GDPR-AC-1",
+                "Access Management",
+                ControlCategory.access_control,
+                "Manage access to personal data",
+            ),
+            FrameworkControl(
+                "GDPR",
+                "GDPR-AC-2",
+                "Authentication Controls",
+                ControlCategory.access_control,
+                "Strong authentication for data access",
+            ),
+            FrameworkControl(
+                "GDPR",
+                "GDPR-EN-1",
+                "Data Encryption at Rest",
+                ControlCategory.encryption,
+                "Encrypt personal data at rest",
+            ),
+            FrameworkControl(
+                "GDPR",
+                "GDPR-EN-2",
+                "Data Encryption in Transit",
+                ControlCategory.encryption,
+                "Encrypt personal data in transit",
+            ),
+            FrameworkControl(
+                "GDPR",
+                "GDPR-LG-1",
+                "Processing Activity Logs",
+                ControlCategory.logging,
+                "Log all processing activities",
+            ),
+            FrameworkControl(
+                "GDPR",
+                "GDPR-LG-2",
+                "Consent Tracking",
+                ControlCategory.logging,
+                "Track and log consent records",
+            ),
+            FrameworkControl(
+                "GDPR",
+                "GDPR-IR-1",
+                "Breach Notification",
+                ControlCategory.incident_response,
+                "72-hour breach notification",
+            ),
+            FrameworkControl(
+                "GDPR",
+                "GDPR-DP-1",
+                "Data Minimization",
+                ControlCategory.data_protection,
+                "Collect only necessary data",
+            ),
         ]
 
         self._controls["HIPAA"] = [
-            FrameworkControl("HIPAA", "HIPAA-AC-1", "Access Controls", ControlCategory.access_control, "Control access to ePHI"),
-            FrameworkControl("HIPAA", "HIPAA-AC-2", "Unique User Identification", ControlCategory.access_control, "Assign unique user IDs"),
-            FrameworkControl("HIPAA", "HIPAA-EN-1", "Encryption Standard", ControlCategory.encryption, "Encrypt ePHI at rest and in transit"),
-            FrameworkControl("HIPAA", "HIPAA-LG-1", "Audit Logging", ControlCategory.logging, "Log access to ePHI"),
-            FrameworkControl("HIPAA", "HIPAA-IR-1", "Security Incident Response", ControlCategory.incident_response, "Respond to security incidents"),
-            FrameworkControl("HIPAA", "HIPAA-DP-1", "Data Integrity Controls", ControlCategory.data_protection, "Ensure ePHI integrity"),
+            FrameworkControl(
+                "HIPAA",
+                "HIPAA-AC-1",
+                "Access Controls",
+                ControlCategory.access_control,
+                "Control access to ePHI",
+            ),
+            FrameworkControl(
+                "HIPAA",
+                "HIPAA-AC-2",
+                "Unique User Identification",
+                ControlCategory.access_control,
+                "Assign unique user IDs",
+            ),
+            FrameworkControl(
+                "HIPAA",
+                "HIPAA-EN-1",
+                "Encryption Standard",
+                ControlCategory.encryption,
+                "Encrypt ePHI at rest and in transit",
+            ),
+            FrameworkControl(
+                "HIPAA",
+                "HIPAA-LG-1",
+                "Audit Logging",
+                ControlCategory.logging,
+                "Log access to ePHI",
+            ),
+            FrameworkControl(
+                "HIPAA",
+                "HIPAA-IR-1",
+                "Security Incident Response",
+                ControlCategory.incident_response,
+                "Respond to security incidents",
+            ),
+            FrameworkControl(
+                "HIPAA",
+                "HIPAA-DP-1",
+                "Data Integrity Controls",
+                ControlCategory.data_protection,
+                "Ensure ePHI integrity",
+            ),
         ]
 
         self._controls["PCI-DSS"] = [
-            FrameworkControl("PCI-DSS", "PCI-AC-1", "Restrict Access", ControlCategory.access_control, "Restrict access to cardholder data"),
-            FrameworkControl("PCI-DSS", "PCI-AC-2", "Identify and Authenticate", ControlCategory.access_control, "Identify and authenticate system access"),
-            FrameworkControl("PCI-DSS", "PCI-EN-1", "Encrypt Transmission", ControlCategory.encryption, "Encrypt cardholder data transmission"),
-            FrameworkControl("PCI-DSS", "PCI-LG-1", "Track and Monitor Access", ControlCategory.logging, "Track and monitor all network access"),
-            FrameworkControl("PCI-DSS", "PCI-IR-1", "Incident Response Plan", ControlCategory.incident_response, "Maintain an incident response plan"),
-            FrameworkControl("PCI-DSS", "PCI-DP-1", "Protect Stored Data", ControlCategory.data_protection, "Protect stored cardholder data"),
+            FrameworkControl(
+                "PCI-DSS",
+                "PCI-AC-1",
+                "Restrict Access",
+                ControlCategory.access_control,
+                "Restrict access to cardholder data",
+            ),
+            FrameworkControl(
+                "PCI-DSS",
+                "PCI-AC-2",
+                "Identify and Authenticate",
+                ControlCategory.access_control,
+                "Identify and authenticate system access",
+            ),
+            FrameworkControl(
+                "PCI-DSS",
+                "PCI-EN-1",
+                "Encrypt Transmission",
+                ControlCategory.encryption,
+                "Encrypt cardholder data transmission",
+            ),
+            FrameworkControl(
+                "PCI-DSS",
+                "PCI-LG-1",
+                "Track and Monitor Access",
+                ControlCategory.logging,
+                "Track and monitor all network access",
+            ),
+            FrameworkControl(
+                "PCI-DSS",
+                "PCI-IR-1",
+                "Incident Response Plan",
+                ControlCategory.incident_response,
+                "Maintain an incident response plan",
+            ),
+            FrameworkControl(
+                "PCI-DSS",
+                "PCI-DP-1",
+                "Protect Stored Data",
+                ControlCategory.data_protection,
+                "Protect stored cardholder data",
+            ),
         ]
 
         self._controls["SOC2"] = [
-            FrameworkControl("SOC2", "SOC2-AC-1", "Logical Access", ControlCategory.access_control, "Logical and physical access controls"),
-            FrameworkControl("SOC2", "SOC2-AC-2", "User Access Reviews", ControlCategory.access_control, "Periodic user access reviews"),
-            FrameworkControl("SOC2", "SOC2-EN-1", "Encryption Controls", ControlCategory.encryption, "Data encryption controls"),
-            FrameworkControl("SOC2", "SOC2-LG-1", "System Monitoring", ControlCategory.logging, "Monitor system operations"),
-            FrameworkControl("SOC2", "SOC2-IR-1", "Incident Management", ControlCategory.incident_response, "Incident management procedures"),
-            FrameworkControl("SOC2", "SOC2-GV-1", "Risk Assessment", ControlCategory.governance, "Perform risk assessments"),
+            FrameworkControl(
+                "SOC2",
+                "SOC2-AC-1",
+                "Logical Access",
+                ControlCategory.access_control,
+                "Logical and physical access controls",
+            ),
+            FrameworkControl(
+                "SOC2",
+                "SOC2-AC-2",
+                "User Access Reviews",
+                ControlCategory.access_control,
+                "Periodic user access reviews",
+            ),
+            FrameworkControl(
+                "SOC2",
+                "SOC2-EN-1",
+                "Encryption Controls",
+                ControlCategory.encryption,
+                "Data encryption controls",
+            ),
+            FrameworkControl(
+                "SOC2",
+                "SOC2-LG-1",
+                "System Monitoring",
+                ControlCategory.logging,
+                "Monitor system operations",
+            ),
+            FrameworkControl(
+                "SOC2",
+                "SOC2-IR-1",
+                "Incident Management",
+                ControlCategory.incident_response,
+                "Incident management procedures",
+            ),
+            FrameworkControl(
+                "SOC2",
+                "SOC2-GV-1",
+                "Risk Assessment",
+                ControlCategory.governance,
+                "Perform risk assessments",
+            ),
         ]
 
         self._controls["ISO27001"] = [
-            FrameworkControl("ISO27001", "ISO-AC-1", "Access Control Policy", ControlCategory.access_control, "Establish access control policy"),
-            FrameworkControl("ISO27001", "ISO-AC-2", "User Access Management", ControlCategory.access_control, "Formal user access management"),
-            FrameworkControl("ISO27001", "ISO-EN-1", "Cryptographic Controls", ControlCategory.encryption, "Policy on use of cryptographic controls"),
-            FrameworkControl("ISO27001", "ISO-LG-1", "Event Logging", ControlCategory.logging, "Log user activities and events"),
-            FrameworkControl("ISO27001", "ISO-IR-1", "Information Security Incidents", ControlCategory.incident_response, "Manage information security incidents"),
-            FrameworkControl("ISO27001", "ISO-GV-1", "Information Security Policy", ControlCategory.governance, "Information security policy document"),
+            FrameworkControl(
+                "ISO27001",
+                "ISO-AC-1",
+                "Access Control Policy",
+                ControlCategory.access_control,
+                "Establish access control policy",
+            ),
+            FrameworkControl(
+                "ISO27001",
+                "ISO-AC-2",
+                "User Access Management",
+                ControlCategory.access_control,
+                "Formal user access management",
+            ),
+            FrameworkControl(
+                "ISO27001",
+                "ISO-EN-1",
+                "Cryptographic Controls",
+                ControlCategory.encryption,
+                "Policy on use of cryptographic controls",
+            ),
+            FrameworkControl(
+                "ISO27001",
+                "ISO-LG-1",
+                "Event Logging",
+                ControlCategory.logging,
+                "Log user activities and events",
+            ),
+            FrameworkControl(
+                "ISO27001",
+                "ISO-IR-1",
+                "Information Security Incidents",
+                ControlCategory.incident_response,
+                "Manage information security incidents",
+            ),
+            FrameworkControl(
+                "ISO27001",
+                "ISO-GV-1",
+                "Information Security Policy",
+                ControlCategory.governance,
+                "Information security policy document",
+            ),
         ]
 
     def _find_overlaps(
@@ -115,9 +307,7 @@ class HarmonizationEngineService:
                 continue
             for ctrl_b in controls_b:
                 if ctrl_a.category == ctrl_b.category:
-                    strength = strength_map.get(
-                        ctrl_a.category, OverlapStrength.weak
-                    )
+                    strength = strength_map.get(ctrl_a.category, OverlapStrength.weak)
                     overlaps.append(
                         ControlOverlap(
                             id=uuid.uuid4(),
@@ -125,8 +315,7 @@ class HarmonizationEngineService:
                             control_b=ctrl_b,
                             overlap_strength=strength,
                             description=(
-                                f"{ctrl_a.control_name} overlaps with "
-                                f"{ctrl_b.control_name}"
+                                f"{ctrl_a.control_name} overlaps with {ctrl_b.control_name}"
                             ),
                             effort_savings_pct=savings_map[strength],
                         )
@@ -150,24 +339,14 @@ class HarmonizationEngineService:
 
         overlapping_count = len(all_overlaps)
         unique_controls = max(total_controls - overlapping_count, 0)
-        dedup_pct = (
-            (overlapping_count / total_controls * 100.0)
-            if total_controls
-            else 0.0
-        )
+        dedup_pct = (overlapping_count / total_controls * 100.0) if total_controls else 0.0
 
         recommendations: list[str] = []
         if dedup_pct > 50.0:
-            recommendations.append(
-                "High overlap detected — implement unified control framework"
-            )
+            recommendations.append("High overlap detected — implement unified control framework")
         if dedup_pct > 30.0:
-            recommendations.append(
-                "Consider consolidated audit approach across frameworks"
-            )
-        recommendations.append(
-            f"Map {overlapping_count} overlapping controls to reduce effort"
-        )
+            recommendations.append("Consider consolidated audit approach across frameworks")
+        recommendations.append(f"Map {overlapping_count} overlapping controls to reduce effort")
 
         result = HarmonizationResult(
             id=uuid.uuid4(),
@@ -209,24 +388,17 @@ class HarmonizationEngineService:
             dedup_pcts.append(result.deduplication_pct)
 
             for overlap in result.overlaps:
-                pair_key = (
-                    f"{overlap.control_a.framework}-"
-                    f"{overlap.control_b.framework}"
-                )
+                pair_key = f"{overlap.control_a.framework}-{overlap.control_b.framework}"
                 pair_counts[pair_key] = pair_counts.get(pair_key, 0) + 1
 
         avg_dedup = sum(dedup_pcts) / len(dedup_pcts) if dedup_pcts else 0.0
 
-        top_pairs = sorted(
-            pair_counts.items(), key=lambda x: x[1], reverse=True
-        )[:5]
+        top_pairs = sorted(pair_counts.items(), key=lambda x: x[1], reverse=True)[:5]
 
         return HarmonizationStats(
             analyses_run=len(self._results),
             frameworks_analyzed=len(all_frameworks),
             total_overlaps_found=total_overlaps,
             avg_deduplication_pct=avg_dedup,
-            top_overlap_pairs=[
-                {"pair": k, "count": v} for k, v in top_pairs
-            ],
+            top_overlap_pairs=[{"pair": k, "count": v} for k, v in top_pairs],
         )

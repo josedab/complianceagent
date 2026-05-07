@@ -132,13 +132,9 @@ class MobileBackendService:
             ],
         )
 
-    async def list_notifications(
-        self, user_id: str, limit: int = 20
-    ) -> list[PushNotification]:
+    async def list_notifications(self, user_id: str, limit: int = 20) -> list[PushNotification]:
         """List notifications for a user."""
-        user_notifications = [
-            n for n in self._notifications.values() if n.user_id == user_id
-        ]
+        user_notifications = [n for n in self._notifications.values() if n.user_id == user_id]
         user_notifications.sort(
             key=lambda n: n.sent_at or datetime.min.replace(tzinfo=UTC), reverse=True
         )
@@ -155,9 +151,7 @@ class MobileBackendService:
         push_enabled = 0
 
         for device in devices:
-            by_platform[device.platform.value] = (
-                by_platform.get(device.platform.value, 0) + 1
-            )
+            by_platform[device.platform.value] = by_platform.get(device.platform.value, 0) + 1
             if device.push_enabled:
                 push_enabled += 1
 

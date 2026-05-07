@@ -132,9 +132,7 @@ class MarketplaceRevenueService:
         log.info("listing.created", listing_id=str(listing.id))
         return listing
 
-    async def record_transaction(
-        self, listing_id: UUID, amount: float
-    ) -> AgentListing:
+    async def record_transaction(self, listing_id: UUID, amount: float) -> AgentListing:
         """Record a revenue transaction for a listing."""
         log = logger.bind(listing_id=str(listing_id), amount=amount)
 
@@ -157,12 +155,9 @@ class MarketplaceRevenueService:
         log = logger.bind(author=author, period=period)
         log.info("payout.generate.start")
 
-        author_listings = [
-            l for l in self._listings.values() if l.author == author
-        ]
+        author_listings = [l for l in self._listings.values() if l.author == author]
         total_amount = sum(
-            l.monthly_revenue * (l.revenue_share_pct / 100.0)
-            for l in author_listings
+            l.monthly_revenue * (l.revenue_share_pct / 100.0) for l in author_listings
         )
 
         payout = Payout(
@@ -191,8 +186,7 @@ class MarketplaceRevenueService:
         listings = list(self._listings.values())
         total_revenue = sum(l.monthly_revenue for l in listings)
         platform_share = sum(
-            l.monthly_revenue * ((100.0 - l.revenue_share_pct) / 100.0)
-            for l in listings
+            l.monthly_revenue * ((100.0 - l.revenue_share_pct) / 100.0) for l in listings
         )
         author_total = total_revenue - platform_share
 
@@ -201,9 +195,7 @@ class MarketplaceRevenueService:
             model_key = listing.revenue_model.value
             by_model[model_key] = by_model.get(model_key, 0.0) + listing.monthly_revenue
 
-        sorted_listings = sorted(
-            listings, key=lambda l: l.monthly_revenue, reverse=True
-        )
+        sorted_listings = sorted(listings, key=lambda l: l.monthly_revenue, reverse=True)
         top_agents = [
             {
                 "agent_slug": l.agent_slug,
@@ -234,9 +226,7 @@ class MarketplaceRevenueService:
                 return listing
         raise ValueError(f"Listing '{agent_slug}' not found")
 
-    async def list_listings(
-        self, featured_only: bool = False
-    ) -> list[AgentListing]:
+    async def list_listings(self, featured_only: bool = False) -> list[AgentListing]:
         """List all marketplace listings."""
         listings = list(self._listings.values())
         if featured_only:
@@ -251,8 +241,7 @@ class MarketplaceRevenueService:
 
         total_revenue = sum(l.total_revenue for l in listings)
         platform_revenue = sum(
-            l.total_revenue * ((100.0 - l.revenue_share_pct) / 100.0)
-            for l in listings
+            l.total_revenue * ((100.0 - l.revenue_share_pct) / 100.0) for l in listings
         )
         author_payouts = total_revenue - platform_revenue
 
@@ -267,8 +256,6 @@ class MarketplaceRevenueService:
             total_revenue=round(total_revenue, 2),
             platform_revenue=round(platform_revenue, 2),
             author_payouts=round(author_payouts, 2),
-            avg_revenue_per_agent=(
-                round(total_revenue / total, 2) if total else 0.0
-            ),
+            avg_revenue_per_agent=(round(total_revenue / total, 2) if total else 0.0),
             by_revenue_model=by_model,
         )

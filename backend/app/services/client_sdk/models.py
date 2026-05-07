@@ -88,6 +88,7 @@ class GeneratedClient:
 @dataclass
 class OAuth2Token:
     """OAuth2 token for SDK authentication."""
+
     access_token: str = ""
     token_type: str = "Bearer"  # noqa: S105
     expires_in: int = 3600
@@ -104,6 +105,7 @@ class OAuth2Token:
 @dataclass
 class OAuth2Client:
     """OAuth2 client registration."""
+
     id: UUID = field(default_factory=uuid4)
     client_id: str = ""
     client_secret_hash: str = ""
@@ -117,6 +119,7 @@ class OAuth2Client:
 @dataclass
 class APIKey:
     """API key for SDK authentication."""
+
     id: UUID = field(default_factory=uuid4)
     key_prefix: str = ""  # "ca_live_" or "ca_test_"
     key_hash: str = ""
@@ -141,6 +144,7 @@ class APIKey:
 @dataclass
 class RateLimitConfig:
     """Rate limiting configuration per tier."""
+
     tier: RateLimitTier = RateLimitTier.FREE
     requests_per_minute: int = 60
     requests_per_hour: int = 1000
@@ -152,6 +156,7 @@ class RateLimitConfig:
 @dataclass
 class RateLimitStatus:
     """Current rate limit status for a key."""
+
     remaining_minute: int = 60
     remaining_hour: int = 1000
     remaining_day: int = 10000

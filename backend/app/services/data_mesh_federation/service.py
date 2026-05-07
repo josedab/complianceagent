@@ -152,9 +152,7 @@ class DataMeshFederationService:
         """Get federation network statistics."""
         by_insight_type: dict[str, int] = {}
         for insight in self._insights:
-            by_insight_type[insight.insight_type] = (
-                by_insight_type.get(insight.insight_type, 0) + 1
-            )
+            by_insight_type[insight.insight_type] = by_insight_type.get(insight.insight_type, 0) + 1
         return FederationStats(
             total_nodes=len(self._network.nodes),
             active_nodes=len(self._network.nodes),

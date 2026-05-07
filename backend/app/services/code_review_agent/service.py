@@ -23,20 +23,60 @@ logger = structlog.get_logger()
 
 _COMPLIANCE_PATTERNS: dict[str, list[dict]] = {
     "GDPR": [
-        {"pattern": "personal_data|user_email|user_name|ip_address", "rule": "gdpr-personal-data", "article": "Art. 5", "message": "Processing personal data requires documented lawful basis"},
-        {"pattern": "cookie|tracking|analytics", "rule": "gdpr-consent", "article": "Art. 6", "message": "Tracking/analytics requires user consent"},
-        {"pattern": "store.*forever|no.*expir|permanent.*stor", "rule": "gdpr-retention", "article": "Art. 5(1)(e)", "message": "Data must have defined retention periods"},
+        {
+            "pattern": "personal_data|user_email|user_name|ip_address",
+            "rule": "gdpr-personal-data",
+            "article": "Art. 5",
+            "message": "Processing personal data requires documented lawful basis",
+        },
+        {
+            "pattern": "cookie|tracking|analytics",
+            "rule": "gdpr-consent",
+            "article": "Art. 6",
+            "message": "Tracking/analytics requires user consent",
+        },
+        {
+            "pattern": "store.*forever|no.*expir|permanent.*stor",
+            "rule": "gdpr-retention",
+            "article": "Art. 5(1)(e)",
+            "message": "Data must have defined retention periods",
+        },
     ],
     "HIPAA": [
-        {"pattern": "patient|medical|diagnosis|health_record", "rule": "hipaa-phi", "article": "§164.312", "message": "PHI must be encrypted at rest and in transit"},
-        {"pattern": "log.*health|print.*patient", "rule": "hipaa-logging", "article": "§164.312(b)", "message": "PHI must not appear in logs"},
+        {
+            "pattern": "patient|medical|diagnosis|health_record",
+            "rule": "hipaa-phi",
+            "article": "§164.312",
+            "message": "PHI must be encrypted at rest and in transit",
+        },
+        {
+            "pattern": "log.*health|print.*patient",
+            "rule": "hipaa-logging",
+            "article": "§164.312(b)",
+            "message": "PHI must not appear in logs",
+        },
     ],
     "PCI-DSS": [
-        {"pattern": "card_number|credit_card|cvv|pan", "rule": "pci-card-data", "article": "Req 3", "message": "Card data must be tokenized; never store CVV"},
-        {"pattern": "password.*plain|md5|sha1", "rule": "pci-crypto", "article": "Req 4", "message": "Use strong cryptography (AES-256, SHA-256+)"},
+        {
+            "pattern": "card_number|credit_card|cvv|pan",
+            "rule": "pci-card-data",
+            "article": "Req 3",
+            "message": "Card data must be tokenized; never store CVV",
+        },
+        {
+            "pattern": "password.*plain|md5|sha1",
+            "rule": "pci-crypto",
+            "article": "Req 4",
+            "message": "Use strong cryptography (AES-256, SHA-256+)",
+        },
     ],
     "SOC2": [
-        {"pattern": "admin.*password|root.*access|sudo", "rule": "soc2-access", "article": "CC6.1", "message": "Administrative access requires MFA and audit logging"},
+        {
+            "pattern": "admin.*password|root.*access|sudo",
+            "rule": "soc2-access",
+            "article": "CC6.1",
+            "message": "Administrative access requires MFA and audit logging",
+        },
     ],
 }
 
@@ -91,19 +131,27 @@ class CodeReviewAgentService:
             created_at=datetime.now(UTC),
         )
         self._reviews.append(review)
-        logger.info("PR reviewed", repo=repo, pr=pr_number, risk=overall_risk.value, suggestions=len(suggestions))
+        logger.info(
+            "PR reviewed",
+            repo=repo,
+            pr=pr_number,
+            risk=overall_risk.value,
+            suggestions=len(suggestions),
+        )
         return review
 
     def _parse_diff(self, diff_content: str, changed_files: list[dict]) -> list[DiffHunk]:
         hunks = []
         if changed_files:
             for f in changed_files:
-                hunks.append(DiffHunk(
-                    file_path=f.get("path", ""),
-                    start_line=f.get("start_line", 1),
-                    end_line=f.get("end_line", 100),
-                    added_lines=f.get("added_lines", []),
-                ))
+                hunks.append(
+                    DiffHunk(
+                        file_path=f.get("path", ""),
+                        start_line=f.get("start_line", 1),
+                        end_line=f.get("end_line", 100),
+                        added_lines=f.get("added_lines", []),
+                    )
+                )
         elif diff_content:
             hunks.append(DiffHunk(file_path="diff", added_lines=diff_content.split("\n")))
         return hunks
@@ -115,34 +163,55 @@ class CodeReviewAgentService:
             patterns = _COMPLIANCE_PATTERNS.get(fw, [])
             for pat in patterns:
                 import re
+
                 if re.search(pat["pattern"], content):
-                    suggestions.append(ComplianceSuggestion(
-                        file_path=hunk.file_path,
-                        line_number=hunk.start_line,
-                        rule_id=pat["rule"],
-                        framework=fw,
-                        article_ref=pat["article"],
-                        message=pat["message"],
-                        suggested_code=f"# TODO: {pat['message']}",
-                        risk_level=ReviewRiskLevel.HIGH if fw in ("HIPAA", "PCI-DSS") else ReviewRiskLevel.MEDIUM,
-                        created_at=datetime.now(UTC),
-                    ))
+                    suggestions.append(
+                        ComplianceSuggestion(
+                            file_path=hunk.file_path,
+                            line_number=hunk.start_line,
+                            rule_id=pat["rule"],
+                            framework=fw,
+                            article_ref=pat["article"],
+                            message=pat["message"],
+                            suggested_code=f"# TODO: {pat['message']}",
+                            risk_level=ReviewRiskLevel.HIGH
+                            if fw in ("HIPAA", "PCI-DSS")
+                            else ReviewRiskLevel.MEDIUM,
+                            created_at=datetime.now(UTC),
+                        )
+                    )
                     hunk.frameworks_affected.append(fw)
         return suggestions
 
     def _compute_overall_risk(self, suggestions: list[ComplianceSuggestion]) -> ReviewRiskLevel:
         if not suggestions:
             return ReviewRiskLevel.NONE
-        risk_order = {ReviewRiskLevel.NONE: 0, ReviewRiskLevel.LOW: 1, ReviewRiskLevel.MEDIUM: 2, ReviewRiskLevel.HIGH: 3, ReviewRiskLevel.CRITICAL: 4}
+        risk_order = {
+            ReviewRiskLevel.NONE: 0,
+            ReviewRiskLevel.LOW: 1,
+            ReviewRiskLevel.MEDIUM: 2,
+            ReviewRiskLevel.HIGH: 3,
+            ReviewRiskLevel.CRITICAL: 4,
+        }
         max_risk = max(suggestions, key=lambda s: risk_order.get(s.risk_level, 0))
         return max_risk.risk_level
 
     def _make_decision(self, overall_risk: ReviewRiskLevel) -> ReviewDecision:
         if overall_risk == ReviewRiskLevel.NONE:
-            return ReviewDecision.AUTO_APPROVED if self._config.auto_approve_low_risk else ReviewDecision.APPROVE
+            return (
+                ReviewDecision.AUTO_APPROVED
+                if self._config.auto_approve_low_risk
+                else ReviewDecision.APPROVE
+            )
         if overall_risk == ReviewRiskLevel.LOW and self._config.auto_approve_low_risk:
             return ReviewDecision.AUTO_APPROVED
-        risk_order = {ReviewRiskLevel.NONE: 0, ReviewRiskLevel.LOW: 1, ReviewRiskLevel.MEDIUM: 2, ReviewRiskLevel.HIGH: 3, ReviewRiskLevel.CRITICAL: 4}
+        risk_order = {
+            ReviewRiskLevel.NONE: 0,
+            ReviewRiskLevel.LOW: 1,
+            ReviewRiskLevel.MEDIUM: 2,
+            ReviewRiskLevel.HIGH: 3,
+            ReviewRiskLevel.CRITICAL: 4,
+        }
         min_block = risk_order.get(self._config.min_risk_for_block, 3)
         if risk_order.get(overall_risk, 0) >= min_block:
             return ReviewDecision.REQUEST_CHANGES
@@ -178,7 +247,9 @@ class CodeReviewAgentService:
         results = list(self._reviews)
         if repo:
             results = [r for r in results if r.repo == repo]
-        return sorted(results, key=lambda r: r.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda r: r.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     def get_stats(self) -> ReviewStats:
         total = len(self._reviews)

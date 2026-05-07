@@ -166,7 +166,11 @@ class AgentsMarketplaceService:
         results = [a for a in self._agents.values() if a.status == AgentStatus.PUBLISHED]
         if query:
             q = query.lower()
-            results = [a for a in results if q in a.name.lower() or q in a.description.lower() or q in " ".join(a.tags)]
+            results = [
+                a
+                for a in results
+                if q in a.name.lower() or q in a.description.lower() or q in " ".join(a.tags)
+            ]
         if category:
             results = [a for a in results if a.category == category]
         if framework:
@@ -209,7 +213,9 @@ class AgentsMarketplaceService:
             results = [i for i in results if i.organization_id == organization_id]
         return [i for i in results if i.status == InstallStatus.INSTALLED]
 
-    async def rate_agent(self, slug: str, reviewer: str, rating: int, comment: str = "") -> AgentReview | None:
+    async def rate_agent(
+        self, slug: str, reviewer: str, rating: int, comment: str = ""
+    ) -> AgentReview | None:
         agent = self._agents.get(slug)
         if not agent:
             return None
@@ -241,8 +247,12 @@ class AgentsMarketplaceService:
         return MarketplaceStats(
             total_agents=len(self._agents),
             published_agents=len(published),
-            total_installations=sum(1 for i in self._installations if i.status == InstallStatus.INSTALLED),
+            total_installations=sum(
+                1 for i in self._installations if i.status == InstallStatus.INSTALLED
+            ),
             total_executions=sum(i.execution_count for i in self._installations),
             by_category=by_cat,
-            top_agents=[{"name": a.name, "downloads": a.downloads, "rating": a.rating} for a in top],
+            top_agents=[
+                {"name": a.name, "downloads": a.downloads, "rating": a.rating} for a in top
+            ],
         )

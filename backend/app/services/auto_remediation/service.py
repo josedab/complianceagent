@@ -183,7 +183,9 @@ class AutoRemediationService:
             results = [p for p in results if p.repo == repo]
         if status:
             results = [p for p in results if p.status == status]
-        return sorted(results, key=lambda p: p.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda p: p.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     def get_fixes(self, pipeline_id: UUID | None = None) -> list[RemediationFix]:
         if pipeline_id:

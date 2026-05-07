@@ -150,7 +150,9 @@ class WhiteLabelPlatformService:
 
         if partner.tier == PartnerTier.PLATINUM:
             partner.max_tenants = 50
-            partner.features_enabled.extend(["risk_assessment", "evidence_vault", "regulatory_feed", "ai_copilot"])
+            partner.features_enabled.extend(
+                ["risk_assessment", "evidence_vault", "regulatory_feed", "ai_copilot"]
+            )
         elif partner.tier == PartnerTier.GOLD:
             partner.max_tenants = 25
             partner.features_enabled.extend(["risk_assessment", "evidence_vault"])
@@ -172,7 +174,8 @@ class WhiteLabelPlatformService:
             raise ValueError(msg)
 
         current_count = sum(
-            1 for i in self._instances.values()
+            1
+            for i in self._instances.values()
             if i.partner_id == partner_id and i.status != InstanceStatus.DECOMMISSIONED
         )
         if current_count >= partner.max_tenants:

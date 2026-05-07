@@ -1,4 +1,5 @@
 """Compliance Autonomous Operating System service."""
+
 from app.services.autonomous_os.models import (
     AutonomousDecision,
     AutonomousOSStats,

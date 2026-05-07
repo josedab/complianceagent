@@ -491,8 +491,9 @@ class HealthBenchmarkingService:
             )
 
         suggestions.sort(
-            key=lambda s: (s.target_score - s.current_score)
-            * _DIMENSION_WEIGHTS.get(s.dimension, 0.1),
+            key=lambda s: (
+                (s.target_score - s.current_score) * _DIMENSION_WEIGHTS.get(s.dimension, 0.1)
+            ),
             reverse=True,
         )
         logger.info(

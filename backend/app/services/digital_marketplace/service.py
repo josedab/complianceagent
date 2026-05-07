@@ -1,4 +1,5 @@
 """Digital Compliance Marketplace Service."""
+
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -160,17 +161,13 @@ class DigitalMarketplaceService:
         asset_type: str | None = None,
         framework: str | None = None,
     ) -> list[MarketplaceAsset]:
-        results = [
-            a for a in self._assets
-            if a.status == AssetStatus.LISTED
-        ]
+        results = [a for a in self._assets if a.status == AssetStatus.LISTED]
         if query:
             q = query.lower()
             results = [
-                a for a in results
-                if q in a.title.lower()
-                or q in a.description.lower()
-                or any(q in t for t in a.tags)
+                a
+                for a in results
+                if q in a.title.lower() or q in a.description.lower() or any(q in t for t in a.tags)
             ]
         if asset_type:
             at = AssetType(asset_type)

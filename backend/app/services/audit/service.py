@@ -303,7 +303,9 @@ class AuditService:
                 {
                     "id": str(e.id),
                     "created_at": e.created_at.isoformat(),
-                    "event_type": e.event_type.value if hasattr(e.event_type, "value") else e.event_type,
+                    "event_type": e.event_type.value
+                    if hasattr(e.event_type, "value")
+                    else e.event_type,
                     "event_description": e.event_description,
                     "event_data": e.event_data,
                     "actor_type": e.actor_type,

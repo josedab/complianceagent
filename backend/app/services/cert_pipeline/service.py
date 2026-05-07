@@ -53,7 +53,9 @@ class CertPipelineService:
         self._gaps: list[ControlGap] = []
         self._reports: list[CertReport] = []
 
-    async def start_certification(self, framework: str, target_date: str = "", auditor: str = "") -> CertificationRun:
+    async def start_certification(
+        self, framework: str, target_date: str = "", auditor: str = ""
+    ) -> CertificationRun:
         fw = CertFramework(framework)
         controls = _FRAMEWORK_CONTROLS.get(fw, [])
         now = datetime.now(UTC)
@@ -77,8 +79,13 @@ class CertPipelineService:
                     control_id=ctrl["id"],
                     control_name=ctrl["name"],
                     gap_description=f"Control {ctrl['id']} ({ctrl['name']}) requires implementation or additional evidence",
-                    priority="high" if ctrl["id"].startswith("CC6") or ctrl["id"].startswith("A.9") else "medium",
-                    evidence_needed=[f"Evidence for {ctrl['id']}", f"Configuration screenshot for {ctrl['name']}"],
+                    priority="high"
+                    if ctrl["id"].startswith("CC6") or ctrl["id"].startswith("A.9")
+                    else "medium",
+                    evidence_needed=[
+                        f"Evidence for {ctrl['id']}",
+                        f"Configuration screenshot for {ctrl['name']}",
+                    ],
                 )
                 gaps.append(gap)
             else:
@@ -92,7 +99,12 @@ class CertPipelineService:
         run.stage = CertStage.EVIDENCE_COLLECTION
 
         self._runs[str(run.id)] = run
-        logger.info("Certification started", framework=framework, gaps=len(gaps), readiness=run.readiness_pct)
+        logger.info(
+            "Certification started",
+            framework=framework,
+            gaps=len(gaps),
+            readiness=run.readiness_pct,
+        )
         return run
 
     async def advance_stage(self, run_id: str) -> CertificationRun | None:
@@ -119,11 +131,17 @@ class CertPipelineService:
                     if run.id == gap.run_id:
                         run.gaps_resolved += 1
                         run.controls_met += 1
-                        run.readiness_pct = round(run.controls_met / run.total_controls * 100, 1) if run.total_controls else 0
+                        run.readiness_pct = (
+                            round(run.controls_met / run.total_controls * 100, 1)
+                            if run.total_controls
+                            else 0
+                        )
                 return gap
         return None
 
-    def get_gaps(self, run_id: str | None = None, status: GapStatus | None = None) -> list[ControlGap]:
+    def get_gaps(
+        self, run_id: str | None = None, status: GapStatus | None = None
+    ) -> list[ControlGap]:
         results = list(self._gaps)
         if run_id:
             run = self._runs.get(run_id)
@@ -142,14 +160,21 @@ class CertPipelineService:
         if open_gaps > 0:
             recommendations.append(f"Resolve {open_gaps} open control gaps before audit")
         if run.readiness_pct < 80:
-            recommendations.append("Readiness below 80% — additional evidence collection recommended")
+            recommendations.append(
+                "Readiness below 80% — additional evidence collection recommended"
+            )
         recommendations.append("Schedule pre-audit readiness review with auditor")
 
         report = CertReport(
             run_id=run.id,
             framework=run.framework.value,
             readiness_pct=run.readiness_pct,
-            controls_summary={"total": run.total_controls, "met": run.controls_met, "gaps": run.gaps_found, "resolved": run.gaps_resolved},
+            controls_summary={
+                "total": run.total_controls,
+                "met": run.controls_met,
+                "gaps": run.gaps_found,
+                "resolved": run.gaps_resolved,
+            },
             open_gaps=open_gaps,
             recommendations=recommendations,
             generated_at=datetime.now(UTC),

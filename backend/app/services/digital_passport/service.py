@@ -41,24 +41,64 @@ class DigitalPassportService:
             (
                 "Acme Corp",
                 [
-                    {"credential_type": CredentialType.soc2, "framework": "SOC 2 Type II", "score": 92.5, "grade": "A"},
-                    {"credential_type": CredentialType.gdpr, "framework": "GDPR", "score": 88.0, "grade": "B+"},
-                    {"credential_type": CredentialType.pci_dss, "framework": "PCI DSS v4.0", "score": 95.0, "grade": "A"},
+                    {
+                        "credential_type": CredentialType.soc2,
+                        "framework": "SOC 2 Type II",
+                        "score": 92.5,
+                        "grade": "A",
+                    },
+                    {
+                        "credential_type": CredentialType.gdpr,
+                        "framework": "GDPR",
+                        "score": 88.0,
+                        "grade": "B+",
+                    },
+                    {
+                        "credential_type": CredentialType.pci_dss,
+                        "framework": "PCI DSS v4.0",
+                        "score": 95.0,
+                        "grade": "A",
+                    },
                 ],
             ),
             (
                 "HealthTech Inc",
                 [
-                    {"credential_type": CredentialType.hipaa, "framework": "HIPAA", "score": 91.0, "grade": "A"},
-                    {"credential_type": CredentialType.soc2, "framework": "SOC 2 Type II", "score": 87.0, "grade": "B+"},
+                    {
+                        "credential_type": CredentialType.hipaa,
+                        "framework": "HIPAA",
+                        "score": 91.0,
+                        "grade": "A",
+                    },
+                    {
+                        "credential_type": CredentialType.soc2,
+                        "framework": "SOC 2 Type II",
+                        "score": 87.0,
+                        "grade": "B+",
+                    },
                 ],
             ),
             (
                 "DataFlow EU",
                 [
-                    {"credential_type": CredentialType.gdpr, "framework": "GDPR", "score": 96.0, "grade": "A+"},
-                    {"credential_type": CredentialType.iso27001, "framework": "ISO 27001:2022", "score": 90.0, "grade": "A"},
-                    {"credential_type": CredentialType.eu_ai_act, "framework": "EU AI Act", "score": 82.0, "grade": "B"},
+                    {
+                        "credential_type": CredentialType.gdpr,
+                        "framework": "GDPR",
+                        "score": 96.0,
+                        "grade": "A+",
+                    },
+                    {
+                        "credential_type": CredentialType.iso27001,
+                        "framework": "ISO 27001:2022",
+                        "score": 90.0,
+                        "grade": "A",
+                    },
+                    {
+                        "credential_type": CredentialType.eu_ai_act,
+                        "framework": "EU AI Act",
+                        "score": 82.0,
+                        "grade": "B",
+                    },
                 ],
             ),
         ]
@@ -149,7 +189,17 @@ class DigitalPassportService:
             raise ValueError(f"Passport not found: {passport_id}")
         passport = self._passports[passport_id]
         now = datetime.now(UTC)
-        grade = "A+" if score >= 95 else "A" if score >= 90 else "B+" if score >= 85 else "B" if score >= 80 else "C"
+        grade = (
+            "A+"
+            if score >= 95
+            else "A"
+            if score >= 90
+            else "B+"
+            if score >= 85
+            else "B"
+            if score >= 80
+            else "C"
+        )
         credential = ComplianceCredential(
             id=uuid4(),
             org_name=passport.org_name,

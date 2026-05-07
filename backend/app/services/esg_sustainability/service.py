@@ -209,10 +209,7 @@ class ESGSustainabilityService:
         """Generate an ESG report for specified frameworks."""
         fw_enums = [ESGFramework(f) for f in frameworks]
 
-        matching_metrics = [
-            m for m in self._metrics.values()
-            if m.framework in fw_enums
-        ]
+        matching_metrics = [m for m in self._metrics.values() if m.framework in fw_enums]
 
         carbon = await self.get_carbon_footprint("2024-Q4")
 

@@ -21,13 +21,62 @@ from app.services.compliance_observability.models import (
 logger = structlog.get_logger()
 
 _COMPLIANCE_METRICS: list[ComplianceMetric] = [
-    ComplianceMetric(name="compliance.posture.score", metric_type=MetricType.GAUGE, value=85.0, unit="percent", description="Overall compliance posture score", labels={"org": "default"}),
-    ComplianceMetric(name="compliance.violations.total", metric_type=MetricType.COUNTER, value=42, unit="count", description="Total compliance violations detected", labels={"org": "default"}),
-    ComplianceMetric(name="compliance.remediation.time", metric_type=MetricType.HISTOGRAM, value=4.2, unit="hours", description="Time to remediate violations", labels={"org": "default"}),
-    ComplianceMetric(name="compliance.scan.duration", metric_type=MetricType.HISTOGRAM, value=12.5, unit="seconds", description="Compliance scan duration", labels={"org": "default"}),
-    ComplianceMetric(name="compliance.frameworks.covered", metric_type=MetricType.GAUGE, value=8, unit="count", description="Number of compliance frameworks covered", labels={"org": "default"}),
-    ComplianceMetric(name="compliance.evidence.freshness", metric_type=MetricType.GAUGE, value=95.0, unit="percent", description="Evidence freshness percentage", labels={"org": "default"}),
-    ComplianceMetric(name="compliance.drift.events", metric_type=MetricType.COUNTER, value=7, unit="count", description="Compliance drift events in period", labels={"org": "default"}),
+    ComplianceMetric(
+        name="compliance.posture.score",
+        metric_type=MetricType.GAUGE,
+        value=85.0,
+        unit="percent",
+        description="Overall compliance posture score",
+        labels={"org": "default"},
+    ),
+    ComplianceMetric(
+        name="compliance.violations.total",
+        metric_type=MetricType.COUNTER,
+        value=42,
+        unit="count",
+        description="Total compliance violations detected",
+        labels={"org": "default"},
+    ),
+    ComplianceMetric(
+        name="compliance.remediation.time",
+        metric_type=MetricType.HISTOGRAM,
+        value=4.2,
+        unit="hours",
+        description="Time to remediate violations",
+        labels={"org": "default"},
+    ),
+    ComplianceMetric(
+        name="compliance.scan.duration",
+        metric_type=MetricType.HISTOGRAM,
+        value=12.5,
+        unit="seconds",
+        description="Compliance scan duration",
+        labels={"org": "default"},
+    ),
+    ComplianceMetric(
+        name="compliance.frameworks.covered",
+        metric_type=MetricType.GAUGE,
+        value=8,
+        unit="count",
+        description="Number of compliance frameworks covered",
+        labels={"org": "default"},
+    ),
+    ComplianceMetric(
+        name="compliance.evidence.freshness",
+        metric_type=MetricType.GAUGE,
+        value=95.0,
+        unit="percent",
+        description="Evidence freshness percentage",
+        labels={"org": "default"},
+    ),
+    ComplianceMetric(
+        name="compliance.drift.events",
+        metric_type=MetricType.COUNTER,
+        value=7,
+        unit="count",
+        description="Compliance drift events in period",
+        labels={"org": "default"},
+    ),
 ]
 
 _PREBUILT_DASHBOARDS: dict[ExporterType, ObservabilityDashboard] = {
@@ -36,17 +85,37 @@ _PREBUILT_DASHBOARDS: dict[ExporterType, ObservabilityDashboard] = {
         exporter_type=ExporterType.GRAFANA,
         panels=[
             {"title": "Posture Score", "type": "gauge", "metric": "compliance.posture.score"},
-            {"title": "Violations Trend", "type": "timeseries", "metric": "compliance.violations.total"},
-            {"title": "Remediation Time", "type": "histogram", "metric": "compliance.remediation.time"},
-            {"title": "Framework Coverage", "type": "stat", "metric": "compliance.frameworks.covered"},
+            {
+                "title": "Violations Trend",
+                "type": "timeseries",
+                "metric": "compliance.violations.total",
+            },
+            {
+                "title": "Remediation Time",
+                "type": "histogram",
+                "metric": "compliance.remediation.time",
+            },
+            {
+                "title": "Framework Coverage",
+                "type": "stat",
+                "metric": "compliance.frameworks.covered",
+            },
         ],
     ),
     ExporterType.DATADOG: ObservabilityDashboard(
         name="ComplianceAgent Overview",
         exporter_type=ExporterType.DATADOG,
         panels=[
-            {"title": "Compliance Score", "type": "query_value", "metric": "compliance.posture.score"},
-            {"title": "Violation Count", "type": "timeseries", "metric": "compliance.violations.total"},
+            {
+                "title": "Compliance Score",
+                "type": "query_value",
+                "metric": "compliance.posture.score",
+            },
+            {
+                "title": "Violation Count",
+                "type": "timeseries",
+                "metric": "compliance.violations.total",
+            },
             {"title": "Drift Events", "type": "event_stream", "metric": "compliance.drift.events"},
         ],
     ),
@@ -86,25 +155,29 @@ class ComplianceObservabilityService:
 
     async def _check_alert_thresholds(self, metric: ComplianceMetric) -> None:
         if metric.name == "compliance.posture.score" and metric.value < 70:
-            self._alerts.append(ComplianceAlert(
-                metric_name=metric.name,
-                condition="score < 70",
-                threshold=70.0,
-                current_value=metric.value,
-                severity=AlertSeverity.CRITICAL,
-                message=f"Compliance posture score dropped to {metric.value}%",
-                fired_at=datetime.now(UTC),
-            ))
+            self._alerts.append(
+                ComplianceAlert(
+                    metric_name=metric.name,
+                    condition="score < 70",
+                    threshold=70.0,
+                    current_value=metric.value,
+                    severity=AlertSeverity.CRITICAL,
+                    message=f"Compliance posture score dropped to {metric.value}%",
+                    fired_at=datetime.now(UTC),
+                )
+            )
         elif metric.name == "compliance.violations.total" and metric.value > 100:
-            self._alerts.append(ComplianceAlert(
-                metric_name=metric.name,
-                condition="violations > 100",
-                threshold=100,
-                current_value=metric.value,
-                severity=AlertSeverity.WARNING,
-                message=f"Violation count exceeded threshold: {int(metric.value)}",
-                fired_at=datetime.now(UTC),
-            ))
+            self._alerts.append(
+                ComplianceAlert(
+                    metric_name=metric.name,
+                    condition="violations > 100",
+                    threshold=100,
+                    current_value=metric.value,
+                    severity=AlertSeverity.WARNING,
+                    message=f"Violation count exceeded threshold: {int(metric.value)}",
+                    fired_at=datetime.now(UTC),
+                )
+            )
 
     def list_metrics(self, name_prefix: str | None = None) -> list[ComplianceMetric]:
         if name_prefix:

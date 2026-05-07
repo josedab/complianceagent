@@ -33,14 +33,46 @@ class TelemetryMeshService:
     def _seed_services(self) -> None:
         """Seed initial services with metrics."""
         seed_data = [
-            ("auth-service", ServiceTier.critical, {"availability": 99.95, "latency_ms": 45.0, "error_rate": 0.02, "rps": 1200.0}),
-            ("policy-engine", ServiceTier.critical, {"availability": 99.99, "latency_ms": 120.0, "error_rate": 0.01, "rps": 800.0}),
-            ("evidence-collector", ServiceTier.standard, {"availability": 99.8, "latency_ms": 250.0, "error_rate": 0.05, "rps": 300.0}),
-            ("audit-logger", ServiceTier.critical, {"availability": 99.97, "latency_ms": 30.0, "error_rate": 0.005, "rps": 2000.0}),
-            ("report-generator", ServiceTier.standard, {"availability": 99.5, "latency_ms": 1500.0, "error_rate": 0.08, "rps": 50.0}),
-            ("notification-service", ServiceTier.standard, {"availability": 99.7, "latency_ms": 200.0, "error_rate": 0.03, "rps": 150.0}),
-            ("data-pipeline", ServiceTier.background, {"availability": 98.5, "latency_ms": 5000.0, "error_rate": 0.1, "rps": 20.0}),
-            ("backup-service", ServiceTier.background, {"availability": 99.0, "latency_ms": 3000.0, "error_rate": 0.02, "rps": 5.0}),
+            (
+                "auth-service",
+                ServiceTier.critical,
+                {"availability": 99.95, "latency_ms": 45.0, "error_rate": 0.02, "rps": 1200.0},
+            ),
+            (
+                "policy-engine",
+                ServiceTier.critical,
+                {"availability": 99.99, "latency_ms": 120.0, "error_rate": 0.01, "rps": 800.0},
+            ),
+            (
+                "evidence-collector",
+                ServiceTier.standard,
+                {"availability": 99.8, "latency_ms": 250.0, "error_rate": 0.05, "rps": 300.0},
+            ),
+            (
+                "audit-logger",
+                ServiceTier.critical,
+                {"availability": 99.97, "latency_ms": 30.0, "error_rate": 0.005, "rps": 2000.0},
+            ),
+            (
+                "report-generator",
+                ServiceTier.standard,
+                {"availability": 99.5, "latency_ms": 1500.0, "error_rate": 0.08, "rps": 50.0},
+            ),
+            (
+                "notification-service",
+                ServiceTier.standard,
+                {"availability": 99.7, "latency_ms": 200.0, "error_rate": 0.03, "rps": 150.0},
+            ),
+            (
+                "data-pipeline",
+                ServiceTier.background,
+                {"availability": 98.5, "latency_ms": 5000.0, "error_rate": 0.1, "rps": 20.0},
+            ),
+            (
+                "backup-service",
+                ServiceTier.background,
+                {"availability": 99.0, "latency_ms": 3000.0, "error_rate": 0.02, "rps": 5.0},
+            ),
         ]
         for name, tier, metrics in seed_data:
             health = self._compute_health(metrics)
@@ -77,7 +109,9 @@ class TelemetryMeshService:
         logger.info("Service registered", service=name, tier=tier.value)
         return service
 
-    async def report_metrics(self, service_name: str, metrics: dict[str, float]) -> ServiceTelemetry:
+    async def report_metrics(
+        self, service_name: str, metrics: dict[str, float]
+    ) -> ServiceTelemetry:
         """Report metrics for a service and update health score."""
         if service_name not in self._services:
             raise ValueError(f"Service not found: {service_name}")
@@ -145,7 +179,9 @@ class TelemetryMeshService:
                 continue
             threshold, anomaly_type = thresholds[metric_name]
             is_anomaly = False
-            if (anomaly_type == AnomalyType.spike and value > threshold) or (anomaly_type == AnomalyType.drop and value < threshold):
+            if (anomaly_type == AnomalyType.spike and value > threshold) or (
+                anomaly_type == AnomalyType.drop and value < threshold
+            ):
                 is_anomaly = True
             if is_anomaly:
                 deviation = abs(value - threshold) / max(threshold, 0.001) * 100
@@ -195,9 +231,7 @@ class TelemetryMeshService:
         services = list(self._services.values())
         slos = list(self._slos.values())
         anomalies = list(self._anomalies.values())
-        avg_health = (
-            sum(s.health_score for s in services) / len(services) if services else 0.0
-        )
+        avg_health = sum(s.health_score for s in services) / len(services) if services else 0.0
         return TelemetryStats(
             services_monitored=len(services),
             slos_defined=len(slos),

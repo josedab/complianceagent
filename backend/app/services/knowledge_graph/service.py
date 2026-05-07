@@ -307,7 +307,8 @@ class KnowledgeGraphService:
             # Semantic search if enabled
             if query.use_semantic_search:
                 semantic_results = await self.semantic_search(
-                    graph_id, query.natural_query,
+                    graph_id,
+                    query.natural_query,
                     top_k=query.max_results,
                     similarity_threshold=query.similarity_threshold,
                     node_types=query.node_types or None,
@@ -395,9 +396,33 @@ class KnowledgeGraphService:
 
         # Extract other keywords
         stop_words = {
-            "the", "a", "an", "is", "are", "how", "what", "which", "where",
-            "show", "find", "list", "me", "all", "for", "of", "in", "to",
-            "and", "or", "that", "this", "with", "from", "by", "does", "do",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "how",
+            "what",
+            "which",
+            "where",
+            "show",
+            "find",
+            "list",
+            "me",
+            "all",
+            "for",
+            "of",
+            "in",
+            "to",
+            "and",
+            "or",
+            "that",
+            "this",
+            "with",
+            "from",
+            "by",
+            "does",
+            "do",
         }
         words = re.findall(r"\b\w+\b", query_lower)
         for word in words:
@@ -409,42 +434,95 @@ class KnowledgeGraphService:
     def _classify_intent(self, query: str) -> ParsedQuery:
         """Classify the intent of a natural language query."""
         intent_patterns: list[tuple[QueryIntent, list[str], float]] = [
-            (QueryIntent.PATH_FINDING, [
-                r"path\s+(from|between)", r"how\s+does.*connect",
-                r"trace.*from.*to", r"link\s+between",
-            ], 0.9),
-            (QueryIntent.IMPACT_ANALYSIS, [
-                r"impact\s+of", r"what\s+(happens|changes)\s+if",
-                r"affected\s+by", r"downstream\s+effect",
-            ], 0.85),
-            (QueryIntent.COMPLIANCE_CHECK, [
-                r"compli(ant|ance)\s+(with|status|check)",
-                r"violat(ion|ing|es)", r"non-?compliance",
-            ], 0.9),
-            (QueryIntent.RISK_ASSESSMENT, [
-                r"risk(s)?\s+(of|for|related)", r"threat",
-                r"vulnerabilit(y|ies)", r"exposure",
-            ], 0.85),
-            (QueryIntent.EVIDENCE_LOOKUP, [
-                r"evidence\s+(for|of|supporting)", r"audit\s+trail",
-                r"proof\s+of", r"documentation\s+for",
-            ], 0.85),
-            (QueryIntent.REGULATION_LOOKUP, [
-                r"what\s+(does|is).*regulat", r"requirement(s)?\s+(of|for|in)",
-                r"article\s+\d+", r"section\s+\d+",
-            ], 0.8),
-            (QueryIntent.CODE_TRACING, [
-                r"which\s+(code|file|function)", r"implemented\s+(in|by)",
-                r"where\s+is.*implemented", r"code\s+(for|implementing)",
-            ], 0.85),
-            (QueryIntent.COMPARISON, [
-                r"compar(e|ison)", r"difference\s+between",
-                r"vs\.?|versus", r"overlap",
-            ], 0.8),
-            (QueryIntent.SUMMARY, [
-                r"summar(y|ize)", r"overview\s+of",
-                r"tell\s+me\s+about", r"explain",
-            ], 0.75),
+            (
+                QueryIntent.PATH_FINDING,
+                [
+                    r"path\s+(from|between)",
+                    r"how\s+does.*connect",
+                    r"trace.*from.*to",
+                    r"link\s+between",
+                ],
+                0.9,
+            ),
+            (
+                QueryIntent.IMPACT_ANALYSIS,
+                [
+                    r"impact\s+of",
+                    r"what\s+(happens|changes)\s+if",
+                    r"affected\s+by",
+                    r"downstream\s+effect",
+                ],
+                0.85,
+            ),
+            (
+                QueryIntent.COMPLIANCE_CHECK,
+                [
+                    r"compli(ant|ance)\s+(with|status|check)",
+                    r"violat(ion|ing|es)",
+                    r"non-?compliance",
+                ],
+                0.9,
+            ),
+            (
+                QueryIntent.RISK_ASSESSMENT,
+                [
+                    r"risk(s)?\s+(of|for|related)",
+                    r"threat",
+                    r"vulnerabilit(y|ies)",
+                    r"exposure",
+                ],
+                0.85,
+            ),
+            (
+                QueryIntent.EVIDENCE_LOOKUP,
+                [
+                    r"evidence\s+(for|of|supporting)",
+                    r"audit\s+trail",
+                    r"proof\s+of",
+                    r"documentation\s+for",
+                ],
+                0.85,
+            ),
+            (
+                QueryIntent.REGULATION_LOOKUP,
+                [
+                    r"what\s+(does|is).*regulat",
+                    r"requirement(s)?\s+(of|for|in)",
+                    r"article\s+\d+",
+                    r"section\s+\d+",
+                ],
+                0.8,
+            ),
+            (
+                QueryIntent.CODE_TRACING,
+                [
+                    r"which\s+(code|file|function)",
+                    r"implemented\s+(in|by)",
+                    r"where\s+is.*implemented",
+                    r"code\s+(for|implementing)",
+                ],
+                0.85,
+            ),
+            (
+                QueryIntent.COMPARISON,
+                [
+                    r"compar(e|ison)",
+                    r"difference\s+between",
+                    r"vs\.?|versus",
+                    r"overlap",
+                ],
+                0.8,
+            ),
+            (
+                QueryIntent.SUMMARY,
+                [
+                    r"summar(y|ize)",
+                    r"overview\s+of",
+                    r"tell\s+me\s+about",
+                    r"explain",
+                ],
+                0.75,
+            ),
         ]
 
         best_intent = QueryIntent.SEARCH
@@ -525,11 +603,13 @@ class KnowledgeGraphService:
 
             similarity = self._cosine_similarity(query_embedding, node.embedding)
             if similarity >= similarity_threshold:
-                results.append(SemanticSearchResult(
-                    node=node,
-                    similarity=similarity,
-                    matched_text=node.embedding_text or f"{node.name} {node.description}",
-                ))
+                results.append(
+                    SemanticSearchResult(
+                        node=node,
+                        similarity=similarity,
+                        matched_text=node.embedding_text or f"{node.name} {node.description}",
+                    )
+                )
 
         # Also do keyword matching and boost those results
         query_words = set(query_text.lower().split())
@@ -699,9 +779,7 @@ class KnowledgeGraphService:
 
         # Add citation references
         if result.citations:
-            cite_refs = "; ".join(
-                f"[{c['title']}]" for c in result.citations[:5]
-            )
+            cite_refs = "; ".join(f"[{c['title']}]" for c in result.citations[:5])
             answer += f"\n\nSources: {cite_refs}"
 
         # Add intent context

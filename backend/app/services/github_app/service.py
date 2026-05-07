@@ -20,10 +20,39 @@ logger = structlog.get_logger()
 
 
 MARKETPLACE_PLANS = [
-    {"id": "free", "name": "Free", "price": 0, "repos": 3, "features": ["Basic compliance checks", "SARIF output"]},
-    {"id": "team", "name": "Team", "price": 49, "repos": 25, "features": ["All Free features", "PR bot", "IDE linting", "5 frameworks"]},
-    {"id": "business", "name": "Business", "price": 199, "repos": 100, "features": ["All Team features", "AI code generation", "20+ frameworks", "Priority support"]},
-    {"id": "enterprise", "name": "Enterprise", "price": 499, "repos": -1, "features": ["All Business features", "SSO/SAML", "Custom policies", "Dedicated support"]},
+    {
+        "id": "free",
+        "name": "Free",
+        "price": 0,
+        "repos": 3,
+        "features": ["Basic compliance checks", "SARIF output"],
+    },
+    {
+        "id": "team",
+        "name": "Team",
+        "price": 49,
+        "repos": 25,
+        "features": ["All Free features", "PR bot", "IDE linting", "5 frameworks"],
+    },
+    {
+        "id": "business",
+        "name": "Business",
+        "price": 199,
+        "repos": 100,
+        "features": [
+            "All Team features",
+            "AI code generation",
+            "20+ frameworks",
+            "Priority support",
+        ],
+    },
+    {
+        "id": "enterprise",
+        "name": "Enterprise",
+        "price": 499,
+        "repos": -1,
+        "features": ["All Business features", "SSO/SAML", "Custom policies", "Dedicated support"],
+    },
 ]
 
 
@@ -72,11 +101,15 @@ class GitHubAppService:
     async def get_installation(self, github_installation_id: int) -> AppInstallation | None:
         return self._installations.get(github_installation_id)
 
-    async def list_installations(self, status: InstallationStatus | None = None) -> list[AppInstallation]:
+    async def list_installations(
+        self, status: InstallationStatus | None = None
+    ) -> list[AppInstallation]:
         results = list(self._installations.values())
         if status:
             results = [i for i in results if i.status == status]
-        return sorted(results, key=lambda i: i.installed_at or datetime.min.replace(tzinfo=UTC), reverse=True)
+        return sorted(
+            results, key=lambda i: i.installed_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )
 
     async def process_webhook(
         self,
@@ -85,7 +118,11 @@ class GitHubAppService:
         payload: dict,
     ) -> WebhookEvent:
         """Process an incoming webhook event."""
-        evt_type = WebhookEventType(event_type) if event_type in WebhookEventType.__members__.values() else WebhookEventType.PUSH
+        evt_type = (
+            WebhookEventType(event_type)
+            if event_type in WebhookEventType.__members__.values()
+            else WebhookEventType.PUSH
+        )
         event = WebhookEvent(
             event_type=evt_type,
             installation_id=installation_id,

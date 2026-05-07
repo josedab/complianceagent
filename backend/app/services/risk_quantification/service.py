@@ -594,7 +594,9 @@ class RiskQuantificationService:
         report.key_findings = [
             f"Total compliance risk exposure: ${dashboard.total_expected_exposure:,.0f}",
             f"Risk grade: {dashboard.risk_grade} (score: {dashboard.overall_risk_score:.1f}/100)",
-            f"Top risk area: {max(dashboard.exposure_by_regulation.keys(), key=lambda k: dashboard.exposure_by_regulation[k].get('expected', 0), default='N/A')}",
+            f"Top risk area: {max(dashboard.exposure_by_regulation.keys(), key=lambda k: (
+                    dashboard.exposure_by_regulation[k].get('expected', 0)
+                ), default='N/A')}",
         ]
 
         if dashboard.risk_trend == RiskTrend.INCREASING:
@@ -649,7 +651,9 @@ Overall risk grade: {dashboard.risk_grade} - {grade_descriptions.get(dashboard.r
 Risk trend: {dashboard.risk_trend.value.capitalize()}
 
 Key areas of concern:
-{chr(10).join(f"- {k}: ${v.get('expected', 0):,.0f}" for k, v in sorted(dashboard.exposure_by_regulation.items(), key=lambda x: x[1].get("expected", 0), reverse=True)[:3])}
+{chr(10).join(f"- {k}: ${v.get('expected', 0):,.0f}" for k, v in sorted(dashboard.exposure_by_regulation.items(), key=lambda x: (
+                    x[1].get("expected", 0)
+                ), reverse=True)[:3])}
 """.strip()
 
         return summary

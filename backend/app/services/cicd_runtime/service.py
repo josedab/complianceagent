@@ -184,9 +184,7 @@ class CICDRuntimeService:
     ) -> list[RuntimeCheck]:
         """List runtime checks, optionally filtered by deployment."""
         if deployment_id:
-            return [
-                c for c in self._checks if c.deployment_id == deployment_id
-            ]
+            return [c for c in self._checks if c.deployment_id == deployment_id]
         return list(self._checks)
 
     async def list_attestations(
@@ -195,26 +193,14 @@ class CICDRuntimeService:
     ) -> list[DeploymentAttestation]:
         """List attestations, optionally filtered by deployment."""
         if deployment_id:
-            return [
-                a
-                for a in self._attestations
-                if a.deployment_id == deployment_id
-            ]
+            return [a for a in self._attestations if a.deployment_id == deployment_id]
         return list(self._attestations)
 
     async def get_stats(self) -> CICDRuntimeStats:
         """Get aggregate CI/CD runtime statistics."""
         total = len(self._checks)
-        gated = sum(
-            1
-            for c in self._checks
-            if c.gate_decision == GateDecision.fail_gate
-        )
-        passed = sum(
-            1
-            for c in self._checks
-            if c.gate_decision == GateDecision.pass_gate
-        )
+        gated = sum(1 for c in self._checks if c.gate_decision == GateDecision.fail_gate)
+        passed = sum(1 for c in self._checks if c.gate_decision == GateDecision.pass_gate)
         durations = [c.duration_ms for c in self._checks]
         avg_duration = sum(durations) / len(durations) if durations else 0.0
         pass_rate = (passed / total * 100.0) if total else 0.0

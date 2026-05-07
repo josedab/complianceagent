@@ -1,4 +1,5 @@
 """Compliance Autonomous Operating System Service."""
+
 from datetime import UTC, datetime
 
 import structlog
@@ -142,27 +143,33 @@ class AutonomousOSService:
         actions = []
         if decision.decision_type == DecisionType.AUTO_FIX:
             self._auto_fixes += 1
-            actions.extend([
-                "triggered_scan",
-                "generated_fix",
-                "created_pr",
-                "ran_tests",
-            ])
+            actions.extend(
+                [
+                    "triggered_scan",
+                    "generated_fix",
+                    "created_pr",
+                    "ran_tests",
+                ]
+            )
             decision.outcome = "Auto-fix applied successfully"
         elif decision.decision_type == DecisionType.ESCALATE:
             self._escalations += 1
-            actions.extend([
-                "notified_team",
-                "created_ticket",
-                "escalated_to_reviewer",
-            ])
+            actions.extend(
+                [
+                    "notified_team",
+                    "created_ticket",
+                    "escalated_to_reviewer",
+                ]
+            )
             decision.outcome = "Escalated to human reviewer"
         elif decision.decision_type == DecisionType.PREDICT:
-            actions.extend([
-                "analyzed_regulation",
-                "predicted_impact",
-                "generated_tasks",
-            ])
+            actions.extend(
+                [
+                    "analyzed_regulation",
+                    "predicted_impact",
+                    "generated_tasks",
+                ]
+            )
             decision.outcome = "Impact prediction generated"
         else:
             actions.append("logged_event")
@@ -211,17 +218,13 @@ class AutonomousOSService:
         by_type: dict[str, int] = {}
         times: list[float] = []
         for d in self._decisions:
-            by_type[d.decision_type.value] = (
-                by_type.get(d.decision_type.value, 0) + 1
-            )
+            by_type[d.decision_type.value] = by_type.get(d.decision_type.value, 0) + 1
             times.append(d.duration_ms)
         total = len(self._decisions)
         return AutonomousOSStats(
             total_events=len(self._events),
             total_decisions=total,
             auto_fix_rate=round(self._auto_fixes / total, 2) if total else 0.0,
-            avg_decision_time_ms=(
-                round(sum(times) / len(times), 2) if times else 0.0
-            ),
+            avg_decision_time_ms=(round(sum(times) / len(times), 2) if times else 0.0),
             by_decision_type=by_type,
         )

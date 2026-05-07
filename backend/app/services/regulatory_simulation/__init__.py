@@ -1,4 +1,5 @@
 """Regulatory Simulation service."""
+
 from app.services.regulatory_simulation.models import (
     ImpactForecast,
     RegOutcome,

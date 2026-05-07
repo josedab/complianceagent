@@ -186,12 +186,14 @@ class MultiSCMService:
             repos = [r for r in self._repositories if r.provider == conn.provider]
             prs = [p for p in self._pull_requests if p.provider == conn.provider]
             whs = [w for w in self._webhooks if w.provider == conn.provider]
-            statuses.append(SCMSyncStatus(
-                provider=conn.provider,
-                total_repos=conn.repositories_synced,
-                repos_scanned=len(repos),
-                prs_analyzed=len(prs),
-                webhooks_processed=len(whs),
-                last_sync_at=conn.last_sync_at,
-            ))
+            statuses.append(
+                SCMSyncStatus(
+                    provider=conn.provider,
+                    total_repos=conn.repositories_synced,
+                    repos_scanned=len(repos),
+                    prs_analyzed=len(prs),
+                    webhooks_processed=len(whs),
+                    last_sync_at=conn.last_sync_at,
+                )
+            )
         return statuses

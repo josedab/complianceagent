@@ -135,7 +135,11 @@ class AgentSwarmService:
 
         # Mark agents as having completed tasks
         for agent in session.agents:
-            completed = [t for t in session.tasks if t.assigned_agent_id == agent.id and t.status == "completed"]
+            completed = [
+                t
+                for t in session.tasks
+                if t.assigned_agent_id == agent.id and t.status == "completed"
+            ]
             agent.tasks_completed = len(completed)
             agent.status = "idle"
 

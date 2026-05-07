@@ -33,7 +33,13 @@ class BadgeConfig:
     style: BadgeStyle = BadgeStyle.FLAT
     label: str = "compliance"
     color_thresholds: dict[str, str] = field(
-        default_factory=lambda: {"A": "brightgreen", "B": "green", "C": "yellow", "D": "orange", "F": "red"}
+        default_factory=lambda: {
+            "A": "brightgreen",
+            "B": "green",
+            "C": "yellow",
+            "D": "orange",
+            "F": "red",
+        }
     )
 
 

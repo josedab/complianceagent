@@ -184,7 +184,11 @@ class ComplianceStreamingService:
         """Format event payload for specific webhook targets."""
         if webhook.target == WebhookTarget.SLACK:
             severity_emoji = {
-                "critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢", "info": "ℹ️",
+                "critical": "🔴",
+                "high": "🟠",
+                "medium": "🟡",
+                "low": "🟢",
+                "info": "ℹ️",
             }
             severity = event.payload.get("severity", "info")
             emoji = severity_emoji.get(severity, "📋")
@@ -193,7 +197,10 @@ class ComplianceStreamingService:
                 "blocks": [
                     {
                         "type": "section",
-                        "text": {"type": "mrkdwn", "text": f"*{event.event_type.value}*\nChannel: `{event.channel}`\n{json.dumps(event.payload, indent=2)[:500]}"},
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*{event.event_type.value}*\nChannel: `{event.channel}`\n{json.dumps(event.payload, indent=2)[:500]}",
+                        },
                     },
                 ],
             }
@@ -212,14 +219,16 @@ class ComplianceStreamingService:
             return {
                 "@type": "MessageCard",
                 "summary": f"ComplianceAgent: {event.event_type.value}",
-                "sections": [{
-                    "activityTitle": event.event_type.value,
-                    "facts": [
-                        {"name": "Channel", "value": event.channel},
-                        {"name": "Tenant", "value": event.tenant_id},
-                    ],
-                    "text": json.dumps(event.payload, indent=2)[:500],
-                }],
+                "sections": [
+                    {
+                        "activityTitle": event.event_type.value,
+                        "facts": [
+                            {"name": "Channel", "value": event.channel},
+                            {"name": "Tenant", "value": event.tenant_id},
+                        ],
+                        "text": json.dumps(event.payload, indent=2)[:500],
+                    }
+                ],
             }
         return {
             "event_type": event.event_type.value,
@@ -292,7 +301,13 @@ class ComplianceStreamingService:
                 continue
 
             fired = False
-            if (policy.operator == "lt" and metric_value < policy.threshold) or (policy.operator == "gt" and metric_value > policy.threshold) or (policy.operator == "eq" and metric_value == policy.threshold) or (policy.operator == "lte" and metric_value <= policy.threshold) or (policy.operator == "gte" and metric_value >= policy.threshold):
+            if (
+                (policy.operator == "lt" and metric_value < policy.threshold)
+                or (policy.operator == "gt" and metric_value > policy.threshold)
+                or (policy.operator == "eq" and metric_value == policy.threshold)
+                or (policy.operator == "lte" and metric_value <= policy.threshold)
+                or (policy.operator == "gte" and metric_value >= policy.threshold)
+            ):
                 fired = True
 
             if fired:
@@ -330,7 +345,12 @@ class ComplianceStreamingService:
                     tenant_id=event.tenant_id,
                 )
 
-                logger.warning("Alert fired", policy=policy.name, value=metric_value, threshold=policy.threshold)
+                logger.warning(
+                    "Alert fired",
+                    policy=policy.name,
+                    value=metric_value,
+                    threshold=policy.threshold,
+                )
 
     def list_alert_policies(self, active_only: bool = True) -> list[AlertPolicy]:
         """List alert policies."""
@@ -366,7 +386,7 @@ class ComplianceStreamingService:
         )
         self._subscriptions[client_id] = sub
 
-        for ch_name in (channels or []):
+        for ch_name in channels or []:
             ch = self._channels.get(ch_name)
             if ch:
                 ch.subscriber_count += 1
@@ -396,7 +416,9 @@ class ComplianceStreamingService:
             results = [e for e in results if e.channel == channel]
         if event_type:
             results = [e for e in results if e.event_type.value == event_type]
-        return sorted(results, key=lambda e: e.timestamp or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda e: e.timestamp or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     def list_channels(self) -> list[StreamChannel]:
         return list(self._channels.values())
@@ -408,14 +430,17 @@ class ComplianceStreamingService:
         return subs
 
     def get_stats(self) -> StreamStats:
-        active = sum(1 for s in self._subscriptions.values() if s.state == ConnectionState.CONNECTED)
+        active = sum(
+            1 for s in self._subscriptions.values() if s.state == ConnectionState.CONNECTED
+        )
         by_type: dict[str, int] = {}
         for e in self._events:
             by_type[e.event_type.value] = by_type.get(e.event_type.value, 0) + 1
 
         avg_latency = (
             sum(self._event_latencies) / len(self._event_latencies)
-            if self._event_latencies else 0.0
+            if self._event_latencies
+            else 0.0
         )
 
         return StreamStats(
@@ -426,6 +451,12 @@ class ComplianceStreamingService:
             by_event_type=by_type,
             webhook_integrations=sum(1 for w in self._webhooks.values() if w.active),
             active_alert_policies=sum(1 for p in self._alert_policies.values() if p.active),
-            alerts_fired_24h=len([f for f in self._alert_firings if f.fired_at and (datetime.now(UTC) - f.fired_at).total_seconds() < 86400]),
+            alerts_fired_24h=len(
+                [
+                    f
+                    for f in self._alert_firings
+                    if f.fired_at and (datetime.now(UTC) - f.fired_at).total_seconds() < 86400
+                ]
+            ),
             avg_delivery_latency_ms=round(avg_latency, 2),
         )

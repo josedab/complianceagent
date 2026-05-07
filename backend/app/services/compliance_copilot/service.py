@@ -21,17 +21,52 @@ logger = structlog.get_logger()
 
 COMPLIANCE_PATTERNS = {
     "GDPR": [
-        {"rule": "gdpr-consent-required", "pattern": "personal_data|user_email|user_name", "article": "Art. 6", "message": "Processing personal data requires explicit consent"},
-        {"rule": "gdpr-data-retention", "pattern": "store_forever|no_expiry|permanent_storage", "article": "Art. 5(1)(e)", "message": "Personal data must have defined retention periods"},
-        {"rule": "gdpr-right-to-erasure", "pattern": "delete_user|remove_data|gdpr_delete", "article": "Art. 17", "message": "Must implement right to erasure"},
+        {
+            "rule": "gdpr-consent-required",
+            "pattern": "personal_data|user_email|user_name",
+            "article": "Art. 6",
+            "message": "Processing personal data requires explicit consent",
+        },
+        {
+            "rule": "gdpr-data-retention",
+            "pattern": "store_forever|no_expiry|permanent_storage",
+            "article": "Art. 5(1)(e)",
+            "message": "Personal data must have defined retention periods",
+        },
+        {
+            "rule": "gdpr-right-to-erasure",
+            "pattern": "delete_user|remove_data|gdpr_delete",
+            "article": "Art. 17",
+            "message": "Must implement right to erasure",
+        },
     ],
     "HIPAA": [
-        {"rule": "hipaa-phi-encryption", "pattern": "patient_id|medical_record|diagnosis", "article": "§164.312", "message": "PHI must be encrypted at rest and in transit"},
-        {"rule": "hipaa-access-control", "pattern": "health_data|clinical_data", "article": "§164.312(a)", "message": "Access to PHI requires role-based controls"},
+        {
+            "rule": "hipaa-phi-encryption",
+            "pattern": "patient_id|medical_record|diagnosis",
+            "article": "§164.312",
+            "message": "PHI must be encrypted at rest and in transit",
+        },
+        {
+            "rule": "hipaa-access-control",
+            "pattern": "health_data|clinical_data",
+            "article": "§164.312(a)",
+            "message": "Access to PHI requires role-based controls",
+        },
     ],
     "PCI-DSS": [
-        {"rule": "pci-card-storage", "pattern": "card_number|cvv|pan|credit_card", "article": "Req 3", "message": "Card data must be tokenized or encrypted"},
-        {"rule": "pci-logging", "pattern": "payment_process|charge_card", "article": "Req 10", "message": "Payment operations must be logged"},
+        {
+            "rule": "pci-card-storage",
+            "pattern": "card_number|cvv|pan|credit_card",
+            "article": "Req 3",
+            "message": "Card data must be tokenized or encrypted",
+        },
+        {
+            "rule": "pci-logging",
+            "pattern": "payment_process|charge_card",
+            "article": "Req 10",
+            "message": "Payment operations must be logged",
+        },
     ],
 }
 
@@ -89,7 +124,9 @@ class ComplianceCopilotService:
             frameworks_checked=target_frameworks,
             analyzed_at=datetime.now(UTC),
         )
-        logger.info("Codebase analyzed", repo=repo, violations=len(violations), score=analysis.score)
+        logger.info(
+            "Codebase analyzed", repo=repo, violations=len(violations), score=analysis.score
+        )
         return analysis
 
     async def propose_fix(
@@ -147,8 +184,18 @@ class ComplianceCopilotService:
                     regulation="GDPR",
                     article="Art. 17",
                     plain_language="Users have the right to request deletion of their personal data. Organizations must delete data without undue delay.",
-                    technical_implications=["Implement DELETE /users/{id}/data endpoint", "Cascade delete across all data stores", "Log deletion for audit trail", "Handle backup data cleanup"],
-                    code_examples=[{"language": "python", "code": "async def delete_user_data(user_id: str): ..."}],
+                    technical_implications=[
+                        "Implement DELETE /users/{id}/data endpoint",
+                        "Cascade delete across all data stores",
+                        "Log deletion for audit trail",
+                        "Handle backup data cleanup",
+                    ],
+                    code_examples=[
+                        {
+                            "language": "python",
+                            "code": "async def delete_user_data(user_id: str): ...",
+                        }
+                    ],
                     related_articles=["Art. 6 (Lawfulness)", "Art. 5 (Principles)"],
                 ),
             },
@@ -157,9 +204,19 @@ class ComplianceCopilotService:
                     regulation="HIPAA",
                     article="§164.312",
                     plain_language="Protected Health Information must be encrypted at rest and in transit using industry-standard encryption.",
-                    technical_implications=["Use AES-256 for data at rest", "Enforce TLS 1.2+ for transit", "Implement key rotation", "Log all PHI access"],
-                    code_examples=[{"language": "python", "code": "from cryptography.fernet import Fernet"}],
-                    related_articles=["§164.312(a) Access Control", "§164.312(e) Transmission Security"],
+                    technical_implications=[
+                        "Use AES-256 for data at rest",
+                        "Enforce TLS 1.2+ for transit",
+                        "Implement key rotation",
+                        "Log all PHI access",
+                    ],
+                    code_examples=[
+                        {"language": "python", "code": "from cryptography.fernet import Fernet"}
+                    ],
+                    related_articles=[
+                        "§164.312(a) Access Control",
+                        "§164.312(e) Transmission Security",
+                    ],
                 ),
             },
         }

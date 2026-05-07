@@ -20,17 +20,72 @@ from app.services.compliance_gnn.models import (
 logger = structlog.get_logger()
 
 _SEED_NODES: list[GraphNode] = [
-    GraphNode(id="gdpr", node_type=NodeType.FRAMEWORK, label="GDPR", properties={"jurisdiction": "EU", "articles": 99}),
-    GraphNode(id="hipaa", node_type=NodeType.FRAMEWORK, label="HIPAA", properties={"jurisdiction": "US", "sections": 45}),
-    GraphNode(id="pci-dss", node_type=NodeType.FRAMEWORK, label="PCI-DSS", properties={"jurisdiction": "Global", "requirements": 12}),
-    GraphNode(id="gdpr-art5", node_type=NodeType.REGULATION, label="GDPR Art. 5 — Processing Principles", properties={"framework": "GDPR"}),
-    GraphNode(id="gdpr-art17", node_type=NodeType.REGULATION, label="GDPR Art. 17 — Right to Erasure", properties={"framework": "GDPR"}),
-    GraphNode(id="hipaa-164312", node_type=NodeType.REGULATION, label="HIPAA §164.312 — Technical Safeguards", properties={"framework": "HIPAA"}),
-    GraphNode(id="src/users.py", node_type=NodeType.CODE_FILE, label="src/users.py", properties={"language": "python", "loc": 250}),
-    GraphNode(id="src/payments.py", node_type=NodeType.CODE_FILE, label="src/payments.py", properties={"language": "python", "loc": 180}),
-    GraphNode(id="src/health/records.py", node_type=NodeType.CODE_FILE, label="src/health/records.py", properties={"language": "python", "loc": 320}),
-    GraphNode(id="v-consent", node_type=NodeType.VIOLATION, label="Missing consent check", properties={"severity": "high", "framework": "GDPR"}),
-    GraphNode(id="v-phi-log", node_type=NodeType.VIOLATION, label="PHI in logs", properties={"severity": "critical", "framework": "HIPAA"}),
+    GraphNode(
+        id="gdpr",
+        node_type=NodeType.FRAMEWORK,
+        label="GDPR",
+        properties={"jurisdiction": "EU", "articles": 99},
+    ),
+    GraphNode(
+        id="hipaa",
+        node_type=NodeType.FRAMEWORK,
+        label="HIPAA",
+        properties={"jurisdiction": "US", "sections": 45},
+    ),
+    GraphNode(
+        id="pci-dss",
+        node_type=NodeType.FRAMEWORK,
+        label="PCI-DSS",
+        properties={"jurisdiction": "Global", "requirements": 12},
+    ),
+    GraphNode(
+        id="gdpr-art5",
+        node_type=NodeType.REGULATION,
+        label="GDPR Art. 5 — Processing Principles",
+        properties={"framework": "GDPR"},
+    ),
+    GraphNode(
+        id="gdpr-art17",
+        node_type=NodeType.REGULATION,
+        label="GDPR Art. 17 — Right to Erasure",
+        properties={"framework": "GDPR"},
+    ),
+    GraphNode(
+        id="hipaa-164312",
+        node_type=NodeType.REGULATION,
+        label="HIPAA §164.312 — Technical Safeguards",
+        properties={"framework": "HIPAA"},
+    ),
+    GraphNode(
+        id="src/users.py",
+        node_type=NodeType.CODE_FILE,
+        label="src/users.py",
+        properties={"language": "python", "loc": 250},
+    ),
+    GraphNode(
+        id="src/payments.py",
+        node_type=NodeType.CODE_FILE,
+        label="src/payments.py",
+        properties={"language": "python", "loc": 180},
+    ),
+    GraphNode(
+        id="src/health/records.py",
+        node_type=NodeType.CODE_FILE,
+        label="src/health/records.py",
+        properties={"language": "python", "loc": 320},
+    ),
+    GraphNode(
+        id="v-consent",
+        node_type=NodeType.VIOLATION,
+        label="Missing consent check",
+        properties={"severity": "high", "framework": "GDPR"},
+    ),
+    GraphNode(
+        id="v-phi-log",
+        node_type=NodeType.VIOLATION,
+        label="PHI in logs",
+        properties={"severity": "critical", "framework": "HIPAA"},
+    ),
 ]
 
 _SEED_EDGES: list[GraphEdge] = [
@@ -39,10 +94,21 @@ _SEED_EDGES: list[GraphEdge] = [
     GraphEdge(source="hipaa", target="hipaa-164312", edge_type=EdgeType.REQUIRES, weight=1.0),
     GraphEdge(source="src/users.py", target="gdpr-art5", edge_type=EdgeType.IMPLEMENTS, weight=0.7),
     GraphEdge(source="src/users.py", target="v-consent", edge_type=EdgeType.VIOLATES, weight=0.9),
-    GraphEdge(source="src/payments.py", target="pci-dss", edge_type=EdgeType.IMPLEMENTS, weight=0.8),
-    GraphEdge(source="src/health/records.py", target="hipaa-164312", edge_type=EdgeType.IMPLEMENTS, weight=0.6),
-    GraphEdge(source="src/health/records.py", target="v-phi-log", edge_type=EdgeType.VIOLATES, weight=0.95),
-    GraphEdge(source="src/users.py", target="src/payments.py", edge_type=EdgeType.DEPENDS_ON, weight=0.5),
+    GraphEdge(
+        source="src/payments.py", target="pci-dss", edge_type=EdgeType.IMPLEMENTS, weight=0.8
+    ),
+    GraphEdge(
+        source="src/health/records.py",
+        target="hipaa-164312",
+        edge_type=EdgeType.IMPLEMENTS,
+        weight=0.6,
+    ),
+    GraphEdge(
+        source="src/health/records.py", target="v-phi-log", edge_type=EdgeType.VIOLATES, weight=0.95
+    ),
+    GraphEdge(
+        source="src/users.py", target="src/payments.py", edge_type=EdgeType.DEPENDS_ON, weight=0.5
+    ),
 ]
 
 
@@ -55,7 +121,9 @@ class ComplianceGNNService:
         self._edges: list[GraphEdge] = list(_SEED_EDGES)
         self._predictions: list[ViolationPrediction] = []
 
-    async def predict_violations(self, file_paths: list[str] | None = None, top_k: int = 10) -> list[ViolationPrediction]:
+    async def predict_violations(
+        self, file_paths: list[str] | None = None, top_k: int = 10
+    ) -> list[ViolationPrediction]:
         """Predict which files are most likely to have compliance violations."""
         targets = file_paths or [n.id for n in self._nodes if n.node_type == NodeType.CODE_FILE]
         predictions = []
@@ -66,9 +134,19 @@ class ComplianceGNNService:
                 continue
 
             # Compute risk score from graph neighborhood
-            violation_edges = [e for e in self._edges if e.source == file_path and e.edge_type == EdgeType.VIOLATES]
-            impl_edges = [e for e in self._edges if e.source == file_path and e.edge_type == EdgeType.IMPLEMENTS]
-            dep_edges = [e for e in self._edges if e.source == file_path and e.edge_type == EdgeType.DEPENDS_ON]
+            violation_edges = [
+                e for e in self._edges if e.source == file_path and e.edge_type == EdgeType.VIOLATES
+            ]
+            impl_edges = [
+                e
+                for e in self._edges
+                if e.source == file_path and e.edge_type == EdgeType.IMPLEMENTS
+            ]
+            dep_edges = [
+                e
+                for e in self._edges
+                if e.source == file_path and e.edge_type == EdgeType.DEPENDS_ON
+            ]
 
             # Risk = existing violations + low implementation coverage + dependency risk
             violation_risk = sum(e.weight for e in violation_edges)
@@ -80,7 +158,13 @@ class ComplianceGNNService:
             conf_hash = int(hashlib.sha256(file_path.encode()).hexdigest()[:4], 16) % 30
             confidence = 0.65 + conf_hash / 100
 
-            frameworks = list({e.properties.get("framework", "") for e in violation_edges if e.properties.get("framework")})
+            frameworks = list(
+                {
+                    e.properties.get("framework", "")
+                    for e in violation_edges
+                    if e.properties.get("framework")
+                }
+            )
             if not frameworks:
                 frameworks = [e.target.split("-")[0].upper() for e in impl_edges if "-" in e.target]
 
@@ -99,7 +183,10 @@ class ComplianceGNNService:
                 confidence=round(confidence, 3),
                 frameworks=frameworks or ["General"],
                 contributing_factors=factors,
-                recommended_actions=[f"Run compliance scan on {file_path}", "Review framework implementation gaps"],
+                recommended_actions=[
+                    f"Run compliance scan on {file_path}",
+                    "Review framework implementation gaps",
+                ],
                 predicted_at=datetime.now(UTC),
             )
             predictions.append(prediction)
@@ -111,8 +198,18 @@ class ComplianceGNNService:
 
     def get_graph(self) -> dict:
         return {
-            "nodes": [{"id": n.id, "type": n.node_type.value, "label": n.label} for n in self._nodes],
-            "edges": [{"source": e.source, "target": e.target, "type": e.edge_type.value, "weight": e.weight} for e in self._edges],
+            "nodes": [
+                {"id": n.id, "type": n.node_type.value, "label": n.label} for n in self._nodes
+            ],
+            "edges": [
+                {
+                    "source": e.source,
+                    "target": e.target,
+                    "type": e.edge_type.value,
+                    "weight": e.weight,
+                }
+                for e in self._edges
+            ],
         }
 
     def get_node_neighbors(self, node_id: str) -> dict:
@@ -124,11 +221,15 @@ class ComplianceGNNService:
             if e.source == node_id:
                 target = next((n for n in self._nodes if n.id == e.target), None)
                 if target:
-                    neighbors.append({"node": target.label, "edge": e.edge_type.value, "weight": e.weight})
+                    neighbors.append(
+                        {"node": target.label, "edge": e.edge_type.value, "weight": e.weight}
+                    )
             elif e.target == node_id:
                 source = next((n for n in self._nodes if n.id == e.source), None)
                 if source:
-                    neighbors.append({"node": source.label, "edge": e.edge_type.value, "weight": e.weight})
+                    neighbors.append(
+                        {"node": source.label, "edge": e.edge_type.value, "weight": e.weight}
+                    )
         return {"node": node.label, "neighbors": neighbors}
 
     def get_stats(self) -> GraphStats:

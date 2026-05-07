@@ -79,14 +79,62 @@ _PLAN_CONFIG: dict[MarketplacePlan, BillingPlan] = {
 
 # Compliance patterns for diff scanning
 _COMPLIANCE_PATTERNS: list[dict] = [
-    {"pattern": r"personal[_\s]?data|user[_\s]?email|full[_\s]?name", "framework": "GDPR", "rule_id": "GDPR-PD-001", "message": "Personal data detected — requires consent and lawful basis", "level": "warning"},
-    {"pattern": r"patient|medical[_\s]?record|diagnosis|prescription", "framework": "HIPAA", "rule_id": "HIPAA-PHI-001", "message": "PHI detected — requires encryption at rest and in transit", "level": "failure"},
-    {"pattern": r"card[_\s]?number|cvv|credit[_\s]?card|pan\b", "framework": "PCI-DSS", "rule_id": "PCI-CC-001", "message": "Payment card data must be tokenized, never stored in plaintext", "level": "failure"},
-    {"pattern": r"api[_\s]?key|secret[_\s]?key|password\s*=\s*['\"]", "framework": "SOC2", "rule_id": "SOC2-SEC-001", "message": "Hardcoded credential detected — use secrets manager", "level": "failure"},
-    {"pattern": r"logging\.debug.*password|print.*token", "framework": "SOC2", "rule_id": "SOC2-LOG-001", "message": "Sensitive data may be logged — review log sanitization", "level": "warning"},
-    {"pattern": r"SELECT\s+\*.*\+.*input|f['\"].*SELECT.*\{", "framework": "SOC2", "rule_id": "SOC2-INJ-001", "message": "Potential SQL injection — use parameterized queries", "level": "failure"},
-    {"pattern": r"children|minor|age\s*<\s*1[36]|under[_\s]?age", "framework": "COPPA", "rule_id": "COPPA-MIN-001", "message": "Minor/child data handling requires parental consent", "level": "warning"},
-    {"pattern": r"transfer.*eu|cross[_\s]?border|third[_\s]?country", "framework": "GDPR", "rule_id": "GDPR-XB-001", "message": "Cross-border data transfer requires adequacy decision or SCCs", "level": "warning"},
+    {
+        "pattern": r"personal[_\s]?data|user[_\s]?email|full[_\s]?name",
+        "framework": "GDPR",
+        "rule_id": "GDPR-PD-001",
+        "message": "Personal data detected — requires consent and lawful basis",
+        "level": "warning",
+    },
+    {
+        "pattern": r"patient|medical[_\s]?record|diagnosis|prescription",
+        "framework": "HIPAA",
+        "rule_id": "HIPAA-PHI-001",
+        "message": "PHI detected — requires encryption at rest and in transit",
+        "level": "failure",
+    },
+    {
+        "pattern": r"card[_\s]?number|cvv|credit[_\s]?card|pan\b",
+        "framework": "PCI-DSS",
+        "rule_id": "PCI-CC-001",
+        "message": "Payment card data must be tokenized, never stored in plaintext",
+        "level": "failure",
+    },
+    {
+        "pattern": r"api[_\s]?key|secret[_\s]?key|password\s*=\s*['\"]",
+        "framework": "SOC2",
+        "rule_id": "SOC2-SEC-001",
+        "message": "Hardcoded credential detected — use secrets manager",
+        "level": "failure",
+    },
+    {
+        "pattern": r"logging\.debug.*password|print.*token",
+        "framework": "SOC2",
+        "rule_id": "SOC2-LOG-001",
+        "message": "Sensitive data may be logged — review log sanitization",
+        "level": "warning",
+    },
+    {
+        "pattern": r"SELECT\s+\*.*\+.*input|f['\"].*SELECT.*\{",
+        "framework": "SOC2",
+        "rule_id": "SOC2-INJ-001",
+        "message": "Potential SQL injection — use parameterized queries",
+        "level": "failure",
+    },
+    {
+        "pattern": r"children|minor|age\s*<\s*1[36]|under[_\s]?age",
+        "framework": "COPPA",
+        "rule_id": "COPPA-MIN-001",
+        "message": "Minor/child data handling requires parental consent",
+        "level": "warning",
+    },
+    {
+        "pattern": r"transfer.*eu|cross[_\s]?border|third[_\s]?country",
+        "framework": "GDPR",
+        "rule_id": "GDPR-XB-001",
+        "message": "Cross-border data transfer requires adequacy decision or SCCs",
+        "level": "warning",
+    },
 ]
 
 
@@ -152,7 +200,9 @@ class GHMarketplaceAppService:
         try:
             result = await handler(action, payload)
             event.processed = True
-            logger.info("Webhook processed", event_type=event_type, action=action, delivery_id=delivery_id)
+            logger.info(
+                "Webhook processed", event_type=event_type, action=action, delivery_id=delivery_id
+            )
             return {"status": "processed", "event_type": event_type, "action": action, **result}
         except Exception as exc:
             event.error = str(exc)
@@ -168,8 +218,10 @@ class GHMarketplaceAppService:
 
         if action == "created":
             install = await self.handle_install(
-                github_id=github_id, account=account,
-                account_type=account_type, repos=repos,
+                github_id=github_id,
+                account=account,
+                account_type=account_type,
+                repos=repos,
             )
             return {"install_id": str(install.id), "account": account}
         if action == "deleted":
@@ -210,8 +262,10 @@ class GHMarketplaceAppService:
 
         # Auto-run check on PR
         check = await self.run_check(
-            github_id=github_id, repo=repo,
-            pr_number=pr_number, sha=sha,
+            github_id=github_id,
+            repo=repo,
+            pr_number=pr_number,
+            sha=sha,
             diff_content=pr.get("body", ""),
         )
 
@@ -239,11 +293,13 @@ class GHMarketplaceAppService:
         github_id = payload.get("installation", {}).get("id", 0)
 
         diff_content = " ".join(
-            " ".join(c.get("added", []) + c.get("modified", []))
-            for c in commits
+            " ".join(c.get("added", []) + c.get("modified", [])) for c in commits
         )
         check = await self.run_check(
-            github_id=github_id, repo=repo, sha=sha, diff_content=diff_content,
+            github_id=github_id,
+            repo=repo,
+            sha=sha,
+            diff_content=diff_content,
         )
         return {"check_id": str(check.id), "commits_scanned": len(commits)}
 
@@ -306,16 +362,18 @@ class GHMarketplaceAppService:
                 current_line += 1
                 for rule in _COMPLIANCE_PATTERNS:
                     if re.search(rule["pattern"], line, re.IGNORECASE):
-                        annotations.append(CheckAnnotation(
-                            path=current_file or "unknown",
-                            start_line=current_line,
-                            end_line=current_line,
-                            annotation_level=rule["level"],
-                            message=rule["message"],
-                            title=f"[{rule['framework']}] {rule['rule_id']}",
-                            framework=rule["framework"],
-                            rule_id=rule["rule_id"],
-                        ))
+                        annotations.append(
+                            CheckAnnotation(
+                                path=current_file or "unknown",
+                                start_line=current_line,
+                                end_line=current_line,
+                                annotation_level=rule["level"],
+                                message=rule["message"],
+                                title=f"[{rule['framework']}] {rule['rule_id']}",
+                                framework=rule["framework"],
+                                rule_id=rule["rule_id"],
+                            )
+                        )
             elif not line.startswith("-"):
                 current_line += 1
 
@@ -358,7 +416,10 @@ class GHMarketplaceAppService:
     # ─── Stripe Billing ──────────────────────────────────────────────
 
     async def create_billing_session(
-        self, github_id: int, plan: str, interval: str = "monthly",
+        self,
+        github_id: int,
+        plan: str,
+        interval: str = "monthly",
     ) -> dict:
         """Create a Stripe checkout session for plan purchase/upgrade."""
         inst = self._installs.get(github_id)
@@ -506,9 +567,14 @@ class GHMarketplaceAppService:
         frameworks = list({a.framework for a in annotations})
         annotation_dicts = [
             {
-                "path": a.path, "start_line": a.start_line, "end_line": a.end_line,
-                "annotation_level": a.annotation_level, "message": a.message,
-                "title": a.title, "framework": a.framework, "rule_id": a.rule_id,
+                "path": a.path,
+                "start_line": a.start_line,
+                "end_line": a.end_line,
+                "annotation_level": a.annotation_level,
+                "message": a.message,
+                "title": a.title,
+                "framework": a.framework,
+                "rule_id": a.rule_id,
             }
             for a in annotations
         ]
@@ -584,13 +650,17 @@ class GHMarketplaceAppService:
         results = list(self._installs.values())
         if state:
             results = [i for i in results if i.state == state]
-        return sorted(results, key=lambda i: i.installed_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda i: i.installed_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     def list_checks(self, repo: str | None = None, limit: int = 50) -> list[CheckRun]:
         results = list(self._checks)
         if repo:
             results = [c for c in results if c.repo == repo]
-        return sorted(results, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     def list_pr_comments(self, repo: str | None = None) -> list[PRComment]:
         results = list(self._pr_comments)

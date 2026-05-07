@@ -574,19 +574,23 @@ class ComplianceSimulator:
             "Australia": ["Privacy Act", "CDR"],
         }
 
-        target_jurisdictions = scenario.target_jurisdictions or scenario.parameters.get("jurisdictions", [])
+        target_jurisdictions = scenario.target_jurisdictions or scenario.parameters.get(
+            "jurisdictions", []
+        )
 
         for jurisdiction in target_jurisdictions:
             regs = jurisdiction_regs.get(jurisdiction, [f"{jurisdiction} Privacy Law"])
             for reg in regs:
                 if reg not in result.compliance_before:
-                    result.new_issues.append(ComplianceIssue(
-                        code=f"JURIS-{reg.upper()[:4]}-001",
-                        message=f"Expansion to {jurisdiction} requires {reg} compliance",
-                        severity="high",
-                        regulation=reg,
-                        category="jurisdiction_expansion",
-                    ))
+                    result.new_issues.append(
+                        ComplianceIssue(
+                            code=f"JURIS-{reg.upper()[:4]}-001",
+                            message=f"Expansion to {jurisdiction} requires {reg} compliance",
+                            severity="high",
+                            regulation=reg,
+                            category="jurisdiction_expansion",
+                        )
+                    )
                     result.compliance_after[reg] = 0.2  # Initial: ~20% compliant
                     result.warnings.append(
                         f"{jurisdiction}: {reg} compliance assessment required "
@@ -610,27 +614,33 @@ class ComplianceSimulator:
         target_jurisdictions = scenario.parameters.get("target_jurisdictions", [])
 
         # M&A introduces data consolidation risks
-        result.new_issues.append(ComplianceIssue(
-            code="MA-DATA-001",
-            message=f"Data consolidation from {target} requires privacy impact assessment",
-            severity="high",
-            regulation="GDPR",
-            category="merger_acquisition",
-        ))
-        result.new_issues.append(ComplianceIssue(
-            code="MA-VENDOR-001",
-            message=f"Inherited vendor relationships from {target} require assessment",
-            severity="medium",
-            category="merger_acquisition",
-        ))
+        result.new_issues.append(
+            ComplianceIssue(
+                code="MA-DATA-001",
+                message=f"Data consolidation from {target} requires privacy impact assessment",
+                severity="high",
+                regulation="GDPR",
+                category="merger_acquisition",
+            )
+        )
+        result.new_issues.append(
+            ComplianceIssue(
+                code="MA-VENDOR-001",
+                message=f"Inherited vendor relationships from {target} require assessment",
+                severity="medium",
+                category="merger_acquisition",
+            )
+        )
 
         if target_size > 500:
-            result.new_issues.append(ComplianceIssue(
-                code="MA-SCALE-001",
-                message=f"Large acquisition ({target_size} employees) may trigger additional regulatory thresholds",
-                severity="high",
-                category="merger_acquisition",
-            ))
+            result.new_issues.append(
+                ComplianceIssue(
+                    code="MA-SCALE-001",
+                    message=f"Large acquisition ({target_size} employees) may trigger additional regulatory thresholds",
+                    severity="high",
+                    category="merger_acquisition",
+                )
+            )
 
         for jurisdiction in target_jurisdictions:
             if jurisdiction not in ["US", "EU"]:  # Unknown territory
@@ -676,10 +686,15 @@ class ComplianceSimulator:
         legal_hours = max(4, len(result.new_issues) * 2)
 
         # Tooling cost (monitoring, scanning, etc.)
-        tooling = 500 if scenario.scenario_type in (
-            ScenarioType.REGULATION_ADOPTION,
-            ScenarioType.JURISDICTION_EXPANSION,
-        ) else 100
+        tooling = (
+            500
+            if scenario.scenario_type
+            in (
+                ScenarioType.REGULATION_ADOPTION,
+                ScenarioType.JURISDICTION_EXPANSION,
+            )
+            else 100
+        )
 
         # Training cost
         training = 0.0
@@ -726,13 +741,15 @@ class ComplianceSimulator:
         edges: list[dict[str, str]] = []
 
         # Origin node
-        nodes.append(BlastRadiusNode(
-            id="origin",
-            name=center,
-            node_type="change",
-            impact_level="critical",
-            distance=0,
-        ))
+        nodes.append(
+            BlastRadiusNode(
+                id="origin",
+                name=center,
+                node_type="change",
+                impact_level="critical",
+                distance=0,
+            )
+        )
 
         # Distance 1: directly affected regulations
         affected_regs = set()
@@ -740,43 +757,59 @@ class ComplianceSimulator:
             if issue.regulation and issue.regulation not in affected_regs:
                 affected_regs.add(issue.regulation)
                 node_id = f"reg-{issue.regulation}"
-                nodes.append(BlastRadiusNode(
-                    id=node_id,
-                    name=issue.regulation,
-                    node_type="regulation",
-                    impact_level=issue.severity,
-                    distance=1,
-                ))
+                nodes.append(
+                    BlastRadiusNode(
+                        id=node_id,
+                        name=issue.regulation,
+                        node_type="regulation",
+                        impact_level=issue.severity,
+                        distance=1,
+                    )
+                )
                 edges.append({"source": "origin", "target": node_id})
 
         # Distance 2: affected teams/services
         categories = set(issue.category or "general" for issue in result.new_issues)
         for cat in categories:
             node_id = f"team-{cat}"
-            impact = "high" if any(
-                i.severity in ("critical", "high") and i.category == cat
-                for i in result.new_issues
-            ) else "medium"
-            nodes.append(BlastRadiusNode(
-                id=node_id,
-                name=f"{cat.replace('_', ' ').title()} Team",
-                node_type="team",
-                impact_level=impact,
-                distance=2,
-            ))
+            impact = (
+                "high"
+                if any(
+                    i.severity in ("critical", "high") and i.category == cat
+                    for i in result.new_issues
+                )
+                else "medium"
+            )
+            nodes.append(
+                BlastRadiusNode(
+                    id=node_id,
+                    name=f"{cat.replace('_', ' ').title()} Team",
+                    node_type="team",
+                    impact_level=impact,
+                    distance=2,
+                )
+            )
             # Connect to affected regulations
             for issue in result.new_issues:
                 if issue.category == cat and issue.regulation:
                     edges.append({"source": f"reg-{issue.regulation}", "target": node_id})
 
         # Distance 3: downstream systems
-        if scenario.scenario_type in (ScenarioType.ARCHITECTURE_CHANGE, ScenarioType.INFRASTRUCTURE_CHANGE):
+        if scenario.scenario_type in (
+            ScenarioType.ARCHITECTURE_CHANGE,
+            ScenarioType.INFRASTRUCTURE_CHANGE,
+        ):
             for comp in scenario.new_components:
                 node_id = f"sys-{comp}"
-                nodes.append(BlastRadiusNode(
-                    id=node_id, name=comp, node_type="system",
-                    impact_level="low", distance=3,
-                ))
+                nodes.append(
+                    BlastRadiusNode(
+                        id=node_id,
+                        name=comp,
+                        node_type="system",
+                        impact_level="low",
+                        distance=3,
+                    )
+                )
                 edges.append({"source": "origin", "target": node_id})
 
         return BlastRadiusMap(
@@ -806,38 +839,44 @@ class ComplianceSimulator:
         # Score trend from completed simulations
         score_trend = []
         for r in sorted(completed, key=lambda x: x.started_at):
-            score_trend.append({
-                "date": r.started_at.isoformat(),
-                "baseline": r.baseline_score,
-                "simulated": r.simulated_score,
-            })
+            score_trend.append(
+                {
+                    "date": r.started_at.isoformat(),
+                    "baseline": r.baseline_score,
+                    "simulated": r.simulated_score,
+                }
+            )
 
         # Top risks from latest simulations
         all_issues: list[dict] = []
         for r in completed[-5:]:  # Last 5 simulations
             for issue in r.new_issues:
                 if issue.severity in ("critical", "high"):
-                    all_issues.append({
-                        "code": issue.code,
-                        "message": issue.message,
-                        "severity": issue.severity,
-                        "regulation": issue.regulation,
-                        "scenario": str(r.scenario_id),
-                    })
+                    all_issues.append(
+                        {
+                            "code": issue.code,
+                            "message": issue.message,
+                            "severity": issue.severity,
+                            "regulation": issue.regulation,
+                            "scenario": str(r.scenario_id),
+                        }
+                    )
 
         # Recent scenario summaries
         recent = []
         for r in completed[-10:]:
             scenario = self._scenarios.get(r.scenario_id) if r.scenario_id else None
-            recent.append({
-                "id": str(r.id),
-                "name": scenario.name if scenario else "Unknown",
-                "type": scenario.scenario_type.value if scenario else "",
-                "passed": r.passed,
-                "score_delta": r.score_delta,
-                "new_issues": len(r.new_issues),
-                "cost_usd": r.cost_estimate.total_cost_usd if r.cost_estimate else 0,
-            })
+            recent.append(
+                {
+                    "id": str(r.id),
+                    "name": scenario.name if scenario else "Unknown",
+                    "type": scenario.scenario_type.value if scenario else "",
+                    "passed": r.passed,
+                    "score_delta": r.score_delta,
+                    "new_issues": len(r.new_issues),
+                    "cost_usd": r.cost_estimate.total_cost_usd if r.cost_estimate else 0,
+                }
+            )
 
         # Regulation coverage from baseline
         reg_coverage: dict[str, float] = {}
@@ -884,7 +923,9 @@ class ComplianceSimulator:
                 "resolved_issues": len(result.resolved_issues),
                 "risk_delta": result.risk_delta,
                 "cost_usd": result.cost_estimate.total_cost_usd if result.cost_estimate else 0,
-                "timeline_weeks": result.cost_estimate.timeline_weeks if result.cost_estimate else 0,
+                "timeline_weeks": result.cost_estimate.timeline_weeks
+                if result.cost_estimate
+                else 0,
             }
             scenarios.append(entry)
 

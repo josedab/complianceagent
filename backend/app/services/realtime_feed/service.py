@@ -19,11 +19,56 @@ from app.services.realtime_feed.models import (
 logger = structlog.get_logger()
 
 _SEED_FEED: list[FeedItem] = [
-    FeedItem(item_type=FeedItemType.REGULATION_CHANGE, priority=FeedPriority.URGENT, title="EU AI Act Article 6 — High-Risk AI Systems Classification Effective", summary="New classification criteria for high-risk AI systems now enforceable. Organizations must classify and document all AI systems.", regulation="EU AI Act", jurisdiction="EU", impact_score=9.2, published_at=datetime(2026, 2, 21, 8, 0, tzinfo=UTC)),
-    FeedItem(item_type=FeedItemType.ENFORCEMENT_ACTION, priority=FeedPriority.HIGH, title="GDPR: €20M Fine for Insufficient Consent Mechanism", summary="Irish DPC fines tech company €20M for non-compliant cookie consent implementation.", regulation="GDPR", jurisdiction="EU", impact_score=7.8, published_at=datetime(2026, 2, 20, 14, 30, tzinfo=UTC)),
-    FeedItem(item_type=FeedItemType.GUIDANCE_UPDATE, priority=FeedPriority.NORMAL, title="HIPAA: Updated Telehealth PHI Guidance", summary="HHS releases updated guidance on PHI handling for telehealth platforms.", regulation="HIPAA", jurisdiction="US", impact_score=6.5, published_at=datetime(2026, 2, 19, 10, 0, tzinfo=UTC)),
-    FeedItem(item_type=FeedItemType.DEADLINE_REMINDER, priority=FeedPriority.HIGH, title="PCI-DSS v4.0.1: March 2026 Compliance Deadline", summary="All organizations must be fully compliant with PCI-DSS v4.0.1 by March 31, 2026.", regulation="PCI-DSS", jurisdiction="Global", impact_score=8.5, published_at=datetime(2026, 2, 18, 9, 0, tzinfo=UTC)),
-    FeedItem(item_type=FeedItemType.CONSULTATION, priority=FeedPriority.NORMAL, title="NIS2: ENISA Publishes Supply Chain Security Consultation", summary="ENISA seeks industry input on NIS2 supply chain security implementation guidance.", regulation="NIS2", jurisdiction="EU", impact_score=5.5, published_at=datetime(2026, 2, 17, 11, 0, tzinfo=UTC)),
+    FeedItem(
+        item_type=FeedItemType.REGULATION_CHANGE,
+        priority=FeedPriority.URGENT,
+        title="EU AI Act Article 6 — High-Risk AI Systems Classification Effective",
+        summary="New classification criteria for high-risk AI systems now enforceable. Organizations must classify and document all AI systems.",
+        regulation="EU AI Act",
+        jurisdiction="EU",
+        impact_score=9.2,
+        published_at=datetime(2026, 2, 21, 8, 0, tzinfo=UTC),
+    ),
+    FeedItem(
+        item_type=FeedItemType.ENFORCEMENT_ACTION,
+        priority=FeedPriority.HIGH,
+        title="GDPR: €20M Fine for Insufficient Consent Mechanism",
+        summary="Irish DPC fines tech company €20M for non-compliant cookie consent implementation.",
+        regulation="GDPR",
+        jurisdiction="EU",
+        impact_score=7.8,
+        published_at=datetime(2026, 2, 20, 14, 30, tzinfo=UTC),
+    ),
+    FeedItem(
+        item_type=FeedItemType.GUIDANCE_UPDATE,
+        priority=FeedPriority.NORMAL,
+        title="HIPAA: Updated Telehealth PHI Guidance",
+        summary="HHS releases updated guidance on PHI handling for telehealth platforms.",
+        regulation="HIPAA",
+        jurisdiction="US",
+        impact_score=6.5,
+        published_at=datetime(2026, 2, 19, 10, 0, tzinfo=UTC),
+    ),
+    FeedItem(
+        item_type=FeedItemType.DEADLINE_REMINDER,
+        priority=FeedPriority.HIGH,
+        title="PCI-DSS v4.0.1: March 2026 Compliance Deadline",
+        summary="All organizations must be fully compliant with PCI-DSS v4.0.1 by March 31, 2026.",
+        regulation="PCI-DSS",
+        jurisdiction="Global",
+        impact_score=8.5,
+        published_at=datetime(2026, 2, 18, 9, 0, tzinfo=UTC),
+    ),
+    FeedItem(
+        item_type=FeedItemType.CONSULTATION,
+        priority=FeedPriority.NORMAL,
+        title="NIS2: ENISA Publishes Supply Chain Security Consultation",
+        summary="ENISA seeks industry input on NIS2 supply chain security implementation guidance.",
+        regulation="NIS2",
+        jurisdiction="EU",
+        impact_score=5.5,
+        published_at=datetime(2026, 2, 17, 11, 0, tzinfo=UTC),
+    ),
 ]
 
 
@@ -46,7 +91,9 @@ class RealtimeFeedService:
     async def _notify_subscribers(self, item: FeedItem) -> None:
         priority_order = {"low": 0, "normal": 1, "high": 2, "urgent": 3}
         for sub in self._subscriptions.values():
-            if priority_order.get(item.priority.value, 0) < priority_order.get(sub.min_priority.value, 0):
+            if priority_order.get(item.priority.value, 0) < priority_order.get(
+                sub.min_priority.value, 0
+            ):
                 continue
             if sub.jurisdictions and item.jurisdiction not in sub.jurisdictions:
                 continue
@@ -68,7 +115,9 @@ class RealtimeFeedService:
             results = [i for i in results if i.priority == priority]
         if jurisdiction:
             results = [i for i in results if i.jurisdiction == jurisdiction]
-        return sorted(results, key=lambda i: i.published_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda i: i.published_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     async def subscribe(
         self,

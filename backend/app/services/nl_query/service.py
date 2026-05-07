@@ -368,7 +368,7 @@ class NLQueryService:
                 result = await self.copilot.analyze_legal_text(text)
                 return str(result), []
             except (json.JSONDecodeError, KeyError, ValueError, OSError):
-                pass
+                logger.warning("_handle_general: AI call failed, falling back to default response")
         return (
             "I can help with compliance queries. Try asking about:\n"
             "- Specific regulations (e.g., 'What does GDPR Article 17 require?')\n"

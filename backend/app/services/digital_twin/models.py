@@ -97,6 +97,7 @@ class ComplianceSnapshot:
 @dataclass
 class ScenarioParameter:
     """A configurable parameter for scenario simulation."""
+
     name: str = ""
     param_type: str = "string"  # string, number, boolean, list, enum
     description: str = ""
@@ -145,6 +146,7 @@ class SimulationScenario:
 @dataclass
 class CostEstimate:
     """Cost/effort/timeline estimate for a simulation scenario."""
+
     engineering_hours: float = 0.0
     engineering_cost_usd: float = 0.0
     legal_review_hours: float = 0.0
@@ -160,6 +162,7 @@ class CostEstimate:
 @dataclass
 class BlastRadiusNode:
     """Node in the blast radius visualization."""
+
     id: str = ""
     name: str = ""
     node_type: str = ""  # regulation, service, team, vendor
@@ -170,6 +173,7 @@ class BlastRadiusNode:
 @dataclass
 class BlastRadiusMap:
     """Visual blast radius showing impact spread of a change."""
+
     center: str = ""
     nodes: list[BlastRadiusNode] = field(default_factory=list)
     edges: list[dict[str, str]] = field(default_factory=list)
@@ -180,6 +184,7 @@ class BlastRadiusMap:
 @dataclass
 class ScenarioComparison:
     """Side-by-side comparison of multiple scenario results."""
+
     scenarios: list[dict] = field(default_factory=list)
     best_scenario_id: str = ""
     worst_scenario_id: str = ""
@@ -189,6 +194,7 @@ class ScenarioComparison:
 @dataclass
 class ExecutiveDashboard:
     """Executive dashboard data for digital twin status."""
+
     overall_score: float = 0.0
     score_trend: list[dict[str, float]] = field(default_factory=list)
     active_simulations: int = 0

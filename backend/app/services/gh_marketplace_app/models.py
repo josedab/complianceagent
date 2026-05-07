@@ -32,6 +32,7 @@ class InstallState(str, Enum):
 
 class WebhookEventType(str, Enum):
     """GitHub webhook event types handled by the app."""
+
     INSTALLATION = "installation"
     INSTALLATION_REPOSITORIES = "installation_repositories"
     PULL_REQUEST = "pull_request"
@@ -51,13 +52,17 @@ class MarketplaceApp:
     name: str = "ComplianceAgent"
     slug: str = "complianceagent"
     tagline: str = "AI-powered compliance monitoring and code generation"
-    description: str = "Automatically monitor regulations, detect violations, and generate compliant code."
+    description: str = (
+        "Automatically monitor regulations, detect violations, and generate compliant code."
+    )
     pricing_url: str = "https://complianceagent.ai/pricing"
     install_url: str = "https://github.com/apps/complianceagent/installations/new"
     plans: list[dict[str, Any]] = field(default_factory=list)
     total_installs: int = 0
     rating: float = 0.0
-    categories: list[str] = field(default_factory=lambda: ["compliance", "security", "code-quality"])
+    categories: list[str] = field(
+        default_factory=lambda: ["compliance", "security", "code-quality"]
+    )
 
 
 @dataclass
@@ -100,6 +105,7 @@ class CheckRun:
 @dataclass
 class CheckAnnotation:
     """GitHub Checks API annotation for inline PR feedback."""
+
     path: str = ""
     start_line: int = 1
     end_line: int = 1
@@ -114,6 +120,7 @@ class CheckAnnotation:
 @dataclass
 class WebhookEvent:
     """Incoming GitHub webhook event."""
+
     id: UUID = field(default_factory=uuid4)
     event_type: WebhookEventType = WebhookEventType.PUSH
     action: str = ""
@@ -128,6 +135,7 @@ class WebhookEvent:
 @dataclass
 class BillingPlan:
     """Stripe billing plan configuration."""
+
     plan: MarketplacePlan = MarketplacePlan.FREE
     stripe_price_id_monthly: str = ""
     stripe_price_id_annual: str = ""
@@ -141,6 +149,7 @@ class BillingPlan:
 @dataclass
 class PRComment:
     """Auto-generated PR comment with compliance summary."""
+
     id: UUID = field(default_factory=uuid4)
     repo: str = ""
     pr_number: int = 0

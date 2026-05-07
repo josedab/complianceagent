@@ -22,27 +22,53 @@ logger = structlog.get_logger()
 _KNOWLEDGE_BASE: dict[str, dict] = {
     "gdpr": {
         "summary": "The General Data Protection Regulation (GDPR) is the EU's comprehensive data protection law. It requires lawful basis for processing, data subject rights, DPO appointment, and breach notification within 72 hours.",
-        "key_articles": ["Art. 5 - Principles", "Art. 6 - Lawful basis", "Art. 17 - Right to erasure", "Art. 25 - Data protection by design", "Art. 33 - Breach notification"],
+        "key_articles": [
+            "Art. 5 - Principles",
+            "Art. 6 - Lawful basis",
+            "Art. 17 - Right to erasure",
+            "Art. 25 - Data protection by design",
+            "Art. 33 - Breach notification",
+        ],
         "framework": "GDPR",
     },
     "hipaa": {
         "summary": "HIPAA protects sensitive patient health information (PHI). Covered entities must implement administrative, physical, and technical safeguards. Breach notification is required within 60 days.",
-        "key_articles": ["Privacy Rule", "Security Rule", "Breach Notification Rule", "Enforcement Rule"],
+        "key_articles": [
+            "Privacy Rule",
+            "Security Rule",
+            "Breach Notification Rule",
+            "Enforcement Rule",
+        ],
         "framework": "HIPAA",
     },
     "pci": {
         "summary": "PCI DSS ensures secure handling of cardholder data. It mandates network security, access control, encryption, vulnerability management, and regular testing across 12 requirements.",
-        "key_articles": ["Req 1 - Network Security", "Req 3 - Stored Data Protection", "Req 6 - Secure Systems", "Req 8 - Access Control", "Req 11 - Testing"],
+        "key_articles": [
+            "Req 1 - Network Security",
+            "Req 3 - Stored Data Protection",
+            "Req 6 - Secure Systems",
+            "Req 8 - Access Control",
+            "Req 11 - Testing",
+        ],
         "framework": "PCI DSS",
     },
     "soc2": {
         "summary": "SOC 2 evaluates controls relevant to security, availability, processing integrity, confidentiality, and privacy (Trust Services Criteria). Type II reports cover a period of operation.",
-        "key_articles": ["CC1 - Control Environment", "CC6 - Logical Access", "CC7 - System Operations", "CC8 - Change Management"],
+        "key_articles": [
+            "CC1 - Control Environment",
+            "CC6 - Logical Access",
+            "CC7 - System Operations",
+            "CC8 - Change Management",
+        ],
         "framework": "SOC 2",
     },
     "breach": {
         "summary": "Data breach response requires immediate containment, assessment of scope and impact, notification to authorities (72 hours under GDPR, 60 days under HIPAA), and affected individual notification.",
-        "key_articles": ["GDPR Art. 33-34", "HIPAA Breach Notification Rule", "State breach notification laws"],
+        "key_articles": [
+            "GDPR Art. 33-34",
+            "HIPAA Breach Notification Rule",
+            "State breach notification laws",
+        ],
         "framework": "Cross-framework",
     },
     "encryption": {

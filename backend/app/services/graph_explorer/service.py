@@ -48,11 +48,16 @@ class GraphExplorerService:
             ("soc2", "SOC2", "#9C27B0"),
         ]
         for fid, label, color in frameworks:
-            nodes.append(ExplorerNode(
-                id=fid, label=label, node_type="framework",
-                size=3.0, color=color,
-                properties={"category": "regulation"},
-            ))
+            nodes.append(
+                ExplorerNode(
+                    id=fid,
+                    label=label,
+                    node_type="framework",
+                    size=3.0,
+                    color=color,
+                    properties={"category": "regulation"},
+                )
+            )
 
         # Code file nodes
         code_files = [
@@ -63,11 +68,16 @@ class GraphExplorerService:
             ("file-api", "api_gateway.py", "code"),
         ]
         for fid, label, ntype in code_files:
-            nodes.append(ExplorerNode(
-                id=fid, label=label, node_type=ntype,
-                size=1.5, color="#607D8B",
-                properties={"language": "python"},
-            ))
+            nodes.append(
+                ExplorerNode(
+                    id=fid,
+                    label=label,
+                    node_type=ntype,
+                    size=1.5,
+                    color="#607D8B",
+                    properties={"language": "python"},
+                )
+            )
 
         # Violation nodes
         violations = [
@@ -76,34 +86,69 @@ class GraphExplorerService:
             ("viol-3", "Unmasked Card Data", "violation", "#FF5722"),
         ]
         for vid, label, ntype, color in violations:
-            nodes.append(ExplorerNode(
-                id=vid, label=label, node_type=ntype,
-                size=2.0, color=color,
-                properties={"severity": "high"},
-            ))
+            nodes.append(
+                ExplorerNode(
+                    id=vid,
+                    label=label,
+                    node_type=ntype,
+                    size=2.0,
+                    color=color,
+                    properties={"severity": "high"},
+                )
+            )
 
         # Edges: frameworks → code files
-        edges.extend([
-            ExplorerEdge(source="gdpr", target="file-auth", edge_type="regulates", weight=0.9),
-            ExplorerEdge(source="hipaa", target="file-patient", edge_type="regulates", weight=0.95),
-            ExplorerEdge(source="pci-dss", target="file-payment", edge_type="regulates", weight=0.9),
-            ExplorerEdge(source="soc2", target="file-config", edge_type="regulates", weight=0.8),
-            ExplorerEdge(source="soc2", target="file-api", edge_type="regulates", weight=0.7),
-        ])
+        edges.extend(
+            [
+                ExplorerEdge(source="gdpr", target="file-auth", edge_type="regulates", weight=0.9),
+                ExplorerEdge(
+                    source="hipaa", target="file-patient", edge_type="regulates", weight=0.95
+                ),
+                ExplorerEdge(
+                    source="pci-dss", target="file-payment", edge_type="regulates", weight=0.9
+                ),
+                ExplorerEdge(
+                    source="soc2", target="file-config", edge_type="regulates", weight=0.8
+                ),
+                ExplorerEdge(source="soc2", target="file-api", edge_type="regulates", weight=0.7),
+            ]
+        )
 
         # Edges: code files → violations
-        edges.extend([
-            ExplorerEdge(source="file-auth", target="viol-1", edge_type="has_violation", weight=1.0, color="#F44336"),
-            ExplorerEdge(source="file-api", target="viol-2", edge_type="has_violation", weight=0.8, color="#F44336"),
-            ExplorerEdge(source="file-payment", target="viol-3", edge_type="has_violation", weight=0.9, color="#FF5722"),
-        ])
+        edges.extend(
+            [
+                ExplorerEdge(
+                    source="file-auth",
+                    target="viol-1",
+                    edge_type="has_violation",
+                    weight=1.0,
+                    color="#F44336",
+                ),
+                ExplorerEdge(
+                    source="file-api",
+                    target="viol-2",
+                    edge_type="has_violation",
+                    weight=0.8,
+                    color="#F44336",
+                ),
+                ExplorerEdge(
+                    source="file-payment",
+                    target="viol-3",
+                    edge_type="has_violation",
+                    weight=0.9,
+                    color="#FF5722",
+                ),
+            ]
+        )
 
         # Edges: violations → frameworks
-        edges.extend([
-            ExplorerEdge(source="viol-1", target="gdpr", edge_type="violates", weight=1.0),
-            ExplorerEdge(source="viol-2", target="soc2", edge_type="violates", weight=0.8),
-            ExplorerEdge(source="viol-3", target="pci-dss", edge_type="violates", weight=0.9),
-        ])
+        edges.extend(
+            [
+                ExplorerEdge(source="viol-1", target="gdpr", edge_type="violates", weight=1.0),
+                ExplorerEdge(source="viol-2", target="soc2", edge_type="violates", weight=0.8),
+                ExplorerEdge(source="viol-3", target="pci-dss", edge_type="violates", weight=0.9),
+            ]
+        )
 
         return nodes, edges
 
@@ -137,7 +182,9 @@ class GraphExplorerService:
         """Create a new graph visualization view."""
         filters = filters or {}
         filtered_nodes, filtered_edges = self._apply_filters(
-            list(self._nodes), list(self._edges), filters,
+            list(self._nodes),
+            list(self._edges),
+            filters,
         )
 
         view = ExplorerView(
@@ -174,7 +221,8 @@ class GraphExplorerService:
 
         neighbors = [
             {"id": n.id, "label": n.label, "node_type": n.node_type}
-            for n in self._nodes if n.id in neighbor_ids
+            for n in self._nodes
+            if n.id in neighbor_ids
         ]
 
         related_violations = [
@@ -225,7 +273,13 @@ class GraphExplorerService:
             "view_id": str(view.id),
             "mode": view.mode.value,
             "nodes": [
-                {"id": n.id, "label": n.label, "type": n.node_type, "size": n.size, "color": n.color}
+                {
+                    "id": n.id,
+                    "label": n.label,
+                    "type": n.node_type,
+                    "size": n.size,
+                    "color": n.color,
+                }
                 for n in view.nodes
             ],
             "edges": [

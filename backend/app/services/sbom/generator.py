@@ -226,7 +226,7 @@ class SBOMGenerator:
                 comp.metadata["dev_dependency"] = True
                 components.append(comp)
         except json.JSONDecodeError:
-            pass
+            logger.warning("sbom: failed to parse package.json content")
 
         return components
 
@@ -260,7 +260,7 @@ class SBOMGenerator:
                         )
                     )
         except json.JSONDecodeError:
-            pass
+            logger.warning("sbom: failed to parse package-lock.json content")
 
         return components
 
@@ -318,7 +318,7 @@ class SBOMGenerator:
 
                     components.append(comp)
         except json.JSONDecodeError:
-            pass
+            logger.warning("sbom: failed to parse Pipfile.lock content")
 
         return components
 

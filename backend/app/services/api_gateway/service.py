@@ -108,7 +108,9 @@ class APIGatewayService:
             client_id=client_id,
             tier=client.tier.value,
             limit_per_minute=client.rate_limit_per_minute,
-            remaining=max(0, client.rate_limit_per_minute - (recent % client.rate_limit_per_minute)),
+            remaining=max(
+                0, client.rate_limit_per_minute - (recent % client.rate_limit_per_minute)
+            ),
             monthly_quota=client.monthly_quota,
             monthly_used=client.monthly_usage,
         )
@@ -116,9 +118,21 @@ class APIGatewayService:
     def get_developer_portal(self) -> DeveloperPortalInfo:
         return DeveloperPortalInfo(
             sdks=[
-                {"language": "Python", "package": "complianceagent", "install": "pip install complianceagent"},
-                {"language": "TypeScript", "package": "@complianceagent/sdk", "install": "npm install @complianceagent/sdk"},
-                {"language": "Go", "package": "complianceagent-go", "install": "go get github.com/josedab/complianceagent-go"},
+                {
+                    "language": "Python",
+                    "package": "complianceagent",
+                    "install": "pip install complianceagent",
+                },
+                {
+                    "language": "TypeScript",
+                    "package": "@complianceagent/sdk",
+                    "install": "npm install @complianceagent/sdk",
+                },
+                {
+                    "language": "Go",
+                    "package": "complianceagent-go",
+                    "install": "go get github.com/josedab/complianceagent-go",
+                },
             ],
         )
 

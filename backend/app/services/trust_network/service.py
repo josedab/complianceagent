@@ -1,4 +1,5 @@
 """Compliance Trust Network Service."""
+
 import hashlib
 from datetime import UTC, datetime
 from uuid import UUID
@@ -142,10 +143,7 @@ class TrustNetworkService:
         return results
 
     def get_trust_chain(self) -> TrustChain:
-        valid = [
-            a for a in self._attestations
-            if a.status == VerificationStatus.VALID
-        ]
+        valid = [a for a in self._attestations if a.status == VerificationStatus.VALID]
         return TrustChain(
             attestations=valid,
             merkle_root=self._chain_root,
@@ -158,9 +156,7 @@ class TrustNetworkService:
         by_status: dict[str, int] = {}
         verified = 0
         for a in self._attestations:
-            by_type[a.attestation_type.value] = (
-                by_type.get(a.attestation_type.value, 0) + 1
-            )
+            by_type[a.attestation_type.value] = by_type.get(a.attestation_type.value, 0) + 1
             by_status[a.status.value] = by_status.get(a.status.value, 0) + 1
             if a.status == VerificationStatus.VALID:
                 verified += 1

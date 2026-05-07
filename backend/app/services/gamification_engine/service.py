@@ -120,7 +120,14 @@ _SEED_PROFILES: list[dict] = [
         "display_name": "Carol Williams",
         "points": 1200,
         "level": 12,
-        "badges": ["first_fix", "streak_7", "streak_30", "compliance_champion", "framework_master", "team_leader"],
+        "badges": [
+            "first_fix",
+            "streak_7",
+            "streak_30",
+            "compliance_champion",
+            "framework_master",
+            "team_leader",
+        ],
         "current_streak": 31,
         "longest_streak": 45,
         "fixes_count": 67,
@@ -188,7 +195,9 @@ class GamificationEngineService:
 
         profile.points += points
         profile.level = _level_from_points(profile.points)
-        logger.info("Points awarded", user_id=user_id, points=points, total=profile.points, reason=reason)
+        logger.info(
+            "Points awarded", user_id=user_id, points=points, total=profile.points, reason=reason
+        )
         return profile
 
     async def check_and_award_badges(self, user_id: str) -> list[str]:
@@ -271,7 +280,9 @@ class GamificationEngineService:
         profile.level = _level_from_points(profile.points)
 
         await self.check_and_award_badges(user_id)
-        logger.info("Activity recorded", user_id=user_id, activity=activity_type, points=profile.points)
+        logger.info(
+            "Activity recorded", user_id=user_id, activity=activity_type, points=profile.points
+        )
         return profile
 
     def get_stats(self) -> GamificationStats:

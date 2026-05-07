@@ -118,12 +118,36 @@ class ScenarioPlannerService:
         """Generate priority actions based on applicable frameworks."""
         actions = []
         action_map = {
-            "GDPR": {"action": "Appoint a Data Protection Officer", "priority": "high", "category": "governance"},
-            "HIPAA": {"action": "Conduct PHI risk assessment", "priority": "critical", "category": "risk"},
-            "PCI DSS": {"action": "Implement network segmentation for CDE", "priority": "critical", "category": "technical"},
-            "SOC 2": {"action": "Document security policies and procedures", "priority": "high", "category": "documentation"},
-            "ISO 27001": {"action": "Establish ISMS framework", "priority": "high", "category": "governance"},
-            "EU AI Act": {"action": "Classify AI systems by risk level", "priority": "high", "category": "assessment"},
+            "GDPR": {
+                "action": "Appoint a Data Protection Officer",
+                "priority": "high",
+                "category": "governance",
+            },
+            "HIPAA": {
+                "action": "Conduct PHI risk assessment",
+                "priority": "critical",
+                "category": "risk",
+            },
+            "PCI DSS": {
+                "action": "Implement network segmentation for CDE",
+                "priority": "critical",
+                "category": "technical",
+            },
+            "SOC 2": {
+                "action": "Document security policies and procedures",
+                "priority": "high",
+                "category": "documentation",
+            },
+            "ISO 27001": {
+                "action": "Establish ISMS framework",
+                "priority": "high",
+                "category": "governance",
+            },
+            "EU AI Act": {
+                "action": "Classify AI systems by risk level",
+                "priority": "high",
+                "category": "assessment",
+            },
         }
         for framework in frameworks:
             if framework in action_map:
@@ -147,7 +171,9 @@ class ScenarioPlannerService:
             f"Recommend engaging legal counsel for cross-border compliance requirements."
         )
 
-    def _generate_recommendations(self, frameworks: list[str], scenario: PlanningScenario) -> list[str]:
+    def _generate_recommendations(
+        self, frameworks: list[str], scenario: PlanningScenario
+    ) -> list[str]:
         """Generate recommendations for the scenario."""
         recommendations = [
             f"Conduct a gap analysis against {', '.join(frameworks)}",
@@ -155,9 +181,13 @@ class ScenarioPlannerService:
             "Assign dedicated compliance ownership for each framework",
         ]
         if len(scenario.target_regions) > 1:
-            recommendations.append("Implement a unified compliance management platform for cross-region coordination")
+            recommendations.append(
+                "Implement a unified compliance management platform for cross-region coordination"
+            )
         if scenario.ai_features:
-            recommendations.append("Document AI model risk assessments and implement human oversight mechanisms")
+            recommendations.append(
+                "Document AI model risk assessments and implement human oversight mechanisms"
+            )
         if scenario.health_data:
             recommendations.append("Implement BAA agreements with all vendors processing PHI")
         if scenario.payment_data:
@@ -188,7 +218,9 @@ class ScenarioPlannerService:
             payment_data=payment_data,
         )
 
-        frameworks = self._determine_frameworks(target_regions, ai_features, health_data, payment_data)
+        frameworks = self._determine_frameworks(
+            target_regions, ai_features, health_data, payment_data
+        )
         total_hours, total_cost, timeline = self._estimate_effort(frameworks)
         priority_actions = self._generate_priority_actions(frameworks)
 

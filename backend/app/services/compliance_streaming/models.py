@@ -77,6 +77,7 @@ class StreamChannel:
 @dataclass
 class WebhookIntegration:
     """External webhook integration for event delivery."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     target: WebhookTarget = WebhookTarget.GENERIC
@@ -96,6 +97,7 @@ class WebhookIntegration:
 @dataclass
 class AlertPolicy:
     """Configurable threshold-based alerting policy."""
+
     id: UUID = field(default_factory=uuid4)
     name: str = ""
     description: str = ""
@@ -116,6 +118,7 @@ class AlertPolicy:
 @dataclass
 class AlertFiring:
     """Record of an alert being fired."""
+
     id: UUID = field(default_factory=uuid4)
     policy_id: UUID = field(default_factory=uuid4)
     policy_name: str = ""

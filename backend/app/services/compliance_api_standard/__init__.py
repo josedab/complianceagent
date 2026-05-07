@@ -1,4 +1,5 @@
 """Compliance API Standard service."""
+
 from app.services.compliance_api_standard.models import (
     APIEndpointSpec,
     APIStandard,

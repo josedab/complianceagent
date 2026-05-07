@@ -41,7 +41,10 @@ _BUILTIN_POLICIES: list[PolicyDefinition] = [
         status=PolicyStatus.ACTIVE,
         dsl_source='policy "hipaa-encryption" {\n  when: data_type == "phi"\n  then: require("encryption_at_rest"), require("encryption_in_transit")\n  severity: critical\n  article: "§164.312"\n}',
         conditions=[{"field": "data_type", "operator": "==", "value": "phi"}],
-        actions=[{"action": "require", "target": "encryption_at_rest"}, {"action": "require", "target": "encryption_in_transit"}],
+        actions=[
+            {"action": "require", "target": "encryption_at_rest"},
+            {"action": "require", "target": "encryption_in_transit"},
+        ],
         author="complianceagent",
         created_at=datetime(2026, 1, 15, tzinfo=UTC),
     ),
@@ -129,7 +132,13 @@ class PolicyDSLService:
             if line.startswith("when:"):
                 parts = line[5:].strip().split("==")
                 if len(parts) == 2:
-                    conditions.append({"field": parts[0].strip(), "operator": "==", "value": parts[1].strip().strip('"')})
+                    conditions.append(
+                        {
+                            "field": parts[0].strip(),
+                            "operator": "==",
+                            "value": parts[1].strip().strip('"'),
+                        }
+                    )
         return conditions
 
     def _parse_actions(self, dsl_source: str) -> list[dict]:
@@ -138,6 +147,7 @@ class PolicyDSLService:
             line = line.strip()
             if line.startswith("then:"):
                 import re
+
                 requires = re.findall(r'require\("([^"]+)"\)', line)
                 for r in requires:
                     actions.append({"action": "require", "target": r})
@@ -161,22 +171,38 @@ class PolicyDSLService:
 
     def _compile_to_format(self, policy: PolicyDefinition, fmt: OutputFormat) -> str:
         if fmt == OutputFormat.REGO:
-            conditions = " ".join(f'input.{c["field"]} == "{c["value"]}"' for c in policy.conditions)
+            conditions = " ".join(
+                f'input.{c["field"]} == "{c["value"]}"' for c in policy.conditions
+            )
             return f'package compliance.{policy.slug.replace("-", "_")}\n\ndefault allow = false\n\nallow {{\n  {conditions}\n}}\n\nviolation[msg] {{\n  not allow\n  msg := "{policy.description}"\n}}'
         if fmt == OutputFormat.PYTHON:
-            checks = " and ".join(f'context.get("{c["field"]}") == "{c["value"]}"' for c in policy.conditions)
+            checks = " and ".join(
+                f'context.get("{c["field"]}") == "{c["value"]}"' for c in policy.conditions
+            )
             return f'def check_{policy.slug.replace("-", "_")}(context: dict) -> bool:\n    """Check: {policy.description}"""\n    return {checks or "True"}'
         if fmt == OutputFormat.YAML:
-            return f"policy:\n  name: {policy.name}\n  framework: {policy.framework}\n  severity: {policy.severity.value}\n  conditions:\n" + "".join(f'    - field: {c["field"]}\n      operator: {c.get("operator", "==")}\n      value: "{c["value"]}"\n' for c in policy.conditions) + "  actions:\n" + "".join(f'    - {a["action"]}: {a["target"]}\n' for a in policy.actions)
+            return (
+                f"policy:\n  name: {policy.name}\n  framework: {policy.framework}\n  severity: {policy.severity.value}\n  conditions:\n"
+                + "".join(
+                    f'    - field: {c["field"]}\n      operator: {c.get("operator", "==")}\n      value: "{c["value"]}"\n'
+                    for c in policy.conditions
+                )
+                + "  actions:\n"
+                + "".join(f"    - {a['action']}: {a['target']}\n" for a in policy.actions)
+            )
         if fmt == OutputFormat.TYPESCRIPT:
-            checks = " && ".join(f'context.{c["field"]} === "{c["value"]}"' for c in policy.conditions)
-            return f'export function check{policy.slug.replace("-", "_").title().replace("_", "")}(context: Record<string, string>): boolean {{\n  // {policy.description}\n  return {checks or "true"};\n}}'
+            checks = " && ".join(
+                f'context.{c["field"]} === "{c["value"]}"' for c in policy.conditions
+            )
+            return f"export function check{policy.slug.replace('-', '_').title().replace('_', '')}(context: Record<string, string>): boolean {{\n  // {policy.description}\n  return {checks or 'true'};\n}}"
         return ""
 
     def get_policy(self, slug: str) -> PolicyDefinition | None:
         return self._policies.get(slug)
 
-    def list_policies(self, framework: str | None = None, status: PolicyStatus | None = None) -> list[PolicyDefinition]:
+    def list_policies(
+        self, framework: str | None = None, status: PolicyStatus | None = None
+    ) -> list[PolicyDefinition]:
         results = list(self._policies.values())
         if framework:
             results = [p for p in results if p.framework == framework]

@@ -1,4 +1,5 @@
 """Digital Compliance Marketplace service."""
+
 from app.services.digital_marketplace.models import (
     AssetPurchase,
     AssetStatus,

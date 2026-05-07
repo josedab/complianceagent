@@ -127,7 +127,9 @@ class ComplianceSDKService:
         keys = list(self._api_keys.values())
         if organization_id:
             keys = [k for k in keys if k.organization_id == organization_id]
-        return sorted(keys, key=lambda k: k.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)
+        return sorted(
+            keys, key=lambda k: k.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )
 
     async def record_usage(
         self,
@@ -179,5 +181,9 @@ class ComplianceSDKService:
         return RateLimitInfo(
             tier=api_key.tier.value,
             limit_per_minute=api_key.rate_limit_per_minute,
-            remaining=max(0, api_key.rate_limit_per_minute - (api_key.total_requests % api_key.rate_limit_per_minute)),
+            remaining=max(
+                0,
+                api_key.rate_limit_per_minute
+                - (api_key.total_requests % api_key.rate_limit_per_minute),
+            ),
         )

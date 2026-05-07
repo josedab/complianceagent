@@ -19,11 +19,19 @@ from app.services.evidence_generation.models import (
 logger = structlog.get_logger()
 
 _SOC2_CONTROLS: list[dict] = [
-    {"id": "CC1.1", "name": "COSO Principle 1: Integrity and Ethical Values", "category": "Control Environment"},
+    {
+        "id": "CC1.1",
+        "name": "COSO Principle 1: Integrity and Ethical Values",
+        "category": "Control Environment",
+    },
     {"id": "CC2.1", "name": "Information and Communication", "category": "Communication"},
     {"id": "CC3.1", "name": "Risk Assessment", "category": "Risk Assessment"},
     {"id": "CC5.1", "name": "Control Activities — Logical Access", "category": "Logical Access"},
-    {"id": "CC5.2", "name": "Control Activities — System Operations", "category": "System Operations"},
+    {
+        "id": "CC5.2",
+        "name": "Control Activities — System Operations",
+        "category": "System Operations",
+    },
     {"id": "CC6.1", "name": "Logical and Physical Access Controls", "category": "Access Control"},
     {"id": "CC6.2", "name": "System Account Management", "category": "Access Control"},
     {"id": "CC6.3", "name": "Role-Based Access", "category": "Access Control"},
@@ -86,7 +94,9 @@ class EvidenceGenerationService:
                 evidence_count=2 if has_evidence else 0,
                 last_evidence_at=now if has_evidence else None,
                 freshness=freshness,
-                code_refs=[f"src/{ctrl['category'].lower().replace(' ', '_')}/"] if has_evidence else [],
+                code_refs=[f"src/{ctrl['category'].lower().replace(' ', '_')}/"]
+                if has_evidence
+                else [],
             )
             mappings.append(mapping)
 
@@ -96,7 +106,12 @@ class EvidenceGenerationService:
                     framework=fw,
                     title=f"Evidence for {ctrl['name']}",
                     description=f"Automated evidence collected for {ctrl['id']}: {ctrl['name']}",
-                    content={"control": ctrl["id"], "category": ctrl["category"], "status": "verified", "collected_by": "automated_scan"},
+                    content={
+                        "control": ctrl["id"],
+                        "category": ctrl["category"],
+                        "status": "verified",
+                        "collected_by": "automated_scan",
+                    },
                     collected_at=now,
                     expires_at=now + timedelta(days=90),
                     freshness=EvidenceFreshness.FRESH,
@@ -127,7 +142,11 @@ class EvidenceGenerationService:
     def list_frameworks(self) -> list[dict]:
         return [
             {"framework": "soc2", "name": "SOC 2 Type II", "controls": len(_SOC2_CONTROLS)},
-            {"framework": "iso27001", "name": "ISO 27001:2022", "controls": len(_ISO27001_CONTROLS)},
+            {
+                "framework": "iso27001",
+                "name": "ISO 27001:2022",
+                "controls": len(_ISO27001_CONTROLS),
+            },
             {"framework": "hipaa", "name": "HIPAA Security Rule", "controls": 8},
             {"framework": "pci_dss", "name": "PCI-DSS v4.0", "controls": 8},
         ]
@@ -152,6 +171,8 @@ class EvidenceGenerationService:
             total_items=len(self._items),
             by_framework=by_fw,
             by_freshness=by_fresh,
-            overall_coverage_pct=round(sum(all_coverage) / len(all_coverage), 1) if all_coverage else 0.0,
+            overall_coverage_pct=round(sum(all_coverage) / len(all_coverage), 1)
+            if all_coverage
+            else 0.0,
             stale_items=stale,
         )

@@ -18,9 +18,7 @@ from app.services.contract_analyzer.models import (
 
 logger = structlog.get_logger()
 
-_OBLIGATION_KEYWORDS = re.compile(
-    r"\b(must|shall|required|obligated|obliged)\b", re.IGNORECASE
-)
+_OBLIGATION_KEYWORDS = re.compile(r"\b(must|shall|required|obligated|obliged)\b", re.IGNORECASE)
 
 _FRAMEWORK_PATTERNS: dict[str, dict[str, str]] = {
     "GDPR": {
@@ -169,25 +167,29 @@ class ContractAnalyzerService:
                     continue
                 if _OBLIGATION_KEYWORDS.search(sentence):
                     framework, article = self._detect_framework(sentence)
-                    obligations.append(ExtractedObligation(
-                        id=uuid4(),
-                        clause_ref=f"§{clause_num}",
-                        obligation_text=sentence,
-                        framework=framework,
-                        article_ref=article,
-                        obligation_type=self._classify_obligation(sentence),
-                    ))
+                    obligations.append(
+                        ExtractedObligation(
+                            id=uuid4(),
+                            clause_ref=f"§{clause_num}",
+                            obligation_text=sentence,
+                            framework=framework,
+                            article_ref=article,
+                            obligation_type=self._classify_obligation(sentence),
+                        )
+                    )
                 clause_num += 1
 
         if len(obligations) < 5:
             for seed in _SEED_OBLIGATIONS:
-                obligations.append(ExtractedObligation(
-                    id=uuid4(),
-                    clause_ref=seed["clause"],
-                    obligation_text=seed["text"],
-                    framework=seed["framework"],
-                    article_ref=seed["article"],
-                ))
+                obligations.append(
+                    ExtractedObligation(
+                        id=uuid4(),
+                        clause_ref=seed["clause"],
+                        obligation_text=seed["text"],
+                        framework=seed["framework"],
+                        article_ref=seed["article"],
+                    )
+                )
                 if len(obligations) >= 8:
                     break
 
@@ -212,9 +214,7 @@ class ContractAnalyzerService:
             return "should"
         return "must"
 
-    def _detect_gaps(
-        self, obligations: list[ExtractedObligation]
-    ) -> list[dict]:
+    def _detect_gaps(self, obligations: list[ExtractedObligation]) -> list[dict]:
         """Auto-detect compliance gaps by checking framework coverage."""
         gaps: list[dict] = []
         required_controls = {
@@ -243,20 +243,22 @@ class ContractAnalyzerService:
             controls = required_controls.get(framework, [])
             for control in controls:
                 if control.lower() not in obligation_texts:
-                    gaps.append({
-                        "id": str(uuid4()),
-                        "framework": framework,
-                        "missing_control": control,
-                        "severity": (
-                            ComplianceGapSeverity.HIGH.value
-                            if "breach" in control or "encryption" in control
-                            else ComplianceGapSeverity.MEDIUM.value
-                        ),
-                        "recommendation": (
-                            f"Add contractual clause addressing {control} "
-                            f"per {framework} requirements"
-                        ),
-                    })
+                    gaps.append(
+                        {
+                            "id": str(uuid4()),
+                            "framework": framework,
+                            "missing_control": control,
+                            "severity": (
+                                ComplianceGapSeverity.HIGH.value
+                                if "breach" in control or "encryption" in control
+                                else ComplianceGapSeverity.MEDIUM.value
+                            ),
+                            "recommendation": (
+                                f"Add contractual clause addressing {control} "
+                                f"per {framework} requirements"
+                            ),
+                        }
+                    )
 
         return gaps
 
@@ -282,9 +284,7 @@ class ContractAnalyzerService:
         total_gaps = 0
 
         for a in analyses:
-            by_type[a.contract_type.value] = (
-                by_type.get(a.contract_type.value, 0) + 1
-            )
+            by_type[a.contract_type.value] = by_type.get(a.contract_type.value, 0) + 1
             total_obligations += a.total_obligations
             total_coverage += a.coverage_pct
             total_gaps += a.gap_count

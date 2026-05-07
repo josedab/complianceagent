@@ -61,7 +61,9 @@ class AppMarketplaceListing:
     slug: str = "complianceagent"
     description: str = "AI-powered compliance monitoring and code generation"
     plans: list[dict[str, Any]] = field(default_factory=list)
-    categories: list[str] = field(default_factory=lambda: ["compliance", "security", "code-quality"])
+    categories: list[str] = field(
+        default_factory=lambda: ["compliance", "security", "code-quality"]
+    )
     install_url: str = ""
     setup_url: str = ""
 

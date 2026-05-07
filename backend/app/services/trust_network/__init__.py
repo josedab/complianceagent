@@ -1,4 +1,5 @@
 """Compliance Trust Network service."""
+
 from app.services.trust_network.models import (
     AttestationType,
     ComplianceAttestation,

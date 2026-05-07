@@ -22,25 +22,150 @@ logger = structlog.get_logger()
 # Deterministic resource definitions per provider
 _PROVIDER_RESOURCES: dict[str, list[dict]] = {
     "aws": [
-        {"type": ResourceType.COMPUTE, "name": "prod-api-cluster", "region": "us-east-1", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.1", "CIS-AWS-2.1"]},
-        {"type": ResourceType.STORAGE, "name": "data-lake-s3", "region": "us-east-1", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.3", "GDPR-Art32"]},
-        {"type": ResourceType.DATABASE, "name": "rds-primary", "region": "us-east-1", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.1", "PCI-DSS-3.4"]},
-        {"type": ResourceType.NETWORK, "name": "vpc-production", "region": "us-east-1", "status": ComplianceStatus.NON_COMPLIANT, "controls": ["SOC2-CC6.6"], "findings": [{"severity": "high", "title": "VPC flow logs not enabled", "resource": "vpc-production"}]},
-        {"type": ResourceType.IDENTITY, "name": "iam-admin-role", "region": "global", "status": ComplianceStatus.NON_COMPLIANT, "controls": ["SOC2-CC6.2", "CIS-AWS-1.16"], "findings": [{"severity": "critical", "title": "MFA not enforced for admin role", "resource": "iam-admin-role"}]},
-        {"type": ResourceType.ENCRYPTION, "name": "kms-master-key", "region": "us-east-1", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.7", "PCI-DSS-3.5"]},
+        {
+            "type": ResourceType.COMPUTE,
+            "name": "prod-api-cluster",
+            "region": "us-east-1",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.1", "CIS-AWS-2.1"],
+        },
+        {
+            "type": ResourceType.STORAGE,
+            "name": "data-lake-s3",
+            "region": "us-east-1",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.3", "GDPR-Art32"],
+        },
+        {
+            "type": ResourceType.DATABASE,
+            "name": "rds-primary",
+            "region": "us-east-1",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.1", "PCI-DSS-3.4"],
+        },
+        {
+            "type": ResourceType.NETWORK,
+            "name": "vpc-production",
+            "region": "us-east-1",
+            "status": ComplianceStatus.NON_COMPLIANT,
+            "controls": ["SOC2-CC6.6"],
+            "findings": [
+                {
+                    "severity": "high",
+                    "title": "VPC flow logs not enabled",
+                    "resource": "vpc-production",
+                }
+            ],
+        },
+        {
+            "type": ResourceType.IDENTITY,
+            "name": "iam-admin-role",
+            "region": "global",
+            "status": ComplianceStatus.NON_COMPLIANT,
+            "controls": ["SOC2-CC6.2", "CIS-AWS-1.16"],
+            "findings": [
+                {
+                    "severity": "critical",
+                    "title": "MFA not enforced for admin role",
+                    "resource": "iam-admin-role",
+                }
+            ],
+        },
+        {
+            "type": ResourceType.ENCRYPTION,
+            "name": "kms-master-key",
+            "region": "us-east-1",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.7", "PCI-DSS-3.5"],
+        },
     ],
     "azure": [
-        {"type": ResourceType.COMPUTE, "name": "aks-prod-cluster", "region": "westeurope", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.1", "CIS-Azure-7.1"]},
-        {"type": ResourceType.STORAGE, "name": "blob-compliance-docs", "region": "westeurope", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.3", "GDPR-Art32"]},
-        {"type": ResourceType.DATABASE, "name": "cosmosdb-main", "region": "westeurope", "status": ComplianceStatus.NON_COMPLIANT, "controls": ["SOC2-CC6.1"], "findings": [{"severity": "medium", "title": "Database audit logging not enabled", "resource": "cosmosdb-main"}]},
-        {"type": ResourceType.NETWORK, "name": "vnet-production", "region": "westeurope", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.6", "CIS-Azure-6.1"]},
-        {"type": ResourceType.IDENTITY, "name": "aad-privileged-group", "region": "global", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.2", "CIS-Azure-1.23"]},
+        {
+            "type": ResourceType.COMPUTE,
+            "name": "aks-prod-cluster",
+            "region": "westeurope",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.1", "CIS-Azure-7.1"],
+        },
+        {
+            "type": ResourceType.STORAGE,
+            "name": "blob-compliance-docs",
+            "region": "westeurope",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.3", "GDPR-Art32"],
+        },
+        {
+            "type": ResourceType.DATABASE,
+            "name": "cosmosdb-main",
+            "region": "westeurope",
+            "status": ComplianceStatus.NON_COMPLIANT,
+            "controls": ["SOC2-CC6.1"],
+            "findings": [
+                {
+                    "severity": "medium",
+                    "title": "Database audit logging not enabled",
+                    "resource": "cosmosdb-main",
+                }
+            ],
+        },
+        {
+            "type": ResourceType.NETWORK,
+            "name": "vnet-production",
+            "region": "westeurope",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.6", "CIS-Azure-6.1"],
+        },
+        {
+            "type": ResourceType.IDENTITY,
+            "name": "aad-privileged-group",
+            "region": "global",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.2", "CIS-Azure-1.23"],
+        },
     ],
     "gcp": [
-        {"type": ResourceType.COMPUTE, "name": "gke-prod", "region": "europe-west1", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.1", "CIS-GCP-7.1"]},
-        {"type": ResourceType.STORAGE, "name": "gcs-data-archive", "region": "europe-west1", "status": ComplianceStatus.NON_COMPLIANT, "controls": ["SOC2-CC6.3"], "findings": [{"severity": "medium", "title": "Bucket uniform access not enabled", "resource": "gcs-data-archive"}]},
-        {"type": ResourceType.DATABASE, "name": "cloudsql-analytics", "region": "europe-west1", "status": ComplianceStatus.COMPLIANT, "controls": ["SOC2-CC6.1", "PCI-DSS-3.4"]},
-        {"type": ResourceType.IDENTITY, "name": "sa-deployment-admin", "region": "global", "status": ComplianceStatus.NON_COMPLIANT, "controls": ["SOC2-CC6.2", "CIS-GCP-1.15"], "findings": [{"severity": "high", "title": "Service account key not rotated in 90+ days", "resource": "sa-deployment-admin"}]},
+        {
+            "type": ResourceType.COMPUTE,
+            "name": "gke-prod",
+            "region": "europe-west1",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.1", "CIS-GCP-7.1"],
+        },
+        {
+            "type": ResourceType.STORAGE,
+            "name": "gcs-data-archive",
+            "region": "europe-west1",
+            "status": ComplianceStatus.NON_COMPLIANT,
+            "controls": ["SOC2-CC6.3"],
+            "findings": [
+                {
+                    "severity": "medium",
+                    "title": "Bucket uniform access not enabled",
+                    "resource": "gcs-data-archive",
+                }
+            ],
+        },
+        {
+            "type": ResourceType.DATABASE,
+            "name": "cloudsql-analytics",
+            "region": "europe-west1",
+            "status": ComplianceStatus.COMPLIANT,
+            "controls": ["SOC2-CC6.1", "PCI-DSS-3.4"],
+        },
+        {
+            "type": ResourceType.IDENTITY,
+            "name": "sa-deployment-admin",
+            "region": "global",
+            "status": ComplianceStatus.NON_COMPLIANT,
+            "controls": ["SOC2-CC6.2", "CIS-GCP-1.15"],
+            "findings": [
+                {
+                    "severity": "high",
+                    "title": "Service account key not rotated in 90+ days",
+                    "resource": "sa-deployment-admin",
+                }
+            ],
+        },
     ],
 }
 
@@ -178,8 +303,12 @@ class CrossCloudMeshService:
         if total == 0:
             return CrossCloudPosture()
 
-        compliant = sum(1 for r in all_resources if r.compliance_status == ComplianceStatus.COMPLIANT)
-        non_compliant = sum(1 for r in all_resources if r.compliance_status == ComplianceStatus.NON_COMPLIANT)
+        compliant = sum(
+            1 for r in all_resources if r.compliance_status == ComplianceStatus.COMPLIANT
+        )
+        non_compliant = sum(
+            1 for r in all_resources if r.compliance_status == ComplianceStatus.NON_COMPLIANT
+        )
 
         by_provider: dict[str, float] = {}
         provider_resources: dict[str, list[CloudResource]] = {}
@@ -191,7 +320,9 @@ class CrossCloudMeshService:
 
         by_resource_type: dict[str, int] = {}
         for r in all_resources:
-            by_resource_type[r.resource_type.value] = by_resource_type.get(r.resource_type.value, 0) + 1
+            by_resource_type[r.resource_type.value] = (
+                by_resource_type.get(r.resource_type.value, 0) + 1
+            )
 
         all_findings = []
         for r in all_resources:
@@ -245,7 +376,9 @@ class CrossCloudMeshService:
             by_provider[a.provider.value] = by_provider.get(a.provider.value, 0) + 1
 
         total = len(all_resources)
-        compliant = sum(1 for r in all_resources if r.compliance_status == ComplianceStatus.COMPLIANT)
+        compliant = sum(
+            1 for r in all_resources if r.compliance_status == ComplianceStatus.COMPLIANT
+        )
         overall_pct = round((compliant / total) * 100, 1) if total > 0 else 0.0
 
         findings_count = sum(len(r.findings) for r in all_resources)

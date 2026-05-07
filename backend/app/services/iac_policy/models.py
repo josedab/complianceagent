@@ -27,6 +27,7 @@ class PolicySeverity(str, Enum):
 
 class IaCFormat(str, Enum):
     """Supported IaC configuration formats."""
+
     TERRAFORM_HCL = "terraform_hcl"
     CLOUDFORMATION = "cloudformation"
     KUBERNETES_YAML = "kubernetes_yaml"
@@ -79,6 +80,7 @@ class PolicyRule:
 @dataclass
 class ParsedResource:
     """A resource parsed from IaC configuration."""
+
     resource_type: str = ""
     resource_name: str = ""
     provider: CloudProvider = CloudProvider.AWS
@@ -91,6 +93,7 @@ class ParsedResource:
 @dataclass
 class AutoRemediationPR:
     """Auto-generated remediation PR data."""
+
     id: UUID = field(default_factory=uuid4)
     repo: str = ""
     branch: str = ""
@@ -136,38 +139,48 @@ class IaCScanResult:
                     },
                 }
 
-            results.append({
-                "ruleId": v.rule_id,
-                "level": _severity_to_sarif_level(v.severity),
-                "message": {"text": v.description},
-                "locations": [{
-                    "physicalLocation": {
-                        "artifactLocation": {"uri": v.file_path},
-                        "region": {"startLine": max(1, v.line_number)},
+            results.append(
+                {
+                    "ruleId": v.rule_id,
+                    "level": _severity_to_sarif_level(v.severity),
+                    "message": {"text": v.description},
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {"uri": v.file_path},
+                                "region": {"startLine": max(1, v.line_number)},
+                            },
+                        }
+                    ],
+                    "fingerprints": {
+                        "primaryLocationLineHash": v.fingerprint or str(v.id),
                     },
-                }],
-                "fingerprints": {
-                    "primaryLocationLineHash": v.fingerprint or str(v.id),
-                },
-                "fixes": [{
-                    "description": {"text": v.remediation},
-                }] if v.auto_fix_available else [],
-            })
+                    "fixes": [
+                        {
+                            "description": {"text": v.remediation},
+                        }
+                    ]
+                    if v.auto_fix_available
+                    else [],
+                }
+            )
 
         return {
             "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
             "version": "2.1.0",
-            "runs": [{
-                "tool": {
-                    "driver": {
-                        "name": "ComplianceAgent IaC Scanner",
-                        "version": "1.0.0",
-                        "informationUri": "https://complianceagent.ai/iac-scanner",
-                        "rules": list(rules.values()),
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "ComplianceAgent IaC Scanner",
+                            "version": "1.0.0",
+                            "informationUri": "https://complianceagent.ai/iac-scanner",
+                            "rules": list(rules.values()),
+                        },
                     },
-                },
-                "results": results,
-            }],
+                    "results": results,
+                }
+            ],
         }
 
     def to_opa_rego(self) -> str:
@@ -185,17 +198,19 @@ class IaCScanResult:
                 continue
             seen_rules.add(v.rule_id)
 
-            lines.extend([
-                f"# {v.description}",
-                "deny[msg] {",
-                "    resource := input.resources[_]",
-                f'    resource.type == "{v.resource_type}"',
-                f"    # Check for compliance violation: {v.rule_id}",
-                "    not resource.properties.compliant",
-                f'    msg := sprintf("{v.rule_id}: %s - {v.description}", [resource.name])',
-                "}",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"# {v.description}",
+                    "deny[msg] {",
+                    "    resource := input.resources[_]",
+                    f'    resource.type == "{v.resource_type}"',
+                    f"    # Check for compliance violation: {v.rule_id}",
+                    "    not resource.properties.compliant",
+                    f'    msg := sprintf("{v.rule_id}: %s - {v.description}", [resource.name])',
+                    "}",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 

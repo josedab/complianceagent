@@ -41,9 +41,16 @@ def _score_to_grade(score: float) -> Grade:
 
 def _grade_to_color(grade: Grade) -> str:
     colors = {
-        Grade.A_PLUS: "brightgreen", Grade.A: "brightgreen", Grade.A_MINUS: "green",
-        Grade.B_PLUS: "green", Grade.B: "yellowgreen", Grade.B_MINUS: "yellowgreen",
-        Grade.C_PLUS: "yellow", Grade.C: "yellow", Grade.D: "orange", Grade.F: "red",
+        Grade.A_PLUS: "brightgreen",
+        Grade.A: "brightgreen",
+        Grade.A_MINUS: "green",
+        Grade.B_PLUS: "green",
+        Grade.B: "yellowgreen",
+        Grade.B_MINUS: "yellowgreen",
+        Grade.C_PLUS: "yellow",
+        Grade.C: "yellow",
+        Grade.D: "orange",
+        Grade.F: "red",
     }
     return colors.get(grade, "lightgrey")
 
@@ -54,8 +61,13 @@ def _generate_svg(label: str, grade: str, color: str, style: BadgeStyle) -> str:
     value_width = len(grade) * 7 + 10
     total_width = label_width + value_width
     color_map = {
-        "brightgreen": "#4c1", "green": "#97ca00", "yellowgreen": "#a4a61d",
-        "yellow": "#dfb317", "orange": "#fe7d37", "red": "#e05d44", "lightgrey": "#9f9f9f",
+        "brightgreen": "#4c1",
+        "green": "#97ca00",
+        "yellowgreen": "#a4a61d",
+        "yellow": "#dfb317",
+        "orange": "#fe7d37",
+        "red": "#e05d44",
+        "lightgrey": "#9f9f9f",
     }
     hex_color = color_map.get(color, "#9f9f9f")
     return (
@@ -66,7 +78,7 @@ def _generate_svg(label: str, grade: str, color: str, style: BadgeStyle) -> str:
         f'font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">{label}</text>'
         f'<text x="{label_width + value_width // 2}" y="14" fill="#fff" text-anchor="middle" '
         f'font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">{grade}</text>'
-        f'</svg>'
+        f"</svg>"
     )
 
 
@@ -88,7 +100,9 @@ class ComplianceBadgeService:
         score = scorecard.overall_score if scorecard else 85.0
         grade = _score_to_grade(score)
         color = _grade_to_color(grade)
-        badge_style = BadgeStyle(style) if style in BadgeStyle.__members__.values() else BadgeStyle.FLAT
+        badge_style = (
+            BadgeStyle(style) if style in BadgeStyle.__members__.values() else BadgeStyle.FLAT
+        )
 
         svg = _generate_svg(label, grade.value, color, badge_style)
 
@@ -135,7 +149,9 @@ class ComplianceBadgeService:
         self._scorecards[repo] = scorecard
         return scorecard
 
-    def get_embed_snippets(self, repo: str, base_url: str = "https://complianceagent.ai") -> list[EmbedSnippet]:
+    def get_embed_snippets(
+        self, repo: str, base_url: str = "https://complianceagent.ai"
+    ) -> list[EmbedSnippet]:
         """Get embed code snippets for badge integration."""
         badge_url = f"{base_url}/api/v1/compliance-badge/badge/{repo}.svg"
         scorecard_url = f"{base_url}/api/v1/compliance-badge/scorecard/{repo}"

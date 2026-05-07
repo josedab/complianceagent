@@ -263,13 +263,16 @@ class RegulatoryIntelFeedService:
         if jurisdiction is not None:
             articles = [a for a in articles if a.jurisdiction == jurisdiction]
 
-        articles.sort(key=lambda a: a.published_at or datetime.min.replace(tzinfo=UTC), reverse=True)
+        articles.sort(
+            key=lambda a: a.published_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )
         return articles[:limit]
 
     async def subscribe(self, user_id: str, preferences: dict) -> FeedPreferences:
         """Subscribe a user to the regulatory intelligence feed."""
         categories = [
-            FeedCategory(c) for c in preferences.get("categories", [])
+            FeedCategory(c)
+            for c in preferences.get("categories", [])
             if c in FeedCategory.__members__.values() or c in [e.value for e in FeedCategory]
         ]
 
@@ -321,7 +324,9 @@ class RegulatoryIntelFeedService:
     async def list_articles(self, limit: int = 50) -> list[IntelArticle]:
         """List all articles."""
         articles = list(self._articles.values())
-        articles.sort(key=lambda a: a.published_at or datetime.min.replace(tzinfo=UTC), reverse=True)
+        articles.sort(
+            key=lambda a: a.published_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )
         return articles[:limit]
 
     async def get_stats(self) -> IntelFeedStats:

@@ -319,13 +319,13 @@ class PolicyMarketplaceService:
                 lang = PolicyLanguage(language.lower())
                 packs = [p for p in packs if lang in p.languages]
             except ValueError:
-                pass
+                logger.warning("invalid_language_filter", language=language)
         if pricing:
             try:
                 pm = PricingModel(pricing.lower())
                 packs = [p for p in packs if p.pricing_model == pm]
             except ValueError:
-                pass
+                logger.warning("invalid_pricing_filter", pricing=pricing)
         if category:
             packs = [p for p in packs if category.lower() in [t.lower() for t in p.tags]]
 
@@ -375,7 +375,7 @@ class PolicyMarketplaceService:
                     pm = PricingModel(filters["pricing"].lower())
                     results = [p for p in results if p.pricing_model == pm]
                 except ValueError:
-                    pass
+                    logger.warning("invalid_pricing_filter", pricing=filters["pricing"])
         results.sort(key=lambda p: p.downloads, reverse=True)
         return results
 

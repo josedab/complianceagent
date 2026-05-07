@@ -1,4 +1,5 @@
 """Regulatory Simulation Service."""
+
 import hashlib
 from datetime import UTC, datetime
 
@@ -114,7 +115,8 @@ class RegulatorySimulationService:
         sim_model = SimulationModel(model)
 
         matching = [
-            s for s in self._scenarios
+            s
+            for s in self._scenarios
             if s.regulation.lower() == regulation.lower()
             and s.jurisdiction.lower() == jurisdiction.lower()
         ]
@@ -140,11 +142,13 @@ class RegulatorySimulationService:
             if outcome == matching[0].predicted_outcome:
                 prob = matching[0].base_probability
 
-            distribution.append({
-                "outcome": outcome.value,
-                "probability": prob,
-                "iterations_favorable": int(prob * iterations),
-            })
+            distribution.append(
+                {
+                    "outcome": outcome.value,
+                    "probability": prob,
+                    "iterations_favorable": int(prob * iterations),
+                }
+            )
             outcome_counts[outcome.value] = int(prob * iterations)
 
         elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
@@ -174,10 +178,7 @@ class RegulatorySimulationService:
         return run
 
     def generate_forecast(self, regulation: str) -> ImpactForecast:
-        matching = [
-            s for s in self._scenarios
-            if s.regulation.lower() == regulation.lower()
-        ]
+        matching = [s for s in self._scenarios if s.regulation.lower() == regulation.lower()]
 
         if not matching:
             return ImpactForecast(
@@ -232,8 +233,6 @@ class RegulatorySimulationService:
             total_runs=len(self._runs),
             total_scenarios=len(self._scenarios),
             by_model=by_model,
-            avg_iterations=(
-                total_iterations // len(self._runs) if self._runs else 0
-            ),
+            avg_iterations=(total_iterations // len(self._runs) if self._runs else 0),
             predictions_validated=0,
         )

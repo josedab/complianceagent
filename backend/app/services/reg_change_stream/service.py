@@ -87,7 +87,9 @@ class RegChangeStreamService:
     def _matches_subscription(self, change: RegulatoryChange, sub: StreamSubscription) -> bool:
         """Check if a change matches subscription filters."""
         severity_order = {"informational": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
-        if severity_order.get(change.severity.value, 0) < severity_order.get(sub.severity_threshold.value, 0):
+        if severity_order.get(change.severity.value, 0) < severity_order.get(
+            sub.severity_threshold.value, 0
+        ):
             return False
         if sub.jurisdictions and change.jurisdiction not in sub.jurisdictions:
             return False

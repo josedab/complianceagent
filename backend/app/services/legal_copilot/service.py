@@ -54,8 +54,16 @@ class LegalCopilotService:
                     "to appropriate safeguards under Chapter V GDPR."
                 ),
                 citations=[
-                    {"regulation": "GDPR", "article": "Article 28", "text": "Processor obligations"},
-                    {"regulation": "GDPR", "article": "Article 32", "text": "Security of processing"},
+                    {
+                        "regulation": "GDPR",
+                        "article": "Article 28",
+                        "text": "Processor obligations",
+                    },
+                    {
+                        "regulation": "GDPR",
+                        "article": "Article 32",
+                        "text": "Security of processing",
+                    },
                     {"regulation": "GDPR", "article": "Article 33", "text": "Breach notification"},
                 ],
                 framework="GDPR",
@@ -116,8 +124,16 @@ class LegalCopilotService:
                     "provide adequate safeguards for the proposed transfers."
                 ),
                 citations=[
-                    {"regulation": "GDPR", "article": "Article 46", "text": "Appropriate safeguards"},
-                    {"regulation": "GDPR", "article": "Article 49", "text": "Derogations for transfers"},
+                    {
+                        "regulation": "GDPR",
+                        "article": "Article 46",
+                        "text": "Appropriate safeguards",
+                    },
+                    {
+                        "regulation": "GDPR",
+                        "article": "Article 49",
+                        "text": "Derogations for transfers",
+                    },
                     {"regulation": "CJEU", "article": "Case C-311/18", "text": "Schrems II ruling"},
                 ],
                 framework="GDPR",
@@ -149,7 +165,11 @@ class LegalCopilotService:
             for fw in frameworks
         ]
         citations.append(
-            {"regulation": framework_text, "article": "Article 32", "text": "Security of processing"}
+            {
+                "regulation": framework_text,
+                "article": "Article 32",
+                "text": "Security of processing",
+            }
         )
 
         content = (
@@ -228,7 +248,11 @@ class LegalCopilotService:
         )
 
         citations = [
-            {"regulation": framework, "article": "General Provisions", "text": f"Applicability to {topic}"},
+            {
+                "regulation": framework,
+                "article": "General Provisions",
+                "text": f"Applicability to {topic}",
+            },
         ]
 
         doc = LegalDocument(
@@ -250,7 +274,12 @@ class LegalCopilotService:
     async def review_contract_clause(self, clause_text: str) -> ContractClause:
         """Review a contract clause and provide risk assessment."""
         risk_keywords_high = ["unlimited liability", "indemnify", "sole discretion", "waive"]
-        risk_keywords_medium = ["reasonable efforts", "material breach", "termination", "limitation"]
+        risk_keywords_medium = [
+            "reasonable efforts",
+            "material breach",
+            "termination",
+            "limitation",
+        ]
 
         risk_level = "low"
         recommendation = "Clause appears standard and acceptable."

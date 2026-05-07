@@ -730,19 +730,84 @@ class CopilotChatService:
 
         # Regulation corpus chunks
         regulation_chunks = [
-            ("GDPR Art. 5", "regulation", "gdpr-art5", "Principles relating to processing of personal data: lawfulness, fairness, transparency, purpose limitation, data minimisation, accuracy, storage limitation, integrity and confidentiality."),
-            ("GDPR Art. 6", "regulation", "gdpr-art6", "Lawfulness of processing: consent, contract, legal obligation, vital interests, public task, legitimate interests."),
-            ("GDPR Art. 17", "regulation", "gdpr-art17", "Right to erasure ('right to be forgotten'): data subject has the right to obtain erasure of personal data without undue delay."),
-            ("GDPR Art. 22", "regulation", "gdpr-art22", "Automated individual decision-making, including profiling: data subject has the right not to be subject to solely automated decisions."),
-            ("GDPR Art. 32", "regulation", "gdpr-art32", "Security of processing: implement appropriate technical and organisational measures to ensure security."),
-            ("HIPAA Security Rule", "regulation", "hipaa-sec", "Administrative, physical, and technical safeguards required to protect electronic PHI. Includes access controls, audit controls, transmission security, and integrity controls."),
-            ("HIPAA Privacy Rule", "regulation", "hipaa-priv", "Protects individually identifiable health information. Requires minimum necessary standard, individual rights, and administrative requirements."),
-            ("PCI-DSS Req 3", "regulation", "pci-req3", "Protect stored cardholder data. Render PAN unreadable anywhere it is stored by using encryption, hashing, or truncation."),
-            ("PCI-DSS Req 6", "regulation", "pci-req6", "Develop and maintain secure systems. Establish process to identify vulnerabilities, protect against known exploits."),
-            ("SOC 2 CC6.1", "regulation", "soc2-cc6", "Logical and physical access controls: implement controls to protect against unauthorized access to information assets."),
-            ("SOC 2 CC7.2", "regulation", "soc2-cc7", "System operations monitoring: monitor system components for anomalies, evaluate events to determine security incidents."),
-            ("ISO 27001 A.8", "regulation", "iso-a8", "Asset management: identify organizational assets, define appropriate protection responsibilities."),
-            ("NIS2 Art. 21", "regulation", "nis2-art21", "Cybersecurity risk-management measures: entities shall take appropriate measures to manage risks posed to network and information systems."),
+            (
+                "GDPR Art. 5",
+                "regulation",
+                "gdpr-art5",
+                "Principles relating to processing of personal data: lawfulness, fairness, transparency, purpose limitation, data minimisation, accuracy, storage limitation, integrity and confidentiality.",
+            ),
+            (
+                "GDPR Art. 6",
+                "regulation",
+                "gdpr-art6",
+                "Lawfulness of processing: consent, contract, legal obligation, vital interests, public task, legitimate interests.",
+            ),
+            (
+                "GDPR Art. 17",
+                "regulation",
+                "gdpr-art17",
+                "Right to erasure ('right to be forgotten'): data subject has the right to obtain erasure of personal data without undue delay.",
+            ),
+            (
+                "GDPR Art. 22",
+                "regulation",
+                "gdpr-art22",
+                "Automated individual decision-making, including profiling: data subject has the right not to be subject to solely automated decisions.",
+            ),
+            (
+                "GDPR Art. 32",
+                "regulation",
+                "gdpr-art32",
+                "Security of processing: implement appropriate technical and organisational measures to ensure security.",
+            ),
+            (
+                "HIPAA Security Rule",
+                "regulation",
+                "hipaa-sec",
+                "Administrative, physical, and technical safeguards required to protect electronic PHI. Includes access controls, audit controls, transmission security, and integrity controls.",
+            ),
+            (
+                "HIPAA Privacy Rule",
+                "regulation",
+                "hipaa-priv",
+                "Protects individually identifiable health information. Requires minimum necessary standard, individual rights, and administrative requirements.",
+            ),
+            (
+                "PCI-DSS Req 3",
+                "regulation",
+                "pci-req3",
+                "Protect stored cardholder data. Render PAN unreadable anywhere it is stored by using encryption, hashing, or truncation.",
+            ),
+            (
+                "PCI-DSS Req 6",
+                "regulation",
+                "pci-req6",
+                "Develop and maintain secure systems. Establish process to identify vulnerabilities, protect against known exploits.",
+            ),
+            (
+                "SOC 2 CC6.1",
+                "regulation",
+                "soc2-cc6",
+                "Logical and physical access controls: implement controls to protect against unauthorized access to information assets.",
+            ),
+            (
+                "SOC 2 CC7.2",
+                "regulation",
+                "soc2-cc7",
+                "System operations monitoring: monitor system components for anomalies, evaluate events to determine security incidents.",
+            ),
+            (
+                "ISO 27001 A.8",
+                "regulation",
+                "iso-a8",
+                "Asset management: identify organizational assets, define appropriate protection responsibilities.",
+            ),
+            (
+                "NIS2 Art. 21",
+                "regulation",
+                "nis2-art21",
+                "Cybersecurity risk-management measures: entities shall take appropriate measures to manage risks posed to network and information systems.",
+            ),
         ]
 
         for title, source_type, source_id, text in regulation_chunks:
@@ -802,18 +867,22 @@ class CopilotChatService:
         citations: list[Citation] = []
         chunks_data: list[dict] = []
         for chunk, score in top_chunks:
-            citations.append(Citation(
-                source_type=chunk.source_type,
-                source_id=chunk.source_id,
-                title=chunk.title,
-                text_excerpt=chunk.text[:200],
-                relevance_score=round(score, 3),
-            ))
-            chunks_data.append({
-                "title": chunk.title,
-                "text": chunk.text,
-                "relevance": round(score, 3),
-            })
+            citations.append(
+                Citation(
+                    source_type=chunk.source_type,
+                    source_id=chunk.source_id,
+                    title=chunk.title,
+                    text_excerpt=chunk.text[:200],
+                    relevance_score=round(score, 3),
+                )
+            )
+            chunks_data.append(
+                {
+                    "title": chunk.title,
+                    "text": chunk.text,
+                    "relevance": round(score, 3),
+                }
+            )
 
         retrieval_time = (time.time() - start) * 1000
         return RAGContext(
@@ -825,14 +894,25 @@ class CopilotChatService:
 
     # ─── Enhanced Guardrails ──────────────────────────────────────────
 
-    def evaluate_guardrails(self, response_text: str, rag_context: RAGContext | None = None) -> GuardrailResult:
+    def evaluate_guardrails(
+        self, response_text: str, rag_context: RAGContext | None = None
+    ) -> GuardrailResult:
         """Evaluate response through legal guardrails with hallucination detection."""
         result = GuardrailResult(action=GuardrailAction.PASSED, confidence_score=0.85)
 
         # Disclaimer injection for regulatory content
         regulation_keywords = [
-            "gdpr", "hipaa", "pci-dss", "sox", "ccpa", "eu ai act",
-            "iso 27001", "soc 2", "nis2", "dora", "coppa",
+            "gdpr",
+            "hipaa",
+            "pci-dss",
+            "sox",
+            "ccpa",
+            "eu ai act",
+            "iso 27001",
+            "soc 2",
+            "nis2",
+            "dora",
+            "coppa",
         ]
         mentions_reg = any(kw in response_text.lower() for kw in regulation_keywords)
         if mentions_reg:
@@ -930,13 +1010,14 @@ class CopilotChatService:
         # Build context-aware prompt
         prompt = self._build_persona_prompt(session.persona)
         _context_text = "\n".join(
-            f"[{c.get('title', '')}]: {c.get('text', '')}"
-            for c in rag_context.chunks[:3]
+            f"[{c.get('title', '')}]: {c.get('text', '')}" for c in rag_context.chunks[:3]
         )
 
         # Generate answer
         answer = await self._generate_answer(
-            message, prompt, session.context_regulations,
+            message,
+            prompt,
+            session.context_regulations,
         )
 
         # Apply guardrails
@@ -990,44 +1071,58 @@ class CopilotChatService:
         words = response.answer.split()
         chunk_size = 5
         for i in range(0, len(words), chunk_size):
-            chunk = " ".join(words[i:i + chunk_size])
-            events.append(SSEEvent(
-                event="message",
-                data=json.dumps({"text": chunk, "index": i // chunk_size}),
-                id=f"{response.id}-{i}",
-            ))
+            chunk = " ".join(words[i : i + chunk_size])
+            events.append(
+                SSEEvent(
+                    event="message",
+                    data=json.dumps({"text": chunk, "index": i // chunk_size}),
+                    id=f"{response.id}-{i}",
+                )
+            )
 
         # Stream citations
         for citation in response.citations:
-            events.append(SSEEvent(
-                event="citation",
-                data=json.dumps({
-                    "title": citation.title,
-                    "source_type": citation.source_type,
-                    "relevance": citation.relevance_score,
-                }),
-            ))
+            events.append(
+                SSEEvent(
+                    event="citation",
+                    data=json.dumps(
+                        {
+                            "title": citation.title,
+                            "source_type": citation.source_type,
+                            "relevance": citation.relevance_score,
+                        }
+                    ),
+                )
+            )
 
         # Stream guardrail info
         if response.guardrail:
-            events.append(SSEEvent(
-                event="guardrail",
-                data=json.dumps({
-                    "action": response.guardrail.action.value,
-                    "confidence": response.guardrail.confidence_score,
-                    "disclaimers": response.guardrail.disclaimers,
-                }),
-            ))
+            events.append(
+                SSEEvent(
+                    event="guardrail",
+                    data=json.dumps(
+                        {
+                            "action": response.guardrail.action.value,
+                            "confidence": response.guardrail.confidence_score,
+                            "disclaimers": response.guardrail.disclaimers,
+                        }
+                    ),
+                )
+            )
 
         # Done event
-        events.append(SSEEvent(
-            event="done",
-            data=json.dumps({
-                "response_id": str(response.id),
-                "total_chunks": len(words) // chunk_size + 1,
-                "confidence": response.confidence,
-            }),
-        ))
+        events.append(
+            SSEEvent(
+                event="done",
+                data=json.dumps(
+                    {
+                        "response_id": str(response.id),
+                        "total_chunks": len(words) // chunk_size + 1,
+                        "confidence": response.confidence,
+                    }
+                ),
+            )
+        )
 
         return events
 

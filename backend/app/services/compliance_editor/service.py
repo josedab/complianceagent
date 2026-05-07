@@ -59,14 +59,16 @@ class ComplianceEditorService:
             lower_line = line.lower()
             for pattern_info in _COMPLIANCE_PATTERNS:
                 if pattern_info["pattern"] in lower_line:
-                    diagnostics.append({
-                        "line": line_num,
-                        "severity": "warning",
-                        "rule_id": pattern_info["rule_id"],
-                        "framework": pattern_info["framework"],
-                        "message": pattern_info["message"],
-                        "source": line.strip(),
-                    })
+                    diagnostics.append(
+                        {
+                            "line": line_num,
+                            "severity": "warning",
+                            "rule_id": pattern_info["rule_id"],
+                            "framework": pattern_info["framework"],
+                            "message": pattern_info["message"],
+                            "source": line.strip(),
+                        }
+                    )
         return diagnostics
 
     def _generate_fixes(self, path: str, content: str, diagnostics: list[dict]) -> list[InlineFix]:

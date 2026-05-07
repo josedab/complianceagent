@@ -41,7 +41,12 @@ class SelfHealingMeshService:
             logger.warning("Circuit breaker open", failures=self._failure_count)
             return HealingPipeline(event_id=event.id, stage=PipelineStage.ESCALATED)
 
-        active = sum(1 for p in self._pipelines.values() if p.stage not in (PipelineStage.COMPLETED, PipelineStage.FAILED, PipelineStage.ESCALATED))
+        active = sum(
+            1
+            for p in self._pipelines.values()
+            if p.stage
+            not in (PipelineStage.COMPLETED, PipelineStage.FAILED, PipelineStage.ESCALATED)
+        )
         if active >= self._config.max_concurrent_pipelines:
             logger.warning("Max concurrent pipelines reached")
             return HealingPipeline(event_id=event.id, stage=PipelineStage.ESCALATED)
@@ -103,13 +108,20 @@ class SelfHealingMeshService:
         return pipeline
 
     def _assess_risk(self, event: HealingEvent) -> RiskTier:
-        severity_map = {"low": RiskTier.AUTO_MERGE, "medium": RiskTier.SINGLE_REVIEW, "high": RiskTier.TEAM_REVIEW, "critical": RiskTier.MANUAL_ONLY}
+        severity_map = {
+            "low": RiskTier.AUTO_MERGE,
+            "medium": RiskTier.SINGLE_REVIEW,
+            "high": RiskTier.TEAM_REVIEW,
+            "critical": RiskTier.MANUAL_ONLY,
+        }
         tier = severity_map.get(event.severity, RiskTier.SINGLE_REVIEW)
         if self._config.auto_merge_max_risk == "none":
             return max(tier, RiskTier.SINGLE_REVIEW, key=lambda x: list(RiskTier).index(x))
         return tier
 
-    async def approve_pipeline(self, pipeline_id: str, approver: str = "") -> HealingPipeline | None:
+    async def approve_pipeline(
+        self, pipeline_id: str, approver: str = ""
+    ) -> HealingPipeline | None:
         pipeline = self._pipelines.get(pipeline_id)
         if not pipeline or pipeline.stage != PipelineStage.AWAITING_APPROVAL:
             return None
@@ -131,13 +143,17 @@ class SelfHealingMeshService:
     def get_pipeline(self, pipeline_id: str) -> HealingPipeline | None:
         return self._pipelines.get(pipeline_id)
 
-    def list_pipelines(self, stage: PipelineStage | None = None, repo: str | None = None, limit: int = 50) -> list[HealingPipeline]:
+    def list_pipelines(
+        self, stage: PipelineStage | None = None, repo: str | None = None, limit: int = 50
+    ) -> list[HealingPipeline]:
         results = list(self._pipelines.values())
         if stage:
             results = [p for p in results if p.stage == stage]
         if repo:
             results = [p for p in results if p.repo == repo]
-        return sorted(results, key=lambda p: p.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda p: p.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     async def update_config(self, config: MeshConfig) -> MeshConfig:
         self._config = config
@@ -173,7 +189,9 @@ class SelfHealingMeshService:
             completed_pipelines=completed,
             auto_merged=auto,
             escalated=escalated,
-            avg_heal_time_seconds=round(sum(heal_times) / len(heal_times), 3) if heal_times else 0.0,
+            avg_heal_time_seconds=round(sum(heal_times) / len(heal_times), 3)
+            if heal_times
+            else 0.0,
             by_stage=by_stage,
             by_event_type=by_event,
         )

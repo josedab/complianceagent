@@ -79,11 +79,13 @@ class ComplianceDataLakeService:
         # Build time series
         ts_points: list[TimeSeriesPoint] = []
         for e in filtered:
-            ts_points.append(TimeSeriesPoint(
-                timestamp=e.timestamp.isoformat() if e.timestamp else "",
-                value=e.data.get("score", e.data.get("value", 1.0)),
-                labels={"category": e.category.value, "framework": e.framework},
-            ))
+            ts_points.append(
+                TimeSeriesPoint(
+                    timestamp=e.timestamp.isoformat() if e.timestamp else "",
+                    value=e.data.get("score", e.data.get("value", 1.0)),
+                    labels={"category": e.category.value, "framework": e.framework},
+                )
+            )
 
         # Aggregations
         aggs: dict = {

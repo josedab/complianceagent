@@ -54,8 +54,24 @@ class MultiLLMParserService:
 
         # Build consensus
         consensus_reqs, agreement, divergences = self._build_consensus(provider_results, strat)
-        status = ParseStatus.SUCCESS if agreement >= 0.8 else ParseStatus.DIVERGENT if agreement >= 0.5 else ParseStatus.PARTIAL
-        final_conf = sum(r.confidence * next((p.weight for p in self._providers if p.provider == r.provider), 1.0) for r in provider_results) / max(1, sum(next((p.weight for p in self._providers if p.provider == r.provider), 1.0) for r in provider_results))
+        status = (
+            ParseStatus.SUCCESS
+            if agreement >= 0.8
+            else ParseStatus.DIVERGENT
+            if agreement >= 0.5
+            else ParseStatus.PARTIAL
+        )
+        final_conf = sum(
+            r.confidence
+            * next((p.weight for p in self._providers if p.provider == r.provider), 1.0)
+            for r in provider_results
+        ) / max(
+            1,
+            sum(
+                next((p.weight for p in self._providers if p.provider == r.provider), 1.0)
+                for r in provider_results
+            ),
+        )
         duration = (datetime.now(UTC) - start).total_seconds() * 1000
 
         result = ConsensusResult(
@@ -71,32 +87,48 @@ class MultiLLMParserService:
             parsed_at=datetime.now(UTC),
         )
         self._results.append(result)
-        logger.info("Multi-LLM parse completed", providers=len(provider_results), agreement=agreement, status=status.value)
+        logger.info(
+            "Multi-LLM parse completed",
+            providers=len(provider_results),
+            agreement=agreement,
+            status=status.value,
+        )
         return result
 
     def _simulate_provider(self, prov: ProviderConfig, text: str) -> ProviderResult:
-        text_hash = int(hashlib.sha256(f"{prov.provider.value}:{text}".encode()).hexdigest()[:8], 16)
+        text_hash = int(
+            hashlib.sha256(f"{prov.provider.value}:{text}".encode()).hexdigest()[:8], 16
+        )
         confidence = 0.7 + (text_hash % 25) / 100
 
         # Extract requirements based on text analysis
         requirements = []
-        obligation_words = {"must": "mandatory", "shall": "mandatory", "should": "recommended", "may": "optional"}
+        obligation_words = {
+            "must": "mandatory",
+            "shall": "mandatory",
+            "should": "recommended",
+            "may": "optional",
+        }
         for word, level in obligation_words.items():
             if word in text.lower():
-                requirements.append({
-                    "obligation": level,
-                    "text": f"Extracted from '{word}' clause",
-                    "confidence": round(confidence, 2),
-                    "provider": prov.provider.value,
-                })
+                requirements.append(
+                    {
+                        "obligation": level,
+                        "text": f"Extracted from '{word}' clause",
+                        "confidence": round(confidence, 2),
+                        "provider": prov.provider.value,
+                    }
+                )
 
         if not requirements:
-            requirements.append({
-                "obligation": "informational",
-                "text": "General compliance requirement identified",
-                "confidence": round(confidence * 0.8, 2),
-                "provider": prov.provider.value,
-            })
+            requirements.append(
+                {
+                    "obligation": "informational",
+                    "text": "General compliance requirement identified",
+                    "confidence": round(confidence * 0.8, 2),
+                    "provider": prov.provider.value,
+                }
+            )
 
         latency = 50 + (text_hash % 200)
         return ProviderResult(
@@ -128,15 +160,32 @@ class MultiLLMParserService:
         for obl, count in all_obligations.items():
             agreement = count / total_providers
             if strategy == ConsensusStrategy.MAJORITY_VOTE and agreement >= 0.5:
-                consensus.append({"obligation": obl, "agreement": round(agreement, 2), "providers_agreed": count})
+                consensus.append(
+                    {"obligation": obl, "agreement": round(agreement, 2), "providers_agreed": count}
+                )
             elif strategy == ConsensusStrategy.UNANIMOUS and agreement == 1.0:
                 consensus.append({"obligation": obl, "agreement": 1.0, "providers_agreed": count})
-            elif strategy in (ConsensusStrategy.HIGHEST_CONFIDENCE, ConsensusStrategy.WEIGHTED_AVERAGE):
-                consensus.append({"obligation": obl, "agreement": round(agreement, 2), "providers_agreed": count})
+            elif strategy in (
+                ConsensusStrategy.HIGHEST_CONFIDENCE,
+                ConsensusStrategy.WEIGHTED_AVERAGE,
+            ):
+                consensus.append(
+                    {"obligation": obl, "agreement": round(agreement, 2), "providers_agreed": count}
+                )
             elif agreement < 0.5:
-                divergences.append({"obligation": obl, "agreement": round(agreement, 2), "reason": f"Only {count}/{total_providers} providers agreed"})
+                divergences.append(
+                    {
+                        "obligation": obl,
+                        "agreement": round(agreement, 2),
+                        "reason": f"Only {count}/{total_providers} providers agreed",
+                    }
+                )
 
-        overall_agreement = sum(all_obligations.values()) / (len(all_obligations) * total_providers) if all_obligations else 0.0
+        overall_agreement = (
+            sum(all_obligations.values()) / (len(all_obligations) * total_providers)
+            if all_obligations
+            else 0.0
+        )
         return consensus, round(overall_agreement, 3), divergences
 
     def list_providers(self) -> list[ProviderConfig]:

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import structlog
 import yaml
 
 from .models import (
@@ -15,6 +16,9 @@ from .models import (
     PolicyRule,
     RemediationAction,
 )
+
+
+logger = structlog.get_logger()
 
 
 @dataclass
@@ -535,7 +539,11 @@ def analyze_cloudformation_directory(
                     )
                     all_resources.extend(resources)
                     all_violations.extend(violations)
-            except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError):
-                pass  # Skip files that can't be parsed
+            except (OSError, yaml.YAMLError, json.JSONDecodeError, ValueError) as exc:
+                logger.warning(
+                    "cfn: skipping unparseable template file",
+                    file=str(template_file),
+                    error=str(exc),
+                )
 
     return all_resources, all_violations

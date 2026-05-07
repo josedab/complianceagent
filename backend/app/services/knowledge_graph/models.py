@@ -49,6 +49,7 @@ class RelationType(str, Enum):
 
 class QueryIntent(str, Enum):
     """Classified intent for natural language queries."""
+
     SEARCH = "search"
     PATH_FINDING = "path_finding"
     IMPACT_ANALYSIS = "impact_analysis"
@@ -188,6 +189,7 @@ class GraphQuery:
 @dataclass
 class SemanticSearchResult:
     """Result from pgvector cosine similarity search."""
+
     node: GraphNode | None = None
     similarity: float = 0.0
     matched_text: str = ""
@@ -196,6 +198,7 @@ class SemanticSearchResult:
 @dataclass
 class ParsedQuery:
     """Result of NL query parsing with intent classification."""
+
     intent: QueryIntent = QueryIntent.SEARCH
     confidence: float = 0.0
     node_types: list[NodeType] = field(default_factory=list)

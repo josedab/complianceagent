@@ -108,13 +108,13 @@ class PIAGeneratorService:
         mitigations = self._suggest_mitigations(risks)
 
         cross_border_count = sum(1 for f in data_flows if f.cross_border)
-        has_special = any(
-            DataCategory.SPECIAL_CATEGORY in f.data_categories for f in data_flows
-        )
+        has_special = any(DataCategory.SPECIAL_CATEGORY in f.data_categories for f in data_flows)
         risk_level = (
             "high"
             if has_special or cross_border_count > 2
-            else "medium" if cross_border_count > 0 else "low"
+            else "medium"
+            if cross_border_count > 0
+            else "low"
         )
 
         pia = PIADocument(
@@ -139,61 +139,61 @@ class PIAGeneratorService:
 
         cross_border = [f for f in data_flows if f.cross_border]
         if cross_border:
-            risks.append({
-                "id": str(uuid4()),
-                "title": "Cross-border data transfer risk",
-                "description": (
-                    f"{len(cross_border)} data flow(s) involve cross-border transfers"
-                ),
-                "severity": "high",
-                "likelihood": "medium",
-                "affected_flows": [str(f.id) for f in cross_border],
-            })
+            risks.append(
+                {
+                    "id": str(uuid4()),
+                    "title": "Cross-border data transfer risk",
+                    "description": (
+                        f"{len(cross_border)} data flow(s) involve cross-border transfers"
+                    ),
+                    "severity": "high",
+                    "likelihood": "medium",
+                    "affected_flows": [str(f.id) for f in cross_border],
+                }
+            )
 
-        special = [
-            f
-            for f in data_flows
-            if DataCategory.SPECIAL_CATEGORY in f.data_categories
-        ]
+        special = [f for f in data_flows if DataCategory.SPECIAL_CATEGORY in f.data_categories]
         if special:
-            risks.append({
-                "id": str(uuid4()),
-                "title": "Special category data processing",
-                "description": (
-                    "Processing of special category data requires additional safeguards"
-                ),
-                "severity": "critical",
-                "likelihood": "high",
-                "affected_flows": [str(f.id) for f in special],
-            })
+            risks.append(
+                {
+                    "id": str(uuid4()),
+                    "title": "Special category data processing",
+                    "description": (
+                        "Processing of special category data requires additional safeguards"
+                    ),
+                    "severity": "critical",
+                    "likelihood": "high",
+                    "affected_flows": [str(f.id) for f in special],
+                }
+            )
 
-        sensitive = [
-            f
-            for f in data_flows
-            if DataCategory.SENSITIVE in f.data_categories
-        ]
+        sensitive = [f for f in data_flows if DataCategory.SENSITIVE in f.data_categories]
         if sensitive:
-            risks.append({
-                "id": str(uuid4()),
-                "title": "Sensitive data exposure",
-                "description": (
-                    "Sensitive data flows may be vulnerable to unauthorized access"
-                ),
-                "severity": "high",
-                "likelihood": "medium",
-                "affected_flows": [str(f.id) for f in sensitive],
-            })
+            risks.append(
+                {
+                    "id": str(uuid4()),
+                    "title": "Sensitive data exposure",
+                    "description": (
+                        "Sensitive data flows may be vulnerable to unauthorized access"
+                    ),
+                    "severity": "high",
+                    "likelihood": "medium",
+                    "affected_flows": [str(f.id) for f in sensitive],
+                }
+            )
 
-        risks.append({
-            "id": str(uuid4()),
-            "title": "Data retention compliance",
-            "description": (
-                "Retention periods must be verified against regulatory requirements"
-            ),
-            "severity": "medium",
-            "likelihood": "low",
-            "affected_flows": [str(f.id) for f in data_flows],
-        })
+        risks.append(
+            {
+                "id": str(uuid4()),
+                "title": "Data retention compliance",
+                "description": (
+                    "Retention periods must be verified against regulatory requirements"
+                ),
+                "severity": "medium",
+                "likelihood": "low",
+                "affected_flows": [str(f.id) for f in data_flows],
+            }
+        )
 
         return risks
 
@@ -229,12 +229,14 @@ class PIAGeneratorService:
         for risk in risks:
             severity = risk.get("severity", "medium")
             template = mitigation_map.get(severity, mitigation_map["medium"])
-            mitigations.append({
-                "risk_id": risk["id"],
-                "action": template["action"],
-                "controls": template["controls"],
-                "status": "proposed",
-            })
+            mitigations.append(
+                {
+                    "risk_id": risk["id"],
+                    "action": template["action"],
+                    "controls": template["controls"],
+                    "status": "proposed",
+                }
+            )
 
         return mitigations
 
@@ -255,9 +257,7 @@ class PIAGeneratorService:
         log.info("pia.approved")
         return pia
 
-    async def export_pia(
-        self, pia_id: UUID, format: str = "pdf"
-    ) -> dict:
+    async def export_pia(self, pia_id: UUID, format: str = "pdf") -> dict:
         """Export a PIA document in the specified format."""
         log = logger.bind(pia_id=str(pia_id), format=format)
 
@@ -275,18 +275,14 @@ class PIAGeneratorService:
             "data_flows_count": len(pia.data_flows),
             "risks_count": len(pia.risks),
             "mitigations_count": len(pia.mitigations),
-            "generated_at": (
-                pia.generated_at.isoformat() if pia.generated_at else None
-            ),
+            "generated_at": (pia.generated_at.isoformat() if pia.generated_at else None),
             "exported_at": datetime.now(UTC).isoformat(),
         }
 
         log.info("pia.exported", format=format)
         return content
 
-    async def list_pias(
-        self, status: PIAStatus | None = None
-    ) -> list[PIADocument]:
+    async def list_pias(self, status: PIAStatus | None = None) -> list[PIADocument]:
         """List all PIAs, optionally filtered by status."""
         pias = list(self._pias.values())
         if status:
@@ -305,9 +301,7 @@ class PIAGeneratorService:
 
         for pia in pias:
             by_status[pia.status.value] = by_status.get(pia.status.value, 0) + 1
-            by_risk_level[pia.overall_risk_level] = (
-                by_risk_level.get(pia.overall_risk_level, 0) + 1
-            )
+            by_risk_level[pia.overall_risk_level] = by_risk_level.get(pia.overall_risk_level, 0) + 1
             total_flows += len(pia.data_flows)
             cross_border += sum(1 for f in pia.data_flows if f.cross_border)
 

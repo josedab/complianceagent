@@ -101,9 +101,7 @@ class PluginEcosystemService:
         manifest: dict,
     ) -> PluginManifest:
         """Register a new plugin from a manifest dictionary."""
-        hook_points = [
-            HookPoint(hp) for hp in manifest.get("hook_points", [])
-        ]
+        hook_points = [HookPoint(hp) for hp in manifest.get("hook_points", [])]
         plugin = PluginManifest(
             id=manifest.get("id", f"plugin-{uuid.uuid4().hex[:8]}"),
             name=manifest.get("name", "Unknown Plugin"),
@@ -126,9 +124,7 @@ class PluginEcosystemService:
         config: dict | None = None,
     ) -> PluginInstance:
         """Install a plugin by its manifest ID."""
-        manifest = next(
-            (m for m in self._manifests if m.id == plugin_id), None
-        )
+        manifest = next((m for m in self._manifests if m.id == plugin_id), None)
         if not manifest:
             msg = f"Plugin {plugin_id} not found"
             raise ValueError(msg)

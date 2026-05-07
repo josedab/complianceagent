@@ -34,7 +34,10 @@ _BUILTIN_TOOLS: list[MCPTool] = [
             "type": "object",
             "properties": {
                 "repo": {"type": "string", "description": "Repository full name (owner/repo)"},
-                "framework": {"type": "string", "description": "Filter by framework (e.g., GDPR, HIPAA)"},
+                "framework": {
+                    "type": "string",
+                    "description": "Filter by framework (e.g., GDPR, HIPAA)",
+                },
             },
         },
         output_schema={
@@ -75,8 +78,14 @@ _BUILTIN_TOOLS: list[MCPTool] = [
         input_schema={
             "type": "object",
             "properties": {
-                "jurisdiction": {"type": "string", "description": "Filter by jurisdiction (EU, US, APAC)"},
-                "category": {"type": "string", "description": "Filter by category (privacy, security, ai)"},
+                "jurisdiction": {
+                    "type": "string",
+                    "description": "Filter by jurisdiction (EU, US, APAC)",
+                },
+                "category": {
+                    "type": "string",
+                    "description": "Filter by category (privacy, security, ai)",
+                },
             },
         },
         output_schema={
@@ -94,8 +103,14 @@ _BUILTIN_TOOLS: list[MCPTool] = [
         input_schema={
             "type": "object",
             "properties": {
-                "regulation": {"type": "string", "description": "Regulation identifier (e.g., GDPR)"},
-                "article": {"type": "string", "description": "Article reference (e.g., Article 17)"},
+                "regulation": {
+                    "type": "string",
+                    "description": "Regulation identifier (e.g., GDPR)",
+                },
+                "article": {
+                    "type": "string",
+                    "description": "Article reference (e.g., Article 17)",
+                },
             },
             "required": ["regulation"],
         },
@@ -205,7 +220,9 @@ class MCPServerService:
         """Get MCP server status and capabilities."""
         now = datetime.now(UTC)
         uptime = (now - self._started_at).total_seconds()
-        active = sum(1 for c in self._connections.values() if c.status == ConnectionStatus.CONNECTED)
+        active = sum(
+            1 for c in self._connections.values() if c.status == ConnectionStatus.CONNECTED
+        )
 
         return MCPServerStatus(
             version="1.0.0",
@@ -348,17 +365,59 @@ class MCPServerService:
         jurisdiction = params.get("jurisdiction", "")
         category = params.get("category", "")
         regulations = [
-            {"id": "GDPR", "name": "General Data Protection Regulation", "jurisdiction": "EU", "category": "privacy"},
-            {"id": "CCPA", "name": "California Consumer Privacy Act", "jurisdiction": "US-CA", "category": "privacy"},
-            {"id": "HIPAA", "name": "Health Insurance Portability and Accountability Act", "jurisdiction": "US", "category": "privacy"},
-            {"id": "PCI-DSS", "name": "Payment Card Industry Data Security Standard", "jurisdiction": "Global", "category": "security"},
-            {"id": "EU-AI-Act", "name": "EU Artificial Intelligence Act", "jurisdiction": "EU", "category": "ai"},
-            {"id": "SOC2", "name": "Service Organization Control 2", "jurisdiction": "Global", "category": "security"},
-            {"id": "ISO27001", "name": "ISO/IEC 27001:2022", "jurisdiction": "Global", "category": "security"},
-            {"id": "NIS2", "name": "Network and Information Security Directive 2", "jurisdiction": "EU", "category": "security"},
+            {
+                "id": "GDPR",
+                "name": "General Data Protection Regulation",
+                "jurisdiction": "EU",
+                "category": "privacy",
+            },
+            {
+                "id": "CCPA",
+                "name": "California Consumer Privacy Act",
+                "jurisdiction": "US-CA",
+                "category": "privacy",
+            },
+            {
+                "id": "HIPAA",
+                "name": "Health Insurance Portability and Accountability Act",
+                "jurisdiction": "US",
+                "category": "privacy",
+            },
+            {
+                "id": "PCI-DSS",
+                "name": "Payment Card Industry Data Security Standard",
+                "jurisdiction": "Global",
+                "category": "security",
+            },
+            {
+                "id": "EU-AI-Act",
+                "name": "EU Artificial Intelligence Act",
+                "jurisdiction": "EU",
+                "category": "ai",
+            },
+            {
+                "id": "SOC2",
+                "name": "Service Organization Control 2",
+                "jurisdiction": "Global",
+                "category": "security",
+            },
+            {
+                "id": "ISO27001",
+                "name": "ISO/IEC 27001:2022",
+                "jurisdiction": "Global",
+                "category": "security",
+            },
+            {
+                "id": "NIS2",
+                "name": "Network and Information Security Directive 2",
+                "jurisdiction": "EU",
+                "category": "security",
+            },
         ]
         if jurisdiction:
-            regulations = [r for r in regulations if jurisdiction.lower() in r["jurisdiction"].lower()]
+            regulations = [
+                r for r in regulations if jurisdiction.lower() in r["jurisdiction"].lower()
+            ]
         if category:
             regulations = [r for r in regulations if r["category"] == category.lower()]
         return {"regulations": regulations, "total_count": len(regulations)}

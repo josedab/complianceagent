@@ -42,6 +42,7 @@ class VisualType(str, Enum):
 
 class GuardrailAction(str, Enum):
     """Actions taken by the legal guardrail system."""
+
     PASSED = "passed"
     DISCLAIMER_INJECTED = "disclaimer_injected"
     HALLUCINATION_FLAGGED = "hallucination_flagged"
@@ -77,6 +78,7 @@ class PersonaView:
 @dataclass
 class Citation:
     """Citation linking response to source document."""
+
     id: UUID = field(default_factory=uuid4)
     source_type: str = ""  # regulation, requirement, control, evidence
     source_id: str = ""
@@ -90,6 +92,7 @@ class Citation:
 @dataclass
 class RAGContext:
     """Retrieved context from the RAG pipeline."""
+
     chunks: list[dict[str, Any]] = field(default_factory=list)
     citations: list[Citation] = field(default_factory=list)
     total_tokens: int = 0
@@ -99,6 +102,7 @@ class RAGContext:
 @dataclass
 class GuardrailResult:
     """Result of legal guardrail evaluation."""
+
     action: GuardrailAction = GuardrailAction.PASSED
     disclaimers: list[str] = field(default_factory=list)
     hallucination_score: float = 0.0
@@ -110,6 +114,7 @@ class GuardrailResult:
 @dataclass
 class ChatMessage:
     """A message in the chat conversation."""
+
     id: UUID = field(default_factory=uuid4)
     role: str = "user"  # user, assistant, system
     content: str = ""
@@ -122,6 +127,7 @@ class ChatMessage:
 @dataclass
 class ChatSession:
     """A chat session with conversation history."""
+
     id: UUID = field(default_factory=uuid4)
     organization_id: UUID | None = None
     user_id: str = ""
@@ -135,6 +141,7 @@ class ChatSession:
 @dataclass
 class SSEEvent:
     """Server-Sent Event for streaming responses."""
+
     event: str = "message"  # message, citation, guardrail, done, error
     data: str = ""
     id: str = ""
@@ -162,6 +169,7 @@ class SimplifiedResponse:
 @dataclass
 class RAGChunk:
     """A chunk of text for the RAG pipeline with embedding."""
+
     id: UUID = field(default_factory=uuid4)
     text: str = ""
     source_type: str = ""

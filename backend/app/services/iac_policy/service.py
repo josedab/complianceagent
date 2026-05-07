@@ -683,7 +683,7 @@ class IaCPolicyEngine:
             res_type = match.group(1)
             res_name = match.group(2)
             block = match.group(3)
-            line_num = content[:match.start()].count("\n") + 1
+            line_num = content[: match.start()].count("\n") + 1
 
             # Parse attributes from block
             attrs = self._parse_hcl_attributes(block)
@@ -695,15 +695,17 @@ class IaCPolicyEngine:
             elif res_type.startswith("google_"):
                 provider = CloudProvider.GCP
 
-            resources.append(ParsedResource(
-                resource_type=res_type,
-                resource_name=res_name,
-                provider=provider,
-                file_path=file_path,
-                line_number=line_num,
-                attributes=attrs,
-                raw_block=block,
-            ))
+            resources.append(
+                ParsedResource(
+                    resource_type=res_type,
+                    resource_name=res_name,
+                    provider=provider,
+                    file_path=file_path,
+                    line_number=line_num,
+                    attributes=attrs,
+                    raw_block=block,
+                )
+            )
 
         return resources
 
@@ -763,15 +765,17 @@ class IaCPolicyEngine:
                 if "NetworkPolicy" in kind:
                     attrs["has_network_policy"] = True
 
-                resources.append(ParsedResource(
-                    resource_type=kind,
-                    resource_name=name,
-                    provider=CloudProvider.KUBERNETES,
-                    file_path=file_path,
-                    line_number=line_offset + 1,
-                    attributes=attrs,
-                    raw_block=doc.strip(),
-                ))
+                resources.append(
+                    ParsedResource(
+                        resource_type=kind,
+                        resource_name=name,
+                        provider=CloudProvider.KUBERNETES,
+                        file_path=file_path,
+                        line_number=line_offset + 1,
+                        attributes=attrs,
+                        raw_block=doc.strip(),
+                    )
+                )
 
             line_offset += doc.count("\n")
 
@@ -799,15 +803,17 @@ class IaCPolicyEngine:
             if res_type.startswith("AWS::"):
                 provider = CloudProvider.AWS
 
-            resources.append(ParsedResource(
-                resource_type=res_type,
-                resource_name=logical_id,
-                provider=provider,
-                file_path=file_path,
-                line_number=line_num,
-                attributes=properties,
-                raw_block=json.dumps(resource_def, indent=2),
-            ))
+            resources.append(
+                ParsedResource(
+                    resource_type=res_type,
+                    resource_name=logical_id,
+                    provider=provider,
+                    file_path=file_path,
+                    line_number=line_num,
+                    attributes=properties,
+                    raw_block=json.dumps(resource_def, indent=2),
+                )
+            )
             line_num += 10
 
         return resources
@@ -824,24 +830,28 @@ class IaCPolicyEngine:
         for match in resource_pattern.finditer(content):
             logical_id = match.group(1)
             res_type = match.group(2)
-            line_num = content[:match.start()].count("\n") + 1
+            line_num = content[: match.start()].count("\n") + 1
 
-            resources.append(ParsedResource(
-                resource_type=res_type,
-                resource_name=logical_id,
-                provider=CloudProvider.AWS,
-                file_path=file_path,
-                line_number=line_num,
-                attributes={},
-                raw_block=match.group(0),
-            ))
+            resources.append(
+                ParsedResource(
+                    resource_type=res_type,
+                    resource_name=logical_id,
+                    provider=CloudProvider.AWS,
+                    file_path=file_path,
+                    line_number=line_num,
+                    attributes={},
+                    raw_block=match.group(0),
+                )
+            )
 
         return resources
 
     # ─── Policy Evaluation ────────────────────────────────────────────
 
     def _evaluate_resource(
-        self, resource: ParsedResource, rules: list[PolicyRule],
+        self,
+        resource: ParsedResource,
+        rules: list[PolicyRule],
     ) -> list[IaCViolation]:
         """Evaluate a parsed resource against applicable policy rules."""
         violations: list[IaCViolation] = []
@@ -852,78 +862,85 @@ class IaCPolicyEngine:
 
             # Match by resource type pattern
             if rule.pattern and rule.pattern not in resource.resource_type:
-                if (rule.resource_type and rule.resource_type != resource.resource_type) or not rule.resource_type:
+                if (
+                    rule.resource_type and rule.resource_type != resource.resource_type
+                ) or not rule.resource_type:
                     continue
 
             # Check required attributes
             if rule.required_attributes:
                 missing = [
-                    attr for attr in rule.required_attributes
-                    if attr not in resource.attributes
+                    attr for attr in rule.required_attributes if attr not in resource.attributes
                 ]
                 if missing:
                     fix = self._generate_auto_fix(resource, rule, missing)
-                    violations.append(IaCViolation(
-                        rule_id=rule.id,
-                        resource_type=resource.resource_type,
-                        resource_name=resource.resource_name,
-                        provider=resource.provider,
-                        severity=rule.severity,
-                        framework=rule.framework,
-                        description=f"{rule.description} (missing: {', '.join(missing)})",
-                        remediation=fix["remediation"],
-                        file_path=resource.file_path,
-                        line_number=resource.line_number,
-                        auto_fix_available=fix["available"],
-                        auto_fix_diff=fix.get("diff", ""),
-                        fingerprint=hashlib.sha256(
-                            f"{rule.id}:{resource.resource_name}:{resource.file_path}".encode()
-                        ).hexdigest()[:16],
-                    ))
-                    continue
-
-            # Check forbidden values
-            if rule.forbidden_values:
-                for attr, forbidden in rule.forbidden_values.items():
-                    if str(resource.attributes.get(attr, "")) in forbidden:
-                        violations.append(IaCViolation(
+                    violations.append(
+                        IaCViolation(
                             rule_id=rule.id,
                             resource_type=resource.resource_type,
                             resource_name=resource.resource_name,
                             provider=resource.provider,
                             severity=rule.severity,
                             framework=rule.framework,
-                            description=f"{rule.description} (forbidden value for '{attr}')",
-                            remediation=f"Remove or change '{attr}' from forbidden value",
+                            description=f"{rule.description} (missing: {', '.join(missing)})",
+                            remediation=fix["remediation"],
                             file_path=resource.file_path,
                             line_number=resource.line_number,
+                            auto_fix_available=fix["available"],
+                            auto_fix_diff=fix.get("diff", ""),
                             fingerprint=hashlib.sha256(
-                                f"{rule.id}:{resource.resource_name}:{attr}".encode()
+                                f"{rule.id}:{resource.resource_name}:{resource.file_path}".encode()
                             ).hexdigest()[:16],
-                        ))
+                        )
+                    )
+                    continue
+
+            # Check forbidden values
+            if rule.forbidden_values:
+                for attr, forbidden in rule.forbidden_values.items():
+                    if str(resource.attributes.get(attr, "")) in forbidden:
+                        violations.append(
+                            IaCViolation(
+                                rule_id=rule.id,
+                                resource_type=resource.resource_type,
+                                resource_name=resource.resource_name,
+                                provider=resource.provider,
+                                severity=rule.severity,
+                                framework=rule.framework,
+                                description=f"{rule.description} (forbidden value for '{attr}')",
+                                remediation=f"Remove or change '{attr}' from forbidden value",
+                                file_path=resource.file_path,
+                                line_number=resource.line_number,
+                                fingerprint=hashlib.sha256(
+                                    f"{rule.id}:{resource.resource_name}:{attr}".encode()
+                                ).hexdigest()[:16],
+                            )
+                        )
 
             # Pattern-based check (legacy compatibility)
             if rule.pattern in resource.resource_type and not rule.required_attributes:
                 # Check common anti-patterns
                 if self._check_common_violations(resource, rule):
                     fix = self._generate_auto_fix(resource, rule, [])
-                    violations.append(IaCViolation(
-                        rule_id=rule.id,
-                        resource_type=resource.resource_type,
-                        resource_name=resource.resource_name,
-                        provider=resource.provider,
-                        severity=rule.severity,
-                        framework=rule.framework,
-                        description=rule.description,
-                        remediation=fix["remediation"],
-                        file_path=resource.file_path,
-                        line_number=resource.line_number,
-                        auto_fix_available=fix["available"],
-                        auto_fix_diff=fix.get("diff", ""),
-                        fingerprint=hashlib.sha256(
-                            f"{rule.id}:{resource.resource_name}".encode()
-                        ).hexdigest()[:16],
-                    ))
+                    violations.append(
+                        IaCViolation(
+                            rule_id=rule.id,
+                            resource_type=resource.resource_type,
+                            resource_name=resource.resource_name,
+                            provider=resource.provider,
+                            severity=rule.severity,
+                            framework=rule.framework,
+                            description=rule.description,
+                            remediation=fix["remediation"],
+                            file_path=resource.file_path,
+                            line_number=resource.line_number,
+                            auto_fix_available=fix["available"],
+                            auto_fix_diff=fix.get("diff", ""),
+                            fingerprint=hashlib.sha256(
+                                f"{rule.id}:{resource.resource_name}".encode()
+                            ).hexdigest()[:16],
+                        )
+                    )
 
         return violations
 
@@ -958,7 +975,9 @@ class IaCPolicyEngine:
     # ─── Auto-Remediation ─────────────────────────────────────────────
 
     def _generate_auto_fix(
-        self, resource: ParsedResource, rule: PolicyRule,
+        self,
+        resource: ParsedResource,
+        rule: PolicyRule,
         missing_attrs: list[str],
     ) -> dict:
         """Generate auto-fix diff for a violation."""
@@ -978,9 +997,7 @@ class IaCPolicyEngine:
                 fix_lines.append(fix_templates[attr])
 
         if fix_lines:
-            diff = "\n".join(
-                [f"+{line}" for line in fix_lines]
-            )
+            diff = "\n".join([f"+{line}" for line in fix_lines])
             return {
                 "available": True,
                 "remediation": f"Add to {resource.resource_type} '{resource.resource_name}': {', '.join(missing_attrs)}",
@@ -1012,10 +1029,12 @@ class IaCPolicyEngine:
                 patch_lines.append(f"@@ -{v.line_number},1 +{v.line_number},3 @@")
                 patch_lines.append(f" # Auto-fix: {v.rule_id}")
                 patch_lines.append(v.auto_fix_diff)
-            files_changed.append({
-                "path": file_path,
-                "patch": "\n".join(patch_lines),
-            })
+            files_changed.append(
+                {
+                    "path": file_path,
+                    "patch": "\n".join(patch_lines),
+                }
+            )
 
         title = f"fix(compliance): auto-remediate {len(fixable)} IaC violations"
         body = (
@@ -1049,8 +1068,11 @@ class IaCPolicyEngine:
         for i, rule in enumerate(rules):
             if i % 3 == 0:
                 fix = self._generate_auto_fix(
-                    ParsedResource(resource_type=rule.pattern, resource_name=f"resource_{rule.id.lower()}"),
-                    rule, [],
+                    ParsedResource(
+                        resource_type=rule.pattern, resource_name=f"resource_{rule.id.lower()}"
+                    ),
+                    rule,
+                    [],
                 )
                 violations.append(
                     IaCViolation(
@@ -1162,9 +1184,7 @@ class IaCPolicyEngine:
     async def export_sarif(self, scan_id: str | None = None) -> dict:
         """Export scan results as SARIF v2.1.0."""
         if scan_id:
-            result = next(
-                (r for r in self._scan_history if str(r.id) == scan_id), None
-            )
+            result = next((r for r in self._scan_history if str(r.id) == scan_id), None)
             if not result:
                 return {"error": "Scan not found"}
             return result.to_sarif()
@@ -1189,17 +1209,19 @@ class IaCPolicyEngine:
 
         for rule in rules:
             rule_name = rule.id.lower().replace("-", "_")
-            lines.extend([
-                f"# Rule: {rule.id} - {rule.name}",
-                f"# Framework: {rule.framework} | Severity: {rule.severity.value}",
-                f"deny_{rule_name}[msg] {{",
-                "    resource := input.resources[_]",
-                f'    resource.type == "{rule.pattern}"',
-                f"    not resource.config.compliant_{rule_name}",
-                f'    msg := "{rule.id}: {rule.description}"',
-                "}",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"# Rule: {rule.id} - {rule.name}",
+                    f"# Framework: {rule.framework} | Severity: {rule.severity.value}",
+                    f"deny_{rule_name}[msg] {{",
+                    "    resource := input.resources[_]",
+                    f'    resource.type == "{rule.pattern}"',
+                    f"    not resource.config.compliant_{rule_name}",
+                    f'    msg := "{rule.id}: {rule.description}"',
+                    "}",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 

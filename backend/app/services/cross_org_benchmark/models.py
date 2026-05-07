@@ -42,6 +42,7 @@ class ImprovementPriority(str, Enum):
 @dataclass
 class DifferentialPrivacyConfig:
     """Configuration for differential privacy Laplace noise mechanism."""
+
     epsilon: float = 1.0
     delta: float = 1e-5
     sensitivity: float = 1.0
@@ -64,6 +65,7 @@ class AnonymizedProfile:
 @dataclass
 class BenchmarkSubmission:
     """Anonymized benchmark data submission from an organization."""
+
     id: UUID = field(default_factory=uuid4)
     industry: Industry = Industry.SAAS
     org_size: OrgSize = OrgSize.MEDIUM
@@ -79,6 +81,7 @@ class BenchmarkSubmission:
 @dataclass
 class PercentileRanking:
     """Percentile rankings across multiple dimensions."""
+
     overall_percentile: float = 0.0
     industry_percentile: float = 0.0
     size_percentile: float = 0.0
@@ -92,6 +95,7 @@ class PercentileRanking:
 @dataclass
 class PeerGroup:
     """Definition of a peer group for 'companies like you' comparison."""
+
     id: UUID = field(default_factory=uuid4)
     industry: Industry = Industry.SAAS
     org_size: OrgSize = OrgSize.MEDIUM
@@ -108,6 +112,7 @@ class PeerGroup:
 @dataclass
 class PeerRecommendation:
     """Anonymized recommendation derived from peer group analysis."""
+
     area: str = ""
     priority: ImprovementPriority = ImprovementPriority.MEDIUM
     your_score: float = 0.0
@@ -120,6 +125,7 @@ class PeerRecommendation:
 @dataclass
 class InsightsDashboard:
     """Aggregated insights dashboard with improvement priorities."""
+
     org_score: float = 0.0
     rankings: PercentileRanking = field(default_factory=PercentileRanking)
     peer_group: PeerGroup = field(default_factory=PeerGroup)

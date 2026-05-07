@@ -137,7 +137,9 @@ class ComplianceDebtService:
                 status=DebtStatus.OPEN,
                 risk_cost_usd=item_def["risk_cost_usd"],
                 remediation_cost_usd=item_def["remediation_cost_usd"],
-                roi=self._calculate_roi(item_def["risk_cost_usd"], item_def["remediation_cost_usd"]),
+                roi=self._calculate_roi(
+                    item_def["risk_cost_usd"], item_def["remediation_cost_usd"]
+                ),
                 days_open=item_def["days_open"],
                 repo=item_def["repo"],
                 created_at=datetime.now(UTC),
@@ -197,7 +199,9 @@ class ComplianceDebtService:
         logger.info("Debt item acknowledged", item_id=item_id, title=item.title)
         return item
 
-    async def list_debt(self, sort_by_roi: bool = True, framework: str | None = None) -> list[ComplianceDebtItem]:
+    async def list_debt(
+        self, sort_by_roi: bool = True, framework: str | None = None
+    ) -> list[ComplianceDebtItem]:
         items = list(self._items.values())
         if framework:
             items = [i for i in items if i.framework == framework]

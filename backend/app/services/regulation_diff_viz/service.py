@@ -21,26 +21,82 @@ logger = structlog.get_logger()
 # Sample regulation version data
 _REGULATION_VERSIONS: dict[str, list[dict]] = {
     "GDPR": [
-        {"version": "2016/679", "effective_date": "2018-05-25", "sections": [
-            {"id": "art-5", "title": "Principles relating to processing", "text": "Personal data shall be processed lawfully, fairly and in a transparent manner."},
-            {"id": "art-6", "title": "Lawfulness of processing", "text": "Processing shall be lawful only if and to the extent that at least one of the conditions applies."},
-            {"id": "art-17", "title": "Right to erasure", "text": "The data subject shall have the right to obtain from the controller the erasure of personal data."},
-        ]},
-        {"version": "2024/amendment", "effective_date": "2025-01-01", "sections": [
-            {"id": "art-5", "title": "Principles relating to processing", "text": "Personal data shall be processed lawfully, fairly, transparently, and with accountability measures."},
-            {"id": "art-6", "title": "Lawfulness of processing", "text": "Processing shall be lawful only if and to the extent that at least one of the conditions applies. AI-based processing requires additional safeguards."},
-            {"id": "art-17", "title": "Right to erasure", "text": "The data subject shall have the right to obtain from the controller the erasure of personal data."},
-            {"id": "art-22a", "title": "AI-specific data processing", "text": "Automated decision-making using AI requires human oversight and explainability."},
-        ]},
+        {
+            "version": "2016/679",
+            "effective_date": "2018-05-25",
+            "sections": [
+                {
+                    "id": "art-5",
+                    "title": "Principles relating to processing",
+                    "text": "Personal data shall be processed lawfully, fairly and in a transparent manner.",
+                },
+                {
+                    "id": "art-6",
+                    "title": "Lawfulness of processing",
+                    "text": "Processing shall be lawful only if and to the extent that at least one of the conditions applies.",
+                },
+                {
+                    "id": "art-17",
+                    "title": "Right to erasure",
+                    "text": "The data subject shall have the right to obtain from the controller the erasure of personal data.",
+                },
+            ],
+        },
+        {
+            "version": "2024/amendment",
+            "effective_date": "2025-01-01",
+            "sections": [
+                {
+                    "id": "art-5",
+                    "title": "Principles relating to processing",
+                    "text": "Personal data shall be processed lawfully, fairly, transparently, and with accountability measures.",
+                },
+                {
+                    "id": "art-6",
+                    "title": "Lawfulness of processing",
+                    "text": "Processing shall be lawful only if and to the extent that at least one of the conditions applies. AI-based processing requires additional safeguards.",
+                },
+                {
+                    "id": "art-17",
+                    "title": "Right to erasure",
+                    "text": "The data subject shall have the right to obtain from the controller the erasure of personal data.",
+                },
+                {
+                    "id": "art-22a",
+                    "title": "AI-specific data processing",
+                    "text": "Automated decision-making using AI requires human oversight and explainability.",
+                },
+            ],
+        },
     ],
     "HIPAA": [
-        {"version": "1996/original", "effective_date": "1996-08-21", "sections": [
-            {"id": "164-312", "title": "Technical safeguards", "text": "Implement technical policies and procedures for electronic information systems."},
-        ]},
-        {"version": "2024/update", "effective_date": "2025-06-01", "sections": [
-            {"id": "164-312", "title": "Technical safeguards", "text": "Implement technical policies and procedures for electronic information systems including AI-assisted diagnostics."},
-            {"id": "164-312a", "title": "AI in healthcare", "text": "AI systems processing PHI must maintain audit logs and explainability."},
-        ]},
+        {
+            "version": "1996/original",
+            "effective_date": "1996-08-21",
+            "sections": [
+                {
+                    "id": "164-312",
+                    "title": "Technical safeguards",
+                    "text": "Implement technical policies and procedures for electronic information systems.",
+                },
+            ],
+        },
+        {
+            "version": "2024/update",
+            "effective_date": "2025-06-01",
+            "sections": [
+                {
+                    "id": "164-312",
+                    "title": "Technical safeguards",
+                    "text": "Implement technical policies and procedures for electronic information systems including AI-assisted diagnostics.",
+                },
+                {
+                    "id": "164-312a",
+                    "title": "AI in healthcare",
+                    "text": "AI systems processing PHI must maintain audit logs and explainability.",
+                },
+            ],
+        },
     ],
 }
 
@@ -94,31 +150,54 @@ class RegulationDiffVizService:
             new_s = new_sections.get(sid)
 
             if old_s and not new_s:
-                diff_sections.append(DiffSection(
-                    section_id=sid, title=old_s["title"], change_type=DiffChangeType.REMOVED,
-                    old_text=old_s["text"], impact_level=ImpactLevel.BREAKING,
-                    recommendations=["Review dependent code for removed requirements"],
-                ))
+                diff_sections.append(
+                    DiffSection(
+                        section_id=sid,
+                        title=old_s["title"],
+                        change_type=DiffChangeType.REMOVED,
+                        old_text=old_s["text"],
+                        impact_level=ImpactLevel.BREAKING,
+                        recommendations=["Review dependent code for removed requirements"],
+                    )
+                )
             elif new_s and not old_s:
-                diff_sections.append(DiffSection(
-                    section_id=sid, title=new_s["title"], change_type=DiffChangeType.ADDED,
-                    new_text=new_s["text"], impact_level=ImpactLevel.SIGNIFICANT,
-                    recommendations=["Implement new requirement", "Update compliance documentation"],
-                ))
+                diff_sections.append(
+                    DiffSection(
+                        section_id=sid,
+                        title=new_s["title"],
+                        change_type=DiffChangeType.ADDED,
+                        new_text=new_s["text"],
+                        impact_level=ImpactLevel.SIGNIFICANT,
+                        recommendations=[
+                            "Implement new requirement",
+                            "Update compliance documentation",
+                        ],
+                    )
+                )
             elif old_s and new_s:
                 if old_s["text"] != new_s["text"]:
-                    diff_sections.append(DiffSection(
-                        section_id=sid, title=new_s["title"], change_type=DiffChangeType.MODIFIED,
-                        old_text=old_s["text"], new_text=new_s["text"],
-                        impact_level=ImpactLevel.SIGNIFICANT,
-                        recommendations=["Review code for compliance with updated text"],
-                    ))
+                    diff_sections.append(
+                        DiffSection(
+                            section_id=sid,
+                            title=new_s["title"],
+                            change_type=DiffChangeType.MODIFIED,
+                            old_text=old_s["text"],
+                            new_text=new_s["text"],
+                            impact_level=ImpactLevel.SIGNIFICANT,
+                            recommendations=["Review code for compliance with updated text"],
+                        )
+                    )
                 else:
-                    diff_sections.append(DiffSection(
-                        section_id=sid, title=new_s["title"], change_type=DiffChangeType.UNCHANGED,
-                        old_text=old_s["text"], new_text=new_s["text"],
-                        impact_level=ImpactLevel.COSMETIC,
-                    ))
+                    diff_sections.append(
+                        DiffSection(
+                            section_id=sid,
+                            title=new_s["title"],
+                            change_type=DiffChangeType.UNCHANGED,
+                            old_text=old_s["text"],
+                            new_text=new_s["text"],
+                            impact_level=ImpactLevel.COSMETIC,
+                        )
+                    )
 
         changed = [s for s in diff_sections if s.change_type != DiffChangeType.UNCHANGED]
         impact_summary = {}

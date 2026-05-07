@@ -75,7 +75,11 @@ class CostBenefitAnalyzerService:
             return None
         net = inv.risk_reduction_usd - inv.cost_usd
         roi = round((net / inv.cost_usd) * 100, 1) if inv.cost_usd > 0 else 0
-        payback = round(inv.cost_usd / (inv.risk_reduction_usd / 12), 1) if inv.risk_reduction_usd > 0 else 999
+        payback = (
+            round(inv.cost_usd / (inv.risk_reduction_usd / 12), 1)
+            if inv.risk_reduction_usd > 0
+            else 999
+        )
         return ROICalculation(
             investment_id=inv.id,
             investment_name=inv.name,
@@ -106,7 +110,15 @@ class CostBenefitAnalyzerService:
                 hours += inv.engineering_hours
                 score_pts += inv.score_impact
             cpp = round(total / score_pts, 2) if score_pts > 0 else 0
-            breakdowns.append(CostBreakdown(framework=fw, total_cost=total, by_category=by_cat, engineering_hours=hours, cost_per_point=cpp))
+            breakdowns.append(
+                CostBreakdown(
+                    framework=fw,
+                    total_cost=total,
+                    by_category=by_cat,
+                    engineering_hours=hours,
+                    cost_per_point=cpp,
+                )
+            )
         return breakdowns
 
     async def generate_executive_report(self, period: str = "Q1 2026") -> ExecutiveReport:
@@ -124,8 +136,12 @@ class CostBenefitAnalyzerService:
         breakdowns = self.get_cost_breakdown()
         highlights = []
         if total_risk > total_inv:
-            highlights.append(f"Net positive ROI: ${total_risk - total_inv:,.0f} in risk reduction exceeds ${total_inv:,.0f} investment")
-        highlights.append(f"{len(self._investments)} compliance investments tracked across {len({i.framework for i in self._investments})} frameworks")
+            highlights.append(
+                f"Net positive ROI: ${total_risk - total_inv:,.0f} in risk reduction exceeds ${total_inv:,.0f} investment"
+            )
+        highlights.append(
+            f"{len(self._investments)} compliance investments tracked across {len({i.framework for i in self._investments})} frameworks"
+        )
 
         recommendations = []
         if total_inv == 0:
@@ -134,7 +150,9 @@ class CostBenefitAnalyzerService:
             low_roi = [i for i in self._investments if i.risk_reduction_usd < i.cost_usd]
             if low_roi:
                 recommendations.append(f"Review {len(low_roi)} investments with negative ROI")
-            recommendations.append("Consider increasing investment in highest-fine-exposure frameworks")
+            recommendations.append(
+                "Consider increasing investment in highest-fine-exposure frameworks"
+            )
 
         report = ExecutiveReport(
             period=period,
@@ -150,7 +168,9 @@ class CostBenefitAnalyzerService:
         logger.info("Executive report generated", period=period, roi=overall_roi)
         return report
 
-    def list_investments(self, framework: str | None = None, limit: int = 50) -> list[ComplianceInvestment]:
+    def list_investments(
+        self, framework: str | None = None, limit: int = 50
+    ) -> list[ComplianceInvestment]:
         results = list(self._investments)
         if framework:
             results = [i for i in results if i.framework == framework]

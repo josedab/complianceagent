@@ -152,7 +152,6 @@ class IncidentWarRoomService:
         if not incident:
             raise ValueError(f"Incident not found: {incident_id}")
 
-
         post_mortem = PostMortem(
             incident_id=incident.id,
             root_cause=f"Compliance incident involving {incident.regulation or 'unknown regulation'}: {incident.description[:200]}",
@@ -171,7 +170,9 @@ class IncidentWarRoomService:
             generated_at=datetime.now(UTC),
         )
         self._post_mortems.append(post_mortem)
-        logger.info("Post-mortem generated", incident_id=incident_id, post_mortem_id=str(post_mortem.id))
+        logger.info(
+            "Post-mortem generated", incident_id=incident_id, post_mortem_id=str(post_mortem.id)
+        )
         return post_mortem
 
     async def list_incidents(self, phase: str | None = None) -> list[WarRoomIncident]:
@@ -204,6 +205,8 @@ class IncidentWarRoomService:
             total_incidents=len(incidents),
             by_severity=by_severity,
             by_phase=by_phase,
-            avg_resolution_hours=round(sum(resolution_hours) / len(resolution_hours), 1) if resolution_hours else 0.0,
+            avg_resolution_hours=round(sum(resolution_hours) / len(resolution_hours), 1)
+            if resolution_hours
+            else 0.0,
             post_mortems_generated=len(self._post_mortems),
         )

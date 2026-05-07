@@ -74,32 +74,88 @@ class ComplianceExportService:
 
     def _gen_posture_data(self, filters: dict) -> list[dict]:
         return [
-            {"repo": "org/api-service", "framework": "GDPR", "score": 88.0, "grade": "B+", "date": "2026-02-21"},
-            {"repo": "org/api-service", "framework": "HIPAA", "score": 82.0, "grade": "B", "date": "2026-02-21"},
-            {"repo": "org/web-app", "framework": "GDPR", "score": 91.0, "grade": "A-", "date": "2026-02-21"},
+            {
+                "repo": "org/api-service",
+                "framework": "GDPR",
+                "score": 88.0,
+                "grade": "B+",
+                "date": "2026-02-21",
+            },
+            {
+                "repo": "org/api-service",
+                "framework": "HIPAA",
+                "score": 82.0,
+                "grade": "B",
+                "date": "2026-02-21",
+            },
+            {
+                "repo": "org/web-app",
+                "framework": "GDPR",
+                "score": 91.0,
+                "grade": "A-",
+                "date": "2026-02-21",
+            },
         ]
 
     def _gen_violations_data(self, filters: dict) -> list[dict]:
         return [
-            {"id": "v-001", "file": "src/api/users.py", "rule": "gdpr-consent", "severity": "high", "framework": "GDPR"},
-            {"id": "v-002", "file": "src/payments.py", "rule": "pci-tokenization", "severity": "critical", "framework": "PCI-DSS"},
+            {
+                "id": "v-001",
+                "file": "src/api/users.py",
+                "rule": "gdpr-consent",
+                "severity": "high",
+                "framework": "GDPR",
+            },
+            {
+                "id": "v-002",
+                "file": "src/payments.py",
+                "rule": "pci-tokenization",
+                "severity": "critical",
+                "framework": "PCI-DSS",
+            },
         ]
 
     def _gen_audit_data(self, filters: dict) -> list[dict]:
         return [
-            {"id": "a-001", "event": "compliance_verified", "actor": "system", "timestamp": "2026-02-21T10:00:00Z"},
-            {"id": "a-002", "event": "code_generated", "actor": "copilot", "timestamp": "2026-02-21T11:00:00Z"},
+            {
+                "id": "a-001",
+                "event": "compliance_verified",
+                "actor": "system",
+                "timestamp": "2026-02-21T10:00:00Z",
+            },
+            {
+                "id": "a-002",
+                "event": "code_generated",
+                "actor": "copilot",
+                "timestamp": "2026-02-21T11:00:00Z",
+            },
         ]
 
     def _gen_regulations_data(self, filters: dict) -> list[dict]:
         return [
-            {"id": "GDPR", "name": "General Data Protection Regulation", "jurisdiction": "EU", "articles": 99},
-            {"id": "HIPAA", "name": "Health Insurance Portability Act", "jurisdiction": "US", "articles": 45},
+            {
+                "id": "GDPR",
+                "name": "General Data Protection Regulation",
+                "jurisdiction": "EU",
+                "articles": 99,
+            },
+            {
+                "id": "HIPAA",
+                "name": "Health Insurance Portability Act",
+                "jurisdiction": "US",
+                "articles": 45,
+            },
         ]
 
     def _gen_actions_data(self, filters: dict) -> list[dict]:
         return [
-            {"id": "ca-001", "type": "fix_applied", "repo": "org/api", "framework": "GDPR", "status": "completed"},
+            {
+                "id": "ca-001",
+                "type": "fix_applied",
+                "repo": "org/api",
+                "framework": "GDPR",
+                "status": "completed",
+            },
         ]
 
     def _gen_full_report(self, filters: dict) -> list[dict]:
@@ -116,7 +172,9 @@ class ComplianceExportService:
         jobs = list(self._jobs.values())
         if status:
             jobs = [j for j in jobs if j.status == status]
-        return sorted(jobs, key=lambda j: j.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            jobs, key=lambda j: j.created_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     async def create_schedule(
         self,

@@ -203,9 +203,7 @@ class MultiOrgOrchestratorService:
                         "entity": entity.name,
                         "score": entity.compliance_score,
                         "missing_frameworks": [
-                            f
-                            for f in ["SOC2", "GDPR", "ISO27001"]
-                            if f not in entity.frameworks
+                            f for f in ["SOC2", "GDPR", "ISO27001"] if f not in entity.frameworks
                         ],
                     }
                 )
@@ -216,9 +214,7 @@ class MultiOrgOrchestratorService:
 
         report = ConsolidatedReport(
             id=uuid.uuid4(),
-            hierarchy_name=hierarchy.entities[0].name
-            if hierarchy.entities
-            else "Unknown",
+            hierarchy_name=hierarchy.entities[0].name if hierarchy.entities else "Unknown",
             entities=entity_data,
             overall_score=hierarchy.avg_score,
             gaps=gaps,
@@ -243,12 +239,8 @@ class MultiOrgOrchestratorService:
         scores = [e.compliance_score for e in self._entities]
         avg = sum(scores) / len(scores) if scores else 0.0
 
-        root_ids = {
-            e.id for e in self._entities if e.parent_id is None
-        }
-        gap_count = sum(
-            1 for e in self._entities if e.compliance_score < 80.0
-        )
+        root_ids = {e.id for e in self._entities if e.parent_id is None}
+        gap_count = sum(1 for e in self._entities if e.compliance_score < 80.0)
 
         return MultiOrgStats(
             total_entities=len(self._entities),

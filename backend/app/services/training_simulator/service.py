@@ -120,13 +120,9 @@ class TrainingSimulatorService:
         """List training scenarios with optional filters."""
         results = list(self._scenarios)
         if category:
-            results = [
-                s for s in results if s.category == ScenarioCategory(category)
-            ]
+            results = [s for s in results if s.category == ScenarioCategory(category)]
         if difficulty:
-            results = [
-                s for s in results if s.difficulty == DifficultyLevel(difficulty)
-            ]
+            results = [s for s in results if s.difficulty == DifficultyLevel(difficulty)]
         return results
 
     async def start_simulation(
@@ -135,9 +131,7 @@ class TrainingSimulatorService:
         scenario_id: str,
     ) -> SimulationSession:
         """Start a new simulation session for a user."""
-        scenario = next(
-            (s for s in self._scenarios if s.id == scenario_id), None
-        )
+        scenario = next((s for s in self._scenarios if s.id == scenario_id), None)
         if not scenario:
             msg = f"Scenario {scenario_id} not found"
             raise ValueError(msg)
@@ -170,16 +164,12 @@ class TrainingSimulatorService:
         response: str,
     ) -> SimulationSession:
         """Submit a response for a simulation step."""
-        session = next(
-            (s for s in self._sessions if s.id == session_id), None
-        )
+        session = next((s for s in self._sessions if s.id == session_id), None)
         if not session:
             msg = f"Session {session_id} not found"
             raise ValueError(msg)
 
-        scenario = next(
-            (s for s in self._scenarios if s.id == session.scenario_id), None
-        )
+        scenario = next((s for s in self._scenarios if s.id == session.scenario_id), None)
         if not scenario:
             msg = f"Scenario {session.scenario_id} not found"
             raise ValueError(msg)
@@ -213,16 +203,12 @@ class TrainingSimulatorService:
         session_id: uuid.UUID,
     ) -> SimulationSession | TrainingCertificate:
         """Complete a simulation and optionally issue a certificate."""
-        session = next(
-            (s for s in self._sessions if s.id == session_id), None
-        )
+        session = next((s for s in self._sessions if s.id == session_id), None)
         if not session:
             msg = f"Session {session_id} not found"
             raise ValueError(msg)
 
-        scenario = next(
-            (s for s in self._scenarios if s.id == session.scenario_id), None
-        )
+        scenario = next((s for s in self._scenarios if s.id == session.scenario_id), None)
         if not scenario:
             msg = f"Scenario {session.scenario_id} not found"
             raise ValueError(msg)
@@ -263,9 +249,7 @@ class TrainingSimulatorService:
         session_id: uuid.UUID,
     ) -> SimulationSession | None:
         """Get a simulation session by ID."""
-        return next(
-            (s for s in self._sessions if s.id == session_id), None
-        )
+        return next((s for s in self._sessions if s.id == session_id), None)
 
     async def list_sessions(
         self,
@@ -279,9 +263,7 @@ class TrainingSimulatorService:
     async def get_stats(self) -> SimulatorStats:
         """Get aggregate simulator statistics."""
         total = len(self._sessions)
-        completed = [
-            s for s in self._sessions if s.status == SimStatus.completed
-        ]
+        completed = [s for s in self._sessions if s.status == SimStatus.completed]
         scores = [s.score for s in completed]
         avg_score = sum(scores) / len(scores) if scores else 0.0
         passed = sum(1 for s in completed if s.score >= 70.0)

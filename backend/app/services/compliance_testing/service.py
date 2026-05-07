@@ -69,7 +69,9 @@ class ComplianceTestingService:
                 violation_expected=True,
                 violation_found=any(p in code.lower() for p in patterns),
             )
-            tc.actual_result = TestResult.PASS if tc.violation_found == tc.violation_expected else TestResult.FAIL
+            tc.actual_result = (
+                TestResult.PASS if tc.violation_found == tc.violation_expected else TestResult.FAIL
+            )
             test_cases.append(tc)
 
         # Generate negative tests (should NOT detect violations)
@@ -83,7 +85,9 @@ class ComplianceTestingService:
                 violation_expected=False,
                 violation_found=any(p in code.lower() for p in patterns),
             )
-            tc.actual_result = TestResult.PASS if tc.violation_found == tc.violation_expected else TestResult.FAIL
+            tc.actual_result = (
+                TestResult.PASS if tc.violation_found == tc.violation_expected else TestResult.FAIL
+            )
             test_cases.append(tc)
 
         duration = (datetime.now(UTC) - start).total_seconds() * 1000
@@ -135,8 +139,17 @@ class ComplianceTestingService:
                 false_positives += 1
                 edge_cases.append({"iteration": i, "type": "false_positive", "code": code})
 
-        total_checks = violations_found + false_positives + false_negatives + (iterations - violations_found - false_negatives)
-        accuracy = round((total_checks - false_positives - false_negatives) / total_checks * 100, 1) if total_checks else 0.0
+        total_checks = (
+            violations_found
+            + false_positives
+            + false_negatives
+            + (iterations - violations_found - false_negatives)
+        )
+        accuracy = (
+            round((total_checks - false_positives - false_negatives) / total_checks * 100, 1)
+            if total_checks
+            else 0.0
+        )
 
         result = FuzzResult(
             policy_slug=policy_slug,

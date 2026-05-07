@@ -35,6 +35,7 @@ class ImpactSeverity(str, Enum):
 
 class MomentumIndicator(str, Enum):
     """NLP-extracted regulatory momentum indicators."""
+
     ACCELERATING = "accelerating"
     STEADY = "steady"
     DECELERATING = "decelerating"
@@ -71,6 +72,7 @@ class RegulatorySignal:
 @dataclass
 class LegislativeActivity:
     """Tracked legislative committee activity."""
+
     id: UUID = field(default_factory=uuid4)
     committee: str = ""
     jurisdiction: str = ""
@@ -86,6 +88,7 @@ class LegislativeActivity:
 @dataclass
 class GlobalPrecedent:
     """Cross-jurisdiction regulatory precedent."""
+
     id: UUID = field(default_factory=uuid4)
     origin_jurisdiction: str = ""
     regulation_name: str = ""
@@ -98,6 +101,7 @@ class GlobalPrecedent:
 @dataclass
 class TimeSeriesPrediction:
     """Time-series prediction with confidence intervals."""
+
     prediction_date: str = ""
     value: float = 0.0
     lower_bound: float = 0.0

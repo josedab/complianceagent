@@ -37,31 +37,133 @@ logger = structlog.get_logger()
 
 # Curated Core API of ~20 endpoints
 _SDK_ENDPOINTS: list[SDKEndpoint] = [
-    SDKEndpoint(path="/posture/score", method=ClientMethod.GET, description="Get compliance posture score", category="posture"),
-    SDKEndpoint(path="/posture/trend", method=ClientMethod.GET, description="Get posture score trend over time", category="posture"),
-    SDKEndpoint(path="/violations", method=ClientMethod.GET, description="List compliance violations", category="violations"),
-    SDKEndpoint(path="/violations/{id}", method=ClientMethod.GET, description="Get violation details", category="violations"),
-    SDKEndpoint(path="/regulations", method=ClientMethod.GET, description="List tracked regulations", category="regulations"),
-    SDKEndpoint(path="/regulations/{id}/requirements", method=ClientMethod.GET, description="Get regulation requirements", category="regulations"),
-    SDKEndpoint(path="/audit/trail", method=ClientMethod.GET, description="Get audit trail events", category="audit"),
-    SDKEndpoint(path="/audit/reports", method=ClientMethod.GET, description="List audit reports", category="audit"),
-    SDKEndpoint(path="/compliance/assess", method=ClientMethod.POST, description="Run compliance assessment", category="compliance"),
-    SDKEndpoint(path="/compliance/generate", method=ClientMethod.POST, description="Generate compliant code", category="compliance"),
-    SDKEndpoint(path="/scan/iac", method=ClientMethod.POST, description="Scan IaC for policy violations", category="scanning"),
-    SDKEndpoint(path="/scan/code", method=ClientMethod.POST, description="Scan source code for compliance issues", category="scanning"),
-    SDKEndpoint(path="/evidence/generate", method=ClientMethod.POST, description="Generate evidence package", category="evidence"),
-    SDKEndpoint(path="/evidence/vault", method=ClientMethod.GET, description="List evidence vault items", category="evidence"),
-    SDKEndpoint(path="/knowledge/search", method=ClientMethod.POST, description="Search compliance knowledge graph", category="knowledge"),
-    SDKEndpoint(path="/knowledge/query", method=ClientMethod.POST, description="Natural language compliance query", category="knowledge"),
-    SDKEndpoint(path="/predict/regulations", method=ClientMethod.GET, description="Get regulatory change predictions", category="predictions"),
-    SDKEndpoint(path="/predict/impact", method=ClientMethod.POST, description="Predict impact of a change", category="predictions"),
-    SDKEndpoint(path="/webhooks", method=ClientMethod.POST, description="Register a webhook subscription", category="webhooks"),
-    SDKEndpoint(path="/webhooks/{id}", method=ClientMethod.DELETE, description="Delete a webhook subscription", category="webhooks"),
+    SDKEndpoint(
+        path="/posture/score",
+        method=ClientMethod.GET,
+        description="Get compliance posture score",
+        category="posture",
+    ),
+    SDKEndpoint(
+        path="/posture/trend",
+        method=ClientMethod.GET,
+        description="Get posture score trend over time",
+        category="posture",
+    ),
+    SDKEndpoint(
+        path="/violations",
+        method=ClientMethod.GET,
+        description="List compliance violations",
+        category="violations",
+    ),
+    SDKEndpoint(
+        path="/violations/{id}",
+        method=ClientMethod.GET,
+        description="Get violation details",
+        category="violations",
+    ),
+    SDKEndpoint(
+        path="/regulations",
+        method=ClientMethod.GET,
+        description="List tracked regulations",
+        category="regulations",
+    ),
+    SDKEndpoint(
+        path="/regulations/{id}/requirements",
+        method=ClientMethod.GET,
+        description="Get regulation requirements",
+        category="regulations",
+    ),
+    SDKEndpoint(
+        path="/audit/trail",
+        method=ClientMethod.GET,
+        description="Get audit trail events",
+        category="audit",
+    ),
+    SDKEndpoint(
+        path="/audit/reports",
+        method=ClientMethod.GET,
+        description="List audit reports",
+        category="audit",
+    ),
+    SDKEndpoint(
+        path="/compliance/assess",
+        method=ClientMethod.POST,
+        description="Run compliance assessment",
+        category="compliance",
+    ),
+    SDKEndpoint(
+        path="/compliance/generate",
+        method=ClientMethod.POST,
+        description="Generate compliant code",
+        category="compliance",
+    ),
+    SDKEndpoint(
+        path="/scan/iac",
+        method=ClientMethod.POST,
+        description="Scan IaC for policy violations",
+        category="scanning",
+    ),
+    SDKEndpoint(
+        path="/scan/code",
+        method=ClientMethod.POST,
+        description="Scan source code for compliance issues",
+        category="scanning",
+    ),
+    SDKEndpoint(
+        path="/evidence/generate",
+        method=ClientMethod.POST,
+        description="Generate evidence package",
+        category="evidence",
+    ),
+    SDKEndpoint(
+        path="/evidence/vault",
+        method=ClientMethod.GET,
+        description="List evidence vault items",
+        category="evidence",
+    ),
+    SDKEndpoint(
+        path="/knowledge/search",
+        method=ClientMethod.POST,
+        description="Search compliance knowledge graph",
+        category="knowledge",
+    ),
+    SDKEndpoint(
+        path="/knowledge/query",
+        method=ClientMethod.POST,
+        description="Natural language compliance query",
+        category="knowledge",
+    ),
+    SDKEndpoint(
+        path="/predict/regulations",
+        method=ClientMethod.GET,
+        description="Get regulatory change predictions",
+        category="predictions",
+    ),
+    SDKEndpoint(
+        path="/predict/impact",
+        method=ClientMethod.POST,
+        description="Predict impact of a change",
+        category="predictions",
+    ),
+    SDKEndpoint(
+        path="/webhooks",
+        method=ClientMethod.POST,
+        description="Register a webhook subscription",
+        category="webhooks",
+    ),
+    SDKEndpoint(
+        path="/webhooks/{id}",
+        method=ClientMethod.DELETE,
+        description="Delete a webhook subscription",
+        category="webhooks",
+    ),
 ]
 
 _SDK_PACKAGES: list[SDKPackageInfo] = [
     SDKPackageInfo(
-        runtime=SDKRuntime.PYTHON, name="complianceagent", version="0.1.0",
+        runtime=SDKRuntime.PYTHON,
+        name="complianceagent",
+        version="0.1.0",
         install_command="pip install complianceagent",
         source_url="https://github.com/josedab/complianceagent-python",
         docs_url="https://docs.complianceagent.ai/sdk/python",
@@ -70,7 +172,9 @@ _SDK_PACKAGES: list[SDKPackageInfo] = [
         code_sample='from complianceagent import Client\n\nclient = Client(api_key="ca_...")\nscore = client.posture.get_score("org/repo")\nprint(f"Score: {score.overall_score}")',
     ),
     SDKPackageInfo(
-        runtime=SDKRuntime.TYPESCRIPT, name="@complianceagent/sdk", version="0.1.0",
+        runtime=SDKRuntime.TYPESCRIPT,
+        name="@complianceagent/sdk",
+        version="0.1.0",
         install_command="npm install @complianceagent/sdk",
         source_url="https://github.com/josedab/complianceagent-js",
         docs_url="https://docs.complianceagent.ai/sdk/typescript",
@@ -79,7 +183,9 @@ _SDK_PACKAGES: list[SDKPackageInfo] = [
         code_sample='import { ComplianceClient } from "@complianceagent/sdk";\n\nconst client = new ComplianceClient({ apiKey: "ca_..." });\nconst score = await client.posture.getScore("org/repo");',
     ),
     SDKPackageInfo(
-        runtime=SDKRuntime.GO, name="complianceagent-go", version="0.1.0",
+        runtime=SDKRuntime.GO,
+        name="complianceagent-go",
+        version="0.1.0",
         install_command="go get github.com/josedab/complianceagent-go",
         source_url="https://github.com/josedab/complianceagent-go",
         docs_url="https://docs.complianceagent.ai/sdk/go",
@@ -88,7 +194,9 @@ _SDK_PACKAGES: list[SDKPackageInfo] = [
         code_sample='client := complianceagent.NewClient("ca_...")\nscore, _ := client.Posture.GetScore("org/repo")\nfmt.Printf("Score: %f", score.OverallScore)',
     ),
     SDKPackageInfo(
-        runtime=SDKRuntime.JAVA, name="complianceagent-java", version="0.1.0",
+        runtime=SDKRuntime.JAVA,
+        name="complianceagent-java",
+        version="0.1.0",
         install_command='implementation "ai.complianceagent:sdk:0.1.0"',
         source_url="https://github.com/josedab/complianceagent-java",
         docs_url="https://docs.complianceagent.ai/sdk/java",
@@ -99,10 +207,38 @@ _SDK_PACKAGES: list[SDKPackageInfo] = [
 ]
 
 _RATE_LIMITS: dict[RateLimitTier, RateLimitConfig] = {
-    RateLimitTier.FREE: RateLimitConfig(tier=RateLimitTier.FREE, requests_per_minute=30, requests_per_hour=500, requests_per_day=5000, burst_limit=5, concurrent_requests=2),
-    RateLimitTier.STARTER: RateLimitConfig(tier=RateLimitTier.STARTER, requests_per_minute=60, requests_per_hour=2000, requests_per_day=20000, burst_limit=10, concurrent_requests=5),
-    RateLimitTier.PROFESSIONAL: RateLimitConfig(tier=RateLimitTier.PROFESSIONAL, requests_per_minute=120, requests_per_hour=5000, requests_per_day=50000, burst_limit=20, concurrent_requests=10),
-    RateLimitTier.ENTERPRISE: RateLimitConfig(tier=RateLimitTier.ENTERPRISE, requests_per_minute=600, requests_per_hour=20000, requests_per_day=200000, burst_limit=50, concurrent_requests=25),
+    RateLimitTier.FREE: RateLimitConfig(
+        tier=RateLimitTier.FREE,
+        requests_per_minute=30,
+        requests_per_hour=500,
+        requests_per_day=5000,
+        burst_limit=5,
+        concurrent_requests=2,
+    ),
+    RateLimitTier.STARTER: RateLimitConfig(
+        tier=RateLimitTier.STARTER,
+        requests_per_minute=60,
+        requests_per_hour=2000,
+        requests_per_day=20000,
+        burst_limit=10,
+        concurrent_requests=5,
+    ),
+    RateLimitTier.PROFESSIONAL: RateLimitConfig(
+        tier=RateLimitTier.PROFESSIONAL,
+        requests_per_minute=120,
+        requests_per_hour=5000,
+        requests_per_day=50000,
+        burst_limit=20,
+        concurrent_requests=10,
+    ),
+    RateLimitTier.ENTERPRISE: RateLimitConfig(
+        tier=RateLimitTier.ENTERPRISE,
+        requests_per_minute=600,
+        requests_per_hour=20000,
+        requests_per_day=200000,
+        burst_limit=50,
+        concurrent_requests=25,
+    ),
 }
 
 
@@ -117,7 +253,9 @@ class ClientSDKService:
 
     # ─── Endpoints & Packages ─────────────────────────────────────────
 
-    def list_endpoints(self, method: ClientMethod | None = None, category: str | None = None) -> list[SDKEndpoint]:
+    def list_endpoints(
+        self, method: ClientMethod | None = None, category: str | None = None
+    ) -> list[SDKEndpoint]:
         results = list(_SDK_ENDPOINTS)
         if method:
             results = [e for e in results if e.method == method]
@@ -137,7 +275,6 @@ class ClientSDKService:
 
     async def generate_client(self, runtime: str) -> GeneratedClient:
         rt = SDKRuntime(runtime)
-
 
         if rt == SDKRuntime.PYTHON:
             code = self._generate_python_client()
@@ -160,9 +297,13 @@ class ClientSDKService:
         for ep in _SDK_ENDPOINTS:
             fn_name = ep.path.strip("/").replace("/", "_").replace("-", "_")
             if ep.method == ClientMethod.GET:
-                methods.append(f'    async def {fn_name}(self, **params) -> dict:\n        """{ep.description}"""\n        return await self._request("GET", "{ep.path}", params=params)')
+                methods.append(
+                    f'    async def {fn_name}(self, **params) -> dict:\n        """{ep.description}"""\n        return await self._request("GET", "{ep.path}", params=params)'
+                )
             else:
-                methods.append(f'    async def {fn_name}(self, data: dict | None = None, **params) -> dict:\n        """{ep.description}"""\n        return await self._request("{ep.method.value}", "{ep.path}", json=data, params=params)')
+                methods.append(
+                    f'    async def {fn_name}(self, data: dict | None = None, **params) -> dict:\n        """{ep.description}"""\n        return await self._request("{ep.method.value}", "{ep.path}", json=data, params=params)'
+                )
         body = "\n\n".join(methods)
         return f'"""ComplianceAgent Python SDK — Auto-generated client."""\n\nimport httpx\n\n\nclass ComplianceClient:\n    def __init__(self, api_key: str, base_url: str = "https://api.complianceagent.ai/v1"):\n        self._base_url = base_url\n        self._headers = {{"Authorization": f"Bearer {{api_key}}"}}\n\n    async def _request(self, method: str, path: str, **kwargs) -> dict:\n        async with httpx.AsyncClient(base_url=self._base_url, headers=self._headers, timeout=30) as client:\n            resp = await client.request(method, path, **kwargs)\n            resp.raise_for_status()\n            return resp.json()\n\n{body}\n'
 
@@ -170,8 +311,12 @@ class ClientSDKService:
         methods = []
         for ep in _SDK_ENDPOINTS:
             fn_name = ep.path.strip("/").replace("/", "_").replace("-", "_")
-            fn_name = "".join(w.capitalize() if i > 0 else w for i, w in enumerate(fn_name.split("_")))
-            methods.append(f'  async {fn_name}(params?: Record<string, unknown>): Promise<unknown> {{\n    return this.request("{ep.method.value}", "{ep.path}", params);\n  }}')
+            fn_name = "".join(
+                w.capitalize() if i > 0 else w for i, w in enumerate(fn_name.split("_"))
+            )
+            methods.append(
+                f'  async {fn_name}(params?: Record<string, unknown>): Promise<unknown> {{\n    return this.request("{ep.method.value}", "{ep.path}", params);\n  }}'
+            )
         body = "\n\n".join(methods)
         return f'// ComplianceAgent TypeScript SDK — Auto-generated client\n\nexport class ComplianceClient {{\n  private baseUrl: string;\n  private apiKey: string;\n\n  constructor(config: {{ apiKey: string; baseUrl?: string }}) {{\n    this.apiKey = config.apiKey;\n    this.baseUrl = config.baseUrl || "https://api.complianceagent.ai/v1";\n  }}\n\n  private async request(method: string, path: string, params?: Record<string, unknown>): Promise<unknown> {{\n    const resp = await fetch(`${{this.baseUrl}}${{path}}`, {{\n      method,\n      headers: {{ Authorization: `Bearer ${{this.apiKey}}`, "Content-Type": "application/json" }},\n      body: method !== "GET" ? JSON.stringify(params) : undefined,\n    }});\n    return resp.json();\n  }}\n\n{body}\n}}\n'
 
@@ -190,7 +335,9 @@ class ClientSDKService:
             packages_available=len(_SDK_PACKAGES),
             by_method=by_method,
             total_downloads={"python": 2340, "typescript": 1820, "go": 540, "java": 280},
-            active_api_keys=sum(1 for k in self._api_keys.values() if k.status == APIKeyStatus.ACTIVE),
+            active_api_keys=sum(
+                1 for k in self._api_keys.values() if k.status == APIKeyStatus.ACTIVE
+            ),
             oauth2_clients=len(self._oauth2_clients),
         )
 
@@ -342,10 +489,17 @@ class ClientSDKService:
         """Check current rate limit status for an API key."""
         config = _RATE_LIMITS[api_key.tier]
         return RateLimitStatus(
-            remaining_minute=max(0, config.requests_per_minute - (api_key.usage_count % config.requests_per_minute)),
-            remaining_hour=max(0, config.requests_per_hour - (api_key.usage_count % config.requests_per_hour)),
-            remaining_day=max(0, config.requests_per_day - (api_key.usage_count % config.requests_per_day)),
-            is_limited=api_key.usage_count % config.requests_per_minute >= config.requests_per_minute,
+            remaining_minute=max(
+                0, config.requests_per_minute - (api_key.usage_count % config.requests_per_minute)
+            ),
+            remaining_hour=max(
+                0, config.requests_per_hour - (api_key.usage_count % config.requests_per_hour)
+            ),
+            remaining_day=max(
+                0, config.requests_per_day - (api_key.usage_count % config.requests_per_day)
+            ),
+            is_limited=api_key.usage_count % config.requests_per_minute
+            >= config.requests_per_minute,
         )
 
     def list_rate_limit_tiers(self) -> list[RateLimitConfig]:
@@ -375,7 +529,9 @@ class ClientSDKService:
             if ep.method in (ClientMethod.POST, ClientMethod.PUT, ClientMethod.PATCH):
                 operation["requestBody"] = {
                     "required": True,
-                    "content": {"application/json": {"schema": ep.request_schema or {"type": "object"}}},
+                    "content": {
+                        "application/json": {"schema": ep.request_schema or {"type": "object"}}
+                    },
                 }
 
             if path_key not in paths:
@@ -414,10 +570,32 @@ class ClientSDKService:
             "quickstart": {
                 "title": "Getting Started with ComplianceAgent API",
                 "steps": [
-                    {"step": 1, "title": "Create an API Key", "description": "Sign up and create an API key at https://app.complianceagent.ai/settings/api"},
-                    {"step": 2, "title": "Install SDK", "description": "Install the SDK for your language", "options": {rt.value: pkg.install_command for rt, pkg in zip([p.runtime for p in _SDK_PACKAGES], _SDK_PACKAGES, strict=True)}},
-                    {"step": 3, "title": "Make Your First Request", "description": "Check your compliance posture score"},
-                    {"step": 4, "title": "Explore Endpoints", "description": f"Browse {len(_SDK_ENDPOINTS)} available endpoints across {len(set(e.category for e in _SDK_ENDPOINTS))} categories"},
+                    {
+                        "step": 1,
+                        "title": "Create an API Key",
+                        "description": "Sign up and create an API key at https://app.complianceagent.ai/settings/api",
+                    },
+                    {
+                        "step": 2,
+                        "title": "Install SDK",
+                        "description": "Install the SDK for your language",
+                        "options": {
+                            rt.value: pkg.install_command
+                            for rt, pkg in zip(
+                                [p.runtime for p in _SDK_PACKAGES], _SDK_PACKAGES, strict=True
+                            )
+                        },
+                    },
+                    {
+                        "step": 3,
+                        "title": "Make Your First Request",
+                        "description": "Check your compliance posture score",
+                    },
+                    {
+                        "step": 4,
+                        "title": "Explore Endpoints",
+                        "description": f"Browse {len(_SDK_ENDPOINTS)} available endpoints across {len(set(e.category for e in _SDK_ENDPOINTS))} categories",
+                    },
                 ],
             },
             "code_samples": {

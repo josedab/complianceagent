@@ -19,11 +19,26 @@ logger = structlog.get_logger()
 
 _CHANGE_IMPACT: dict[ChangeType, dict] = {
     ChangeType.CODE_CHANGE: {"base_delta": -2.0, "risk": "May introduce new compliance violations"},
-    ChangeType.DEPENDENCY_ADD: {"base_delta": -3.0, "risk": "New dependency may have license/vulnerability issues"},
-    ChangeType.DEPENDENCY_REMOVE: {"base_delta": 1.0, "risk": "Removing may break compliance features"},
-    ChangeType.VENDOR_CHANGE: {"base_delta": -5.0, "risk": "Vendor change requires compliance re-assessment"},
-    ChangeType.ARCHITECTURE_CHANGE: {"base_delta": -4.0, "risk": "Architecture changes may affect data flow compliance"},
-    ChangeType.CONFIG_CHANGE: {"base_delta": -1.0, "risk": "Config changes may weaken security controls"},
+    ChangeType.DEPENDENCY_ADD: {
+        "base_delta": -3.0,
+        "risk": "New dependency may have license/vulnerability issues",
+    },
+    ChangeType.DEPENDENCY_REMOVE: {
+        "base_delta": 1.0,
+        "risk": "Removing may break compliance features",
+    },
+    ChangeType.VENDOR_CHANGE: {
+        "base_delta": -5.0,
+        "risk": "Vendor change requires compliance re-assessment",
+    },
+    ChangeType.ARCHITECTURE_CHANGE: {
+        "base_delta": -4.0,
+        "risk": "Architecture changes may affect data flow compliance",
+    },
+    ChangeType.CONFIG_CHANGE: {
+        "base_delta": -1.0,
+        "risk": "Config changes may weaken security controls",
+    },
 }
 
 
@@ -57,12 +72,15 @@ class TwinSimulationService:
         snapshot = self._snapshots.get(repo)
         base_score = snapshot.score if snapshot else 85.0
 
-        proposed = [ProposedChange(
-            change_type=ChangeType(c.get("change_type", "code_change")),
-            description=c.get("description", ""),
-            target=c.get("target", ""),
-            details=c.get("details", {}),
-        ) for c in changes]
+        proposed = [
+            ProposedChange(
+                change_type=ChangeType(c.get("change_type", "code_change")),
+                description=c.get("description", ""),
+                target=c.get("target", ""),
+                details=c.get("details", {}),
+            )
+            for c in changes
+        ]
 
         total_delta = 0.0
         framework_impacts = []
@@ -70,20 +88,38 @@ class TwinSimulationService:
         recommendations = []
 
         for change in proposed:
-            impact = _CHANGE_IMPACT.get(change.change_type, {"base_delta": -1.0, "risk": "Unknown impact"})
+            impact = _CHANGE_IMPACT.get(
+                change.change_type, {"base_delta": -1.0, "risk": "Unknown impact"}
+            )
             delta = impact["base_delta"]
             total_delta += delta
             warnings.append(impact["risk"])
 
             if change.change_type == ChangeType.VENDOR_CHANGE:
-                framework_impacts.append({"framework": "SOC2", "delta": -3.0, "reason": "Vendor re-assessment required"})
-                framework_impacts.append({"framework": "GDPR", "delta": -2.0, "reason": "Data processing agreement review needed"})
+                framework_impacts.append(
+                    {"framework": "SOC2", "delta": -3.0, "reason": "Vendor re-assessment required"}
+                )
+                framework_impacts.append(
+                    {
+                        "framework": "GDPR",
+                        "delta": -2.0,
+                        "reason": "Data processing agreement review needed",
+                    }
+                )
                 recommendations.append("Conduct vendor compliance assessment before change")
             elif change.change_type == ChangeType.DEPENDENCY_ADD:
-                framework_impacts.append({"framework": "NIS2", "delta": -2.0, "reason": "Supply chain risk"})
+                framework_impacts.append(
+                    {"framework": "NIS2", "delta": -2.0, "reason": "Supply chain risk"}
+                )
                 recommendations.append("Run SBOM analysis on new dependency")
             elif change.change_type == ChangeType.CODE_CHANGE:
-                framework_impacts.append({"framework": "GDPR", "delta": delta, "reason": "Code change may affect data processing"})
+                framework_impacts.append(
+                    {
+                        "framework": "GDPR",
+                        "delta": delta,
+                        "reason": "Code change may affect data processing",
+                    }
+                )
                 recommendations.append("Run compliance scan on changed files")
 
         new_score = max(0, min(100, base_score + total_delta))
@@ -111,7 +147,11 @@ class TwinSimulationService:
         return self._snapshots.get(repo)
 
     def list_simulations(self, limit: int = 20) -> list[SimulationResult]:
-        return sorted(self._simulations, key=lambda s: s.created_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            self._simulations,
+            key=lambda s: s.created_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
+        )[:limit]
 
     def get_history(self) -> SimulationHistory:
         by_type: dict[str, int] = {}

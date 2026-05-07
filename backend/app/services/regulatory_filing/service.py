@@ -213,7 +213,9 @@ class RegulatoryFilingService:
             raise ValueError(f"Filing cannot be submitted in status: {filing.status.value}")
         filing.status = FilingStatus.submitted
         filing.submitted_at = datetime.now(UTC)
-        filing.reference_number = f"REF-{filing.filing_type.value.upper()}-{str(filing.id)[:8].upper()}"
+        filing.reference_number = (
+            f"REF-{filing.filing_type.value.upper()}-{str(filing.id)[:8].upper()}"
+        )
         logger.info(
             "Filing submitted",
             filing_id=str(filing_id),
@@ -248,7 +250,9 @@ class RegulatoryFilingService:
             by_status[status_key] = by_status.get(status_key, 0) + 1
             if filing.deadline:
                 total_with_deadline += 1
-                if (filing.submitted_at and filing.submitted_at <= filing.deadline) or (filing.status == FilingStatus.draft and datetime.now(UTC) <= filing.deadline):
+                if (filing.submitted_at and filing.submitted_at <= filing.deadline) or (
+                    filing.status == FilingStatus.draft and datetime.now(UTC) <= filing.deadline
+                ):
                     on_time += 1
 
         on_time_pct = (on_time / total_with_deadline * 100) if total_with_deadline else 100.0

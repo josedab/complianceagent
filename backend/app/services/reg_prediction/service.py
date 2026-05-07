@@ -43,7 +43,11 @@ _SEED_PREDICTIONS: list[RegPrediction] = [
         impact_severity=ImpactSeverity.MAJOR,
         predicted_effective_date="2027-Q1",
         prediction_horizon_months=10,
-        supporting_signals=["EDPB guidelines consultation (2026-01)", "EP committee draft proposal (2025-11)", "CJEU ruling on automated decisions (2025-09)"],
+        supporting_signals=[
+            "EDPB guidelines consultation (2026-01)",
+            "EP committee draft proposal (2025-11)",
+            "CJEU ruling on automated decisions (2025-09)",
+        ],
         preparation_tasks=[
             {"task": "Audit all AI-assisted decision endpoints", "priority": "high"},
             {"task": "Implement human-in-the-loop for affected workflows", "priority": "high"},
@@ -61,7 +65,11 @@ _SEED_PREDICTIONS: list[RegPrediction] = [
         impact_severity=ImpactSeverity.TRANSFORMATIVE,
         predicted_effective_date="2028-Q2",
         prediction_horizon_months=24,
-        supporting_signals=["Congressional hearing transcripts (2026-01)", "FTC enforcement trends (2025-2026)", "Industry lobbying disclosures"],
+        supporting_signals=[
+            "Congressional hearing transcripts (2026-01)",
+            "FTC enforcement trends (2025-2026)",
+            "Industry lobbying disclosures",
+        ],
         preparation_tasks=[
             {"task": "Map all personal data processing across products", "priority": "high"},
             {"task": "Implement universal opt-out mechanisms", "priority": "medium"},
@@ -79,7 +87,11 @@ _SEED_PREDICTIONS: list[RegPrediction] = [
         impact_severity=ImpactSeverity.MAJOR,
         predicted_effective_date="2028-Q1",
         prediction_horizon_months=20,
-        supporting_signals=["NIST post-quantum standards finalized (2024)", "PCI SSC working group formed (2025-06)", "Visa cryptographic roadmap (2025)"],
+        supporting_signals=[
+            "NIST post-quantum standards finalized (2024)",
+            "PCI SSC working group formed (2025-06)",
+            "Visa cryptographic roadmap (2025)",
+        ],
         preparation_tasks=[
             {"task": "Inventory all cryptographic implementations", "priority": "high"},
             {"task": "Test post-quantum TLS libraries (ML-KEM)", "priority": "medium"},
@@ -97,7 +109,11 @@ _SEED_PREDICTIONS: list[RegPrediction] = [
         impact_severity=ImpactSeverity.MAJOR,
         predicted_effective_date="2026-Q4",
         prediction_horizon_months=8,
-        supporting_signals=["HHS Notice of Proposed Rulemaking (2024-12)", "Public comment period closed (2025-03)", "Congressional support statements"],
+        supporting_signals=[
+            "HHS Notice of Proposed Rulemaking (2024-12)",
+            "Public comment period closed (2025-03)",
+            "Congressional support statements",
+        ],
         preparation_tasks=[
             {"task": "Enable MFA on all PHI access points", "priority": "critical"},
             {"task": "Implement 72-hour incident reporting pipeline", "priority": "high"},
@@ -115,7 +131,11 @@ _SEED_PREDICTIONS: list[RegPrediction] = [
         impact_severity=ImpactSeverity.MODERATE,
         predicted_effective_date="2026-Q3",
         prediction_horizon_months=4,
-        supporting_signals=["ENISA supply chain guidance (2026-01)", "German BSI enforcement notices (2025-12)", "EU CRA implementation timeline"],
+        supporting_signals=[
+            "ENISA supply chain guidance (2026-01)",
+            "German BSI enforcement notices (2025-12)",
+            "EU CRA implementation timeline",
+        ],
         preparation_tasks=[
             {"task": "Generate SBOM for all production artifacts", "priority": "high"},
             {"task": "Assess all third-party vendor compliance", "priority": "medium"},
@@ -126,11 +146,46 @@ _SEED_PREDICTIONS: list[RegPrediction] = [
 ]
 
 _SEED_SIGNALS: list[RegulatorySignal] = [
-    RegulatorySignal(signal_type=SignalType.CONSULTATION, source="EDPB", jurisdiction="EU", title="EDPB launches consultation on AI-assisted decisions", relevance_score=0.92, detected_at=datetime(2026, 1, 15, tzinfo=UTC)),
-    RegulatorySignal(signal_type=SignalType.LEGISLATIVE, source="US Congress", jurisdiction="US", title="APRA bill reintroduced with bipartisan support", relevance_score=0.75, detected_at=datetime(2026, 1, 20, tzinfo=UTC)),
-    RegulatorySignal(signal_type=SignalType.ENFORCEMENT, source="HHS OCR", jurisdiction="US", title="HHS increases HIPAA audit frequency for cloud providers", relevance_score=0.88, detected_at=datetime(2026, 2, 1, tzinfo=UTC)),
-    RegulatorySignal(signal_type=SignalType.GUIDANCE, source="PCI SSC", jurisdiction="Global", title="PCI SSC publishes post-quantum migration guidance", relevance_score=0.70, detected_at=datetime(2026, 2, 5, tzinfo=UTC)),
-    RegulatorySignal(signal_type=SignalType.AMENDMENT, source="ENISA", jurisdiction="EU", title="ENISA updates NIS2 supply chain security guidelines", relevance_score=0.82, detected_at=datetime(2026, 2, 10, tzinfo=UTC)),
+    RegulatorySignal(
+        signal_type=SignalType.CONSULTATION,
+        source="EDPB",
+        jurisdiction="EU",
+        title="EDPB launches consultation on AI-assisted decisions",
+        relevance_score=0.92,
+        detected_at=datetime(2026, 1, 15, tzinfo=UTC),
+    ),
+    RegulatorySignal(
+        signal_type=SignalType.LEGISLATIVE,
+        source="US Congress",
+        jurisdiction="US",
+        title="APRA bill reintroduced with bipartisan support",
+        relevance_score=0.75,
+        detected_at=datetime(2026, 1, 20, tzinfo=UTC),
+    ),
+    RegulatorySignal(
+        signal_type=SignalType.ENFORCEMENT,
+        source="HHS OCR",
+        jurisdiction="US",
+        title="HHS increases HIPAA audit frequency for cloud providers",
+        relevance_score=0.88,
+        detected_at=datetime(2026, 2, 1, tzinfo=UTC),
+    ),
+    RegulatorySignal(
+        signal_type=SignalType.GUIDANCE,
+        source="PCI SSC",
+        jurisdiction="Global",
+        title="PCI SSC publishes post-quantum migration guidance",
+        relevance_score=0.70,
+        detected_at=datetime(2026, 2, 5, tzinfo=UTC),
+    ),
+    RegulatorySignal(
+        signal_type=SignalType.AMENDMENT,
+        source="ENISA",
+        jurisdiction="EU",
+        title="ENISA updates NIS2 supply chain security guidelines",
+        relevance_score=0.82,
+        detected_at=datetime(2026, 2, 10, tzinfo=UTC),
+    ),
 ]
 
 _SEED_ACTIVITIES: list[LegislativeActivity] = [
@@ -173,7 +228,11 @@ _SEED_PRECEDENTS: list[GlobalPrecedent] = [
         adopted_by=["Brazil (LGPD)", "Japan (APPI)", "South Korea (PIPA)", "India (DPDPA)"],
         adoption_lag_months=24,
         adaptation_level="modified",
-        key_differences=["Varying enforcement mechanisms", "Different consent models", "Sector-specific exemptions"],
+        key_differences=[
+            "Varying enforcement mechanisms",
+            "Different consent models",
+            "Sector-specific exemptions",
+        ],
     ),
     GlobalPrecedent(
         origin_jurisdiction="EU",
@@ -189,7 +248,11 @@ _SEED_PRECEDENTS: list[GlobalPrecedent] = [
         adopted_by=["Colorado", "Virginia", "Connecticut", "Utah", "Texas", "Oregon"],
         adoption_lag_months=12,
         adaptation_level="modified",
-        key_differences=["Private right of action scope", "Sensitive data definitions", "Opt-in vs opt-out defaults"],
+        key_differences=[
+            "Private right of action scope",
+            "Sensitive data definitions",
+            "Opt-in vs opt-out defaults",
+        ],
     ),
 ]
 
@@ -219,18 +282,32 @@ class RegPredictionService:
 
         # Keyword-based sentiment/urgency extraction
         urgency_keywords = {
-            "mandatory": 0.9, "required": 0.8, "must": 0.8, "shall": 0.7,
-            "immediately": 0.95, "effective immediately": 1.0,
-            "proposed": 0.4, "considering": 0.3, "may": 0.2,
+            "mandatory": 0.9,
+            "required": 0.8,
+            "must": 0.8,
+            "shall": 0.7,
+            "immediately": 0.95,
+            "effective immediately": 1.0,
+            "proposed": 0.4,
+            "considering": 0.3,
+            "may": 0.2,
         }
         enforcement_keywords = {
-            "fine": 0.8, "penalty": 0.8, "enforcement": 0.7, "audit": 0.6,
-            "sanction": 0.9, "revoke": 0.9, "suspend": 0.7,
+            "fine": 0.8,
+            "penalty": 0.8,
+            "enforcement": 0.7,
+            "audit": 0.6,
+            "sanction": 0.9,
+            "revoke": 0.9,
+            "suspend": 0.7,
         }
         scope_keywords = {
-            "all organizations": 0.9, "all companies": 0.9,
-            "critical infrastructure": 0.7, "essential services": 0.7,
-            "small and medium": 0.5, "large enterprises": 0.6,
+            "all organizations": 0.9,
+            "all companies": 0.9,
+            "critical infrastructure": 0.7,
+            "essential services": 0.7,
+            "small and medium": 0.5,
+            "large enterprises": 0.6,
         }
 
         urgency_score = max(
@@ -320,9 +397,9 @@ class RegPredictionService:
         for month in range(1, min(horizon + 1, 25)):
             # Confidence decays over time but stabilizes
             decay = 1.0 - (0.02 * month)
-            noise_seed = int(hashlib.sha256(
-                f"{prediction.id}:{month}".encode()
-            ).hexdigest()[:8], 16)
+            noise_seed = int(
+                hashlib.sha256(f"{prediction.id}:{month}".encode()).hexdigest()[:8], 16
+            )
             noise = ((noise_seed % 1000) / 10000) - 0.05
 
             value = base_confidence * decay + noise
@@ -333,13 +410,15 @@ class RegPredictionService:
             lower = max(0.0, value - interval_width)
             upper = min(1.0, value + interval_width)
 
-            points.append(TimeSeriesPrediction(
-                prediction_date=f"2026-{(2 + month - 1) % 12 + 1:02d}",
-                value=round(value, 3),
-                lower_bound=round(lower, 3),
-                upper_bound=round(upper, 3),
-                confidence_level=0.95,
-            ))
+            points.append(
+                TimeSeriesPrediction(
+                    prediction_date=f"2026-{(2 + month - 1) % 12 + 1:02d}",
+                    value=round(value, 3),
+                    lower_bound=round(lower, 3),
+                    upper_bound=round(upper, 3),
+                    confidence_level=0.95,
+                )
+            )
 
         return points
 
@@ -427,7 +506,9 @@ class RegPredictionService:
             key_differences=key_differences or [],
         )
         self._global_precedents.append(precedent)
-        logger.info("Global precedent added", regulation=regulation_name, origin=origin_jurisdiction)
+        logger.info(
+            "Global precedent added", regulation=regulation_name, origin=origin_jurisdiction
+        )
         return precedent
 
     async def _update_predictions_from_signal(self, signal: RegulatorySignal) -> None:
@@ -435,10 +516,7 @@ class RegPredictionService:
         for pred in self._predictions:
             if pred.jurisdiction == signal.jurisdiction or signal.jurisdiction == "Global":
                 # Check if signal is relevant to prediction frameworks
-                related = any(
-                    fw.lower() in signal.title.lower()
-                    for fw in pred.affected_frameworks
-                )
+                related = any(fw.lower() in signal.title.lower() for fw in pred.affected_frameworks)
                 if related or signal.relevance_score > 0.8:
                     pred.signal_ids.append(signal.id)
                     # Adjust confidence based on new signal
@@ -446,8 +524,7 @@ class RegPredictionService:
                     pred.confidence_score = min(0.99, pred.confidence_score + adjustment)
                     # Update momentum
                     relevant_signals = [
-                        s for s in self._signals
-                        if s.jurisdiction == pred.jurisdiction
+                        s for s in self._signals if s.jurisdiction == pred.jurisdiction
                     ]
                     pred.momentum = self._classify_momentum(relevant_signals)
 
@@ -535,9 +612,11 @@ class RegPredictionService:
                 warning = EarlyWarning(
                     prediction_id=pred.id,
                     title=f"Early Warning: {pred.title}",
-                    urgency="critical" if pred.prediction_horizon_months <= 3
-                            else "high" if pred.prediction_horizon_months <= 6
-                            else "medium",
+                    urgency="critical"
+                    if pred.prediction_horizon_months <= 3
+                    else "high"
+                    if pred.prediction_horizon_months <= 6
+                    else "medium",
                     days_until_predicted=pred.prediction_horizon_months * 30,
                     recommended_actions=[t["task"] for t in pred.preparation_tasks[:3]],
                     created_at=datetime.now(UTC),
@@ -551,15 +630,21 @@ class RegPredictionService:
 
     def get_accuracy(self) -> PredictionAccuracy:
         total = len(self._predictions)
-        verified_correct = sum(1 for p in self._predictions if p.status == PredictionStatus.VERIFIED_CORRECT)
-        verified_incorrect = sum(1 for p in self._predictions if p.status == PredictionStatus.VERIFIED_INCORRECT)
+        verified_correct = sum(
+            1 for p in self._predictions if p.status == PredictionStatus.VERIFIED_CORRECT
+        )
+        verified_incorrect = sum(
+            1 for p in self._predictions if p.status == PredictionStatus.VERIFIED_INCORRECT
+        )
         verified_total = verified_correct + verified_incorrect
 
         # Precision by confidence level
         precision_by_confidence: dict[str, float] = {}
         for conf in PredictionConfidence:
             conf_preds = [p for p in self._predictions if p.confidence == conf]
-            conf_correct = sum(1 for p in conf_preds if p.status == PredictionStatus.VERIFIED_CORRECT)
+            conf_correct = sum(
+                1 for p in conf_preds if p.status == PredictionStatus.VERIFIED_CORRECT
+            )
             if conf_preds:
                 precision_by_confidence[conf.value] = round(conf_correct / len(conf_preds), 3)
 
@@ -571,7 +656,9 @@ class RegPredictionService:
             accuracy_rate=round(verified_correct / verified_total, 3) if verified_total else 0.0,
             avg_lead_time_months=round(
                 sum(p.prediction_horizon_months for p in self._predictions) / total, 1
-            ) if total else 0.0,
+            )
+            if total
+            else 0.0,
             precision_by_confidence=precision_by_confidence,
         )
 
@@ -659,8 +746,7 @@ class RegPredictionService:
 
         # Classify momentum from relevant signals
         relevant_signals = [
-            s for s in self._signals
-            if s.jurisdiction == jurisdiction or s.jurisdiction == "Global"
+            s for s in self._signals if s.jurisdiction == jurisdiction or s.jurisdiction == "Global"
         ]
         prediction.momentum = self._classify_momentum(relevant_signals)
 

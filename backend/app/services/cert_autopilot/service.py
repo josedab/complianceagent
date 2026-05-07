@@ -388,9 +388,7 @@ class CertificationAutopilotService:
 
     # ── Automated control mapping & gap analysis ─────────────────────────
 
-    async def run_control_mapping_gap_analysis(
-        self, journey_id: UUID
-    ) -> list[GapAnalysisItem]:
+    async def run_control_mapping_gap_analysis(self, journey_id: UUID) -> list[GapAnalysisItem]:
         """Run automated control mapping with gap analysis for SOC 2 / ISO 27001.
 
         Identifies gaps, maps controls across frameworks, and flags which
@@ -425,9 +423,7 @@ class CertificationAutopilotService:
             items.append(item)
 
         journey.controls_met = met_count
-        journey.readiness_score = (
-            round((met_count / len(controls)) * 100, 1) if controls else 0.0
-        )
+        journey.readiness_score = round((met_count / len(controls)) * 100, 1) if controls else 0.0
         self._gap_analysis_items[str(journey_id)] = items
         # Keep legacy _gaps in sync
         self._gaps[str(journey_id)] = [
@@ -530,9 +526,7 @@ class CertificationAutopilotService:
             for cid, sources in _AUTO_COLLECTION_MAP.items()
             if EvidenceSourceType.GIT_COMMIT in sources
         ]
-        framework_controls = {
-            c.control_id for c in _CONTROL_REGISTRY.get(journey.framework, [])
-        }
+        framework_controls = {c.control_id for c in _CONTROL_REGISTRY.get(journey.framework, [])}
         target_controls = [c for c in target_controls if c in framework_controls]
 
         results: list[AutoCollectedEvidence] = []
@@ -580,9 +574,7 @@ class CertificationAutopilotService:
             for cid, sources in _AUTO_COLLECTION_MAP.items()
             if EvidenceSourceType.CI_CD_PIPELINE in sources
         ]
-        framework_controls = {
-            c.control_id for c in _CONTROL_REGISTRY.get(journey.framework, [])
-        }
+        framework_controls = {c.control_id for c in _CONTROL_REGISTRY.get(journey.framework, [])}
         target_controls = [c for c in target_controls if c in framework_controls]
 
         results: list[AutoCollectedEvidence] = []
@@ -629,9 +621,7 @@ class CertificationAutopilotService:
             for cid, sources in _AUTO_COLLECTION_MAP.items()
             if EvidenceSourceType.ACCESS_LOG in sources
         ]
-        framework_controls = {
-            c.control_id for c in _CONTROL_REGISTRY.get(journey.framework, [])
-        }
+        framework_controls = {c.control_id for c in _CONTROL_REGISTRY.get(journey.framework, [])}
         target_controls = [c for c in target_controls if c in framework_controls]
 
         results: list[AutoCollectedEvidence] = []
@@ -679,9 +669,7 @@ class CertificationAutopilotService:
             for cid, sources in _AUTO_COLLECTION_MAP.items()
             if EvidenceSourceType.CLOUD_CONFIG in sources
         ]
-        framework_controls = {
-            c.control_id for c in _CONTROL_REGISTRY.get(journey.framework, [])
-        }
+        framework_controls = {c.control_id for c in _CONTROL_REGISTRY.get(journey.framework, [])}
         target_controls = [c for c in target_controls if c in framework_controls]
 
         results: list[AutoCollectedEvidence] = []
@@ -742,9 +730,7 @@ class CertificationAutopilotService:
             by_source[ev.source_type.value] = by_source.get(ev.source_type.value, 0) + 1
 
         controls = _CONTROL_REGISTRY.get(journey.framework, [])
-        auto_collectible = sum(
-            1 for c in controls if c.control_id in _AUTO_COLLECTION_MAP
-        )
+        auto_collectible = sum(1 for c in controls if c.control_id in _AUTO_COLLECTION_MAP)
 
         return {
             "journey_id": jid,
@@ -795,9 +781,7 @@ class CertificationAutopilotService:
         )
         return session
 
-    async def validate_auditor_session(
-        self, access_token: str
-    ) -> AuditorPortalSession | None:
+    async def validate_auditor_session(self, access_token: str) -> AuditorPortalSession | None:
         """Validate an auditor portal session token.
 
         Returns the session if valid and not expired, None otherwise.
@@ -811,9 +795,7 @@ class CertificationAutopilotService:
                     return session
         return None
 
-    async def get_auditor_view(
-        self, access_token: str
-    ) -> dict | None:
+    async def get_auditor_view(self, access_token: str) -> dict | None:
         """Get read-only auditor view of a journey's compliance data.
 
         Validates the session token and returns a sanitized, read-only view
@@ -855,9 +837,7 @@ class CertificationAutopilotService:
 
         # Track which controls the auditor viewed
         viewed = {g.control_id for g in gaps}
-        session.accessed_controls = list(
-            set(session.accessed_controls) | viewed
-        )
+        session.accessed_controls = list(set(session.accessed_controls) | viewed)
 
         return {
             "journey_id": jid,
@@ -869,9 +849,7 @@ class CertificationAutopilotService:
             "auto_collection_rate": self._compute_auto_collection_rate(session.journey_id),
             "gaps": gap_summary,
             "evidence": evidence_summary,
-            "session_expires_at": session.expires_at.isoformat()
-            if session.expires_at
-            else None,
+            "session_expires_at": session.expires_at.isoformat() if session.expires_at else None,
         }
 
     async def revoke_auditor_session(self, session_id: UUID) -> bool:
@@ -887,9 +865,7 @@ class CertificationAutopilotService:
                     return True
         return False
 
-    async def list_auditor_sessions(
-        self, journey_id: UUID
-    ) -> list[AuditorPortalSession]:
+    async def list_auditor_sessions(self, journey_id: UUID) -> list[AuditorPortalSession]:
         """List all auditor sessions for a journey."""
         return list(self._auditor_sessions.get(str(journey_id), []))
 
@@ -937,9 +913,9 @@ class CertificationAutopilotService:
                     "control_name": g.control_name,
                     "remediation_steps": g.remediation_steps,
                     "estimated_hours": g.estimated_hours,
-                    "priority": "high" if g.estimated_hours >= 16 else (
-                        "medium" if g.estimated_hours >= 10 else "low"
-                    ),
+                    "priority": "high"
+                    if g.estimated_hours >= 16
+                    else ("medium" if g.estimated_hours >= 10 else "low"),
                 }
                 for g in gaps
                 if g.status == "not_met"

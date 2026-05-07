@@ -175,10 +175,12 @@ class PipelineBuilderService:
         """Generate Azure Pipelines YAML configuration."""
         steps_list = []
         for step in sorted(pipeline.steps, key=lambda s: s.order):
-            steps_list.append({
-                "script": f"echo 'Running {step.step_type.value}: {step.name}'",
-                "displayName": step.name,
-            })
+            steps_list.append(
+                {
+                    "script": f"echo 'Running {step.step_type.value}: {step.name}'",
+                    "displayName": step.name,
+                }
+            )
 
         config = {
             "trigger": ["main"],
@@ -194,7 +196,10 @@ class PipelineBuilderService:
             raise ValueError(f"Pipeline {pipeline_id} not found")
 
         generators = {
-            PipelineTarget.GITHUB_ACTIONS: (self._generate_github_actions, ".github/workflows/compliance.yml"),
+            PipelineTarget.GITHUB_ACTIONS: (
+                self._generate_github_actions,
+                ".github/workflows/compliance.yml",
+            ),
             PipelineTarget.GITLAB_CI: (self._generate_gitlab_ci, ".gitlab-ci.yml"),
             PipelineTarget.AZURE_PIPELINES: (self._generate_azure_pipelines, "azure-pipelines.yml"),
         }

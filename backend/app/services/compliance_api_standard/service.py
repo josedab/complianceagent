@@ -1,4 +1,5 @@
 """Compliance API Standard Service."""
+
 import hashlib
 from datetime import UTC, datetime
 
@@ -177,12 +178,14 @@ class ComplianceAPIStandardService:
             if passes:
                 conforming += 1
             else:
-                issues.append({
-                    "path": endpoint.path,
-                    "method": endpoint.method,
-                    "issue": "Endpoint returned non-conforming response schema",
-                    "severity": "warning",
-                })
+                issues.append(
+                    {
+                        "path": endpoint.path,
+                        "method": endpoint.method,
+                        "issue": "Endpoint returned non-conforming response schema",
+                        "severity": "warning",
+                    }
+                )
 
         total = len(spec.endpoints)
         pct = round((conforming / total) * 100, 1) if total else 0.0
@@ -215,7 +218,5 @@ class ComplianceAPIStandardService:
             versions_published=len(self._standards),
             total_endpoints=total_endpoints,
             conformance_tests_run=len(self._conformance_reports),
-            avg_conformance_pct=(
-                round(sum(pcts) / len(pcts), 1) if pcts else 0.0
-            ),
+            avg_conformance_pct=(round(sum(pcts) / len(pcts), 1) if pcts else 0.0),
         )

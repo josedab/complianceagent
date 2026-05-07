@@ -22,11 +22,56 @@ from app.services.workflow_automation.models import (
 logger = structlog.get_logger()
 
 _TEMPLATES: list[WorkflowTemplate] = [
-    WorkflowTemplate(id="score-drop-alert", name="Score Drop Alert", description="Notify team when compliance score drops below threshold", trigger_type="score_drop", actions=[{"type": "notify_slack", "config": {"channel": "#compliance"}}, {"type": "create_ticket", "config": {"project": "COMP"}}], category="alerting"),
-    WorkflowTemplate(id="violation-remediate", name="Violation Auto-Remediate", description="Automatically trigger scan and create PR when violation detected", trigger_type="violation_detected", actions=[{"type": "trigger_scan"}, {"type": "create_pr"}, {"type": "notify_email", "config": {"to": "compliance-team"}}], category="automation"),
-    WorkflowTemplate(id="regulation-update", name="Regulation Change Response", description="Notify and escalate when new regulation change detected", trigger_type="regulation_change", actions=[{"type": "notify_slack"}, {"type": "notify_email"}, {"type": "escalate"}], category="alerting"),
-    WorkflowTemplate(id="weekly-report", name="Weekly Compliance Report", description="Generate and distribute weekly compliance report", trigger_type="schedule", actions=[{"type": "run_pipeline", "config": {"pipeline": "weekly_report"}}, {"type": "notify_email", "config": {"to": "leadership"}}], category="reporting"),
-    WorkflowTemplate(id="drift-response", name="Drift Auto-Response", description="Auto-detect and remediate compliance drift", trigger_type="drift_detected", actions=[{"type": "trigger_scan"}, {"type": "create_pr"}, {"type": "notify_slack"}], category="automation"),
+    WorkflowTemplate(
+        id="score-drop-alert",
+        name="Score Drop Alert",
+        description="Notify team when compliance score drops below threshold",
+        trigger_type="score_drop",
+        actions=[
+            {"type": "notify_slack", "config": {"channel": "#compliance"}},
+            {"type": "create_ticket", "config": {"project": "COMP"}},
+        ],
+        category="alerting",
+    ),
+    WorkflowTemplate(
+        id="violation-remediate",
+        name="Violation Auto-Remediate",
+        description="Automatically trigger scan and create PR when violation detected",
+        trigger_type="violation_detected",
+        actions=[
+            {"type": "trigger_scan"},
+            {"type": "create_pr"},
+            {"type": "notify_email", "config": {"to": "compliance-team"}},
+        ],
+        category="automation",
+    ),
+    WorkflowTemplate(
+        id="regulation-update",
+        name="Regulation Change Response",
+        description="Notify and escalate when new regulation change detected",
+        trigger_type="regulation_change",
+        actions=[{"type": "notify_slack"}, {"type": "notify_email"}, {"type": "escalate"}],
+        category="alerting",
+    ),
+    WorkflowTemplate(
+        id="weekly-report",
+        name="Weekly Compliance Report",
+        description="Generate and distribute weekly compliance report",
+        trigger_type="schedule",
+        actions=[
+            {"type": "run_pipeline", "config": {"pipeline": "weekly_report"}},
+            {"type": "notify_email", "config": {"to": "leadership"}},
+        ],
+        category="reporting",
+    ),
+    WorkflowTemplate(
+        id="drift-response",
+        name="Drift Auto-Response",
+        description="Auto-detect and remediate compliance drift",
+        trigger_type="drift_detected",
+        actions=[{"type": "trigger_scan"}, {"type": "create_pr"}, {"type": "notify_slack"}],
+        category="automation",
+    ),
 ]
 
 
@@ -70,7 +115,9 @@ class WorkflowAutomationService:
         logger.info("Workflow created", name=name, trigger=trigger_type)
         return workflow
 
-    async def create_from_template(self, template_id: str, name: str = "") -> WorkflowDefinition | None:
+    async def create_from_template(
+        self, template_id: str, name: str = ""
+    ) -> WorkflowDefinition | None:
         tmpl = next((t for t in _TEMPLATES if t.id == template_id), None)
         if not tmpl:
             return None
@@ -81,10 +128,14 @@ class WorkflowAutomationService:
             actions=tmpl.actions,
         )
 
-    async def execute_workflow(self, workflow_id: str, trigger_data: dict | None = None) -> WorkflowExecution:
+    async def execute_workflow(
+        self, workflow_id: str, trigger_data: dict | None = None
+    ) -> WorkflowExecution:
         workflow = self._workflows.get(workflow_id)
         if not workflow or workflow.status != WorkflowStatus.ACTIVE:
-            return WorkflowExecution(status=ExecutionStatus.FAILED, error_message="Workflow not found or inactive")
+            return WorkflowExecution(
+                status=ExecutionStatus.FAILED, error_message="Workflow not found or inactive"
+            )
 
         execution = WorkflowExecution(
             workflow_id=workflow.id,
@@ -101,7 +152,9 @@ class WorkflowAutomationService:
         workflow.execution_count += 1
         workflow.last_executed_at = datetime.now(UTC)
         self._executions.append(execution)
-        logger.info("Workflow executed", name=workflow.name, actions=len(execution.actions_completed))
+        logger.info(
+            "Workflow executed", name=workflow.name, actions=len(execution.actions_completed)
+        )
         return execution
 
     async def pause_workflow(self, workflow_id: str) -> WorkflowDefinition | None:
@@ -133,20 +186,26 @@ class WorkflowAutomationService:
             templates = [t for t in templates if t.category == category]
         return templates
 
-    def list_executions(self, workflow_id: str | None = None, limit: int = 50) -> list[WorkflowExecution]:
+    def list_executions(
+        self, workflow_id: str | None = None, limit: int = 50
+    ) -> list[WorkflowExecution]:
         results = list(self._executions)
         if workflow_id:
             wf = self._workflows.get(workflow_id)
             if wf:
                 results = [e for e in results if e.workflow_id == wf.id]
-        return sorted(results, key=lambda e: e.started_at or datetime.min.replace(tzinfo=UTC), reverse=True)[:limit]
+        return sorted(
+            results, key=lambda e: e.started_at or datetime.min.replace(tzinfo=UTC), reverse=True
+        )[:limit]
 
     def get_stats(self) -> WorkflowStats:
         by_trigger: dict[str, int] = {}
         by_action: dict[str, int] = {}
         active = 0
         for wf in self._workflows.values():
-            by_trigger[wf.trigger.trigger_type.value] = by_trigger.get(wf.trigger.trigger_type.value, 0) + 1
+            by_trigger[wf.trigger.trigger_type.value] = (
+                by_trigger.get(wf.trigger.trigger_type.value, 0) + 1
+            )
             if wf.status == WorkflowStatus.ACTIVE:
                 active += 1
             for a in wf.actions:
