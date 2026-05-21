@@ -148,7 +148,12 @@ class TestComplianceEditor:
     @pytest.mark.asyncio
     async def test_open_file_with_violations(self, editor_svc: ComplianceEditorService):
         session = await editor_svc.create_session("user-1")
-        f = await editor_svc.open_file(session.id, "src/users.py", "user_email = get_data()\nstore_personal_data(name)", "python")
+        f = await editor_svc.open_file(
+            session.id,
+            "src/users.py",
+            "user_email = get_data()\nstore_personal_data(name)",
+            "python",
+        )
         assert len(f.diagnostics) > 0
 
     @pytest.mark.asyncio
@@ -201,8 +206,13 @@ class TestPipelineBuilder:
     @pytest.mark.asyncio
     async def test_create_pipeline(self, pipeline_svc: PipelineBuilderService):
         pipeline = await pipeline_svc.create_pipeline(
-            "Compliance CI", "github_actions", "org/repo",
-            [{"name": "Scan", "step_type": "scan", "config": {}}, {"name": "Gate", "step_type": "gate", "config": {}}]
+            "Compliance CI",
+            "github_actions",
+            "org/repo",
+            [
+                {"name": "Scan", "step_type": "scan", "config": {}},
+                {"name": "Gate", "step_type": "gate", "config": {}},
+            ],
         )
         assert pipeline.name == "Compliance CI"
         assert len(pipeline.steps) == 2
@@ -210,8 +220,10 @@ class TestPipelineBuilder:
     @pytest.mark.asyncio
     async def test_generate_config(self, pipeline_svc: PipelineBuilderService):
         pipeline = await pipeline_svc.create_pipeline(
-            "Test", "github_actions", "org/repo",
-            [{"name": "Scan", "step_type": "scan", "config": {}}]
+            "Test",
+            "github_actions",
+            "org/repo",
+            [{"name": "Scan", "step_type": "scan", "config": {}}],
         )
         config = await pipeline_svc.generate_config(pipeline.id)
         assert len(config.config_yaml) > 0
@@ -272,8 +284,10 @@ class TestContractAnalyzer:
     @pytest.mark.asyncio
     async def test_analyze_dpa(self, contract_svc: ContractAnalyzerService):
         analysis = await contract_svc.analyze_contract(
-            "Vendor DPA", ContractType.DPA, "CloudCo",
-            "The processor must implement encryption. Data shall be processed in the EU."
+            "Vendor DPA",
+            ContractType.DPA,
+            "CloudCo",
+            "The processor must implement encryption. Data shall be processed in the EU.",
         )
         assert analysis.total_obligations > 0
         assert analysis.vendor == "CloudCo"
@@ -281,8 +295,10 @@ class TestContractAnalyzer:
     @pytest.mark.asyncio
     async def test_extract_obligations(self, contract_svc: ContractAnalyzerService):
         analysis = await contract_svc.analyze_contract(
-            "Test", ContractType.VENDOR_CONTRACT, "Vendor",
-            "The vendor must comply with GDPR. Patient data shall be encrypted."
+            "Test",
+            ContractType.VENDOR_CONTRACT,
+            "Vendor",
+            "The vendor must comply with GDPR. Patient data shall be encrypted.",
         )
         assert len(analysis.obligations) >= 1
 
@@ -313,7 +329,11 @@ class TestMobileBackend:
     async def test_send_notification(self, mobile_svc: MobileBackendService):
         await mobile_svc.register_device("user-1", DevicePlatform.IOS, "token-abc")
         notif = await mobile_svc.send_notification(
-            "user-1", NotificationType.SCORE_CHANGE, "Score Update", "Score is 87%", PushPriority.NORMAL
+            "user-1",
+            NotificationType.SCORE_CHANGE,
+            "Score Update",
+            "Score is 87%",
+            PushPriority.NORMAL,
         )
         assert notif.title == "Score Update"
 

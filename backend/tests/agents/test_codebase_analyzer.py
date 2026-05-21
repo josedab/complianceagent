@@ -49,11 +49,15 @@ class TestCreateMappingComplianceStatus:
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [],
-            "existing_implementations": [{"file": "auth.py"}],
-            "confidence": 0.95,
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [],
+                "existing_implementations": [{"file": "auth.py"}],
+                "confidence": 0.95,
+            },
+        )
         assert result.compliance_status == ComplianceStatus.COMPLIANT
         assert result.gap_count == 0
 
@@ -61,31 +65,43 @@ class TestCreateMappingComplianceStatus:
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [],
-            "existing_implementations": [],
-            "confidence": 0.5,
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [],
+                "existing_implementations": [],
+                "confidence": 0.5,
+            },
+        )
         assert result.compliance_status == ComplianceStatus.PENDING_REVIEW
 
     def test_no_gaps_missing_implementations_key_is_pending_review(self):
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [],
-            "confidence": 0.5,
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [],
+                "confidence": 0.5,
+            },
+        )
         assert result.compliance_status == ComplianceStatus.PENDING_REVIEW
 
     def test_critical_gap_is_non_compliant(self):
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [{"severity": "critical", "description": "missing encryption"}],
-            "confidence": 0.9,
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [{"severity": "critical", "description": "missing encryption"}],
+                "confidence": 0.9,
+            },
+        )
         assert result.compliance_status == ComplianceStatus.NON_COMPLIANT
         assert result.critical_gaps == 1
         assert result.major_gaps == 0
@@ -95,10 +111,14 @@ class TestCreateMappingComplianceStatus:
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [{"severity": "major", "description": "incomplete logging"}],
-            "confidence": 0.8,
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [{"severity": "major", "description": "incomplete logging"}],
+                "confidence": 0.8,
+            },
+        )
         assert result.compliance_status == ComplianceStatus.PARTIAL
         assert result.critical_gaps == 0
         assert result.major_gaps == 1
@@ -107,10 +127,14 @@ class TestCreateMappingComplianceStatus:
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [{"severity": "minor", "description": "missing comment"}],
-            "confidence": 0.7,
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [{"severity": "minor", "description": "missing comment"}],
+                "confidence": 0.7,
+            },
+        )
         assert result.compliance_status == ComplianceStatus.PARTIAL
         assert result.minor_gaps == 1
 
@@ -118,14 +142,18 @@ class TestCreateMappingComplianceStatus:
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [
-                {"severity": "critical", "description": "no auth"},
-                {"severity": "major", "description": "weak logging"},
-                {"severity": "minor", "description": "style"},
-            ],
-            "confidence": 0.85,
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [
+                    {"severity": "critical", "description": "no auth"},
+                    {"severity": "major", "description": "weak logging"},
+                    {"severity": "minor", "description": "style"},
+                ],
+                "confidence": 0.85,
+            },
+        )
         assert result.compliance_status == ComplianceStatus.NON_COMPLIANT
         assert result.gap_count == 3
         assert result.critical_gaps == 1
@@ -136,10 +164,14 @@ class TestCreateMappingComplianceStatus:
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [{"severity": "info", "description": "fyi"}],
-            "confidence": 0.5,
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [{"severity": "info", "description": "fyi"}],
+                "confidence": 0.5,
+            },
+        )
         assert result.gap_count == 1
         assert result.critical_gaps == 0
         assert result.major_gaps == 0
@@ -151,16 +183,20 @@ class TestCreateMappingComplianceStatus:
         analyzer = _make_analyzer()
         repo = _make_repository()
         req = _make_requirement()
-        result = analyzer._create_mapping(repo, req, {
-            "gaps": [],
-            "existing_implementations": [{"file": "x.py"}],
-            "affected_files": ["a.py", "b.py"],
-            "data_flows": [{"from": "api", "to": "db"}],
-            "confidence": 0.92,
-            "estimated_effort_hours": 4.0,
-            "estimated_effort_description": "Small change",
-            "risk_level": "low",
-        })
+        result = analyzer._create_mapping(
+            repo,
+            req,
+            {
+                "gaps": [],
+                "existing_implementations": [{"file": "x.py"}],
+                "affected_files": ["a.py", "b.py"],
+                "data_flows": [{"from": "api", "to": "db"}],
+                "confidence": 0.92,
+                "estimated_effort_hours": 4.0,
+                "estimated_effort_description": "Small change",
+                "risk_level": "low",
+            },
+        )
         assert result.affected_files == ["a.py", "b.py"]
         assert result.mapping_confidence == 0.92
         assert result.estimated_effort_hours == 4.0

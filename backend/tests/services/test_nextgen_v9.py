@@ -23,37 +23,46 @@ from app.services.training_simulator.service import TrainingSimulatorService
 async def telem_svc(db_session: AsyncSession):
     return TelemetryMeshService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def assistant_svc(db_session: AsyncSession):
     return KnowledgeAssistantService(db=db_session)
+
 
 @pytest_asyncio.fixture
 async def passport_svc(db_session: AsyncSession):
     return DigitalPassportService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def planner_svc(db_session: AsyncSession):
     return ScenarioPlannerService(db=db_session)
+
 
 @pytest_asyncio.fixture
 async def filing_svc(db_session: AsyncSession):
     return RegulatoryFilingService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def cicd_svc(db_session: AsyncSession):
     return CICDRuntimeService(db=db_session)
+
 
 @pytest_asyncio.fixture
 async def multi_org_svc(db_session: AsyncSession):
     return MultiOrgOrchestratorService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def training_svc(db_session: AsyncSession):
     return TrainingSimulatorService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def harmony_svc(db_session: AsyncSession):
     return HarmonizationEngineService(db=db_session)
+
 
 @pytest_asyncio.fixture
 async def plugin_svc(db_session: AsyncSession):
@@ -70,7 +79,9 @@ class TestTelemetryMesh:
     async def test_report_metrics(self, telem_svc: TelemetryMeshService):
         services = await telem_svc.list_services()
         if services:
-            updated = await telem_svc.report_metrics(services[0].service_name, {"cpu": 45.0, "memory": 72.0})
+            updated = await telem_svc.report_metrics(
+                services[0].service_name, {"cpu": 45.0, "memory": 72.0}
+            )
             assert updated.health_score > 0
 
     @pytest.mark.asyncio
@@ -114,9 +125,12 @@ class TestKnowledgeAssistant:
 class TestDigitalPassport:
     @pytest.mark.asyncio
     async def test_create_passport(self, passport_svc: DigitalPassportService):
-        passport = await passport_svc.create_passport("Acme Corp", [
-            {"credential_type": "soc2", "framework": "SOC 2", "score": 92.0},
-        ])
+        passport = await passport_svc.create_passport(
+            "Acme Corp",
+            [
+                {"credential_type": "soc2", "framework": "SOC 2", "score": 92.0},
+            ],
+        )
         assert passport.org_name == "Acme Corp"
         assert len(passport.credentials) >= 1
 
@@ -137,8 +151,12 @@ class TestScenarioPlanner:
     @pytest.mark.asyncio
     async def test_plan_eu_expansion(self, planner_svc: ScenarioPlannerService):
         report = await planner_svc.plan_scenario(
-            "EU Expansion", ScenarioType.market_expansion, "Launching in EU market",
-            [RegionGroup.eu], ["personal", "financial"], ai_features=True,
+            "EU Expansion",
+            ScenarioType.market_expansion,
+            "Launching in EU market",
+            [RegionGroup.eu],
+            ["personal", "financial"],
+            ai_features=True,
         )
         assert "GDPR" in report.requirements.applicable_frameworks
         assert report.requirements.estimated_effort_hours > 0
@@ -146,14 +164,20 @@ class TestScenarioPlanner:
     @pytest.mark.asyncio
     async def test_health_data_adds_hipaa(self, planner_svc: ScenarioPlannerService):
         report = await planner_svc.plan_scenario(
-            "Health App", ScenarioType.product_launch, "Health tracking app",
-            [RegionGroup.us], [], health_data=True,
+            "Health App",
+            ScenarioType.product_launch,
+            "Health tracking app",
+            [RegionGroup.us],
+            [],
+            health_data=True,
         )
         assert "HIPAA" in report.requirements.applicable_frameworks
 
     @pytest.mark.asyncio
     async def test_stats(self, planner_svc: ScenarioPlannerService):
-        await planner_svc.plan_scenario("T", ScenarioType.market_expansion, "t", [RegionGroup.us], [])
+        await planner_svc.plan_scenario(
+            "T", ScenarioType.market_expansion, "t", [RegionGroup.us], []
+        )
         stats = await planner_svc.get_stats()
         assert stats.total_scenarios >= 1
 
@@ -179,7 +203,9 @@ class TestRegulatoryFiling:
         authorities = await filing_svc.list_authorities()
         templates = await filing_svc.list_templates()
         if authorities and templates:
-            filing = await filing_svc.generate_filing(templates[0].filing_type, authorities[0].id, {})
+            filing = await filing_svc.generate_filing(
+                templates[0].filing_type, authorities[0].id, {}
+            )
             submitted = await filing_svc.submit_filing(filing.id)
             assert submitted.status.value == "submitted"
 
@@ -198,7 +224,9 @@ class TestCICDRuntime:
 
     @pytest.mark.asyncio
     async def test_create_attestation(self, cicd_svc: CICDRuntimeService):
-        att = await cicd_svc.create_attestation("deploy-1", "org/repo", "abc123", 92.0, ["GDPR", "SOC2"])
+        att = await cicd_svc.create_attestation(
+            "deploy-1", "org/repo", "abc123", 92.0, ["GDPR", "SOC2"]
+        )
         assert att.signature != ""
         assert att.compliance_score == 92.0
 

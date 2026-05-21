@@ -61,7 +61,9 @@ class TestAppStartup:
         """All API routes are under /api/v1/ prefix."""
         from app.main import app as fastapi_app
 
-        api_routes = [r.path for r in fastapi_app.routes if hasattr(r, "path") and "/api/v1/" in r.path]
+        api_routes = [
+            r.path for r in fastapi_app.routes if hasattr(r, "path") and "/api/v1/" in r.path
+        ]
         assert len(api_routes) > 500
 
 

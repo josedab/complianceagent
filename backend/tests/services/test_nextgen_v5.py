@@ -108,26 +108,40 @@ class TestKnowledgeFabric:
 class TestSelfHealingMesh:
     @pytest.mark.asyncio
     async def test_low_risk_auto_merges(self, mesh_service: SelfHealingMeshService):
-        event = HealingEvent(event_type=EventType.VIOLATION_DETECTED, repo="org/api", severity="low", description="Minor violation")
+        event = HealingEvent(
+            event_type=EventType.VIOLATION_DETECTED,
+            repo="org/api",
+            severity="low",
+            description="Minor violation",
+        )
         pipeline = await mesh_service.ingest_event(event)
         assert pipeline.stage == PipelineStage.COMPLETED
         assert pipeline.pr_url != ""
 
     @pytest.mark.asyncio
     async def test_high_risk_awaits_approval(self, mesh_service: SelfHealingMeshService):
-        event = HealingEvent(event_type=EventType.DRIFT_DETECTED, repo="org/api", severity="high", description="Score drop")
+        event = HealingEvent(
+            event_type=EventType.DRIFT_DETECTED,
+            repo="org/api",
+            severity="high",
+            description="Score drop",
+        )
         pipeline = await mesh_service.ingest_event(event)
         assert pipeline.stage == PipelineStage.AWAITING_APPROVAL
 
     @pytest.mark.asyncio
     async def test_critical_escalates(self, mesh_service: SelfHealingMeshService):
-        event = HealingEvent(event_type=EventType.VIOLATION_DETECTED, repo="org/api", severity="critical")
+        event = HealingEvent(
+            event_type=EventType.VIOLATION_DETECTED, repo="org/api", severity="critical"
+        )
         pipeline = await mesh_service.ingest_event(event)
         assert pipeline.stage == PipelineStage.ESCALATED
 
     @pytest.mark.asyncio
     async def test_approve_pipeline(self, mesh_service: SelfHealingMeshService):
-        event = HealingEvent(event_type=EventType.VIOLATION_DETECTED, repo="org/api", severity="medium")
+        event = HealingEvent(
+            event_type=EventType.VIOLATION_DETECTED, repo="org/api", severity="medium"
+        )
         pipeline = await mesh_service.ingest_event(event)
         approved = await mesh_service.approve_pipeline(str(pipeline.id))
         assert approved is not None
@@ -147,13 +161,17 @@ class TestSelfHealingMesh:
 class TestIDEExtension:
     @pytest.mark.asyncio
     async def test_analyze_file_with_violations(self, ide_ext_service: IDEExtensionService):
-        diags = await ide_ext_service.analyze_file("src/users.py", "user_email = get_input()\nstore_forever(data)")
+        diags = await ide_ext_service.analyze_file(
+            "src/users.py", "user_email = get_input()\nstore_forever(data)"
+        )
         assert len(diags) > 0
         assert diags[0].framework in ("GDPR", "HIPAA", "PCI-DSS", "SOC 2")
 
     @pytest.mark.asyncio
     async def test_analyze_clean_file(self, ide_ext_service: IDEExtensionService):
-        diags = await ide_ext_service.analyze_file("README.md", "# Documentation\nThis is a readme.")
+        diags = await ide_ext_service.analyze_file(
+            "README.md", "# Documentation\nThis is a readme."
+        )
         assert len(diags) == 0
 
     @pytest.mark.asyncio
@@ -187,10 +205,12 @@ class TestComplianceDataLake:
 
     @pytest.mark.asyncio
     async def test_ingest_batch(self, lake_service: ComplianceDataLakeService):
-        count = await lake_service.ingest_batch([
-            {"tenant_id": "t1", "category": "violation", "framework": "GDPR"},
-            {"tenant_id": "t1", "category": "scan", "framework": "HIPAA"},
-        ])
+        count = await lake_service.ingest_batch(
+            [
+                {"tenant_id": "t1", "category": "violation", "framework": "GDPR"},
+                {"tenant_id": "t1", "category": "scan", "framework": "HIPAA"},
+            ]
+        )
         assert count == 2
 
     @pytest.mark.asyncio
@@ -217,7 +237,9 @@ class TestPolicyDSL:
 
     @pytest.mark.asyncio
     async def test_validate_valid_dsl(self, dsl_service: PolicyDSLService):
-        result = dsl_service.validate_dsl('policy "test" {\n  when: data_type == "personal"\n  then: require("consent")\n}')
+        result = dsl_service.validate_dsl(
+            'policy "test" {\n  when: data_type == "personal"\n  then: require("consent")\n}'
+        )
         assert result.valid is True
 
     @pytest.mark.asyncio
@@ -258,7 +280,13 @@ class TestRealtimeFeed:
 
     @pytest.mark.asyncio
     async def test_publish_and_retrieve(self, feed_service: RealtimeFeedService):
-        item = FeedItem(item_type=FeedItemType.REGULATION_CHANGE, priority=FeedPriority.URGENT, title="Test Change", regulation="GDPR", jurisdiction="EU")
+        item = FeedItem(
+            item_type=FeedItemType.REGULATION_CHANGE,
+            priority=FeedPriority.URGENT,
+            title="Test Change",
+            regulation="GDPR",
+            jurisdiction="EU",
+        )
         published = await feed_service.publish_item(item)
         assert published.title == "Test Change"
         feed = feed_service.get_feed(priority=FeedPriority.URGENT)
@@ -266,14 +294,22 @@ class TestRealtimeFeed:
 
     @pytest.mark.asyncio
     async def test_subscribe_and_notify(self, feed_service: RealtimeFeedService):
-        await feed_service.subscribe("user-1", channels=["slack"], min_priority="high", jurisdictions=["EU"])
+        await feed_service.subscribe(
+            "user-1", channels=["slack"], min_priority="high", jurisdictions=["EU"]
+        )
         await feed_service.publish_item(FeedItem(priority=FeedPriority.URGENT, jurisdiction="EU"))
         stats = feed_service.get_stats()
         assert stats.notifications_sent >= 1
 
     @pytest.mark.asyncio
     async def test_slack_card(self, feed_service: RealtimeFeedService):
-        item = FeedItem(title="Test", priority=FeedPriority.HIGH, regulation="GDPR", jurisdiction="EU", impact_score=8.0)
+        item = FeedItem(
+            title="Test",
+            priority=FeedPriority.HIGH,
+            regulation="GDPR",
+            jurisdiction="EU",
+            impact_score=8.0,
+        )
         card = feed_service.generate_slack_card(item)
         assert card.title == "Test"
         assert len(card.fields) >= 3
@@ -407,7 +443,8 @@ class TestWorkflowAutomation:
     @pytest.mark.asyncio
     async def test_create_workflow(self, workflow_service: WorkflowAutomationService):
         wf = await workflow_service.create_workflow(
-            name="Score Drop Alert", trigger_type="score_drop",
+            name="Score Drop Alert",
+            trigger_type="score_drop",
             actions=[{"type": "notify_slack"}, {"type": "create_ticket"}],
         )
         assert wf.name == "Score Drop Alert"

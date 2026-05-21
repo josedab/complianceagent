@@ -92,7 +92,9 @@ class TestProcessRegulatoryChange:
     """Test the 3-stage pipeline: extract → filter → save."""
 
     @pytest.mark.asyncio
-    async def test_full_pipeline_with_relevant_requirements(self, db_session, org_id, audit_service):
+    async def test_full_pipeline_with_relevant_requirements(
+        self, db_session, org_id, audit_service
+    ):
         copilot = _mock_copilot()
         orchestrator = _make_orchestrator(db_session, org_id, copilot, audit_service)
 

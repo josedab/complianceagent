@@ -37,6 +37,7 @@ _skip_bcrypt = pytest.mark.skipif(
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _clear_blacklist() -> None:
     """Reset the in-memory token blacklist between tests."""
     with token_blacklist._lock:
@@ -52,6 +53,7 @@ def _clear_lockout(email: str) -> None:
 # ---------------------------------------------------------------------------
 # 1. Token Revocation
 # ---------------------------------------------------------------------------
+
 
 class TestTokenRevocation:
     """Tests for token-level and user-level revocation."""
@@ -122,6 +124,7 @@ class TestTokenRevocation:
 # 2. Account Lockout
 # ---------------------------------------------------------------------------
 
+
 class TestAccountLockout:
     """Tests for the login-attempt lockout mechanism."""
 
@@ -169,6 +172,7 @@ class TestAccountLockout:
 # 3. Health / Readiness Endpoints
 # ---------------------------------------------------------------------------
 
+
 class TestHealthEndpoints:
     """Tests for liveness and readiness probes."""
 
@@ -177,9 +181,7 @@ class TestHealthEndpoints:
         """/health should always return 200 with status 'healthy'."""
         from app.main import app
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/health")
 
         assert response.status_code == 200
@@ -191,9 +193,7 @@ class TestHealthEndpoints:
         """/health/ready should include database and redis check results."""
         from app.main import app
 
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/health/ready")
 
         body = response.json()
@@ -210,6 +210,7 @@ class TestHealthEndpoints:
 # ---------------------------------------------------------------------------
 # 4. Password Hash Security (supplemental)
 # ---------------------------------------------------------------------------
+
 
 @_skip_bcrypt
 class TestPasswordHashSecurity:

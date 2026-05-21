@@ -24,6 +24,7 @@ def _make_profile(**overrides):
 def _call_get_applicable_frameworks(profile):
     """Call the real method on a mock profile."""
     from app.models.customer_profile import CustomerProfile
+
     return CustomerProfile.get_applicable_frameworks(profile)
 
 

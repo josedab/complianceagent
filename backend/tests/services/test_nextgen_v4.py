@@ -95,8 +95,11 @@ class TestAgentsMarketplace:
     @pytest.mark.asyncio
     async def test_publish_and_approve_agent(self, marketplace_service: AgentsMarketplaceService):
         agent = await marketplace_service.publish_agent(
-            name="Test Agent", slug="test-agent", description="A test",
-            category="checker", author="tester",
+            name="Test Agent",
+            slug="test-agent",
+            description="A test",
+            category="checker",
+            author="tester",
         )
         assert agent.status == AgentStatus.IN_REVIEW
         approved = await marketplace_service.approve_agent("test-agent")
@@ -136,7 +139,9 @@ class TestSaaSOnboarding:
     @pytest.mark.asyncio
     async def test_onboarding_flow(self, saas_service: SaaSOnboardingService):
         await saas_service.create_tenant("Test Co", "test@test.com")
-        progress = await saas_service.advance_onboarding("test-co", "connect_scm", {"provider": "github", "organization": "test-co"})
+        progress = await saas_service.advance_onboarding(
+            "test-co", "connect_scm", {"provider": "github", "organization": "test-co"}
+        )
         assert progress is not None
         assert "connect_scm" in progress.steps_completed
         progress = await saas_service.advance_onboarding("test-co", "completed")
@@ -165,8 +170,16 @@ class TestCodeReviewAgent:
     @pytest.mark.asyncio
     async def test_analyze_clean_pr(self, review_service: CodeReviewAgentService):
         review = await review_service.analyze_pr(
-            repo="org/repo", pr_number=1,
-            changed_files=[{"path": "README.md", "start_line": 1, "end_line": 5, "added_lines": ["# Documentation update"]}],
+            repo="org/repo",
+            pr_number=1,
+            changed_files=[
+                {
+                    "path": "README.md",
+                    "start_line": 1,
+                    "end_line": 5,
+                    "added_lines": ["# Documentation update"],
+                }
+            ],
         )
         assert review.overall_risk == ReviewRiskLevel.NONE
         assert review.decision in (ReviewDecision.AUTO_APPROVED, ReviewDecision.APPROVE)
@@ -174,8 +187,19 @@ class TestCodeReviewAgent:
     @pytest.mark.asyncio
     async def test_analyze_pr_with_violations(self, review_service: CodeReviewAgentService):
         review = await review_service.analyze_pr(
-            repo="org/repo", pr_number=2,
-            changed_files=[{"path": "src/users.py", "start_line": 10, "end_line": 20, "added_lines": ["user_email = request.form['email']", "store_forever(personal_data)"]}],
+            repo="org/repo",
+            pr_number=2,
+            changed_files=[
+                {
+                    "path": "src/users.py",
+                    "start_line": 10,
+                    "end_line": 20,
+                    "added_lines": [
+                        "user_email = request.form['email']",
+                        "store_forever(personal_data)",
+                    ],
+                }
+            ],
         )
         assert len(review.suggestions) > 0
         assert review.overall_risk != ReviewRiskLevel.NONE
@@ -183,8 +207,16 @@ class TestCodeReviewAgent:
     @pytest.mark.asyncio
     async def test_analyze_pr_detects_pci(self, review_service: CodeReviewAgentService):
         review = await review_service.analyze_pr(
-            repo="org/payments", pr_number=3,
-            changed_files=[{"path": "src/checkout.py", "start_line": 1, "end_line": 10, "added_lines": ["card_number = request.json['card']"]}],
+            repo="org/payments",
+            pr_number=3,
+            changed_files=[
+                {
+                    "path": "src/checkout.py",
+                    "start_line": 1,
+                    "end_line": 10,
+                    "added_lines": ["card_number = request.json['card']"],
+                }
+            ],
         )
         pci_suggestions = [s for s in review.suggestions if s.framework == "PCI-DSS"]
         assert len(pci_suggestions) > 0
@@ -192,8 +224,16 @@ class TestCodeReviewAgent:
     @pytest.mark.asyncio
     async def test_accept_suggestion(self, review_service: CodeReviewAgentService):
         review = await review_service.analyze_pr(
-            repo="org/repo", pr_number=4,
-            changed_files=[{"path": "src/health.py", "start_line": 1, "end_line": 5, "added_lines": ["patient_id = get_patient()"]}],
+            repo="org/repo",
+            pr_number=4,
+            changed_files=[
+                {
+                    "path": "src/health.py",
+                    "start_line": 1,
+                    "end_line": 5,
+                    "added_lines": ["patient_id = get_patient()"],
+                }
+            ],
         )
         if review.suggestions:
             ok = await review_service.accept_suggestion(review.suggestions[0].id)
@@ -201,7 +241,13 @@ class TestCodeReviewAgent:
 
     @pytest.mark.asyncio
     async def test_stats(self, review_service: CodeReviewAgentService):
-        await review_service.analyze_pr("org/repo", 10, changed_files=[{"path": "x.py", "start_line": 1, "end_line": 1, "added_lines": ["x = 1"]}])
+        await review_service.analyze_pr(
+            "org/repo",
+            10,
+            changed_files=[
+                {"path": "x.py", "start_line": 1, "end_line": 1, "added_lines": ["x = 1"]}
+            ],
+        )
         stats = review_service.get_stats()
         assert stats.total_reviews >= 1
 
@@ -234,7 +280,9 @@ class TestRegPrediction:
 
     @pytest.mark.asyncio
     async def test_add_signal(self, prediction_service: RegPredictionService):
-        signal = await prediction_service.add_signal("legislative", "Congress", "US", "New privacy bill", 0.8)
+        signal = await prediction_service.add_signal(
+            "legislative", "Congress", "US", "New privacy bill", 0.8
+        )
         assert signal.relevance_score == 0.8
         signals = prediction_service.list_signals(jurisdiction="US")
         assert len(signals) >= 1
@@ -251,7 +299,9 @@ class TestComplianceObservability:
         assert m.value == 92.0
 
     @pytest.mark.asyncio
-    async def test_low_score_triggers_alert(self, observability_service: ComplianceObservabilityService):
+    async def test_low_score_triggers_alert(
+        self, observability_service: ComplianceObservabilityService
+    ):
         await observability_service.emit_metric("compliance.posture.score", 55.0, "gauge")
         alerts = observability_service.list_alerts()
         critical = [a for a in alerts if a.severity == AlertSeverity.CRITICAL]
@@ -259,13 +309,17 @@ class TestComplianceObservability:
 
     @pytest.mark.asyncio
     async def test_configure_exporter(self, observability_service: ComplianceObservabilityService):
-        e = await observability_service.configure_exporter("datadog", "https://api.datadoghq.com", "dd-api-key")
+        e = await observability_service.configure_exporter(
+            "datadog", "https://api.datadoghq.com", "dd-api-key"
+        )
         assert e.exporter_type.value == "datadog"
         exporters = observability_service.list_exporters()
         assert len(exporters) == 1
 
     @pytest.mark.asyncio
-    async def test_list_builtin_metrics(self, observability_service: ComplianceObservabilityService):
+    async def test_list_builtin_metrics(
+        self, observability_service: ComplianceObservabilityService
+    ):
         metrics = observability_service.list_metrics(name_prefix="compliance.")
         assert len(metrics) >= 7
 
@@ -323,9 +377,16 @@ class TestTwinSimulation:
     @pytest.mark.asyncio
     async def test_simulate_code_change(self, twin_service: TwinSimulationService):
         await twin_service.capture_snapshot("org/repo")
-        result = await twin_service.simulate("org/repo", [
-            {"change_type": "code_change", "description": "Add user data processing", "target": "src/users.py"},
-        ])
+        result = await twin_service.simulate(
+            "org/repo",
+            [
+                {
+                    "change_type": "code_change",
+                    "description": "Add user data processing",
+                    "target": "src/users.py",
+                },
+            ],
+        )
         assert result.status == SimulationStatus.COMPLETED
         assert result.score_delta < 0  # Code change should decrease score
         assert len(result.recommendations) > 0
@@ -333,9 +394,16 @@ class TestTwinSimulation:
     @pytest.mark.asyncio
     async def test_simulate_vendor_change(self, twin_service: TwinSimulationService):
         await twin_service.capture_snapshot("org/repo")
-        result = await twin_service.simulate("org/repo", [
-            {"change_type": "vendor_change", "description": "Switch to new cloud provider", "target": "infrastructure"},
-        ])
+        result = await twin_service.simulate(
+            "org/repo",
+            [
+                {
+                    "change_type": "vendor_change",
+                    "description": "Switch to new cloud provider",
+                    "target": "infrastructure",
+                },
+            ],
+        )
         assert result.risk_assessment in ("medium", "high")
         assert result.score_delta < -3
 
@@ -425,8 +493,11 @@ class TestCostBenefitAnalyzer:
     @pytest.mark.asyncio
     async def test_add_investment(self, cost_service: CostBenefitAnalyzerService):
         inv = await cost_service.add_investment(
-            name="GDPR Consent Management", framework="GDPR",
-            cost_usd=15000, engineering_hours=120, score_impact=8.0,
+            name="GDPR Consent Management",
+            framework="GDPR",
+            cost_usd=15000,
+            engineering_hours=120,
+            score_impact=8.0,
         )
         assert inv.name == "GDPR Consent Management"
         assert inv.risk_reduction_usd > 0
@@ -434,8 +505,11 @@ class TestCostBenefitAnalyzer:
     @pytest.mark.asyncio
     async def test_calculate_roi(self, cost_service: CostBenefitAnalyzerService):
         inv = await cost_service.add_investment(
-            name="HIPAA Encryption", framework="HIPAA",
-            cost_usd=10000, engineering_hours=80, score_impact=12.0,
+            name="HIPAA Encryption",
+            framework="HIPAA",
+            cost_usd=10000,
+            engineering_hours=80,
+            score_impact=12.0,
         )
         roi = await cost_service.calculate_roi(inv.id)
         assert roi is not None
@@ -445,7 +519,9 @@ class TestCostBenefitAnalyzer:
     @pytest.mark.asyncio
     async def test_cost_breakdown(self, cost_service: CostBenefitAnalyzerService):
         await cost_service.add_investment("A", "GDPR", cost_usd=5000, score_impact=3.0)
-        await cost_service.add_investment("B", "GDPR", category="tooling", cost_usd=2000, score_impact=2.0)
+        await cost_service.add_investment(
+            "B", "GDPR", category="tooling", cost_usd=2000, score_impact=2.0
+        )
         breakdowns = cost_service.get_cost_breakdown("GDPR")
         assert len(breakdowns) == 1
         assert breakdowns[0].total_cost == 7000

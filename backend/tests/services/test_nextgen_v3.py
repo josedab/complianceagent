@@ -1,6 +1,5 @@
 """Tests for Next-Gen v3 features (10 new capabilities)."""
 
-
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,7 +109,9 @@ class TestMCPServer:
     @pytest.mark.asyncio
     async def test_execute_unknown_tool_returns_error(self, mcp_service: MCPServerService):
         execution = await mcp_service.execute_tool(
-            tool_name="nonexistent/tool", params={}, client_id="test",
+            tool_name="nonexistent/tool",
+            params={},
+            client_id="test",
         )
         assert execution.status == ToolExecutionStatus.ERROR
         assert "not found" in execution.error_message
@@ -189,8 +190,10 @@ class TestRegChangeStream:
     @pytest.mark.asyncio
     async def test_publish_change(self, stream_service: RegChangeStreamService):
         change = RegulatoryChange(
-            regulation="GDPR", jurisdiction="EU",
-            title="Mandatory data portability update", summary="New mandatory requirements",
+            regulation="GDPR",
+            jurisdiction="EU",
+            title="Mandatory data portability update",
+            summary="New mandatory requirements",
         )
         result = await stream_service.publish_change(change)
         assert result.status == ChangeStatus.NOTIFIED
@@ -199,12 +202,16 @@ class TestRegChangeStream:
     @pytest.mark.asyncio
     async def test_subscribe_and_notify(self, stream_service: RegChangeStreamService):
         sub = await stream_service.subscribe(
-            subscriber_id="eng-team", channel="webhook",
-            severity_threshold="medium", jurisdictions=["EU"],
+            subscriber_id="eng-team",
+            channel="webhook",
+            severity_threshold="medium",
+            jurisdictions=["EU"],
         )
         assert sub.is_active is True
 
-        change = RegulatoryChange(regulation="GDPR", jurisdiction="EU", title="Penalty enforcement update")
+        change = RegulatoryChange(
+            regulation="GDPR", jurisdiction="EU", title="Penalty enforcement update"
+        )
         await stream_service.publish_change(change)
 
         stats = stream_service.get_stats()
@@ -306,7 +313,10 @@ class TestComplianceCopilot:
     @pytest.mark.asyncio
     async def test_explain_regulation(self, copilot_service: ComplianceCopilotService):
         explanation = await copilot_service.explain_regulation("GDPR", "Art. 17")
-        assert "erasure" in explanation.plain_language.lower() or "deletion" in explanation.plain_language.lower()
+        assert (
+            "erasure" in explanation.plain_language.lower()
+            or "deletion" in explanation.plain_language.lower()
+        )
         assert len(explanation.technical_implications) > 0
 
 
@@ -318,7 +328,15 @@ class TestAutoRemediation:
     async def test_trigger_low_risk_pipeline(self, remediation_service: AutoRemediationService):
         pipeline = await remediation_service.trigger_pipeline(
             repo="org/api",
-            violations=[{"file_path": "src/app.py", "severity": "low", "rule_id": "test", "framework": "GDPR", "message": "test"}],
+            violations=[
+                {
+                    "file_path": "src/app.py",
+                    "severity": "low",
+                    "rule_id": "test",
+                    "framework": "GDPR",
+                    "message": "test",
+                }
+            ],
         )
         assert pipeline.risk_level == RiskLevel.LOW
         assert pipeline.fixes_generated >= 1
@@ -329,7 +347,15 @@ class TestAutoRemediation:
     async def test_high_risk_requires_approval(self, remediation_service: AutoRemediationService):
         pipeline = await remediation_service.trigger_pipeline(
             repo="org/api",
-            violations=[{"severity": "high", "file_path": "x.py", "rule_id": "r", "framework": "HIPAA", "message": "m"}],
+            violations=[
+                {
+                    "severity": "high",
+                    "file_path": "x.py",
+                    "rule_id": "r",
+                    "framework": "HIPAA",
+                    "message": "m",
+                }
+            ],
         )
         assert pipeline.risk_level == RiskLevel.HIGH
         assert pipeline.status == RemediationStatus.AWAITING_APPROVAL
@@ -338,7 +364,15 @@ class TestAutoRemediation:
     async def test_approve_pipeline(self, remediation_service: AutoRemediationService):
         pipeline = await remediation_service.trigger_pipeline(
             repo="org/api",
-            violations=[{"severity": "high", "file_path": "x.py", "rule_id": "r", "framework": "GDPR", "message": "m"}],
+            violations=[
+                {
+                    "severity": "high",
+                    "file_path": "x.py",
+                    "rule_id": "r",
+                    "framework": "GDPR",
+                    "message": "m",
+                }
+            ],
         )
         approved = await remediation_service.approve_pipeline(pipeline.id, "admin@org.com", "LGTM")
         assert approved is not None
@@ -378,8 +412,10 @@ class TestMultiSCM:
     @pytest.mark.asyncio
     async def test_create_compliance_pr(self, scm_service: MultiSCMService):
         pr = await scm_service.create_compliance_pr(
-            provider="github", repo_full_name="org/repo",
-            title="fix: GDPR compliance", source_branch="compliance-fix",
+            provider="github",
+            repo_full_name="org/repo",
+            title="fix: GDPR compliance",
+            source_branch="compliance-fix",
         )
         assert pr.number >= 1
         assert pr.url != ""
@@ -453,8 +489,10 @@ class TestRegulationDiffViz:
     async def test_add_annotation(self, diff_service: RegulationDiffVizService):
         result = await diff_service.compute_diff("GDPR")
         ann = await diff_service.add_annotation(
-            diff_id=result.id, section_id="art-5",
-            author="compliance-lead", comment="Need to update data processing docs",
+            diff_id=result.id,
+            section_id="art-5",
+            author="compliance-lead",
+            comment="Need to update data processing docs",
             action_required=True,
         )
         assert ann.action_required is True
@@ -482,7 +520,9 @@ class TestComplianceExport:
     @pytest.mark.asyncio
     async def test_create_schedule(self, export_service: ComplianceExportService):
         sched = await export_service.create_schedule(
-            name="Weekly Report", data_type="full_report", schedule_cron="0 0 * * 1",
+            name="Weekly Report",
+            data_type="full_report",
+            schedule_cron="0 0 * * 1",
         )
         assert sched.is_active is True
         assert sched.schedule_cron == "0 0 * * 1"
@@ -490,7 +530,9 @@ class TestComplianceExport:
     @pytest.mark.asyncio
     async def test_configure_connector(self, export_service: ComplianceExportService):
         config = await export_service.configure_connector(
-            connector="snowflake", database="compliance_db", schema="compliance",
+            connector="snowflake",
+            database="compliance_db",
+            schema="compliance",
         )
         assert config.status == "configured"
         connectors = export_service.list_connectors()

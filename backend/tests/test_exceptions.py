@@ -44,6 +44,7 @@ class TestCopilotParsingError:
 
     def test_inherits_from_copilot_error(self):
         from app.core.exceptions import CopilotError
+
         err = CopilotParsingError("test")
         assert isinstance(err, CopilotError)
 
@@ -63,6 +64,7 @@ class TestCopilotRateLimitError:
 class TestExceptionHierarchy:
     def test_requirement_extraction_error_chain(self):
         from app.core.exceptions import ComplianceProcessingError
+
         err = RequirementExtractionError("extraction failed")
         assert isinstance(err, ComplianceProcessingError)
         assert isinstance(err, ComplianceAgentError)

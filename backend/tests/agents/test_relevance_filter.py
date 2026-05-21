@@ -114,7 +114,13 @@ class TestPIIRelevanceStrategy:
 
     def test_all_pii_categories(self):
         profile = _make_profile(processes_pii=True)
-        for cat in ["data_collection", "data_storage", "data_processing", "consent", "data_deletion"]:
+        for cat in [
+            "data_collection",
+            "data_storage",
+            "data_processing",
+            "consent",
+            "data_deletion",
+        ]:
             assert self.strategy.is_relevant({"category": cat}, profile) is True
 
     def test_missing_category_key(self):

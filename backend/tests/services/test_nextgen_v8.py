@@ -21,37 +21,46 @@ from app.services.white_label_platform.service import WhiteLabelPlatformService
 async def os_svc(db_session: AsyncSession):
     return AutonomousOSService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def trust_svc(db_session: AsyncSession):
     return TrustNetworkService(db=db_session)
+
 
 @pytest_asyncio.fixture
 async def api_std_svc(db_session: AsyncSession):
     return ComplianceAPIStandardService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def marketplace_svc(db_session: AsyncSession):
     return DigitalMarketplaceService(db=db_session)
+
 
 @pytest_asyncio.fixture
 async def sim_svc(db_session: AsyncSession):
     return RegulatorySimulationService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def legal_svc(db_session: AsyncSession):
     return LegalCopilotService(db=db_session)
+
 
 @pytest_asyncio.fixture
 async def intel_svc(db_session: AsyncSession):
     return RegulatoryIntelFeedService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def wl_svc(db_session: AsyncSession):
     return WhiteLabelPlatformService(db=db_session)
 
+
 @pytest_asyncio.fixture
 async def cloud_svc(db_session: AsyncSession):
     return CrossCloudMeshService(db=db_session)
+
 
 @pytest_asyncio.fixture
 async def esg_svc(db_session: AsyncSession):
@@ -67,7 +76,9 @@ class TestAutonomousOS:
 
     @pytest.mark.asyncio
     async def test_process_high_severity_escalates(self, os_svc: AutonomousOSService):
-        decision = await os_svc.process_event("violation_detected", "scanner", {"severity": "critical"})
+        decision = await os_svc.process_event(
+            "violation_detected", "scanner", {"severity": "critical"}
+        )
         assert decision.decision_type == DecisionType.ESCALATE
 
     @pytest.mark.asyncio
@@ -148,7 +159,9 @@ class TestDigitalMarketplace:
 
     @pytest.mark.asyncio
     async def test_list_asset(self, marketplace_svc: DigitalMarketplaceService):
-        asset = await marketplace_svc.list_asset("Test Policy", "policy", "author1", "free", 0, ["GDPR"], {"content": "test"})
+        asset = await marketplace_svc.list_asset(
+            "Test Policy", "policy", "author1", "free", 0, ["GDPR"], {"content": "test"}
+        )
         assert asset.title == "Test Policy"
 
     @pytest.mark.asyncio
@@ -197,7 +210,9 @@ class TestLegalCopilot:
 
     @pytest.mark.asyncio
     async def test_review_clause(self, legal_svc: LegalCopilotService):
-        clause = await legal_svc.review_contract_clause("The processor must encrypt all personal data at rest and in transit.")
+        clause = await legal_svc.review_contract_clause(
+            "The processor must encrypt all personal data at rest and in transit."
+        )
         assert clause.risk_level != ""
 
     @pytest.mark.asyncio
@@ -232,7 +247,9 @@ class TestRegulatoryIntelFeed:
 class TestWhiteLabelPlatform:
     @pytest.mark.asyncio
     async def test_onboard_partner(self, wl_svc: WhiteLabelPlatformService):
-        partner = await wl_svc.onboard_partner("ConsultCo", "gold", "consultco.compliance.ai", {"company_name": "ConsultCo"})
+        partner = await wl_svc.onboard_partner(
+            "ConsultCo", "gold", "consultco.compliance.ai", {"company_name": "ConsultCo"}
+        )
         assert partner.partner_name == "ConsultCo"
 
     @pytest.mark.asyncio
@@ -280,7 +297,9 @@ class TestESGSustainability:
 
     @pytest.mark.asyncio
     async def test_record_metric(self, esg_svc: ESGSustainabilityService):
-        metric = await esg_svc.record_metric("environmental", "csrd", "water_usage", 1250.0, "cubic_meters", "2026-Q1")
+        metric = await esg_svc.record_metric(
+            "environmental", "csrd", "water_usage", 1250.0, "cubic_meters", "2026-Q1"
+        )
         assert metric.value == 1250.0
 
     @pytest.mark.asyncio
