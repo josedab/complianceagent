@@ -176,11 +176,12 @@ export function CodeGenerationPreview({
           <div className="space-y-3">
             {generatedCode.files.map((file) => (
               <div key={file.path} className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => toggleFile(file.path)}
-                  className="w-full px-4 py-3 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <button
+                    onClick={() => toggleFile(file.path)}
+                    className="flex flex-1 items-center gap-3 px-4 py-3 text-left"
+                    aria-expanded={expandedFiles.has(file.path)}
+                  >
                     {expandedFiles.has(file.path) ? (
                       <ChevronDown className="h-4 w-4 text-gray-400" />
                     ) : (
@@ -189,14 +190,12 @@ export function CodeGenerationPreview({
                     <FileCode className="h-4 w-4 text-gray-500" />
                     <span className="font-mono text-sm text-gray-700">{file.path}</span>
                     {getOperationBadge(file.operation)}
-                  </div>
+                  </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      copyToClipboard(file.content, file.path)
-                    }}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    onClick={() => copyToClipboard(file.content, file.path)}
+                    className="mr-3 p-1 hover:bg-gray-200 rounded transition-colors"
                     title="Copy to clipboard"
+                    aria-label={`Copy ${file.path} to clipboard`}
                   >
                     {copiedFile === file.path ? (
                       <Check className="h-4 w-4 text-green-600" />
@@ -204,7 +203,7 @@ export function CodeGenerationPreview({
                       <Copy className="h-4 w-4 text-gray-400" />
                     )}
                   </button>
-                </button>
+                </div>
                 {expandedFiles.has(file.path) && (
                   <div className="border-t border-gray-200">
                     <pre className={`p-4 bg-gray-900 text-gray-100 text-sm overflow-x-auto ${getLanguageClass(file.language)}`}>
@@ -221,11 +220,12 @@ export function CodeGenerationPreview({
           <div className="space-y-3">
             {generatedCode.tests.map((file) => (
               <div key={file.path} className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => toggleFile(file.path)}
-                  className="w-full px-4 py-3 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <button
+                    onClick={() => toggleFile(file.path)}
+                    className="flex flex-1 items-center gap-3 px-4 py-3 text-left"
+                    aria-expanded={expandedFiles.has(file.path)}
+                  >
                     {expandedFiles.has(file.path) ? (
                       <ChevronDown className="h-4 w-4 text-gray-400" />
                     ) : (
@@ -233,14 +233,12 @@ export function CodeGenerationPreview({
                     )}
                     <FileCode className="h-4 w-4 text-green-500" />
                     <span className="font-mono text-sm text-gray-700">{file.path}</span>
-                  </div>
+                  </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      copyToClipboard(file.content, file.path)
-                    }}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    onClick={() => copyToClipboard(file.content, file.path)}
+                    className="mr-3 p-1 hover:bg-gray-200 rounded transition-colors"
                     title="Copy to clipboard"
+                    aria-label={`Copy ${file.path} to clipboard`}
                   >
                     {copiedFile === file.path ? (
                       <Check className="h-4 w-4 text-green-600" />
@@ -248,7 +246,7 @@ export function CodeGenerationPreview({
                       <Copy className="h-4 w-4 text-gray-400" />
                     )}
                   </button>
-                </button>
+                </div>
                 {expandedFiles.has(file.path) && (
                   <div className="border-t border-gray-200">
                     <pre className={`p-4 bg-gray-900 text-gray-100 text-sm overflow-x-auto ${getLanguageClass(file.language)}`}>

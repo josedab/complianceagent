@@ -48,7 +48,7 @@ export function useWebSocket({
   const reconnectAttemptsRef = React.useRef(0);
   const reconnectTimeoutRef = React.useRef<NodeJS.Timeout>();
 
-  const connect = React.useCallback(() => {
+  const connect = React.useCallback(function connectSocket() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     setStatus('connecting');
@@ -79,7 +79,10 @@ export function useWebSocket({
         // Auto-reconnect
         if (reconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
-          reconnectTimeoutRef.current = setTimeout(connect, reconnectInterval);
+          reconnectTimeoutRef.current = setTimeout(
+            connectSocket,
+            reconnectInterval
+          );
         }
       };
 

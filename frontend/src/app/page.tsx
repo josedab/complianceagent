@@ -39,9 +39,9 @@ export default function Home() {
             <Link href="/signup" className="btn-primary text-lg px-8 py-3 flex items-center">
               Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
-            <Link href="/demo" className="btn-secondary text-lg px-8 py-3">
+            <a href="mailto:contact@complianceagent.ai?subject=Request%20a%20Demo" className="btn-secondary text-lg px-8 py-3">
               Request Demo
-            </Link>
+            </a>
           </div>
         </div>
       </section>

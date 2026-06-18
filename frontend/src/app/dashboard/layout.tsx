@@ -38,8 +38,22 @@ import { CardErrorBoundary } from '@/components/ErrorBoundary'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { RealTimeProvider, LiveIndicator } from '@/components/ui/RealTime'
 import { useAuth } from '@/contexts/auth'
+import { api } from '@/lib/api'
 
-const navigation = [
+interface NavigationItem {
+  name: string
+  href: string
+  icon: typeof LayoutDashboard
+  feature?: string
+  experimental?: boolean
+}
+
+interface FeatureStatus {
+  experimental_enabled: boolean
+  flags: Array<{ name: string; enabled: boolean }>
+}
+
+const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Regulations', href: '/dashboard/regulations', icon: FileText },
   { name: 'Repositories', href: '/dashboard/repositories', icon: Code },
@@ -47,22 +61,22 @@ const navigation = [
   { name: 'Audit Trail', href: '/dashboard/audit', icon: FileText },
   { name: 'Testing Suite', href: '/dashboard/testing', icon: FlaskConical },
   { name: 'Architecture Advisor', href: '/dashboard/architecture-advisor', icon: Building2 },
-  { name: 'Drift Detection', href: '/dashboard/drift-detection', icon: Activity },
+  { name: 'Drift Detection', href: '/dashboard/drift-detection', icon: Activity, feature: 'drift_detection' },
   { name: 'Cost Calculator', href: '/dashboard/cost-calculator', icon: DollarSign },
-  { name: 'Evidence Vault', href: '/dashboard/evidence-vault', icon: Lock },
-  { name: 'Federated Intel', href: '/dashboard/federated-intel', icon: Globe },
+  { name: 'Evidence Vault', href: '/dashboard/evidence-vault', icon: Lock, feature: 'evidence_vault' },
+  { name: 'Federated Intel', href: '/dashboard/federated-intel', icon: Globe, feature: 'federated_intel' },
   { name: 'Marketplace', href: '/dashboard/marketplace', icon: Store },
   { name: 'Industry Packs', href: '/dashboard/industry-packs', icon: Package },
-  { name: 'Sandbox', href: '/dashboard/compliance-sandbox', icon: Beaker },
+  { name: 'Sandbox', href: '/dashboard/compliance-sandbox', icon: Beaker, experimental: true },
   { name: 'Compliance Query', href: '/dashboard/nl-query', icon: MessageSquare },
-  { name: 'Multi-LLM Engine', href: '/dashboard/multi-llm', icon: Brain },
+  { name: 'Multi-LLM Engine', href: '/dashboard/multi-llm', icon: Brain, feature: 'multi_llm' },
   { name: 'Impact Timeline', href: '/dashboard/impact-timeline', icon: Calendar },
   { name: 'Audit Autopilot', href: '/dashboard/audit-autopilot', icon: ShieldCheck },
   { name: 'Policy SDK', href: '/dashboard/policy-sdk', icon: Terminal },
   { name: 'IDE Co-Pilot', href: '/dashboard/ide-copilot', icon: Bot },
-  { name: 'Impact Simulator', href: '/dashboard/impact-simulator', icon: Crosshair },
+  { name: 'Impact Simulator', href: '/dashboard/impact-simulator', icon: Crosshair, feature: 'impact_simulator' },
   { name: 'Remediation', href: '/dashboard/remediation-workflow', icon: GitPullRequest },
-  { name: 'Posture Score', href: '/dashboard/posture-scoring', icon: Gauge },
+  { name: 'Posture Score', href: '/dashboard/posture-scoring', icon: Gauge, feature: 'posture_scoring' },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
@@ -76,6 +90,7 @@ export default function DashboardLayout({
   const { user, logout } = useAuth()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [featureStatus, setFeatureStatus] = useState<FeatureStatus | null>(null)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const notifRef = useRef<HTMLDivElement>(null)
 
@@ -92,6 +107,36 @@ export default function DashboardLayout({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  useEffect(() => {
+    let active = true
+    api
+      .get<FeatureStatus>('/status/features')
+      .then((response) => {
+        if (active) setFeatureStatus(response.data)
+      })
+      .catch(() => {
+        if (active) {
+          setFeatureStatus({ experimental_enabled: false, flags: [] })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const enabledFlags = new Set(
+    featureStatus?.flags.filter((flag) => flag.enabled).map((flag) => flag.name) ?? []
+  )
+  const isAvailable = (item: NavigationItem) => {
+    if (item.feature) return enabledFlags.has(item.feature)
+    if (item.experimental) return featureStatus?.experimental_enabled === true
+    return true
+  }
+  const visibleNavigation = navigation.filter(isAvailable)
+  const currentNavigationItem = navigation.find((item) => pathname === item.href)
+  const currentFeatureDisabled =
+    currentNavigationItem !== undefined && !isAvailable(currentNavigationItem)
 
   const initials = user?.full_name
     ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -119,7 +164,7 @@ export default function DashboardLayout({
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1">
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const isActive = pathname === item.href
             return (
               <Link
@@ -240,7 +285,17 @@ export default function DashboardLayout({
         {/* Page content */}
         <main className="p-6">
           <CardErrorBoundary>
-            {children}
+            {currentFeatureDisabled ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
+                <h1 className="text-lg font-semibold">Feature unavailable</h1>
+                <p className="mt-2 text-sm">
+                  This preview or experimental capability is disabled in the current
+                  environment because it does not provide durable production storage.
+                </p>
+              </div>
+            ) : (
+              children
+            )}
           </CardErrorBoundary>
         </main>
       </div>

@@ -5,6 +5,17 @@ import { Moon, Sun, Monitor } from 'lucide-react'
 
 type Theme = 'light' | 'dark' | 'system'
 
+function applyTheme(newTheme: Theme) {
+  const root = document.documentElement
+
+  if (newTheme === 'system') {
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    root.classList.toggle('dark', systemDark)
+  } else {
+    root.classList.toggle('dark', newTheme === 'dark')
+  }
+}
+
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('system')
   const [mounted, setMounted] = useState(false)
@@ -17,17 +28,6 @@ export function ThemeToggle() {
       applyTheme(stored)
     }
   }, [])
-
-  const applyTheme = (newTheme: Theme) => {
-    const root = document.documentElement
-    
-    if (newTheme === 'system') {
-      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      root.classList.toggle('dark', systemDark)
-    } else {
-      root.classList.toggle('dark', newTheme === 'dark')
-    }
-  }
 
   const cycleTheme = () => {
     const themes: Theme[] = ['light', 'dark', 'system']

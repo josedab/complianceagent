@@ -37,7 +37,7 @@ function statusToDisplay(status: ComplianceStatus): string {
 }
 
 export default function DashboardPage() {
-  const { stats, frameworkStatuses, recentActivity, deadlines, loading, error } = useDashboardStats()
+  const { stats, frameworkStatuses, recentActivity, deadlines, loading, error, refetch } = useDashboardStats()
 
   if (loading) {
     return <DashboardSkeleton />
@@ -47,19 +47,22 @@ export default function DashboardPage() {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
         <p className="text-red-800">Error loading dashboard: {error.message}</p>
-        <p className="text-sm text-red-600 mt-1">Using fallback data for demonstration.</p>
+        <button onClick={refetch} className="mt-2 text-sm text-red-600 underline">
+          Retry
+        </button>
       </div>
     )
   }
 
-  const complianceStats = stats || {
-    overall_score: 87,
-    compliant: 42,
-    partial: 8,
-    non_compliant: 3,
-    pending: 5,
-    trend_percentage: 2.3,
+  if (!stats) {
+    return (
+      <div className="card p-8 text-center">
+        <p className="text-gray-500">No compliance data available yet.</p>
+      </div>
+    )
   }
+
+  const complianceStats = stats
 
   return (
     <div className="space-y-6">
