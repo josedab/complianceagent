@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   testingApi,
   architectureAdvisorApi,
@@ -44,6 +44,7 @@ import type {
   ArchitectureScore,
   DriftBaseline,
   DriftReport,
+  DriftEventRecord,
   CostPrediction,
   ROISummary,
   EvidenceItem,
@@ -67,6 +68,7 @@ import type {
   GapAnalysis,
   EvidencePackage,
   ReadinessReport,
+  AuditFrameworkSummary,
   PolicyDefinition,
   PolicyValidation,
   MarketplaceEntry,
@@ -116,12 +118,17 @@ function useApiCall<T>(
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const apiCallRef = useRef(apiCall)
+
+  useEffect(() => {
+    apiCallRef.current = apiCall
+  }, [apiCall])
 
   const refetch = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await apiCall()
+      const response = await apiCallRef.current()
       setData(response.data)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('An error occurred'))
@@ -129,7 +136,7 @@ function useApiCall<T>(
       setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiCall, ...deps])
+  }, [...deps])
 
   useEffect(() => {
     refetch()
@@ -229,6 +236,14 @@ export function useDriftAlerts() {
   return useApiCall<Array<{ channel: string; status: string }>>(
     () => driftDetectionApi.getAlerts(),
     []
+  )
+}
+
+export function useDriftEvents(repo?: string) {
+  return useApiCall<DriftEventRecord[]>(
+    () => driftDetectionApi.listEvents(repo ? { repo } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [repo]
   )
 }
 
@@ -431,6 +446,13 @@ export function useGenerateTimelineTasks() {
 }
 
 // ─── Audit Autopilot Hooks ──────────────────────────────────────────────────
+
+export function useAuditFrameworks() {
+  return useApiCall<AuditFrameworkSummary[]>(
+    () => auditAutopilotApi.listFrameworks().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
 
 export function useGapAnalysis() {
   return useMutation<string, GapAnalysis>(
@@ -888,6 +910,573 @@ export function usePredictionAccuracy() {
 export function usePrivacyBudget() {
   return useApiCall<Record<string, unknown>>(
     () => federatedIntelV2Api.getPrivacyBudget(),
+    []
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Next-Gen v4 Feature Hooks (39 dashboard wiring)
+// ═══════════════════════════════════════════════════════════════
+
+import {
+  apiGatewayApi,
+  apiMonetizationApi,
+  agentSwarmApi,
+  agentsMarketplaceApi,
+  archAdvisorApi,
+  auditWorkspaceApi,
+  autoHealingApi,
+  autonomousOsApi,
+  autoRemediationApi,
+  boardReportsApi,
+  certAutopilotApi,
+  certPipelineApi,
+  chaosEngineeringApi,
+  cicdRuntimeApi,
+  clientSdkApi,
+  codeReviewAgentApi,
+  complianceApiStandardApi,
+  complianceCloningApi,
+  complianceDataLakeApi,
+  complianceDebtApi,
+  complianceEditorApi,
+  complianceExportApi,
+  complianceObservabilityApi,
+  complianceSdkPackagesApi,
+  costEngineApi,
+  crossCloudMeshApi,
+  crossOrgBenchmarkApi,
+  crossRepoGraphApi,
+  dataMeshFederationApi,
+  entityRollupApi,
+  gameEngineApi,
+  horizonScannerApi,
+  policyMarketplaceApi,
+  regulationDiffApi,
+  complianceCopilotApi,
+  iacPolicyApi,
+  knowledgeGraphApi,
+  pairProgrammingApi,
+} from '@/lib/api'
+
+import type {
+  GatewayClient,
+  GatewayStats,
+  MonetizationApi,
+  MonetizationRevenue,
+  SwarmSession,
+  SwarmStats,
+  MarketplaceAgent,
+  AgentsMarketplaceStats,
+  ArchAdvisorStatsRecord,
+  AuditWorkspaceItem,
+  AutoHealingRun,
+  AutoHealingMetrics,
+  AutonomousOSEvent,
+  AutonomousOSStats,
+  AutoRemediationPipeline,
+  AutoRemediationStats,
+  BoardExecutiveSummary,
+  CertJourney,
+  CertRun,
+  CertPipelineStats,
+  ChaosExperiment,
+  ChaosStats,
+  CICDCheck,
+  CICDStats,
+  ComplianceApiStandardStatsRecord,
+  ApiSpecVersionRecord,
+  ReferenceRepoRecord,
+  DataLakeStatsRecord,
+  ComplianceDebtItemRecord,
+  ComplianceDebtStatsRecord,
+  EditorStatsRecord,
+  ExportJobRecord,
+  ExportSummaryRecord,
+  ObservabilityMetricRecord,
+  ObservabilityPipelineStatsRecord,
+  ComplianceSdkPackageRecord,
+  ComplianceSdkUsageRecord,
+  CostAttributionListRecord,
+  CloudAccountRecord,
+  CloudPostureRecord,
+  OrgBenchmarkStatsRecord,
+  CrossRepoGraphRecord,
+  DataMeshNodeRecord,
+  FederationStatsRecord,
+  EntityHierarchyRecord,
+  GameScenarioRecord,
+  GameLeaderboardRecord,
+  HorizonTimelineRecord,
+  PolicyPackRecord,
+  PolicyMarketplaceStatsRecord,
+  RegulationVersionRecord,
+  RegulationDiffSummaryRecord,
+  CopilotViolationRecord,
+  IaCPolicyRuleRecord,
+  ImpactScenarioRecord,
+  PairRegulationContextRecord,
+} from '@/types/nextgen'
+
+// ─── API Gateway ────────────────────────────────────────────────
+export function useGatewayClients() {
+  return useApiCall<GatewayClient[]>(
+    () => apiGatewayApi.listClients().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useGatewayStats() {
+  return useApiCall<GatewayStats>(
+    () => apiGatewayApi.getStats(),
+    []
+  )
+}
+
+// ─── API Monetization ────────────────────────────────────────────────
+export function useMonetizationApis() {
+  return useApiCall<MonetizationApi[]>(
+    () => apiMonetizationApi.listApis().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useMonetizationRevenue() {
+  return useApiCall<MonetizationRevenue>(
+    () => apiMonetizationApi.getRevenue(),
+    []
+  )
+}
+
+// ─── Agent Swarm ────────────────────────────────────────────────
+export function useSwarmSessions() {
+  return useApiCall<SwarmSession[]>(
+    () => agentSwarmApi.listSessions().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useSwarmStats() {
+  return useApiCall<SwarmStats>(
+    () => agentSwarmApi.getStats(),
+    []
+  )
+}
+
+// ─── Agents Marketplace ────────────────────────────────────────────────
+export function useMarketplaceAgents(query?: string) {
+  return useApiCall<MarketplaceAgent[]>(
+    () => agentsMarketplaceApi.searchAgents(query ? { query } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [query]
+  )
+}
+export function useAgentsMarketplaceStats() {
+  return useApiCall<AgentsMarketplaceStats>(
+    () => agentsMarketplaceApi.getStats(),
+    []
+  )
+}
+
+// ─── Arch Advisor ────────────────────────────────────────────────
+export function useArchAdvisorStats() {
+  return useApiCall<ArchAdvisorStatsRecord>(
+    () => archAdvisorApi.getStats(),
+    []
+  )
+}
+export function useArchAdvisorFrameworks() {
+  return useApiCall<string[]>(
+    () => archAdvisorApi.listFrameworks().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── Audit Workspace ────────────────────────────────────────────────
+export function useAuditWorkspaces(org_id?: string) {
+  return useApiCall<AuditWorkspaceItem[]>(
+    () => auditWorkspaceApi.listWorkspaces(org_id).then(res => ({ data: res.data || [] })),
+    [org_id]
+  )
+}
+
+// ─── Auto Healing ────────────────────────────────────────────────
+export function useAutoHealingRuns(state?: string) {
+  return useApiCall<AutoHealingRun[]>(
+    () => autoHealingApi.listRuns(state).then(res => ({ data: (res.data as { runs?: AutoHealingRun[] })?.runs || res.data || [] })),
+    [state]
+  )
+}
+export function useAutoHealingMetrics() {
+  return useApiCall<AutoHealingMetrics>(
+    () => autoHealingApi.getMetrics(),
+    []
+  )
+}
+
+// ─── Autonomous OS ────────────────────────────────────────────────
+export function useAutonomousOSEvents() {
+  return useApiCall<AutonomousOSEvent[]>(
+    () => autonomousOsApi.listEvents().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useAutonomousOSStats() {
+  return useApiCall<AutonomousOSStats>(
+    () => autonomousOsApi.getStats(),
+    []
+  )
+}
+
+// ─── Auto Remediation ────────────────────────────────────────────────
+export function useAutoRemediationPipelines(status?: string) {
+  return useApiCall<AutoRemediationPipeline[]>(
+    () => autoRemediationApi.listPipelines(status ? { pipeline_status: status } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [status]
+  )
+}
+export function useAutoRemediationStats() {
+  return useApiCall<AutoRemediationStats>(
+    () => autoRemediationApi.getStats(),
+    []
+  )
+}
+
+// ─── Board Reports ────────────────────────────────────────────────
+export function useBoardExecutiveSummary(org_id?: string, period?: string) {
+  return useApiCall<BoardExecutiveSummary>(
+    () => boardReportsApi.getExecutiveSummary({ org_id, period }),
+    [org_id, period]
+  )
+}
+
+// ─── Cert Autopilot ────────────────────────────────────────────────
+export function useCertJourneys() {
+  return useApiCall<CertJourney[]>(
+    () => certAutopilotApi.listJourneys().then(res => ({ data: (res.data as { journeys?: CertJourney[] })?.journeys || res.data || [] })),
+    []
+  )
+}
+
+// ─── Cert Pipeline ────────────────────────────────────────────────
+export function useCertRuns(params?: { framework?: string; repo?: string }) {
+  return useApiCall<CertRun[]>(
+    () => certPipelineApi.listRuns(params).then(res => ({ data: res.data || [] })),
+    [params?.framework, params?.repo]
+  )
+}
+export function useCertPipelineStats() {
+  return useApiCall<CertPipelineStats>(
+    () => certPipelineApi.getStats(),
+    []
+  )
+}
+
+// ─── Chaos Engineering ────────────────────────────────────────────────
+export function useChaosExperiments(status?: string) {
+  return useApiCall<ChaosExperiment[]>(
+    () => chaosEngineeringApi.listExperiments(status).then(res => ({ data: res.data || [] })),
+    [status]
+  )
+}
+export function useChaosStats() {
+  return useApiCall<ChaosStats>(
+    () => chaosEngineeringApi.getStats(),
+    []
+  )
+}
+
+// ─── CICD Runtime ────────────────────────────────────────────────
+export function useCICDChecks() {
+  return useApiCall<CICDCheck[]>(
+    () => cicdRuntimeApi.listChecks().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useCICDStats() {
+  return useApiCall<CICDStats>(
+    () => cicdRuntimeApi.getStats(),
+    []
+  )
+}
+
+// ─── Client SDK ────────────────────────────────────────────────
+export function useClientSDKPackages() {
+  return useApiCall<Record<string, unknown>[]>(
+    () => clientSdkApi.listPackages().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useClientSDKStats() {
+  return useApiCall<Record<string, unknown>>(
+    () => clientSdkApi.getStats(),
+    []
+  )
+}
+
+// ─── Code Review Agent ────────────────────────────────────────────────
+export function useCodeReviews(repo?: string) {
+  return useApiCall<Record<string, unknown>[]>(
+    () => codeReviewAgentApi.listReviews(repo ? { repo } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [repo]
+  )
+}
+export function useCodeReviewStats() {
+  return useApiCall<Record<string, unknown>>(
+    () => codeReviewAgentApi.getStats(),
+    []
+  )
+}
+
+// ─── Compliance API Standard ────────────────────────────────────────────────
+export function useApiSpecVersions() {
+  return useApiCall<ApiSpecVersionRecord[]>(
+    () => complianceApiStandardApi.listVersions().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useComplianceApiStandardStats() {
+  return useApiCall<ComplianceApiStandardStatsRecord>(
+    () => complianceApiStandardApi.getStats(),
+    []
+  )
+}
+
+// ─── Compliance Cloning ────────────────────────────────────────────────
+export function useReferenceRepos(industry?: string) {
+  return useApiCall<ReferenceRepoRecord[]>(
+    () => complianceCloningApi.listReferenceRepos(industry ? { industry } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [industry]
+  )
+}
+
+// ─── Compliance Data Lake ────────────────────────────────────────────────
+export function useDataLakeStats() {
+  return useApiCall<DataLakeStatsRecord>(
+    () => complianceDataLakeApi.getStats(),
+    []
+  )
+}
+
+// ─── Compliance Debt ────────────────────────────────────────────────
+export function useComplianceDebtItems(framework?: string) {
+  return useApiCall<ComplianceDebtItemRecord[]>(
+    () => complianceDebtApi.listItems(framework).then(res => ({ data: res.data || [] })),
+    [framework]
+  )
+}
+export function useComplianceDebtStats() {
+  return useApiCall<ComplianceDebtStatsRecord>(
+    () => complianceDebtApi.getStats(),
+    []
+  )
+}
+
+// ─── Compliance Editor ────────────────────────────────────────────────
+export function useComplianceEditorStats() {
+  return useApiCall<EditorStatsRecord>(
+    () => complianceEditorApi.getStats(),
+    []
+  )
+}
+
+// ─── Compliance Export ────────────────────────────────────────────────
+export function useExportJobs(limit?: number) {
+  return useApiCall<ExportJobRecord[]>(
+    () => complianceExportApi.listExports(limit).then(res => ({ data: res.data || [] })),
+    [limit]
+  )
+}
+export function useExportSummary() {
+  return useApiCall<ExportSummaryRecord>(
+    () => complianceExportApi.getSummary(),
+    []
+  )
+}
+
+// ─── Compliance Observability ────────────────────────────────────────────────
+export function useObservabilityMetrics() {
+  return useApiCall<ObservabilityMetricRecord[]>(
+    () => complianceObservabilityApi.listMetrics().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useObservabilityStats() {
+  return useApiCall<ObservabilityPipelineStatsRecord>(
+    () => complianceObservabilityApi.getStats(),
+    []
+  )
+}
+
+// ─── Compliance SDK ────────────────────────────────────────────────
+export function useComplianceSdkPackages(language?: string) {
+  return useApiCall<ComplianceSdkPackageRecord[]>(
+    () => complianceSdkPackagesApi.listSdks(language).then(res => ({ data: res.data || [] })),
+    [language]
+  )
+}
+export function useComplianceSdkUsage() {
+  return useApiCall<ComplianceSdkUsageRecord>(
+    () => complianceSdkPackagesApi.getUsage(),
+    []
+  )
+}
+
+// ─── Cost Engine ────────────────────────────────────────────────
+export function useCostAttributionList() {
+  return useApiCall<CostAttributionListRecord>(
+    () => costEngineApi.listAttributions(),
+    []
+  )
+}
+export function useCostEngineRoi() {
+  return useApiCall<Record<string, unknown>>(
+    () => costEngineApi.getRoi(),
+    []
+  )
+}
+
+// ─── Cross Cloud Mesh ────────────────────────────────────────────────
+export function useCloudAccounts() {
+  return useApiCall<CloudAccountRecord[]>(
+    () => crossCloudMeshApi.listAccounts().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useCloudPosture() {
+  return useApiCall<CloudPostureRecord>(
+    () => crossCloudMeshApi.getPosture(),
+    []
+  )
+}
+
+// ─── Cross Org Benchmark ────────────────────────────────────────────────
+export function useCrossOrgBenchmarkStats() {
+  return useApiCall<OrgBenchmarkStatsRecord>(
+    () => crossOrgBenchmarkApi.getStats(),
+    []
+  )
+}
+
+// ─── Cross Repo Graph ────────────────────────────────────────────────
+export function useCrossRepoGraph() {
+  return useApiCall<CrossRepoGraphRecord>(
+    () => crossRepoGraphApi.getGraph(),
+    []
+  )
+}
+
+// ─── Data Mesh Federation ────────────────────────────────────────────────
+export function useDataMeshNodes() {
+  return useApiCall<DataMeshNodeRecord[]>(
+    () => dataMeshFederationApi.listNodes().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+export function useFederationStats() {
+  return useApiCall<FederationStatsRecord>(
+    () => dataMeshFederationApi.getStats(),
+    []
+  )
+}
+
+// ─── Entity Rollup ────────────────────────────────────────────────
+export function useEntityHierarchy() {
+  return useApiCall<EntityHierarchyRecord[]>(
+    () => entityRollupApi.getHierarchy().then(res => ({ data: res.data || [] })),
+    []
+  )
+}
+
+// ─── Game Engine ────────────────────────────────────────────────
+export function useGameScenarios(category?: string) {
+  return useApiCall<GameScenarioRecord[]>(
+    () => gameEngineApi.listScenarios(category ? { category } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [category]
+  )
+}
+export function useGameLeaderboard(limit?: number) {
+  return useApiCall<GameLeaderboardRecord[]>(
+    () => gameEngineApi.getLeaderboard(limit).then(res => ({ data: res.data || [] })),
+    [limit]
+  )
+}
+
+// ─── Horizon Scanner ────────────────────────────────────────────────
+export function useHorizonTimeline(params?: { jurisdiction?: string; framework?: string }) {
+  return useApiCall<HorizonTimelineRecord>(
+    () => horizonScannerApi.getTimeline(params),
+    [params?.jurisdiction, params?.framework]
+  )
+}
+
+// ─── Policy Marketplace ────────────────────────────────────────────────
+export function usePolicyPacks() {
+  return useApiCall<PolicyPackRecord[]>(
+    () => policyMarketplaceApi.listPacks().then(res => ({ data: (res.data as { packs?: PolicyPackRecord[] })?.packs || res.data || [] })),
+    []
+  )
+}
+export function usePolicyMarketplaceStats() {
+  return useApiCall<PolicyMarketplaceStatsRecord>(
+    () => policyMarketplaceApi.getStats(),
+    []
+  )
+}
+
+// ─── Regulation Diff ────────────────────────────────────────────────
+export function useRegulationVersions(regulation?: string) {
+  return useApiCall<RegulationVersionRecord[]>(
+    () => regulationDiffApi.listVersions(regulation).then(res => ({ data: res.data || [] })),
+    [regulation]
+  )
+}
+export function useRegulationDiffs(regulation?: string) {
+  return useApiCall<RegulationDiffSummaryRecord[]>(
+    () => regulationDiffApi.listDiffs(regulation).then(res => ({ data: res.data || [] })),
+    [regulation]
+  )
+}
+
+// ─── Compliance Copilot ────────────────────────────────────────────────
+export function useComplianceCopilotViolations(framework?: string) {
+  return useApiCall<CopilotViolationRecord[]>(
+    () => complianceCopilotApi.listViolations(framework ? { framework } : undefined)
+      .then(res => ({ data: res.data || [] })),
+    [framework]
+  )
+}
+
+// ─── IaC Policy Engine ────────────────────────────────────────────────
+export function useIaCRules(provider?: string) {
+  return useApiCall<IaCPolicyRuleRecord[]>(
+    () => iacPolicyApi.listRules(provider ? { provider } : undefined)
+      .then(res => ({ data: (res.data as { rules?: IaCPolicyRuleRecord[] })?.rules || res.data || [] })),
+    [provider]
+  )
+}
+
+// ─── Knowledge Graph ────────────────────────────────────────────────
+export function useKnowledgeGraphNodeTypes() {
+  return useApiCall<Record<string, unknown>>(
+    () => knowledgeGraphApi.getNodeTypes(),
+    []
+  )
+}
+
+// ─── Pair Programming ────────────────────────────────────────────────
+export function usePairProgrammingContext(language: string) {
+  return useApiCall<PairRegulationContextRecord[]>(
+    () => pairProgrammingApi.getContext(language).then(res => ({ data: res.data || [] })),
+    [language]
+  )
+}
+
+// ─── Impact Simulator ────────────────────────────────────────────────
+export function useImpactScenarios() {
+  return useApiCall<ImpactScenarioRecord[]>(
+    () => impactSimulatorApi.listScenarios().then(res => ({ data: res.data || [] })),
     []
   )
 }

@@ -163,6 +163,23 @@ export interface DriftReport {
   baseline?: DriftBaseline;
 }
 
+// Matches the real DriftEventSchema returned by GET /drift-detection/events
+export interface DriftEventRecord {
+  id: string;
+  repo: string;
+  branch: string;
+  drift_type: string;
+  severity: DriftSeverity;
+  regulation: string;
+  description: string;
+  file_path: string;
+  commit_sha: string;
+  previous_score: number;
+  current_score: number;
+  detected_at: string | null;
+  resolved_at: string | null;
+}
+
 // Cost Calculator Types
 export type ComplexityLevel = 'simple' | 'moderate' | 'complex' | 'very_complex';
 
@@ -468,6 +485,11 @@ export interface RemediationTask {
 
 // Audit Autopilot Types
 export type AuditFramework = 'soc2' | 'iso27001' | 'hipaa' | 'pci_dss';
+
+export interface AuditFrameworkSummary {
+  framework: string;
+  control_count: number;
+}
 
 export interface GapAnalysis {
   id: string;
@@ -1174,4 +1196,745 @@ export interface SmartContractRecord {
   contract_type: string;
   conditions: Record<string, unknown>[];
   auto_approve: boolean;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Next-Gen v4 Feature Types (39 dashboard wiring)
+// ═══════════════════════════════════════════════════════════════
+
+// API Gateway
+export interface GatewayClient {
+  id: string;
+  name: string;
+  description: string;
+  api_key: string;
+  scopes: string[];
+  rate_limit_per_minute: number;
+  webhook_url: string;
+  active: boolean;
+  created_at: string | null;
+}
+export interface GatewayStats {
+  total_clients: number;
+  active_clients: number;
+  total_requests: number;
+  requests_today: number;
+  rate_limited_count: number;
+  by_endpoint: Record<string, number>;
+  by_client: Record<string, number>;
+}
+
+// API Monetization
+export interface MonetizationApi {
+  id: string;
+  name: string;
+  description: string;
+  endpoint: string;
+  regulation: string;
+  version: string;
+  status: string;
+  requests_per_month: number;
+  avg_latency_ms: number;
+  pricing_per_request: number;
+  documentation_url: string;
+  supported_languages: string[];
+  tags: string[];
+}
+export interface MonetizationRevenue {
+  total_apis: number;
+  total_developers: number;
+  total_requests_month: number;
+  monthly_revenue: number;
+  top_api: string;
+  revenue_growth_pct: number;
+  avg_revenue_per_api: number;
+}
+
+// Agent Swarm
+export interface SwarmAgent {
+  id: string;
+  role: string;
+  status: string;
+  findings_count: number;
+}
+export interface SwarmSession {
+  id: string;
+  repo: string;
+  frameworks: string[];
+  files: string[];
+  status: string;
+  agents: SwarmAgent[];
+  findings: Record<string, unknown>[];
+  created_at: string | null;
+}
+export interface SwarmStats {
+  total_sessions: number;
+  active_sessions: number;
+  total_findings: number;
+  agents_deployed: number;
+}
+
+// Agents Marketplace
+export interface MarketplaceAgent {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  category: string;
+  author: string;
+  version: string;
+  status: string;
+  downloads: number;
+  rating: number;
+  rating_count: number;
+  tags: string[];
+  frameworks: string[];
+  published_at: string | null;
+}
+export interface AgentsMarketplaceStats {
+  total_agents: number;
+  published_agents: number;
+  total_installations: number;
+  total_executions: number;
+  by_category: Record<string, number>;
+  top_agents: Record<string, unknown>[];
+}
+
+// Arch Advisor
+export interface ArchDiagram {
+  id: string;
+  title: string;
+  frameworks: string[];
+  diagram_format: string;
+  diagram_code: string;
+  recommendations: string[];
+  generated_at: string | null;
+}
+export interface ArchAdvisorStatsRecord {
+  total_diagrams: number;
+  by_framework: Record<string, number>;
+  by_format: Record<string, number>;
+  avg_components: number;
+}
+
+// Audit Workspace
+export interface AuditWorkspaceItem {
+  id: string;
+  framework: string;
+  phase: string;
+  readiness_pct: number;
+}
+
+// Auto Healing
+export interface AutoHealingRun {
+  id: string;
+  trigger_type: string;
+  trigger_source: string;
+  state: string;
+  repository: string;
+  branch: string;
+  regulation: string;
+  violations_detected: number;
+  fixes_generated: number;
+  fixes_applied: number;
+  tests_passed: boolean;
+  pr_number: number | null;
+  pr_url: string | null;
+  approval_policy: string;
+  approved_by: string | null;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+export interface AutoHealingMetrics {
+  total_runs: number;
+  successful_runs: number;
+  failed_runs: number;
+  rejected_runs: number;
+  avg_time_to_fix_hours: number;
+  auto_merge_rate: number;
+  fix_acceptance_rate: number;
+  violations_resolved: number;
+}
+
+// Autonomous OS
+export interface AutonomousOSEvent {
+  id: string;
+  event_type: string;
+  source_service: string;
+  payload: Record<string, unknown>;
+  processed: boolean;
+  created_at: string | null;
+}
+export interface AutonomousOSStats {
+  total_events: number;
+  total_decisions: number;
+  autonomous_decisions: number;
+  avg_confidence: number;
+  autonomy_level: string;
+}
+
+// Auto Remediation
+export interface AutoRemediationPipeline {
+  id: string;
+  repo: string;
+  branch: string;
+  trigger_event: string;
+  status: string;
+  risk_level: string;
+  approval_policy: string;
+  violations_detected: number;
+  fixes_generated: number;
+  pr_url: string;
+  created_at: string | null;
+}
+export interface AutoRemediationStats {
+  total_pipelines: number;
+  by_status: Record<string, number>;
+  total_fixes_generated: number;
+  total_fixes_merged: number;
+  auto_merge_rate: number;
+}
+
+// Board Reports
+export interface BoardExecutiveSummary {
+  title: string;
+  period: string;
+  overall_score: number;
+  overall_status: string;
+  narrative: string;
+  highlights: { category: string; score: number; status: string; trend: string }[];
+  top_risks: string[];
+  action_items: string[];
+}
+
+// Cert Autopilot
+export interface CertJourney {
+  id: string | null;
+  framework: string;
+  current_phase: string;
+  progress_percent: number;
+  started_at: string;
+  estimated_completion: string;
+  phases: Record<string, unknown>[];
+}
+
+// Cert Pipeline
+export interface CertRun {
+  id: string;
+  repo: string;
+  framework: string;
+  owner: string;
+  stage: string;
+  progress_pct: number;
+  gaps: Record<string, unknown>[];
+  evidence_collected: number;
+  started_at: string | null;
+  completed_at: string | null;
+}
+export interface CertPipelineStats {
+  total_runs: number;
+  completed_runs: number;
+  in_progress_runs: number;
+  total_gaps: number;
+  resolved_gaps: number;
+  by_framework: Record<string, number>;
+  avg_completion_days: number;
+}
+
+// Chaos Engineering
+export interface ChaosExperiment {
+  id: string;
+  name: string;
+  description: string;
+  experiment_type: string;
+  status: string;
+  target_service: string;
+  target_environment: string;
+  blast_radius: string;
+  affected_frameworks: string[];
+  time_to_detect_seconds: number | null;
+  time_to_remediate_seconds: number | null;
+  detection_method: string;
+  auto_rollback: boolean;
+}
+export interface ChaosStats {
+  total_experiments: number;
+  experiments_detected: number;
+  experiments_undetected: number;
+  avg_mttd_seconds: number;
+  avg_mttr_seconds: number;
+  detection_rate: number;
+  game_days_completed: number;
+  controls_validated: number;
+  blind_spots_found: number;
+}
+
+// CICD Runtime
+export interface CICDCheck {
+  id: string;
+  deployment_id: string;
+  repo: string;
+  phase: string;
+  checks_passed: number;
+  checks_failed: number;
+  gate_decision: string;
+  violations: Record<string, unknown>[];
+  duration_ms: number;
+  checked_at: string | null;
+}
+export interface CICDStats {
+  total_checks: number;
+  deployments_gated: number;
+  rollbacks: number;
+  attestations_issued: number;
+  avg_check_duration_ms: number;
+  pass_rate: number;
+}
+
+// Client SDK
+export interface ClientSDKPackageRecord {
+  runtime: string;
+  version: string;
+  description: string;
+  download_count: number;
+  latest_release: string | null;
+}
+export interface ClientSDKStatsRecord {
+  total_endpoints: number;
+  total_packages: number;
+  total_api_keys: number;
+  total_requests: number;
+}
+
+// Code Review Agent
+export interface CodeReviewRecord {
+  id: string;
+  repo: string;
+  pr_number: number;
+  commit_sha: string;
+  overall_risk: string;
+  decision: string;
+  suggestions: Record<string, unknown>[];
+  files_analyzed: number;
+  hunks_analyzed: number;
+  compliance_score_before: number;
+  compliance_score_after: number;
+  auto_approve_eligible: boolean;
+  review_time_ms: number;
+  created_at: string | null;
+}
+export interface CodeReviewStats {
+  total_reviews: number;
+  auto_approved: number;
+  suggestions_made: number;
+  suggestions_accepted: number;
+  acceptance_rate: number;
+  avg_review_time_ms: number;
+  by_risk_level: Record<string, number>;
+}
+
+// Compliance API Standard
+export interface ApiSpecVersionRecord {
+  version: string;
+  status: string;
+  published_at: string | null;
+}
+export interface ComplianceApiStandardStatsRecord {
+  total_specs: number;
+  total_conformance_checks: number;
+  avg_compliance_score: number;
+  compliant_apis: number;
+}
+
+// Compliance Badge
+export interface ComplianceBadgeRecord {
+  repo: string;
+  grade: string;
+  score: number;
+  label: string;
+  color: string;
+  style: string;
+}
+export interface ComplianceScorecardRecord {
+  id: string;
+  repo: string;
+  overall_score: number;
+  overall_grade: string;
+  frameworks: Record<string, unknown>[];
+  trend: Record<string, unknown>[];
+  last_scan_at: string | null;
+  is_public: boolean;
+}
+
+// Compliance Cloning
+export interface ReferenceRepoRecord {
+  id: string;
+  name: string;
+  url: string;
+  description: string;
+  languages: string[];
+  frameworks: string[];
+  compliance_score: number;
+  patterns_count: number;
+  industry: string;
+  verified: boolean;
+}
+
+// Compliance Data Lake
+export interface DataLakeEventRecord {
+  id: string;
+  tenant_id: string;
+  category: string;
+  source_service: string;
+  repo: string;
+  framework: string;
+  timestamp: string | null;
+}
+export interface DataLakeStatsRecord {
+  total_events: number;
+  by_category: Record<string, number>;
+  by_tenant: Record<string, number>;
+  storage_size_mb: number;
+}
+
+// Compliance Debt
+export interface ComplianceDebtItemRecord {
+  id: string;
+  title: string;
+  description: string;
+  framework: string;
+  rule_id: string;
+  file_path: string;
+  severity: string;
+  risk_cost_usd: number;
+  remediation_cost_usd: number;
+  repo: string;
+  status: string;
+  created_at: string | null;
+}
+export interface ComplianceDebtStatsRecord {
+  total_items: number;
+  open_items: number;
+  resolved_items: number;
+  total_risk_cost_usd: number;
+  total_remediation_cost_usd: number;
+  by_severity: Record<string, number>;
+  by_framework: Record<string, number>;
+}
+
+// Compliance Editor
+export interface EditorSessionRecord {
+  id: string;
+  user_id: string;
+  files: { path: string; language: string; issues_count: number; fixes_available: number }[];
+  status: string;
+  created_at: string | null;
+}
+export interface EditorStatsRecord {
+  total_sessions: number;
+  active_sessions: number;
+  total_fixes_applied: number;
+  total_issues_found: number;
+}
+
+// Compliance Export
+export interface ExportJobRecord {
+  id: string;
+  data_type: string;
+  format: string;
+  status: string;
+  row_count: number;
+  file_size_bytes: number;
+  download_url: string;
+  created_at: string | null;
+  completed_at: string | null;
+}
+export interface ExportSummaryRecord {
+  total_exports: number;
+  by_format: Record<string, number>;
+  by_data_type: Record<string, number>;
+  total_rows_exported: number;
+  total_bytes_exported: number;
+  active_schedules: number;
+  configured_connectors: number;
+}
+
+// Compliance Observability
+export interface ObservabilityMetricRecord {
+  name: string;
+  metric_type: string;
+  value: number;
+  labels: Record<string, string>;
+  unit: string;
+  recorded_at: string | null;
+}
+export interface ObservabilityPipelineStatsRecord {
+  metrics_emitted: number;
+  exporters_configured: number;
+  active_alerts: number;
+  metrics_by_type: Record<string, number>;
+}
+
+// Compliance SDK
+export interface ComplianceSdkPackageRecord {
+  language: string;
+  name: string;
+  version: string;
+  install_command: string;
+  registry_url: string;
+  description: string;
+}
+export interface ComplianceSdkUsageRecord {
+  total_keys: number;
+  active_keys: number;
+  total_requests: number;
+  requests_by_tier: Record<string, number>;
+  requests_by_endpoint: Record<string, number>;
+  avg_response_time_ms: number;
+  sdk_downloads: Record<string, number>;
+}
+
+// Cost Engine
+export interface CostAttributionRecord {
+  id: string;
+  team: string;
+  repository: string;
+  framework: string;
+  category: string;
+  hours: number;
+  estimated_cost: number;
+  created_at: string;
+}
+export interface CostAttributionListRecord {
+  attributions: CostAttributionRecord[];
+  total: number;
+  total_hours: number;
+  total_cost: number;
+}
+
+// Cross Cloud Mesh
+export interface CloudAccountRecord {
+  id: string;
+  provider: string;
+  account_id: string;
+  name: string;
+  regions: string[];
+  status: string;
+  resources_discovered: number;
+  created_at: string | null;
+}
+export interface CloudPostureRecord {
+  overall_score: number;
+  accounts: number;
+  total_resources: number;
+  total_findings: number;
+  critical_findings: number;
+  by_provider: Record<string, number>;
+}
+export interface CrossCloudStatsRecord {
+  total_accounts: number;
+  total_resources: number;
+  total_scans: number;
+  avg_compliance_score: number;
+  providers: string[];
+}
+
+// Cross Org Benchmark
+export interface OrgBenchmarkStatsRecord {
+  total_participants: number;
+  by_industry: Record<string, number>;
+  global_avg_score: number;
+  data_freshness_hours: number;
+}
+
+// Cross Repo Graph
+export interface RepoNodeRecord {
+  id: string;
+  name: string;
+  full_name: string;
+  score: number;
+  grade: string;
+  violations: number;
+  frameworks: string[];
+}
+export interface CrossRepoGraphRecord {
+  organization_id: string;
+  nodes: RepoNodeRecord[];
+  edges: Record<string, unknown>[];
+  overall_score: number;
+  hotspots: Record<string, unknown>[];
+}
+
+// Data Mesh Federation
+export interface DataMeshNodeRecord {
+  id: string;
+  org_name: string;
+  endpoint_url: string;
+  role: string;
+  status: string;
+  joined_at: string | null;
+}
+export interface FederationStatsRecord {
+  total_nodes: number;
+  total_insights: number;
+  verified_insights: number;
+  active_nodes: number;
+}
+
+// Entity Rollup
+export interface EntityHierarchyRecord {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  level: string;
+  compliance_score: number;
+  frameworks: string[];
+  member_count: number;
+}
+
+// Game Engine
+export interface GameScenarioRecord {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  estimated_minutes: number;
+  max_score: number;
+  decisions_count: number;
+  frameworks: string[];
+}
+export interface GameLeaderboardRecord {
+  display_name: string;
+  organization: string;
+  total_xp: number;
+  level: number;
+  scenarios_completed: number;
+  achievements_count: number;
+  accuracy_rate: number;
+  rank: number;
+}
+
+// Horizon Scanner
+export interface HorizonTimelineRecord {
+  total_tracked: number;
+  high_impact_count: number;
+  upcoming: Record<string, unknown>[];
+  alerts: Record<string, unknown>[];
+}
+
+// Policy Marketplace
+export interface PolicyPackRecord {
+  id: string;
+  creator_id: string;
+  title: string;
+  description: string;
+  version: string;
+  regulations: string[];
+  languages: string[];
+  pricing_model: string;
+  price_usd: number;
+  revenue_share_pct: number;
+  status: string;
+  downloads: number;
+  rating: number;
+  review_count: number;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+export interface PolicyMarketplaceStatsRecord {
+  total_packs: number;
+  total_creators: number;
+  total_downloads: number;
+  total_gmv_usd: number;
+  top_categories: Record<string, unknown>[];
+}
+
+// Regulation Diff
+export interface RegulationVersionRecord {
+  id: string;
+  regulation: string;
+  version: string;
+  title: string;
+  effective_date: string;
+  total_articles: number;
+  total_words: number;
+  source_url: string;
+}
+export interface RegulationDiffSummaryRecord {
+  id: string;
+  regulation: string;
+  from_version: string;
+  to_version: string;
+  total_changes: number;
+  critical_changes: number;
+  ai_summary: string;
+}
+
+// Compliance Copilot
+export interface CopilotViolationRecord {
+  id: string;
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  rule_id: string;
+  framework: string;
+  article_ref: string;
+  severity: string;
+  message: string;
+}
+
+// IaC Policy Engine
+export interface IaCPolicyRuleRecord {
+  id: string;
+  name: string;
+  description: string;
+  provider: string;
+  framework: string;
+  severity: string;
+  enabled: boolean;
+  metadata: Record<string, unknown>;
+}
+
+// Knowledge Graph
+export interface KnowledgeGraphSummaryRecord {
+  id: string;
+  name: string;
+  node_count: number;
+  edge_count: number;
+  node_types: Record<string, number>;
+}
+
+// Pair Programming
+export interface PairSuggestionRecord {
+  id: string;
+  file_path: string;
+  line_number: number;
+  severity: string;
+  rule_id: string;
+  regulation: string;
+  article: string;
+  message: string;
+  explanation: string;
+  suggested_fix: string;
+}
+export interface PairRegulationContextRecord {
+  regulation: string;
+  article: string;
+  title: string;
+  summary: string;
+  relevance_score: number;
+  applicable_patterns: string[];
+}
+
+// Impact Simulator (hook only needed)
+export interface ImpactScenarioRecord {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  regulation: string;
 }

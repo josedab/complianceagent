@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   complianceApi,
   regulationsApi,
@@ -32,12 +32,17 @@ function useApiCall<T>(
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
+  const apiCallRef = useRef(apiCall);
+
+  useEffect(() => {
+    apiCallRef.current = apiCall;
+  }, [apiCall]);
 
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiCall();
+      const response = await apiCallRef.current();
       setData(response.data);
     } catch (err) {
       setError(toApiError(err));
@@ -45,7 +50,7 @@ function useApiCall<T>(
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiCall, ...deps]);
+  }, [...deps]);
 
   useEffect(() => {
     refetch();
@@ -134,21 +139,8 @@ export function useDashboardStats() {
       const apiError = toApiError(err);
       console.error('Dashboard fetch error:', apiError.message, `(status: ${apiError.status})`);
       setError(apiError);
-      // Set fallback data for demo purposes
-      setStats({
-        overall_score: 87,
-        compliant: 42,
-        partial: 8,
-        non_compliant: 3,
-        pending: 5,
-        trend_percentage: 2.3,
-      });
-      setFrameworkStatuses([
-        { framework: 'GDPR', name: 'GDPR', status: 'COMPLIANT', score: 95, requirements_total: 24, requirements_compliant: 23 },
-        { framework: 'CCPA', name: 'CCPA', status: 'COMPLIANT', score: 92, requirements_total: 18, requirements_compliant: 17 },
-        { framework: 'EU_AI_ACT', name: 'EU AI Act', status: 'PARTIAL_COMPLIANCE', score: 68, requirements_total: 15, requirements_compliant: 10 },
-        { framework: 'HIPAA', name: 'HIPAA', status: 'PENDING_REVIEW', score: 45, requirements_total: 22, requirements_compliant: 10 },
-      ]);
+      setStats(null);
+      setFrameworkStatuses([]);
     } finally {
       setLoading(false);
     }
