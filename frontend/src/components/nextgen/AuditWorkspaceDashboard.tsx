@@ -1,117 +1,81 @@
 'use client'
 
-import { Shield, CheckCircle, AlertTriangle, ArrowRight, ClipboardCheck } from 'lucide-react'
-import { useState } from 'react'
+import { FolderOpen, CheckCircle, Clock, BarChart3 } from 'lucide-react'
+import { useAuditWorkspaces } from '@/hooks/useNextgenApi'
 
-type Phase = 'gap_analysis' | 'evidence_collection' | 'remediation' | 'review' | 'audit_ready'
-
-import type { LucideIcon } from 'lucide-react'
-
-const PHASES: { key: Phase; label: string; icon: LucideIcon }[] = [
-  { key: 'gap_analysis', label: 'Gap Analysis', icon: ClipboardCheck },
-  { key: 'evidence_collection', label: 'Evidence Collection', icon: Shield },
-  { key: 'remediation', label: 'Remediation', icon: AlertTriangle },
-  { key: 'review', label: 'Review', icon: CheckCircle },
-  { key: 'audit_ready', label: 'Audit Ready', icon: CheckCircle },
-]
-
-const MOCK_GAPS = [
-  { control_id: 'CC6.1', name: 'Logical Access', status: 'verified', severity: 'low', evidence: 3, required: 3 },
-  { control_id: 'CC6.6', name: 'Encryption in Transit', status: 'verified', severity: 'low', evidence: 2, required: 2 },
-  { control_id: 'CC6.7', name: 'Encryption at Rest', status: 'in_progress', severity: 'medium', evidence: 1, required: 2 },
-  { control_id: 'CC7.1', name: 'Vulnerability Management', status: 'in_progress', severity: 'medium', evidence: 1, required: 2 },
-  { control_id: 'CC7.2', name: 'Security Monitoring', status: 'not_started', severity: 'high', evidence: 0, required: 3 },
-  { control_id: 'CC7.3', name: 'Incident Response', status: 'not_started', severity: 'high', evidence: 0, required: 3 },
-  { control_id: 'CC8.1', name: 'Change Management', status: 'verified', severity: 'low', evidence: 3, required: 3 },
-  { control_id: 'A1.2', name: 'Disaster Recovery', status: 'not_started', severity: 'high', evidence: 0, required: 3 },
-]
-
-const statusColors: Record<string, { bg: string; text: string }> = {
-  verified: { bg: 'bg-green-50', text: 'text-green-700' },
-  in_progress: { bg: 'bg-yellow-50', text: 'text-yellow-700' },
-  not_started: { bg: 'bg-red-50', text: 'text-red-700' },
+function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; title: string; value: string; subtitle: string }) {
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-2">{icon}<span className="text-sm text-gray-500">{title}</span></div>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+    </div>
+  )
 }
 
 export default function AuditWorkspaceDashboard() {
-  const [currentPhase, setCurrentPhase] = useState<Phase>('gap_analysis')
-  const currentIdx = PHASES.findIndex(p => p.key === currentPhase)
+  const { data: workspaces, loading, error, refetch } = useAuditWorkspaces()
 
-  const verified = MOCK_GAPS.filter(g => g.status === 'verified').length
-  const total = MOCK_GAPS.length
-  const readiness = Math.round((verified / total) * 100)
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Audit Workspace</h1></div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="card h-24 bg-gray-100 animate-pulse" />)}</div>
+        <div className="card h-48 bg-gray-100 animate-pulse" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Audit Workspace</h1></div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading Audit Workspace: {error.message}</p>
+          <button onClick={refetch} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
+  const avgReadiness = workspaces && workspaces.length > 0
+    ? workspaces.reduce((sum, w) => sum + w.readiness_pct, 0) / workspaces.length
+    : 0
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Audit Workspace</h1>
-        <p className="text-gray-500">SOC 2 Type II — Self-service audit preparation</p>
+        <p className="text-gray-500">Self-service audit preparation and evidence management</p>
       </div>
-
-      {/* Phase stepper */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatCard icon={<FolderOpen className="w-5 h-5 text-blue-500" />} title="Workspaces" value={String(workspaces?.length ?? 0)} subtitle="Total workspaces" />
+        <StatCard icon={<BarChart3 className="w-5 h-5 text-green-500" />} title="Avg Readiness" value={`${avgReadiness.toFixed(1)}%`} subtitle="Across all workspaces" />
+        <StatCard icon={<CheckCircle className="w-5 h-5 text-purple-500" />} title="Frameworks" value={String(new Set(workspaces?.map(w => w.framework) ?? []).size)} subtitle="Unique frameworks" />
+        <StatCard icon={<Clock className="w-5 h-5 text-orange-500" />} title="Phases" value={String(new Set(workspaces?.map(w => w.phase) ?? []).size)} subtitle="Active phases" />
+      </div>
       <div className="card">
-        <div className="flex items-center justify-between">
-          {PHASES.map((phase, i) => {
-            const Icon = phase.icon
-            const isActive = i === currentIdx
-            const isDone = i < currentIdx
-            return (
-              <div key={phase.key} className="flex items-center">
-                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                  isActive ? 'bg-blue-100 text-blue-700' : isDone ? 'bg-green-50 text-green-600' : 'text-gray-400'
-                }`} onClick={() => setCurrentPhase(phase.key)}>
-                  <Icon className="h-4 w-4" />
-                  <span className="text-sm font-medium">{phase.label}</span>
-                </div>
-                {i < PHASES.length - 1 && <ArrowRight className="h-4 w-4 mx-2 text-gray-300" />}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card text-center py-6">
-          <p className="text-sm font-medium text-gray-500">Audit Readiness</p>
-          <p className={`text-4xl font-bold mt-2 ${readiness >= 80 ? 'text-green-600' : readiness >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-            {readiness}%
-          </p>
-        </div>
-        <div className="card text-center py-6">
-          <p className="text-sm font-medium text-gray-500">Controls Verified</p>
-          <p className="text-4xl font-bold mt-2 text-gray-900">{verified}/{total}</p>
-        </div>
-        <div className="card text-center py-6">
-          <p className="text-sm font-medium text-gray-500">Gaps Remaining</p>
-          <p className="text-4xl font-bold mt-2 text-red-600">{total - verified}</p>
-        </div>
-      </div>
-
-      {/* Control gaps */}
-      <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Control Status</h2>
-        <div className="space-y-2">
-          {MOCK_GAPS.map(gap => {
-            const colors = statusColors[gap.status]
-            return (
-              <div key={gap.control_id} className={`p-3 rounded-lg border ${colors.bg}`}>
-                <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Audit Workspaces</h2>
+        {!workspaces || workspaces.length === 0 ? (
+          <p className="text-gray-500">No audit workspaces yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {workspaces.map((ws) => (
+              <div key={ws.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FolderOpen className="w-5 h-5 text-blue-500" />
                   <div>
-                    <span className="font-mono text-sm text-gray-500">{gap.control_id}</span>
-                    <span className="mx-2 text-gray-300">|</span>
-                    <span className="font-medium text-gray-900">{gap.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500">{gap.evidence}/{gap.required} evidence</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border`}>
-                      {gap.status.replace('_', ' ')}
-                    </span>
+                    <p className="font-medium text-gray-900">{ws.framework.toUpperCase()}</p>
+                    <p className="text-sm text-gray-500">Phase: {ws.phase} · Readiness: {ws.readiness_pct.toFixed(1)}%</p>
                   </div>
                 </div>
+                <div className="w-24 bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${ws.readiness_pct}%` }} />
+                </div>
               </div>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

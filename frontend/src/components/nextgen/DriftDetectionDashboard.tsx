@@ -1,25 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { Activity, AlertTriangle, CheckCircle, TrendingDown, Bell } from 'lucide-react'
-import { api } from '@/lib/api'
-
-type DriftSeverity = 'critical' | 'high' | 'medium' | 'low'
-
-interface DriftEvent {
-  id: string; drift_type: string; severity: DriftSeverity; description: string
-  baseline_score: number; current_score: number; delta: number; detected_at: string
-}
-
-interface DriftBaseline { score: number; captured_at: string }
-
-const FALLBACK_BASELINE: DriftBaseline = { score: 92.5, captured_at: '2026-02-10T10:00:00Z' }
-
-const FALLBACK_EVENTS: DriftEvent[] = [
-  { id: 'de1', drift_type: 'regression', severity: 'high', description: 'New API endpoint bypasses GDPR consent check', baseline_score: 92.5, current_score: 78.0, delta: -14.5, detected_at: '2026-02-12T14:30:00Z' },
-  { id: 'de2', drift_type: 'configuration_change', severity: 'medium', description: 'Encryption algorithm downgraded in config', baseline_score: 92.5, current_score: 85.0, delta: -7.5, detected_at: '2026-02-11T09:15:00Z' },
-  { id: 'de3', drift_type: 'policy_violation', severity: 'critical', description: 'PHI retention period exceeds 30-day policy', baseline_score: 92.5, current_score: 70.0, delta: -22.5, detected_at: '2026-02-13T08:00:00Z' },
-]
+import { useDriftEvents, useDriftAlerts } from '@/hooks/useNextgenApi'
+import type { DriftSeverity } from '@/types/nextgen'
 
 const severityColors: Record<DriftSeverity, { bg: string; text: string; border: string }> = {
   critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
@@ -29,40 +12,11 @@ const severityColors: Record<DriftSeverity, { bg: string; text: string; border: 
 }
 
 export default function DriftDetectionDashboard() {
-  const [events, setEvents] = useState<DriftEvent[]>(FALLBACK_EVENTS)
-  const [baseline, setBaseline] = useState<DriftBaseline>(FALLBACK_BASELINE)
-  const [loading, setLoading] = useState(true)
-  const [isDemo, setIsDemo] = useState(false)
+  const { data: events, loading: eventsLoading, error: eventsError, refetch: refetchEvents } = useDriftEvents()
+  const { data: alerts, loading: alertsLoading, error: alertsError } = useDriftAlerts()
 
-  useEffect(() => {
-    api.get('/drift-detection/scans')
-      .then(res => {
-        const data = res.data
-        const scans = data?.items || data?.scans || (Array.isArray(data) ? data : null)
-        if (scans && scans.length > 0) {
-          setEvents(scans.map((s: Record<string, unknown>, i: number) => ({
-            id: s.id || `de${i}`,
-            drift_type: s.drift_type || s.type || 'unknown',
-            severity: (s.severity as DriftSeverity) || 'medium',
-            description: s.description || s.message || 'Drift detected',
-            baseline_score: Number(s.baseline_score ?? 92.5),
-            current_score: Number(s.current_score ?? s.score ?? 85),
-            delta: Number(s.delta ?? -(92.5 - Number(s.current_score ?? s.score ?? 85))),
-            detected_at: (s.detected_at || s.created_at || new Date().toISOString()) as string,
-          })))
-          if (data.baseline) setBaseline(data.baseline)
-          setIsDemo(false)
-        } else {
-          setIsDemo(true)
-        }
-      })
-      .catch(() => { setIsDemo(true) })
-      .finally(() => setLoading(false))
-  }, [])
-
-  const currentScore = events.length > 0 ? Math.min(...events.map(e => e.current_score)) : baseline.score
-  const criticalCount = events.filter(e => e.severity === 'critical').length
-  const highCount = events.filter(e => e.severity === 'high').length
+  const loading = eventsLoading || alertsLoading
+  const error = eventsError || alertsError
 
   if (loading) {
     return (
@@ -76,14 +30,29 @@ export default function DriftDetectionDashboard() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Compliance Drift Detection</h1>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading drift events: {error.message}</p>
+          <button onClick={refetchEvents} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
+  const items = events || []
+  const baselineScore = items.length > 0 ? Math.max(...items.map(e => e.previous_score)) : null
+  const currentScore = items.length > 0 ? Math.min(...items.map(e => e.current_score)) : null
+  const criticalCount = items.filter(e => e.severity === 'critical').length
+  const highCount = items.filter(e => e.severity === 'high').length
+  const alertsActive = (alerts || []).length
+
   return (
     <div className="space-y-6">
-      {isDemo && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm">
-          Using demo data — connect backend for live data
-        </div>
-      )}
-
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Compliance Drift Detection</h1>
         <p className="text-gray-500">Monitor and auto-remediate compliance regressions</p>
@@ -95,32 +64,34 @@ export default function DriftDetectionDashboard() {
             <p className="text-sm font-medium text-gray-500">Baseline Score</p>
             <CheckCircle className="h-5 w-5 text-green-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-green-600">{baseline.score}%</p>
-          <p className="mt-1 text-sm text-gray-500">Captured {new Date(baseline.captured_at).toLocaleDateString()}</p>
+          <p className="mt-2 text-3xl font-bold text-green-600">{baselineScore !== null ? `${baselineScore}%` : 'N/A'}</p>
+          <p className="mt-1 text-sm text-gray-500">Highest recorded pre-drift score</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-500">Current Score</p>
             <TrendingDown className="h-5 w-5 text-red-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-red-600">{currentScore}%</p>
-          <p className="mt-1 text-sm text-red-500">-{(baseline.score - currentScore).toFixed(1)} from baseline</p>
+          <p className="mt-2 text-3xl font-bold text-red-600">{currentScore !== null ? `${currentScore}%` : 'N/A'}</p>
+          <p className="mt-1 text-sm text-red-500">
+            {baselineScore !== null && currentScore !== null ? `-${(baselineScore - currentScore).toFixed(1)} from baseline` : 'No drift events yet'}
+          </p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-500">Drift Events</p>
             <Activity className="h-5 w-5 text-orange-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{events.length}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{items.length}</p>
           <p className="mt-1 text-sm text-gray-500">{criticalCount} critical, {highCount} high</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Alerts Active</p>
+            <p className="text-sm font-medium text-gray-500">Alert Channels</p>
             <Bell className="h-5 w-5 text-blue-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-blue-600">{criticalCount + highCount}</p>
-          <p className="mt-1 text-sm text-gray-500">Requiring attention</p>
+          <p className="mt-2 text-3xl font-bold text-blue-600">{alertsActive}</p>
+          <p className="mt-1 text-sm text-gray-500">Configured channels</p>
         </div>
       </div>
 
@@ -129,34 +100,38 @@ export default function DriftDetectionDashboard() {
           <AlertTriangle className="h-5 w-5 text-orange-500" />
           <h2 className="text-lg font-semibold text-gray-900">Drift Events</h2>
         </div>
-        <div className="space-y-3">
-          {[...events].sort((a, b) => new Date(b.detected_at).getTime() - new Date(a.detected_at).getTime()).map(event => {
-            const colors = severityColors[event.severity] || severityColors.medium
-            return (
-              <div key={event.id} className={`p-4 rounded-lg border ${colors.border} ${colors.bg}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${colors.text} bg-white`}>{event.severity}</span>
-                    <span className="px-2 py-0.5 bg-white text-gray-600 text-xs rounded-full">{event.drift_type.replace('_', ' ')}</span>
+        {items.length === 0 ? (
+          <p className="text-gray-500 text-sm">No drift events detected.</p>
+        ) : (
+          <div className="space-y-3">
+            {[...items]
+              .sort((a, b) => new Date(b.detected_at || 0).getTime() - new Date(a.detected_at || 0).getTime())
+              .map(event => {
+                const colors = severityColors[event.severity] || severityColors.medium
+                const delta = event.current_score - event.previous_score
+                return (
+                  <div key={event.id} className={`p-4 rounded-lg border ${colors.border} ${colors.bg}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${colors.text} bg-white`}>{event.severity}</span>
+                        <span className="px-2 py-0.5 bg-white text-gray-600 text-xs rounded-full">{event.drift_type.replace('_', ' ')}</span>
+                        <span className="px-2 py-0.5 bg-white text-gray-600 text-xs rounded-full">{event.repo}</span>
+                      </div>
+                      <span className="text-sm text-gray-500">{event.detected_at ? new Date(event.detected_at).toLocaleString() : 'Unknown time'}</span>
+                    </div>
+                    <p className={`font-medium ${colors.text}`}>{event.description}</p>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                      <span>Baseline: {event.previous_score}%</span>
+                      <span>→</span>
+                      <span className="text-red-600 font-medium">Current: {event.current_score}%</span>
+                      <span className="text-red-600">(Δ {delta.toFixed(1)})</span>
+                      {event.resolved_at && <span className="text-green-600">Resolved</span>}
+                    </div>
                   </div>
-                  <span className="text-sm text-gray-500">{new Date(event.detected_at).toLocaleString()}</span>
-                </div>
-                <p className={`font-medium ${colors.text}`}>{event.description}</p>
-                <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                  <span>Baseline: {event.baseline_score}%</span>
-                  <span>→</span>
-                  <span className="text-red-600 font-medium">Current: {event.current_score}%</span>
-                  <span className="text-red-600">(Δ {event.delta.toFixed(1)})</span>
-                </div>
-                <div className="mt-3">
-                  <button className="px-3 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50">
-                    Auto-Remediate
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+                )
+              })}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,122 +1,85 @@
 'use client'
 
-import { useState } from 'react'
-import { Key, Package, BarChart3, Code } from 'lucide-react'
+import { Code, Package, BarChart3, TrendingUp } from 'lucide-react'
+import { useComplianceSdkPackages, useComplianceSdkUsage } from '@/hooks/useNextgenApi'
 
-interface SDKPackage {
-  id: string
-  name: string
-  version: string
-  language: string
-  downloads: number
-  apiKeys: number
-  status: 'stable' | 'beta' | 'deprecated'
+function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; title: string; value: string; subtitle: string }) {
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-2">{icon}<span className="text-sm text-gray-500">{title}</span></div>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+    </div>
+  )
 }
-
-const statusColors: Record<SDKPackage['status'], string> = {
-  stable: 'text-green-700 bg-green-100',
-  beta: 'text-blue-700 bg-blue-100',
-  deprecated: 'text-red-700 bg-red-100',
-}
-
-const MOCK_PACKAGES: SDKPackage[] = [
-  { id: 'sdk1', name: '@compliance/policy-engine', version: '2.4.1', language: 'TypeScript', downloads: 12400, apiKeys: 89, status: 'stable' },
-  { id: 'sdk2', name: 'compliance-py', version: '1.8.0', language: 'Python', downloads: 8900, apiKeys: 67, status: 'stable' },
-  { id: 'sdk3', name: 'compliance-go', version: '0.9.2', language: 'Go', downloads: 3200, apiKeys: 28, status: 'beta' },
-]
 
 export default function ComplianceSDKDashboard() {
-  const [selectedLang, setSelectedLang] = useState<string>('all')
+  const { data: packages, loading: pkgLoading, error: pkgError, refetch } = useComplianceSdkPackages()
+  const { data: usage, loading: usageLoading, error: usageError } = useComplianceSdkUsage()
 
-  const languages = ['all', ...Array.from(new Set(MOCK_PACKAGES.map(p => p.language)))]
-  const filtered = selectedLang === 'all'
-    ? MOCK_PACKAGES
-    : MOCK_PACKAGES.filter(p => p.language === selectedLang)
+  const loading = pkgLoading || usageLoading
+  const error = pkgError || usageError
 
-  const totalDownloads = MOCK_PACKAGES.reduce((a, p) => a + p.downloads, 0)
-  const totalKeys = MOCK_PACKAGES.reduce((a, p) => a + p.apiKeys, 0)
-  const stableCount = MOCK_PACKAGES.filter(p => p.status === 'stable').length
+  const totalDownloads = usage?.sdk_downloads
+    ? Object.values(usage.sdk_downloads).reduce((s: number, v) => s + Number(v), 0)
+    : 0
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Compliance SDK</h1></div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="card h-24 bg-gray-100 animate-pulse" />)}</div>
+        <div className="card h-48 bg-gray-100 animate-pulse" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Compliance SDK</h1></div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading Compliance SDK: {error.message}</p>
+          <button onClick={refetch} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Code className="h-6 w-6 text-indigo-600" />
-          Compliance-as-Code SDK
-        </h1>
-        <p className="text-gray-500">Developer tools for programmatic compliance management</p>
+        <h1 className="text-2xl font-bold text-gray-900">Compliance SDK</h1>
+        <p className="text-gray-500">Compliance SDK packages for multiple programming languages</p>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">SDK Packages</p>
-            <Package className="h-5 w-5 text-indigo-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-indigo-600">{MOCK_PACKAGES.length}</p>
-          <p className="mt-1 text-sm text-gray-500">{stableCount} stable</p>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Total Downloads</p>
-            <BarChart3 className="h-5 w-5 text-blue-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-blue-600">{(totalDownloads / 1000).toFixed(1)}K</p>
-          <p className="mt-1 text-sm text-gray-500">All-time installs</p>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">API Keys</p>
-            <Key className="h-5 w-5 text-green-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-green-600">{totalKeys}</p>
-          <p className="mt-1 text-sm text-gray-500">Active keys</p>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Languages</p>
-            <Code className="h-5 w-5 text-orange-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-orange-600">{languages.length - 1}</p>
-          <p className="mt-1 text-sm text-gray-500">Supported</p>
-        </div>
+        <StatCard icon={<Package className="w-5 h-5 text-blue-500" />} title="SDK Packages" value={String(packages?.length ?? 0)} subtitle="Available SDKs" />
+        <StatCard icon={<TrendingUp className="w-5 h-5 text-green-500" />} title="Total Downloads" value={String(totalDownloads)} subtitle="All-time" />
+        <StatCard icon={<Code className="w-5 h-5 text-purple-500" />} title="Languages" value={String(packages ? new Set(packages.map(p => p.language)).size : 0)} subtitle="Supported" />
+        <StatCard icon={<BarChart3 className="w-5 h-5 text-orange-500" />} title="API Keys" value={String(usage?.total_keys ?? 0)} subtitle="Registered keys" />
       </div>
-
-      <div className="flex items-center gap-2">
-        {languages.map(l => (
-          <button
-            key={l}
-            onClick={() => setSelectedLang(l)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-              selectedLang === l ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {l === 'all' ? 'All Languages' : l}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-3">
-        {filtered.map(pkg => (
-          <div key={pkg.id} className="card">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusColors[pkg.status]}`}>
-                    {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1)}
-                  </span>
-                  <span className="text-xs text-gray-500">v{pkg.version} &middot; {pkg.language}</span>
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">SDK Packages</h2>
+        {!packages || packages.length === 0 ? (
+          <p className="text-gray-500">No SDK packages available.</p>
+        ) : (
+          <div className="space-y-3">
+            {packages.map((pkg, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Code className="w-5 h-5 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-gray-900">{pkg.name}</p>
+                    <p className="text-sm text-gray-500">{pkg.language} · v{pkg.version}</p>
+                  </div>
                 </div>
-                <h3 className="font-semibold text-gray-900 font-mono">{pkg.name}</h3>
-                <p className="text-sm text-gray-500 mt-1">{pkg.apiKeys} API keys &middot; {pkg.downloads.toLocaleString()} downloads</p>
+                <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                  {pkg.language}
+                </span>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-gray-900">{(pkg.downloads / 1000).toFixed(1)}K</p>
-                <p className="text-xs text-gray-500">downloads</p>
-              </div>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   )

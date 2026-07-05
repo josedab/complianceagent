@@ -1,22 +1,12 @@
 'use client'
 
-import { Cpu, Zap, Shield, Activity } from 'lucide-react'
-
-const MOCK_DATA = [
-  { id: 1, name: 'Policy enforcement on deploy-prod', status: 'decided', timestamp: '1 min ago', detail: 'Blocked non-compliant image' },
-  { id: 2, name: 'Auto-scaling compliance checks', status: 'auto-fixed', timestamp: '5 min ago', detail: 'Added missing audit log' },
-  { id: 3, name: 'Runtime policy violation detected', status: 'escalated', timestamp: '12 min ago', detail: 'Privileged container flagged' },
-  { id: 4, name: 'Certificate rotation orchestrated', status: 'decided', timestamp: '28 min ago', detail: 'Rotated 12 service certs' },
-  { id: 5, name: 'Access review automation triggered', status: 'auto-fixed', timestamp: '45 min ago', detail: 'Revoked 3 stale permissions' },
-]
+import { Cpu, Activity, Brain, BarChart3 } from 'lucide-react'
+import { useAutonomousOSEvents, useAutonomousOSStats } from '@/hooks/useNextgenApi'
 
 function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; title: string; value: string; subtitle: string }) {
   return (
     <div className="card">
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <span className="text-sm text-gray-500">{title}</span>
-      </div>
+      <div className="flex items-center gap-2 mb-2">{icon}<span className="text-sm text-gray-500">{title}</span></div>
       <p className="text-2xl font-bold text-gray-900">{value}</p>
       <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
     </div>
@@ -24,33 +14,68 @@ function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; tit
 }
 
 export default function AutonomousOSDashboard() {
+  const { data: events, loading: eventsLoading, error: eventsError, refetch } = useAutonomousOSEvents()
+  const { data: stats, loading: statsLoading, error: statsError } = useAutonomousOSStats()
+
+  const loading = eventsLoading || statsLoading
+  const error = eventsError || statsError
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Autonomous OS</h1></div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="card h-24 bg-gray-100 animate-pulse" />)}</div>
+        <div className="card h-48 bg-gray-100 animate-pulse" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Autonomous OS</h1></div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading Autonomous OS: {error.message}</p>
+          <button onClick={refetch} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Compliance Autonomous OS</h1>
-        <p className="text-gray-500">Intelligent orchestration layer managing compliance decisions and automated responses</p>
+        <h1 className="text-2xl font-bold text-gray-900">Autonomous OS</h1>
+        <p className="text-gray-500">Self-managing compliance operating system with autonomous decision-making</p>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard icon={<Cpu className="h-5 w-5 text-blue-600" />} title="Events" value="148" subtitle="Orchestration events this week" />
-        <StatCard icon={<Zap className="h-5 w-5 text-green-600" />} title="Decisions" value="92" subtitle="Autonomous decisions made" />
-        <StatCard icon={<Shield className="h-5 w-5 text-purple-600" />} title="Auto-Fixes" value="67" subtitle="Issues resolved automatically" />
-        <StatCard icon={<Activity className="h-5 w-5 text-orange-600" />} title="Escalations" value="11" subtitle="Escalated to human review" />
+        <StatCard icon={<Activity className="w-5 h-5 text-blue-500" />} title="Total Events" value={String(stats?.total_events ?? 0)} subtitle="Events processed" />
+        <StatCard icon={<Brain className="w-5 h-5 text-green-500" />} title="Decisions" value={String(stats?.total_decisions ?? 0)} subtitle={`${stats?.autonomous_decisions ?? 0} autonomous`} />
+        <StatCard icon={<BarChart3 className="w-5 h-5 text-purple-500" />} title="Avg Confidence" value={`${((stats?.avg_confidence ?? 0) * 100).toFixed(1)}%`} subtitle="Decision confidence" />
+        <StatCard icon={<Cpu className="w-5 h-5 text-orange-500" />} title="Autonomy Level" value={stats?.autonomy_level ?? '-'} subtitle="Current mode" />
       </div>
-
       <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Orchestration Events</h2>
-        <div className="space-y-3">
-          {MOCK_DATA.map((item) => (
-            <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100">
-              <div>
-                <span className="font-medium text-gray-900">{item.name}</span>
-                <p className="text-xs text-gray-500">{item.detail} — {item.timestamp}</p>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Events</h2>
+        {!events || events.length === 0 ? (
+          <p className="text-gray-500">No events recorded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {events.slice(0, 10).map((event) => (
+              <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Activity className="w-5 h-5 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-gray-900">{event.event_type}</p>
+                    <p className="text-sm text-gray-500">Source: {event.source_service}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${event.processed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                  {event.processed ? 'Processed' : 'Pending'}
+                </span>
               </div>
-              <span className="text-sm text-gray-600">{item.status}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -4,32 +4,6 @@ import { Siren, Clock, FileCheck, Bell } from 'lucide-react'
 import { usePlaybooks, useIncidents } from '@/hooks/useNextgenApi'
 import type { PlaybookRecord, IncidentRecord } from '@/types/nextgen'
 
-interface PlaybookDisplay extends PlaybookRecord {
-  jurisdiction: string;
-  notification_deadline_hours: number;
-  last_updated: string;
-}
-
-interface IncidentDisplay extends IncidentRecord {
-  playbook: string;
-  notifications_sent: number;
-  response_hours: number;
-}
-
-const MOCK_PLAYBOOKS: PlaybookDisplay[] = [
-  { id: 'pb1', name: 'GDPR Breach Response', incident_type: 'data_breach', description: 'GDPR breach response playbook', steps: [{},{},{},{},{},{},{},{}], notification_requirements: [], evidence_checklist: [], jurisdictions: ['EU'], jurisdiction: 'EU', notification_deadline_hours: 72, last_updated: '2026-03-10T10:00:00Z' },
-  { id: 'pb2', name: 'HIPAA Incident Protocol', incident_type: 'data_breach', description: 'HIPAA incident protocol', steps: [{},{},{},{},{},{},{},{},{},{}], notification_requirements: [], evidence_checklist: [], jurisdictions: ['US'], jurisdiction: 'US', notification_deadline_hours: 60, last_updated: '2026-03-09T14:00:00Z' },
-  { id: 'pb3', name: 'PCI DSS Compromise Response', incident_type: 'security_compromise', description: 'PCI DSS compromise response', steps: [{},{},{},{},{},{},{},{},{},{},{},{}], notification_requirements: [], evidence_checklist: [], jurisdictions: ['Global'], jurisdiction: 'Global', notification_deadline_hours: 24, last_updated: '2026-03-08T09:00:00Z' },
-  { id: 'pb4', name: 'SOX Material Weakness', incident_type: 'material_weakness', description: 'SOX material weakness playbook', steps: [{},{},{},{},{},{}], notification_requirements: [], evidence_checklist: [], jurisdictions: ['US'], jurisdiction: 'US', notification_deadline_hours: 48, last_updated: '2026-03-07T16:00:00Z' },
-  { id: 'pb5', name: 'CCPA Data Breach Notice', incident_type: 'data_breach', description: 'CCPA data breach notice', steps: [{},{},{},{},{},{},{}], notification_requirements: [], evidence_checklist: [], jurisdictions: ['California'], jurisdiction: 'California', notification_deadline_hours: 72, last_updated: '2026-03-06T11:00:00Z' },
-  { id: 'pb6', name: 'NIS2 Incident Report', incident_type: 'incident_report', description: 'NIS2 incident report', steps: [{},{},{},{},{},{},{},{},{}], notification_requirements: [], evidence_checklist: [], jurisdictions: ['EU'], jurisdiction: 'EU', notification_deadline_hours: 24, last_updated: '2026-03-05T13:00:00Z' },
-]
-
-const MOCK_INCIDENTS: IncidentDisplay[] = [
-  { id: 'inc1', playbook_id: 'pb1', incident_type: 'data_breach', severity: 'high', title: 'Unauthorized data access detected', description: 'Unauthorized access detected', status: 'in_progress', affected_data_subjects: 0, jurisdictions_affected: ['EU'], started_at: '2026-03-12T06:00:00Z', resolved_at: null, playbook: 'GDPR Breach Response', notifications_sent: 5, response_hours: 3.2 },
-  { id: 'inc2', playbook_id: 'pb2', incident_type: 'data_breach', severity: 'critical', title: 'PHI exposure in staging logs', description: 'PHI exposure in staging', status: 'in_progress', affected_data_subjects: 0, jurisdictions_affected: ['US'], started_at: '2026-03-11T22:00:00Z', resolved_at: null, playbook: 'HIPAA Incident Protocol', notifications_sent: 3, response_hours: 5.1 },
-]
-
 const severityColors: Record<string, { bg: string; text: string; border: string }> = {
   critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
   high: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
@@ -38,13 +12,37 @@ const severityColors: Record<string, { bg: string; text: string; border: string 
 }
 
 export default function IncidentPlaybookDashboard() {
-  const { data: livePlaybooks } = usePlaybooks()
-  const { data: liveIncidents } = useIncidents()
+  const { data: livePlaybooks, loading: pbLoading, error: pbError, refetch: refetchPb } = usePlaybooks()
+  const { data: liveIncidents, loading: incLoading, error: incError, refetch: refetchInc } = useIncidents()
 
-  const playbooks = (livePlaybooks as PlaybookDisplay[] | null) || MOCK_PLAYBOOKS
-  const incidents = (liveIncidents as IncidentDisplay[] | null) || MOCK_INCIDENTS
-  const totalNotifications = incidents.reduce((sum, i) => sum + i.notifications_sent, 0)
-  const avgResponse = (incidents.reduce((sum, i) => sum + i.response_hours, 0) / incidents.length).toFixed(1)
+  const loading = pbLoading || incLoading
+  const error = pbError || incError
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
+        </div>
+        <div className="card h-64 animate-pulse bg-gray-100" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">Error loading Incident Playbooks: {error.message}</p>
+        <button onClick={() => { refetchPb(); refetchInc(); }} className="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">Retry</button>
+      </div>
+    )
+  }
+
+  const playbooks = livePlaybooks ?? []
+  const incidents = liveIncidents ?? []
+  const activeIncidents = incidents.filter(i => i.status !== 'resolved')
+  const totalAffected = incidents.reduce((sum, i) => sum + i.affected_data_subjects, 0)
 
   return (
     <div className="space-y-6">
@@ -68,24 +66,24 @@ export default function IncidentPlaybookDashboard() {
             <p className="text-sm font-medium text-gray-500">Active Incidents</p>
             <Clock className="h-5 w-5 text-red-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-red-600">{incidents.length}</p>
+          <p className="mt-2 text-3xl font-bold text-red-600">{activeIncidents.length}</p>
           <p className="mt-1 text-sm text-red-500">In progress</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Avg Response</p>
+            <p className="text-sm font-medium text-gray-500">Total Incidents</p>
             <FileCheck className="h-5 w-5 text-blue-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-blue-600">{avgResponse}h</p>
-          <p className="mt-1 text-sm text-gray-500">Mean time to respond</p>
+          <p className="mt-2 text-3xl font-bold text-blue-600">{incidents.length}</p>
+          <p className="mt-1 text-sm text-gray-500">All tracked incidents</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Notifications Sent</p>
+            <p className="text-sm font-medium text-gray-500">Affected Subjects</p>
             <Bell className="h-5 w-5 text-orange-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-orange-600">{totalNotifications}</p>
-          <p className="mt-1 text-sm text-gray-500">Active notifications</p>
+          <p className="mt-2 text-3xl font-bold text-orange-600">{totalAffected.toLocaleString()}</p>
+          <p className="mt-1 text-sm text-gray-500">Data subjects impacted</p>
         </div>
       </div>
 
@@ -95,26 +93,31 @@ export default function IncidentPlaybookDashboard() {
           <Siren className="h-5 w-5 text-red-500" />
           <h2 className="text-lg font-semibold text-gray-900">Active Incidents</h2>
         </div>
-        <div className="space-y-3">
-          {incidents.map(inc => {
-            const colors = severityColors[inc.severity] || severityColors.medium
-            return (
-              <div key={inc.id} className={`p-4 rounded-lg border ${colors.border} ${colors.bg}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${colors.text} bg-white`}>{inc.severity}</span>
-                    <span className="font-medium text-gray-900">{inc.title}</span>
+        {activeIncidents.length === 0 ? (
+          <p className="text-gray-500 text-sm">No active incidents.</p>
+        ) : (
+          <div className="space-y-3">
+            {activeIncidents.map((inc: IncidentRecord) => {
+              const colors = severityColors[inc.severity] ?? severityColors.medium
+              return (
+                <div key={inc.id} className={`p-4 rounded-lg border ${colors.border} ${colors.bg}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${colors.text} bg-white`}>{inc.severity}</span>
+                      <span className="font-medium text-gray-900">{inc.title}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">{inc.started_at ? new Date(inc.started_at).toLocaleString() : '—'}</span>
                   </div>
-                  <span className="text-sm text-gray-500">{inc.response_hours}h elapsed</span>
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <span>{inc.incident_type.replace(/_/g, ' ')}</span>
+                    <span>{inc.jurisdictions_affected.join(', ')}</span>
+                    <span>{inc.affected_data_subjects.toLocaleString()} subjects affected</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <span>Playbook: {inc.playbook}</span>
-                  <span>{inc.notifications_sent} notifications sent</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Playbooks */}
@@ -123,21 +126,27 @@ export default function IncidentPlaybookDashboard() {
           <FileCheck className="h-5 w-5 text-blue-500" />
           <h2 className="text-lg font-semibold text-gray-900">Playbooks</h2>
         </div>
-        <div className="space-y-3">
-          {playbooks.map(pb => (
-            <div key={pb.id} className="p-4 rounded-lg border border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-medium text-gray-900">{pb.name}</span>
-                <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">{pb.jurisdiction}</span>
+        {playbooks.length === 0 ? (
+          <p className="text-gray-500 text-sm">No playbooks available yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {playbooks.map((pb: PlaybookRecord) => (
+              <div key={pb.id} className="p-4 rounded-lg border border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-medium text-gray-900">{pb.name}</span>
+                  <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                    {pb.jurisdictions.join(', ')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <span>{pb.incident_type.replace(/_/g, ' ')}</span>
+                  <span>{pb.steps.length} steps</span>
+                  <span>{pb.evidence_checklist.length} checklist items</span>
+                </div>
               </div>
-              <div className="flex items-center gap-4 text-sm text-gray-500">
-                <span>Deadline: {pb.notification_deadline_hours}h</span>
-                <span>{pb.steps.length} steps</span>
-                <span>Updated: {new Date(pb.last_updated).toLocaleDateString()}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -3,22 +3,7 @@
 import { useState } from 'react'
 import { Brain, Cpu, CheckCircle, AlertTriangle, XCircle, Settings, Zap } from 'lucide-react'
 import { useMultiLLMParse, useLLMProviders, useMultiLLMConfig } from '@/hooks/useNextgenApi'
-import type { ConsensusResult, ProviderInfo, MultiLLMConfig } from '@/types/nextgen'
-
-const MOCK_PROVIDERS: ProviderInfo[] = [
-  { provider: 'github_copilot', model_name: 'gpt-4o', enabled: true, weight: 1.0 },
-  { provider: 'openai', model_name: 'gpt-4-turbo', enabled: true, weight: 0.9 },
-  { provider: 'anthropic', model_name: 'claude-3-sonnet', enabled: true, weight: 0.85 },
-  { provider: 'ollama', model_name: 'llama-3-70b', enabled: false, weight: 0.7 },
-]
-
-const MOCK_CONFIG: MultiLLMConfig = {
-  providers: MOCK_PROVIDERS,
-  consensus_strategy: 'weighted_average',
-  min_providers: 2,
-  divergence_threshold: 0.3,
-  fallback_to_single: true,
-}
+import type { ConsensusResult } from '@/types/nextgen'
 
 const providerColors: Record<string, string> = {
   github_copilot: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -32,36 +17,39 @@ const SAMPLE_TEXT = `Under Article 22 of the GDPR, data subjects have the right 
 export default function MultiLLMDashboard() {
   const [inputText, setInputText] = useState(SAMPLE_TEXT)
   const [result, setResult] = useState<ConsensusResult | null>(null)
-  const { data: liveProviders } = useLLMProviders()
-  const { data: liveConfig } = useMultiLLMConfig()
+  const { data: providers, loading: providersLoading, error: providersError, refetch: refetchProviders } = useLLMProviders()
+  const { data: config, loading: configLoading, error: configError, refetch: refetchConfig } = useMultiLLMConfig()
   const { mutate: parse, loading: parsing } = useMultiLLMParse()
 
-  const providers = liveProviders || MOCK_PROVIDERS
-  const config = liveConfig || MOCK_CONFIG
+  const loading = providersLoading || configLoading
+  const error = providersError || configError
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
+        </div>
+        <div className="card h-32 animate-pulse bg-gray-100" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">Error loading Multi-LLM Engine: {error.message}</p>
+        <button onClick={() => { refetchProviders(); refetchConfig(); }} className="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">Retry</button>
+      </div>
+    )
+  }
+
+  const providerList = providers ?? []
   const handleParse = async () => {
     if (!inputText.trim() || parsing) return
-    try {
-      const res = await parse({ text: inputText, strategy: config.consensus_strategy })
-      setResult(res)
-    } catch {
-      setResult({
-        id: 'demo-1',
-        status: 'completed',
-        strategy: 'weighted_average',
-        provider_results: [
-          { provider: 'github_copilot', model_name: 'gpt-4o', obligations: [{ type: 'MUST', text: 'Implement right to not be subject to solely automated decisions' }], entities: ['data_subject', 'data_controller'], confidence: 0.94, latency_ms: 820, error: null },
-          { provider: 'openai', model_name: 'gpt-4-turbo', obligations: [{ type: 'MUST', text: 'Provide human intervention mechanism for automated decisions' }], entities: ['data_subject', 'data_controller'], confidence: 0.91, latency_ms: 1100, error: null },
-          { provider: 'anthropic', model_name: 'claude-3-sonnet', obligations: [{ type: 'MUST', text: 'Safeguard rights against automated decision-making' }], entities: ['data_subject', 'data_controller', 'profiling'], confidence: 0.93, latency_ms: 950, error: null },
-        ],
-        obligations: [{ type: 'MUST', text: 'Implement safeguards against solely automated decisions including profiling' }, { type: 'MUST', text: 'Provide human intervention mechanism' }, { type: 'SHOULD', text: 'Allow data subjects to express views and contest decisions' }],
-        entities: ['data_subject', 'data_controller', 'profiling'],
-        confidence: 0.93,
-        agreement_score: 0.89,
-        needs_human_review: false,
-        total_latency_ms: 1100,
-      })
-    }
+    const res = await parse({ text: inputText, strategy: config?.consensus_strategy })
+    setResult(res)
   }
 
   return (
@@ -72,33 +60,39 @@ export default function MultiLLMDashboard() {
       </div>
 
       {/* Provider Status */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {providers.map((p) => (
-          <div key={p.provider} className={`card p-4 border ${p.enabled ? providerColors[p.provider] || 'bg-gray-100 text-gray-700 border-gray-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
-            <div className="flex items-center justify-between mb-2">
-              <Cpu className="h-5 w-5" />
-              {p.enabled ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-gray-400" />}
+      {providerList.length === 0 ? (
+        <p className="text-gray-500 text-sm">No providers configured.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {providerList.map((p) => (
+            <div key={p.provider} className={`card p-4 border ${p.enabled ? providerColors[p.provider] || 'bg-gray-100 text-gray-700 border-gray-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <Cpu className="h-5 w-5" />
+                {p.enabled ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-gray-400" />}
+              </div>
+              <p className="font-medium text-sm">{p.provider.replace('_', ' ')}</p>
+              <p className="text-xs opacity-75">{p.model_name}</p>
+              <p className="text-xs mt-1">Weight: {p.weight.toFixed(1)}</p>
             </div>
-            <p className="font-medium text-sm">{p.provider.replace('_', ' ')}</p>
-            <p className="text-xs opacity-75">{p.model_name}</p>
-            <p className="text-xs mt-1">Weight: {p.weight.toFixed(1)}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Config Summary */}
-      <div className="card p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Settings className="h-5 w-5 text-gray-500" />
-          <h2 className="text-lg font-semibold text-gray-900">Configuration</h2>
+      {config && (
+        <div className="card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Settings className="h-5 w-5 text-gray-500" />
+            <h2 className="text-lg font-semibold text-gray-900">Configuration</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div><span className="text-gray-500">Strategy:</span> <span className="font-medium">{config.consensus_strategy.replace('_', ' ')}</span></div>
+            <div><span className="text-gray-500">Min Providers:</span> <span className="font-medium">{config.min_providers}</span></div>
+            <div><span className="text-gray-500">Divergence Threshold:</span> <span className="font-medium">{config.divergence_threshold}</span></div>
+            <div><span className="text-gray-500">Fallback:</span> <span className="font-medium">{config.fallback_to_single ? 'Enabled' : 'Disabled'}</span></div>
+          </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div><span className="text-gray-500">Strategy:</span> <span className="font-medium">{config.consensus_strategy.replace('_', ' ')}</span></div>
-          <div><span className="text-gray-500">Min Providers:</span> <span className="font-medium">{config.min_providers}</span></div>
-          <div><span className="text-gray-500">Divergence Threshold:</span> <span className="font-medium">{config.divergence_threshold}</span></div>
-          <div><span className="text-gray-500">Fallback:</span> <span className="font-medium">{config.fallback_to_single ? 'Enabled' : 'Disabled'}</span></div>
-        </div>
-      </div>
+      )}
 
       {/* Parse Input */}
       <div className="card p-4">

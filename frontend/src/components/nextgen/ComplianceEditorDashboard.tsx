@@ -1,21 +1,12 @@
 'use client'
 
-import { Code, FileCode, Wrench, Eye } from 'lucide-react'
-
-const MOCK_EDITOR_SESSIONS = [
-  { id: 1, file: 'auth/access-control.ts', framework: 'SOC2', issues: 3, status: 'In Progress', user: 'alice@acme.com' },
-  { id: 2, file: 'data/retention-policy.yaml', framework: 'GDPR', issues: 1, status: 'Review', user: 'bob@acme.com' },
-  { id: 3, file: 'infra/encryption.tf', framework: 'PCI-DSS', issues: 5, status: 'In Progress', user: 'carol@acme.com' },
-  { id: 4, file: 'api/audit-logging.ts', framework: 'HIPAA', issues: 0, status: 'Compliant', user: 'dave@acme.com' },
-]
+import { Edit, CheckCircle, FileText, Wrench } from 'lucide-react'
+import { useComplianceEditorStats } from '@/hooks/useNextgenApi'
 
 function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; title: string; value: string; subtitle: string }) {
   return (
     <div className="card">
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <span className="text-sm text-gray-500">{title}</span>
-      </div>
+      <div className="flex items-center gap-2 mb-2">{icon}<span className="text-sm text-gray-500">{title}</span></div>
       <p className="text-2xl font-bold text-gray-900">{value}</p>
       <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
     </div>
@@ -23,42 +14,58 @@ function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; tit
 }
 
 export default function ComplianceEditorDashboard() {
+  const { data: stats, loading, error, refetch } = useComplianceEditorStats()
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Compliance Editor</h1></div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="card h-24 bg-gray-100 animate-pulse" />)}</div>
+        <div className="card h-48 bg-gray-100 animate-pulse" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Compliance Editor</h1></div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading Compliance Editor: {error.message}</p>
+          <button onClick={refetch} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Compliance-Native Code Editor</h1>
-        <p className="text-gray-500">Real-time compliance feedback during code authoring</p>
+        <h1 className="text-2xl font-bold text-gray-900">Compliance Editor</h1>
+        <p className="text-gray-500">Real-time compliance policy editing with inline validation</p>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard icon={<Code className="w-5 h-5 text-blue-500" />} title="Active Sessions" value="4" subtitle="Editors with live checks" />
-        <StatCard icon={<FileCode className="w-5 h-5 text-green-500" />} title="Files Scanned" value="127" subtitle="Today across sessions" />
-        <StatCard icon={<Wrench className="w-5 h-5 text-yellow-500" />} title="Auto-Fixes Applied" value="34" subtitle="Automated remediations" />
-        <StatCard icon={<Eye className="w-5 h-5 text-purple-500" />} title="Issues Found" value="9" subtitle="Pending review" />
+        <StatCard icon={<Edit className="w-5 h-5 text-blue-500" />} title="Active Sessions" value={String(stats?.active_sessions ?? 0)} subtitle="Editors working now" />
+        <StatCard icon={<FileText className="w-5 h-5 text-green-500" />} title="Total Sessions" value={String(stats?.total_sessions ?? 0)} subtitle="All-time" />
+        <StatCard icon={<CheckCircle className="w-5 h-5 text-purple-500" />} title="Fixes Applied" value={String(stats?.total_fixes_applied ?? 0)} subtitle="Auto-applied" />
+        <StatCard icon={<Wrench className="w-5 h-5 text-orange-500" />} title="Issues Found" value={String(stats?.total_issues_found ?? 0)} subtitle="Detected" />
       </div>
-
       <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Editor Sessions</h2>
-        <div className="space-y-3">
-          {MOCK_EDITOR_SESSIONS.map((session) => (
-            <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <FileCode className="w-5 h-5 text-blue-500" />
-                <div>
-                  <p className="font-medium text-gray-900">{session.file}</p>
-                  <p className="text-sm text-gray-500">{session.user} · {session.framework} · {session.issues} issues</p>
-                </div>
-              </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                session.status === 'Compliant' ? 'bg-green-100 text-green-700' :
-                session.status === 'Review' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-blue-100 text-blue-700'
-              }`}>
-                {session.status}
-              </span>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Editor Activity</h2>
+        {!stats ? (
+          <p className="text-gray-500">No editor activity yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-600 font-medium">Active Sessions</p>
+              <p className="text-2xl font-bold text-blue-900">{stats.active_sessions}</p>
             </div>
-          ))}
-        </div>
+            <div className="p-4 bg-green-50 rounded-lg">
+              <p className="text-sm text-green-600 font-medium">Fixes Applied</p>
+              <p className="text-2xl font-bold text-green-900">{stats.total_fixes_applied}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

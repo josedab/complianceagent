@@ -1,21 +1,12 @@
 'use client'
 
-import { FileCode, CheckCircle, Globe, BookOpen } from 'lucide-react'
-
-const MOCK_DATA = [
-  { id: 1, name: 'v3.2.0 — Current Stable', detail: '142 endpoints, OpenAPI 3.1 spec', status: 'Published' },
-  { id: 2, name: 'v3.3.0-rc1 — Release Candidate', detail: 'Added DORA metrics endpoints', status: 'In Review' },
-  { id: 3, name: 'v4.0.0-alpha — Next Major', detail: 'GraphQL support, breaking changes', status: 'Draft' },
-  { id: 4, name: 'v3.1.0 — Previous Stable', detail: '128 endpoints, deprecated 2024-Q3', status: 'Deprecated' },
-]
+import { Book, CheckCircle, BarChart3, Globe } from 'lucide-react'
+import { useApiSpecVersions, useComplianceApiStandardStats } from '@/hooks/useNextgenApi'
 
 function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; title: string; value: string; subtitle: string }) {
   return (
     <div className="card">
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <span className="text-sm text-gray-500">{title}</span>
-      </div>
+      <div className="flex items-center gap-2 mb-2">{icon}<span className="text-sm text-gray-500">{title}</span></div>
       <p className="text-2xl font-bold text-gray-900">{value}</p>
       <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
     </div>
@@ -23,31 +14,68 @@ function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; tit
 }
 
 export default function ComplianceAPIStandardDashboard() {
+  const { data: versions, loading: versionsLoading, error: versionsError, refetch } = useApiSpecVersions()
+  const { data: stats, loading: statsLoading, error: statsError } = useComplianceApiStandardStats()
+
+  const loading = versionsLoading || statsLoading
+  const error = versionsError || statsError
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Compliance API Standard</h1></div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="card h-24 bg-gray-100 animate-pulse" />)}</div>
+        <div className="card h-48 bg-gray-100 animate-pulse" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Compliance API Standard</h1></div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading Compliance API Standard: {error.message}</p>
+          <button onClick={refetch} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Universal Compliance API Standard</h1>
-        <p className="text-gray-500">API specification versions, endpoint coverage, and adoption metrics</p>
+        <h1 className="text-2xl font-bold text-gray-900">Compliance API Standard</h1>
+        <p className="text-gray-500">Manage and enforce compliance API specification standards</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard icon={<FileCode className="h-5 w-5 text-blue-600" />} title="Endpoints" value="142" subtitle="Current stable spec" />
-        <StatCard icon={<CheckCircle className="h-5 w-5 text-green-600" />} title="Spec Versions" value="4" subtitle="Including pre-release" />
-        <StatCard icon={<Globe className="h-5 w-5 text-purple-600" />} title="Adopters" value="38" subtitle="Organizations integrated" />
-        <StatCard icon={<BookOpen className="h-5 w-5 text-orange-600" />} title="Doc Coverage" value="97%" subtitle="Endpoints documented" />
+        <StatCard icon={<Book className="w-5 h-5 text-blue-500" />} title="Spec Versions" value={String(stats?.total_specs ?? 0)} subtitle="Published specs" />
+        <StatCard icon={<Globe className="w-5 h-5 text-green-500" />} title="Conformance Checks" value={String(stats?.total_conformance_checks ?? 0)} subtitle="APIs checked" />
+        <StatCard icon={<CheckCircle className="w-5 h-5 text-purple-500" />} title="Compliant APIs" value={String(stats?.compliant_apis ?? 0)} subtitle="Passing conformance" />
+        <StatCard icon={<BarChart3 className="w-5 h-5 text-orange-500" />} title="Avg Score" value={`${(stats?.avg_compliance_score ?? 0).toFixed(1)}%`} subtitle="Conformance score" />
       </div>
       <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">API Spec Versions</h2>
-        <div className="space-y-3">
-          {MOCK_DATA.map((item) => (
-            <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100">
-              <div>
-                <span className="font-medium text-gray-900">{item.name}</span>
-                <p className="text-xs text-gray-500">{item.detail}</p>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Spec Versions</h2>
+        {!versions || versions.length === 0 ? (
+          <p className="text-gray-500">No spec versions published yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {versions.map((v) => (
+              <div key={v.version} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Book className="w-5 h-5 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-gray-900">v{v.version}</p>
+                    <p className="text-sm text-gray-500">Published: {v.published_at ?? 'N/A'}</p>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${v.status === 'active' ? 'bg-green-100 text-green-700' : v.status === 'draft' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`}>
+                  {v.status}
+                </span>
               </div>
-              <span className="text-sm text-gray-600">{item.status}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

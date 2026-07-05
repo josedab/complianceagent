@@ -1,123 +1,82 @@
 'use client'
 
-import { AlertTriangle, Calendar, Globe, Eye } from 'lucide-react'
+import { Radar, Calendar, AlertTriangle, Globe } from 'lucide-react'
+import { useHorizonTimeline } from '@/hooks/useNextgenApi'
 
-const MOCK_LEGISLATION = [
-  { id: '1', title: 'EU AI Act - Full Enforcement', jurisdiction: 'EU', status: 'enacted', confidence: 'high', frameworks: ['EU AI Act', 'GDPR'], months_ahead: 3, tags: ['ai', 'transparency'] },
-  { id: '2', title: 'Digital Operational Resilience Act (DORA)', jurisdiction: 'EU', status: 'effective', confidence: 'high', frameworks: ['DORA', 'NIS2'], months_ahead: 0, tags: ['financial', 'ict-risk'] },
-  { id: '3', title: 'American Privacy Rights Act (APRA)', jurisdiction: 'US', status: 'committee', confidence: 'low', frameworks: ['CCPA', 'GDPR'], months_ahead: 18, tags: ['privacy', 'federal'] },
-  { id: '4', title: 'PCI-DSS v4.0.1 Enforcement Deadline', jurisdiction: 'Global', status: 'enacted', confidence: 'high', frameworks: ['PCI-DSS'], months_ahead: 2, tags: ['payment', 'security'] },
-  { id: '5', title: 'SEC Climate Disclosure Rules - Phase 2', jurisdiction: 'US', status: 'passed', confidence: 'high', frameworks: ['SEC Climate', 'TCFD'], months_ahead: 6, tags: ['esg', 'climate'] },
-  { id: '6', title: 'UK AI Safety Bill', jurisdiction: 'UK', status: 'proposed', confidence: 'medium', frameworks: ['EU AI Act'], months_ahead: 12, tags: ['ai', 'safety'] },
-  { id: '7', title: 'India DPDP Rules', jurisdiction: 'India', status: 'draft', confidence: 'medium', frameworks: ['India DPDP'], months_ahead: 4, tags: ['privacy', 'apac'] },
-]
-
-const urgencyColor = (months: number) => {
-  if (months <= 3) return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' }
-  if (months <= 6) return { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' }
-  if (months <= 12) return { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' }
-  return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' }
-}
-
-const statusBadge = (status: string) => {
-  const map: Record<string, string> = {
-    effective: 'bg-green-100 text-green-700',
-    enacted: 'bg-blue-100 text-blue-700',
-    passed: 'bg-indigo-100 text-indigo-700',
-    committee: 'bg-yellow-100 text-yellow-700',
-    proposed: 'bg-orange-100 text-orange-700',
-    draft: 'bg-gray-100 text-gray-600',
-  }
-  return map[status] || 'bg-gray-100 text-gray-600'
+function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; title: string; value: string; subtitle: string }) {
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-2">{icon}<span className="text-sm text-gray-500">{title}</span></div>
+      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs text-gray-500 mt-1">{subtitle}</p>
+    </div>
+  )
 }
 
 export default function HorizonScannerDashboard() {
-  const imminent = MOCK_LEGISLATION.filter(l => l.months_ahead <= 3)
-  const upcoming = MOCK_LEGISLATION.filter(l => l.months_ahead > 3 && l.months_ahead <= 12)
+  const { data: timeline, loading, error, refetch } = useHorizonTimeline()
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Horizon Scanner</h1></div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <div key={i} className="card h-24 bg-gray-100 animate-pulse" />)}</div>
+        <div className="card h-48 bg-gray-100 animate-pulse" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Horizon Scanner</h1></div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading Horizon Scanner: {error.message}</p>
+          <button onClick={refetch} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
+  const upcoming = (timeline?.upcoming ?? []) as Record<string, unknown>[]
+  const alerts = (timeline?.alerts ?? []) as Record<string, unknown>[]
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Regulatory Horizon Scanner</h1>
-        <p className="text-gray-500">Track upcoming legislation and predict codebase impact</p>
+        <p className="text-gray-500">Track upcoming regulatory changes and compliance deadlines</p>
       </div>
-
-      {/* Summary stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Tracked</p>
-            <Eye className="h-5 w-5 text-blue-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{MOCK_LEGISLATION.length}</p>
-          <p className="mt-1 text-sm text-gray-500">regulations monitored</p>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Imminent</p>
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-red-600">{imminent.length}</p>
-          <p className="mt-1 text-sm text-gray-500">within 3 months</p>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Upcoming</p>
-            <Calendar className="h-5 w-5 text-orange-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-orange-600">{upcoming.length}</p>
-          <p className="mt-1 text-sm text-gray-500">3-12 months</p>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-500">Jurisdictions</p>
-            <Globe className="h-5 w-5 text-green-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-green-600">{new Set(MOCK_LEGISLATION.map(l => l.jurisdiction)).size}</p>
-          <p className="mt-1 text-sm text-gray-500">regions covered</p>
-        </div>
+        <StatCard icon={<Radar className="w-5 h-5 text-blue-500" />} title="Total Tracked" value={String(timeline?.total_tracked ?? 0)} subtitle="Regulatory events" />
+        <StatCard icon={<Calendar className="w-5 h-5 text-green-500" />} title="Upcoming" value={String(upcoming.length)} subtitle="Future events" />
+        <StatCard icon={<AlertTriangle className="w-5 h-5 text-orange-500" />} title="High Impact" value={String(timeline?.high_impact_count ?? 0)} subtitle="Critical changes" />
+        <StatCard icon={<Globe className="w-5 h-5 text-purple-500" />} title="Alerts" value={String(alerts.length)} subtitle="Active alerts" />
       </div>
-
-      {/* Timeline */}
       <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Regulatory Timeline</h2>
-        <div className="space-y-3">
-          {MOCK_LEGISLATION.sort((a, b) => a.months_ahead - b.months_ahead).map(leg => {
-            const colors = urgencyColor(leg.months_ahead)
-            return (
-              <div key={leg.id} className={`p-4 rounded-lg border ${colors.border} ${colors.bg}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className={`font-medium ${colors.text}`}>{leg.title}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusBadge(leg.status)}`}>
-                        {leg.status}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
-                      <span>{leg.jurisdiction}</span>
-                      <span>•</span>
-                      <span>{leg.frameworks.join(', ')}</span>
-                    </div>
-                    <div className="mt-2 flex gap-1.5">
-                      {leg.tags.map(tag => (
-                        <span key={tag} className="text-xs bg-white/60 px-2 py-0.5 rounded text-gray-600">{tag}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-right ml-4">
-                    <p className={`text-lg font-bold ${colors.text}`}>
-                      {leg.months_ahead === 0 ? 'Now' : `${leg.months_ahead}mo`}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {leg.confidence} confidence
-                    </p>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Regulatory Events</h2>
+        {upcoming.length === 0 ? (
+          <p className="text-gray-500">No upcoming regulatory events.</p>
+        ) : (
+          <div className="space-y-3">
+            {upcoming.slice(0, 10).map((event, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-gray-900">{String(event.title ?? event.name ?? 'Event')}</p>
+                    <p className="text-sm text-gray-500">{String(event.regulation ?? '')} · {String(event.effective_date ?? event.date ?? '')}</p>
                   </div>
                 </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  String(event.impact ?? event.severity) === 'high' ? 'bg-red-100 text-red-700' :
+                  String(event.impact ?? event.severity) === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-green-100 text-green-700'
+                }`}>{String(event.impact ?? event.severity ?? 'low')}</span>
               </div>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

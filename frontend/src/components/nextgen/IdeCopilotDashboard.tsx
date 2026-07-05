@@ -3,39 +3,39 @@
 import { useState } from 'react'
 import { Code, Search, ThumbsUp, ThumbsDown, Brain, Zap, MessageSquare } from 'lucide-react'
 import { useRAGSearch, useFeedbackStats } from '@/hooks/useNextgenApi'
-import type { RAGSearchResult, FeedbackStats } from '@/types/nextgen'
-
-const MOCK_RESULTS: RAGSearchResult[] = [
-  { regulation: 'GDPR', article: 'Art. 25', text: 'The controller shall implement appropriate technical and organisational measures for ensuring data protection by design and by default.', relevance_score: 0.95, metadata: {} },
-  { regulation: 'GDPR', article: 'Art. 32', text: 'The controller and processor shall implement appropriate technical measures to ensure a level of security appropriate to the risk, including encryption.', relevance_score: 0.87, metadata: {} },
-  { regulation: 'HIPAA', article: '§164.312(a)', text: 'Implement technical policies and procedures for electronic information systems that maintain ePHI to allow access only to authorized persons.', relevance_score: 0.72, metadata: {} },
-]
-
-const MOCK_STATS: FeedbackStats = {
-  total_feedback: 156,
-  helpful_count: 112,
-  not_helpful_count: 28,
-  incorrect_count: 16,
-  application_rate: 0.72,
-  top_appreciated_rules: ['GDPR-PII-001', 'HIPAA-ENC-003'],
-  top_rejected_rules: ['SOC2-LOG-012'],
-}
+import type { RAGSearchResult } from '@/types/nextgen'
 
 export default function IdeCopilotDashboard() {
   const [query, setQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<RAGSearchResult[]>(MOCK_RESULTS)
+  const [searchResults, setSearchResults] = useState<RAGSearchResult[]>([])
   const { mutate: ragSearch, loading: searching } = useRAGSearch()
-  const { data: liveStats } = useFeedbackStats()
-  const stats = liveStats || MOCK_STATS
+  const { data: stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useFeedbackStats()
 
   const handleSearch = async () => {
     if (!query.trim()) return
-    try {
-      const results = await ragSearch({ query, top_k: 5 })
-      setSearchResults(results)
-    } catch {
-      setSearchResults(MOCK_RESULTS)
-    }
+    const results = await ragSearch({ query, top_k: 5 })
+    setSearchResults(results)
+  }
+
+  if (statsLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
+        </div>
+        <div className="card h-48 animate-pulse bg-gray-100" />
+      </div>
+    )
+  }
+
+  if (statsError) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">Error loading IDE Co-Pilot: {statsError.message}</p>
+        <button onClick={refetchStats} className="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">Retry</button>
+      </div>
+    )
   }
 
   return (
@@ -52,7 +52,7 @@ export default function IdeCopilotDashboard() {
             <p className="text-sm font-medium text-gray-500">Total Feedback</p>
             <MessageSquare className="h-5 w-5 text-blue-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{stats.total_feedback}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{stats?.total_feedback ?? 0}</p>
           <p className="mt-1 text-sm text-gray-500">Suggestions rated</p>
         </div>
         <div className="card">
@@ -60,15 +60,19 @@ export default function IdeCopilotDashboard() {
             <p className="text-sm font-medium text-gray-500">Helpful Rate</p>
             <ThumbsUp className="h-5 w-5 text-green-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-green-600">{Math.round(stats.helpful_count / Math.max(stats.total_feedback, 1) * 100)}%</p>
-          <p className="mt-1 text-sm text-gray-500">{stats.helpful_count} helpful</p>
+          <p className="mt-2 text-3xl font-bold text-green-600">
+            {stats ? Math.round(stats.helpful_count / Math.max(stats.total_feedback, 1) * 100) : 0}%
+          </p>
+          <p className="mt-1 text-sm text-gray-500">{stats?.helpful_count ?? 0} helpful</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-500">Application Rate</p>
             <Zap className="h-5 w-5 text-purple-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-purple-600">{Math.round(stats.application_rate * 100)}%</p>
+          <p className="mt-2 text-3xl font-bold text-purple-600">
+            {stats ? Math.round(stats.application_rate * 100) : 0}%
+          </p>
           <p className="mt-1 text-sm text-gray-500">Fixes applied</p>
         </div>
         <div className="card">
@@ -76,7 +80,7 @@ export default function IdeCopilotDashboard() {
             <p className="text-sm font-medium text-gray-500">Incorrect</p>
             <ThumbsDown className="h-5 w-5 text-red-600" />
           </div>
-          <p className="mt-2 text-3xl font-bold text-red-600">{stats.incorrect_count}</p>
+          <p className="mt-2 text-3xl font-bold text-red-600">{stats?.incorrect_count ?? 0}</p>
           <p className="mt-1 text-sm text-gray-500">Marked incorrect</p>
         </div>
       </div>
@@ -104,21 +108,25 @@ export default function IdeCopilotDashboard() {
           </button>
         </div>
 
-        <div className="space-y-3">
-          {searchResults.map((result, i) => (
-            <div key={i} className="p-4 rounded-lg border border-gray-100 hover:border-primary-200 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Code className="h-4 w-4 text-blue-500" />
-                  <span className="font-medium text-gray-900">{result.regulation}</span>
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{result.article}</span>
+        {searchResults.length === 0 ? (
+          <p className="text-gray-400 text-sm">Enter a query above to search regulations.</p>
+        ) : (
+          <div className="space-y-3">
+            {searchResults.map((result, i) => (
+              <div key={i} className="p-4 rounded-lg border border-gray-100 hover:border-primary-200 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Code className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium text-gray-900">{result.regulation}</span>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{result.article}</span>
+                  </div>
+                  <span className="text-sm text-gray-400">Relevance: {Math.round(result.relevance_score * 100)}%</span>
                 </div>
-                <span className="text-sm text-gray-400">Relevance: {Math.round(result.relevance_score * 100)}%</span>
+                <p className="text-sm text-gray-600">{result.text}</p>
               </div>
-              <p className="text-sm text-gray-600">{result.text}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,16 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { FileCheck, Shield, Clock, CheckCircle } from 'lucide-react'
-import { api } from '@/lib/api'
-
-const FALLBACK_ITEMS = [
-  { id: 1, name: 'SOC 2 Type II', detail: 'Evidence collection 90% complete', value: '90%' },
-  { id: 2, name: 'ISO 27001', detail: 'Controls mapping verified', value: '85%' },
-  { id: 3, name: 'GDPR Assessment', detail: 'Data flow documented', value: '78%' },
-]
-
-const FALLBACK_STATS = { audits: '8', evidence: '234', readiness: '96%', avgTime: '2.1d' }
+import { useAuditFrameworks, useGapAnalysis, useReadinessReport } from '@/hooks/useNextgenApi'
+import type { GapAnalysis, ReadinessReport } from '@/types/nextgen'
 
 function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; title: string; value: string; subtitle: string }) {
   return (
@@ -26,36 +19,31 @@ function StatCard({ icon, title, value, subtitle }: { icon: React.ReactNode; tit
 }
 
 export default function AuditAutopilotDashboard() {
-  const [items, setItems] = useState(FALLBACK_ITEMS)
-  const [stats, setStats] = useState(FALLBACK_STATS)
-  const [loading, setLoading] = useState(true)
-  const [isDemo, setIsDemo] = useState(false)
+  const { data: frameworks, loading, error, refetch } = useAuditFrameworks()
+  const { mutate: runGapAnalysis, loading: gapLoading } = useGapAnalysis()
+  const { mutate: runReadinessReport, loading: readinessLoading } = useReadinessReport()
+  const [results, setResults] = useState<Record<string, { gap?: GapAnalysis; readiness?: ReadinessReport }>>({})
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  useEffect(() => {
-    api.get('/audit/?limit=10')
-      .then(res => {
-        const data = res.data?.items || res.data
-        if (Array.isArray(data) && data.length > 0) {
-          setItems(data.slice(0, 10).map((entry: Record<string, unknown>, i: number) => ({
-            id: Number(entry.id ?? i + 1),
-            name: String(entry.name || entry.title || entry.framework || `Audit #${i + 1}`),
-            detail: String(entry.detail || entry.description || entry.status || 'Audit entry'),
-            value: String(entry.value || entry.score || entry.result || '—'),
-          })))
-          setStats({
-            audits: String(data.length),
-            evidence: String(res.data?.evidence_count ?? FALLBACK_STATS.evidence),
-            readiness: res.data?.readiness ? `${res.data.readiness}%` : FALLBACK_STATS.readiness,
-            avgTime: res.data?.avg_time || FALLBACK_STATS.avgTime,
-          })
-          setIsDemo(false)
-        } else {
-          setIsDemo(true)
-        }
-      })
-      .catch(() => { setIsDemo(true) })
-      .finally(() => setLoading(false))
-  }, [])
+  async function handleRunGapAnalysis(framework: string) {
+    setActionError(null)
+    try {
+      const gap = await runGapAnalysis(framework)
+      setResults(prev => ({ ...prev, [framework]: { ...prev[framework], gap } }))
+    } catch {
+      setActionError(`Failed to run gap analysis for ${framework}`)
+    }
+  }
+
+  async function handleRunReadinessReport(framework: string) {
+    setActionError(null)
+    try {
+      const readiness = await runReadinessReport(framework)
+      setResults(prev => ({ ...prev, [framework]: { ...prev[framework], readiness } }))
+    } catch {
+      setActionError(`Failed to generate readiness report for ${framework}`)
+    }
+  }
 
   if (loading) {
     return (
@@ -69,37 +57,81 @@ export default function AuditAutopilotDashboard() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Audit Preparation Autopilot</h1>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading audit frameworks: {error.message}</p>
+          <button onClick={refetch} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
+  const items = frameworks || []
+  const totalControls = items.reduce((sum, f) => sum + f.control_count, 0)
+  const analyzedCount = Object.keys(results).length
+  const avgReadiness = analyzedCount > 0
+    ? (Object.values(results).reduce((sum, r) => sum + (r.gap?.readiness_score ?? r.readiness?.overall_readiness ?? 0), 0) / analyzedCount).toFixed(0)
+    : null
+
   return (
     <div className="space-y-6">
-      {isDemo && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm">
-          Using demo data — connect backend for live data
-        </div>
-      )}
-
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Audit Preparation Autopilot</h1>
         <p className="text-gray-500">Automated audit preparation and evidence collection</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard icon={<FileCheck className="h-5 w-5 text-blue-600" />} title="Audits" value={stats.audits} subtitle="In progress" />
-        <StatCard icon={<Shield className="h-5 w-5 text-green-600" />} title="Evidence" value={stats.evidence} subtitle="Items collected" />
-        <StatCard icon={<Clock className="h-5 w-5 text-purple-600" />} title="Readiness" value={stats.readiness} subtitle="Overall score" />
-        <StatCard icon={<CheckCircle className="h-5 w-5 text-orange-600" />} title="Avg Time" value={stats.avgTime} subtitle="Per audit" />
+        <StatCard icon={<FileCheck className="h-5 w-5 text-blue-600" />} title="Frameworks" value={String(items.length)} subtitle="Supported" />
+        <StatCard icon={<Shield className="h-5 w-5 text-green-600" />} title="Controls" value={String(totalControls)} subtitle="Across all frameworks" />
+        <StatCard icon={<Clock className="h-5 w-5 text-purple-600" />} title="Readiness" value={avgReadiness !== null ? `${avgReadiness}%` : 'N/A'} subtitle="Avg across analyzed frameworks" />
+        <StatCard icon={<CheckCircle className="h-5 w-5 text-orange-600" />} title="Analyzed" value={String(analyzedCount)} subtitle="Frameworks assessed" />
       </div>
+      {actionError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">{actionError}</div>
+      )}
       <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Audit Entries</h2>
-        <div className="space-y-3">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100">
-              <div>
-                <span className="font-medium text-gray-900">{item.name}</span>
-                <p className="text-xs text-gray-500">{item.detail}</p>
-              </div>
-              <span className="text-sm text-gray-600">{item.value}</span>
-            </div>
-          ))}
-        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Supported Audit Frameworks</h2>
+        {items.length === 0 ? (
+          <p className="text-gray-500 text-sm">No audit frameworks available.</p>
+        ) : (
+          <div className="space-y-3">
+            {items.map((item) => {
+              const result = results[item.framework]
+              return (
+                <div key={item.framework} className="flex items-center justify-between p-3 rounded-lg border border-gray-100">
+                  <div>
+                    <span className="font-medium text-gray-900 uppercase">{item.framework}</span>
+                    <p className="text-xs text-gray-500">
+                      {item.control_count} controls
+                      {result?.gap && ` · readiness ${result.gap.readiness_score}%`}
+                      {result?.readiness && ` · prep ${result.readiness.estimated_prep_weeks}w`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleRunGapAnalysis(item.framework)}
+                      disabled={gapLoading}
+                      className="px-3 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Run Gap Analysis
+                    </button>
+                    <button
+                      onClick={() => handleRunReadinessReport(item.framework)}
+                      disabled={readinessLoading}
+                      className="px-3 py-1 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Readiness Report
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

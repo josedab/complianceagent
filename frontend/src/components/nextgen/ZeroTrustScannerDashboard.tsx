@@ -4,20 +4,6 @@ import { Shield, Lock, AlertTriangle, CheckCircle } from 'lucide-react'
 import { useZeroTrustViolations } from '@/hooks/useNextgenApi'
 import type { ZeroTrustViolation } from '@/types/nextgen'
 
-interface ZeroTrustViolationDisplay extends ZeroTrustViolation {
-  resource: string;
-  violation: string;
-  remediation: string;
-}
-
-const MOCK_VIOLATIONS: ZeroTrustViolationDisplay[] = [
-  { id: 'zt1', policy_id: 'pol1', resource_name: 'api-gateway', violation_type: 'no_mtls', severity: 'critical', description: 'No mTLS enforcement on internal APIs', framework: 'NIST ZTA', remediation_hint: 'Enable mutual TLS on all service-to-service communication', iac_file: '', status: 'open', detected_at: '2026-03-12T10:00:00Z', resource: 'api-gateway', violation: 'No mTLS enforcement on internal APIs', remediation: 'Enable mutual TLS on all service-to-service communication' },
-  { id: 'zt2', policy_id: 'pol2', resource_name: 'user-service', violation_type: 'excessive_permissions', severity: 'high', description: 'Service account with excessive permissions', framework: 'BeyondCorp', remediation_hint: 'Apply least-privilege IAM policy', iac_file: '', status: 'open', detected_at: '2026-03-11T14:00:00Z', resource: 'user-service', violation: 'Service account with excessive permissions', remediation: 'Apply least-privilege IAM policy' },
-  { id: 'zt3', policy_id: 'pol3', resource_name: 'data-pipeline', violation_type: 'unencrypted_data', severity: 'medium', description: 'Unencrypted data at rest in staging', framework: 'NIST ZTA', remediation_hint: 'Enable AES-256 encryption for all data stores', iac_file: '', status: 'open', detected_at: '2026-03-10T09:00:00Z', resource: 'data-pipeline', violation: 'Unencrypted data at rest in staging', remediation: 'Enable AES-256 encryption for all data stores' },
-  { id: 'zt4', policy_id: 'pol4', resource_name: 'k8s-cluster', violation_type: 'privileged_containers', severity: 'high', description: 'Pod security policy allows privileged containers', framework: 'CIS Benchmark', remediation_hint: 'Restrict pod security to baseline profile', iac_file: '', status: 'open', detected_at: '2026-03-12T08:30:00Z', resource: 'k8s-cluster', violation: 'Pod security policy allows privileged containers', remediation: 'Restrict pod security to baseline profile' },
-  { id: 'zt5', policy_id: 'pol5', resource_name: 'cdn-config', violation_type: 'missing_headers', severity: 'low', description: 'Missing CSP headers on static assets', framework: 'BeyondCorp', remediation_hint: 'Add Content-Security-Policy headers', iac_file: '', status: 'open', detected_at: '2026-03-09T16:00:00Z', resource: 'cdn-config', violation: 'Missing CSP headers on static assets', remediation: 'Add Content-Security-Policy headers' },
-]
-
 const severityColors: Record<string, { bg: string; text: string; border: string }> = {
   critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
   high: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
@@ -26,11 +12,32 @@ const severityColors: Record<string, { bg: string; text: string; border: string 
 }
 
 export default function ZeroTrustScannerDashboard() {
-  const { data: liveViolations } = useZeroTrustViolations()
+  const { data: liveViolations, loading, error, refetch } = useZeroTrustViolations()
 
-  const violations = (liveViolations as ZeroTrustViolationDisplay[] | null) || MOCK_VIOLATIONS
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
+        </div>
+        <div className="card h-48 animate-pulse bg-gray-100" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">Error loading Zero-Trust Scanner: {error.message}</p>
+        <button onClick={refetch} className="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">Retry</button>
+      </div>
+    )
+  }
+
+  const violations: ZeroTrustViolation[] = liveViolations ?? []
   const criticalHigh = violations.filter(v => v.severity === 'critical' || v.severity === 'high').length
-  const complianceScore = ((1 - violations.length / 156) * 100).toFixed(1)
+  const complianceScore = violations.length > 0 ? ((1 - violations.length / 156) * 100).toFixed(1) : '100.0'
 
   return (
     <div className="space-y-6">
@@ -81,24 +88,28 @@ export default function ZeroTrustScannerDashboard() {
           <AlertTriangle className="h-5 w-5 text-orange-500" />
           <h2 className="text-lg font-semibold text-gray-900">Violations</h2>
         </div>
-        <div className="space-y-3">
-          {violations.map(v => {
-            const colors = severityColors[v.severity] || severityColors.medium
-            return (
-              <div key={v.id} className={`p-4 rounded-lg border ${colors.border} ${colors.bg}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${colors.text} bg-white`}>{v.severity}</span>
-                    <span className="px-2 py-0.5 bg-white text-gray-600 text-xs rounded-full">{v.framework}</span>
+        {violations.length === 0 ? (
+          <p className="text-gray-500 text-sm">No violations detected.</p>
+        ) : (
+          <div className="space-y-3">
+            {violations.map(v => {
+              const colors = severityColors[v.severity] || severityColors.medium
+              return (
+                <div key={v.id} className={`p-4 rounded-lg border ${colors.border} ${colors.bg}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${colors.text} bg-white`}>{v.severity}</span>
+                      <span className="px-2 py-0.5 bg-white text-gray-600 text-xs rounded-full">{v.framework}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">{v.resource_name}</span>
                   </div>
-                  <span className="text-sm text-gray-500">{v.resource}</span>
+                  <p className={`font-medium ${colors.text}`}>{v.description}</p>
+                  <p className="mt-1 text-sm text-gray-600">💡 {v.remediation_hint}</p>
                 </div>
-                <p className={`font-medium ${colors.text}`}>{v.violation}</p>
-                <p className="mt-1 text-sm text-gray-600">💡 {v.remediation}</p>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

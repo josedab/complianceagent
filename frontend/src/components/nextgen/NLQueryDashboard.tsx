@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { MessageSquare, Send, ThumbsUp, ThumbsDown, Clock, Code, FileText, Sparkles } from 'lucide-react'
 import { useNLQuery, useQueryHistory, useQueryFeedback } from '@/hooks/useNextgenApi'
-import type { QueryResult, QueryHistoryItem } from '@/types/nextgen'
+import type { QueryResult } from '@/types/nextgen'
 
 const SUGGESTED_QUERIES = [
   'What GDPR requirements affect user deletion?',
@@ -11,12 +11,6 @@ const SUGGESTED_QUERIES = [
   'Show HIPAA compliance status for patient data',
   'What are the EU AI Act transparency requirements?',
   'Compare SOC 2 vs ISO 27001 audit logging controls',
-]
-
-const MOCK_HISTORY: QueryHistoryItem[] = [
-  { id: 'h1', query: 'What GDPR articles apply to cookie consent?', intent: 'regulation_lookup', answer_preview: 'Articles 6, 7, and Recital 32 of GDPR require...', was_helpful: true, timestamp: '2026-02-13T10:30:00Z' },
-  { id: 'h2', query: 'Which files handle encryption at rest?', intent: 'code_search', answer_preview: 'Found 4 files implementing encryption at rest...', was_helpful: null, timestamp: '2026-02-13T09:15:00Z' },
-  { id: 'h3', query: 'Are we compliant with PCI-DSS Req 3.4?', intent: 'violation_check', answer_preview: 'Partial compliance detected. Tokenization is...', was_helpful: true, timestamp: '2026-02-12T16:45:00Z' },
 ]
 
 const intentColors: Record<string, string> = {
@@ -32,41 +26,35 @@ const intentColors: Record<string, string> = {
 export default function NLQueryDashboard() {
   const [queryText, setQueryText] = useState('')
   const [result, setResult] = useState<QueryResult | null>(null)
-  const { data: liveHistory } = useQueryHistory()
+  const { data: liveHistory, loading: historyLoading, error: historyError, refetch: refetchHistory } = useQueryHistory()
   const { mutate: executeQuery, loading: querying } = useNLQuery()
   const { mutate: submitFeedback } = useQueryFeedback()
 
-  const history = liveHistory || MOCK_HISTORY
+  const history = liveHistory ?? []
 
   const handleQuery = async () => {
     if (!queryText.trim() || querying) return
-    try {
-      const res = await executeQuery({ query: queryText.trim() })
-      setResult(res)
-    } catch {
-      // Use mock result for demo
-      setResult({
-        id: 'demo-1',
-        query: queryText,
-        intent: 'regulation_lookup',
-        answer: 'Based on GDPR Article 17 (Right to Erasure), data subjects have the right to obtain erasure of personal data without undue delay. Your codebase has 3 files that handle user deletion: `services/users/service.py`, `api/v1/users.py`, and `workers/data_cleanup.py`. The deletion flow in `services/users/service.py:145-189` implements soft-delete but does not permanently purge data within the 30-day window required by your data retention policy.',
-        confidence: 0.92,
-        sources: [
-          { source_type: 'regulation', title: 'GDPR Article 17', reference: 'Art. 17(1)(a)', relevance_score: 0.95, snippet: 'The data subject shall have the right to obtain from the controller the erasure of personal data...' },
-          { source_type: 'regulation', title: 'GDPR Recital 65', reference: 'Recital 65', relevance_score: 0.82, snippet: 'A data subject should have the right to have his or her personal data erased...' },
-        ],
-        code_references: [
-          { file_path: 'services/users/service.py', line_start: 145, line_end: 189, snippet: 'async def delete_user(self, user_id):\n    # Soft delete - marks user as deleted\n    user.is_deleted = True', language: 'python', relevance: 0.93 },
-          { file_path: 'workers/data_cleanup.py', line_start: 34, line_end: 58, snippet: 'async def purge_deleted_users():\n    # Purge users deleted > 90 days ago', language: 'python', relevance: 0.78 },
-        ],
-        follow_up_suggestions: [
-          'What is the required deletion timeline under GDPR?',
-          'Show all soft-delete implementations in the codebase',
-          'How should we implement hard-delete for GDPR compliance?',
-        ],
-        processing_time_ms: 1240,
-      })
-    }
+    const res = await executeQuery({ query: queryText.trim() })
+    setResult(res)
+  }
+
+  if (historyLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
+        <div className="card h-24 animate-pulse bg-gray-100" />
+        <div className="card h-48 animate-pulse bg-gray-100" />
+      </div>
+    )
+  }
+
+  if (historyError) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p className="text-red-800">Error loading Compliance Query Engine: {historyError.message}</p>
+        <button onClick={refetchHistory} className="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">Retry</button>
+      </div>
+    )
   }
 
   return (
@@ -205,29 +193,33 @@ export default function NLQueryDashboard() {
           <Clock className="h-5 w-5 text-gray-500" />
           <h2 className="text-lg font-semibold text-gray-900">Recent Queries</h2>
         </div>
-        <div className="space-y-2">
-          {history.map((h) => (
-            <div
-              key={h.id}
-              className="p-3 rounded-lg border border-gray-100 hover:border-primary-200 cursor-pointer transition-colors"
-              onClick={() => { setQueryText(h.query); setResult(null); }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`px-2 py-0.5 text-xs rounded-full ${intentColors[h.intent] || 'bg-gray-100 text-gray-700'}`}>
-                  {h.intent.replace('_', ' ')}
-                </span>
-                {h.was_helpful !== null && (
-                  <span className={`text-xs ${h.was_helpful ? 'text-green-600' : 'text-red-600'}`}>
-                    {h.was_helpful ? '👍' : '👎'}
+        {history.length === 0 ? (
+          <p className="text-gray-500 text-sm">No query history yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {history.map((h) => (
+              <div
+                key={h.id}
+                className="p-3 rounded-lg border border-gray-100 hover:border-primary-200 cursor-pointer transition-colors"
+                onClick={() => { setQueryText(h.query); setResult(null); }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`px-2 py-0.5 text-xs rounded-full ${intentColors[h.intent] || 'bg-gray-100 text-gray-700'}`}>
+                    {h.intent.replace('_', ' ')}
                   </span>
-                )}
-                {h.timestamp && <span className="text-xs text-gray-400 ml-auto">{new Date(h.timestamp).toLocaleString()}</span>}
+                  {h.was_helpful !== null && (
+                    <span className={`text-xs ${h.was_helpful ? 'text-green-600' : 'text-red-600'}`}>
+                      {h.was_helpful ? '👍' : '👎'}
+                    </span>
+                  )}
+                  {h.timestamp && <span className="text-xs text-gray-400 ml-auto">{new Date(h.timestamp).toLocaleString()}</span>}
+                </div>
+                <p className="text-sm font-medium text-gray-900">{h.query}</p>
+                <p className="text-xs text-gray-500 mt-1 truncate">{h.answer_preview}</p>
               </div>
-              <p className="text-sm font-medium text-gray-900">{h.query}</p>
-              <p className="text-xs text-gray-500 mt-1 truncate">{h.answer_preview}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

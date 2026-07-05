@@ -1,25 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Lock, FileCheck, Eye, Shield, Download } from 'lucide-react'
-import { api } from '@/lib/api'
-import type { EvidenceItem, AuditReport, AuditorSession, ControlFramework } from '@/types/nextgen'
-
-const FALLBACK_EVIDENCE: EvidenceItem[] = [
-  { id: 'ev1', evidence_type: 'scan_result', title: 'SAST Scan - Q1 2026', description: 'Static analysis security scan results', content_hash: 'sha256:a1b2c3...', framework: 'soc2', control_id: 'CC6.1', created_at: '2026-02-01T10:00:00Z' },
-  { id: 'ev2', evidence_type: 'policy_document', title: 'Data Retention Policy v3.2', description: 'Updated data retention policy', content_hash: 'sha256:d4e5f6...', framework: 'gdpr', control_id: 'Art.5(1)(e)', created_at: '2026-01-15T14:30:00Z' },
-  { id: 'ev3', evidence_type: 'test_result', title: 'Penetration Test - Feb 2026', description: 'External penetration test results', content_hash: 'sha256:g7h8i9...', framework: 'pci_dss', control_id: 'Req.11.3', created_at: '2026-02-10T09:00:00Z' },
-  { id: 'ev4', evidence_type: 'training_record', title: 'Security Awareness Training', description: 'Annual security training completion', content_hash: 'sha256:j0k1l2...', framework: 'hipaa', control_id: '164.308(a)(5)', created_at: '2026-02-05T11:00:00Z' },
-  { id: 'ev5', evidence_type: 'code_review', title: 'Compliance Code Review - Sprint 24', description: 'Code review for GDPR consent module', content_hash: 'sha256:m3n4o5...', framework: 'soc2', control_id: 'CC8.1', created_at: '2026-02-12T16:00:00Z' },
-]
-
-const FALLBACK_REPORT: AuditReport = {
-  framework: 'soc2', total_controls: 61, controls_with_evidence: 48, coverage_percentage: 78.7, generated_at: '2026-02-13T10:00:00Z',
-}
-
-const FALLBACK_SESSION: AuditorSession = {
-  id: 'ses-001', auditor_email: 'auditor@deloitte.com', auditor_name: 'Jane Auditor', is_active: true, expires_at: '2026-05-13T10:00:00Z',
-}
+import { useEvidence, useAuditReport, useVerifyChain, useCreateAuditorSession } from '@/hooks/useNextgenApi'
+import type { ControlFramework, AuditorSession } from '@/types/nextgen'
 
 const frameworkLabels: Record<ControlFramework, string> = {
   soc2: 'SOC 2', iso27001: 'ISO 27001', hipaa: 'HIPAA', pci_dss: 'PCI-DSS', gdpr: 'GDPR', nist: 'NIST',
@@ -27,32 +11,28 @@ const frameworkLabels: Record<ControlFramework, string> = {
 
 export default function EvidenceVaultDashboard() {
   const [selectedFramework, setSelectedFramework] = useState<ControlFramework | 'all'>('all')
-  const [evidence, setEvidence] = useState<EvidenceItem[]>(FALLBACK_EVIDENCE)
-  const [report, setReport] = useState<AuditReport>(FALLBACK_REPORT)
-  const [session, setSession] = useState<AuditorSession>(FALLBACK_SESSION)
-  const [loading, setLoading] = useState(true)
-  const [isDemo, setIsDemo] = useState(false)
+  const reportFramework: ControlFramework = selectedFramework === 'all' ? 'soc2' : selectedFramework
 
-  useEffect(() => {
-    api.get('/evidence-vault/evidence')
-      .then(res => {
-        const data = res.data
-        const items = data?.items || data?.evidence || (Array.isArray(data) ? data : null)
-        if (items && items.length > 0) {
-          setEvidence(items)
-          if (data?.report) setReport(data.report)
-          if (data?.session) setSession(data.session)
-          setIsDemo(false)
-        } else {
-          setIsDemo(true)
-        }
-      })
-      .catch(() => { setIsDemo(true) })
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: evidence, loading: evidenceLoading, error: evidenceError, refetch: refetchEvidence } =
+    useEvidence(selectedFramework === 'all' ? undefined : selectedFramework)
+  const { data: report, loading: reportLoading, error: reportError } = useAuditReport(reportFramework)
+  const { data: chain, loading: chainLoading, error: chainError } = useVerifyChain(reportFramework)
+  const { mutate: createSession, loading: sessionCreating } = useCreateAuditorSession()
+  const [session, setSession] = useState<AuditorSession | null>(null)
+  const [sessionError, setSessionError] = useState<string | null>(null)
 
-  const filtered = selectedFramework === 'all' ? evidence : evidence.filter(e => e.framework === selectedFramework)
-  const frameworks = Array.from(new Set(evidence.map(e => e.framework)))
+  const loading = evidenceLoading || reportLoading || chainLoading
+  const error = evidenceError || reportError || chainError
+
+  async function handleInviteAuditor() {
+    setSessionError(null)
+    try {
+      const result = await createSession({ auditor_email: 'auditor@example.com', auditor_name: 'External Auditor' })
+      setSession(result)
+    } catch {
+      setSessionError('Failed to create auditor session')
+    }
+  }
 
   if (loading) {
     return (
@@ -66,14 +46,30 @@ export default function EvidenceVaultDashboard() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Evidence Vault & Auditor Portal</h1>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Error loading evidence vault: {error.message}</p>
+          <button onClick={refetchEvidence} className="mt-2 text-sm text-red-600 underline">Retry</button>
+        </div>
+      </div>
+    )
+  }
+
+  const items = evidence || []
+  const filtered = selectedFramework === 'all' ? items : items.filter(e => e.framework === selectedFramework)
+  const frameworks = Array.from(new Set(items.map(e => e.framework)))
+  const evidenceByFramework = frameworks.reduce<Record<string, number>>((acc, fw) => {
+    acc[fw] = items.filter(e => e.framework === fw).length
+    return acc
+  }, {})
+
   return (
     <div className="space-y-6">
-      {isDemo && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg text-sm">
-          Using demo data — connect backend for live data
-        </div>
-      )}
-
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Evidence Vault & Auditor Portal</h1>
         <p className="text-gray-500">Immutable evidence storage with hash-chain verification</p>
@@ -83,23 +79,34 @@ export default function EvidenceVaultDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card">
           <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">Total Evidence</p><FileCheck className="h-5 w-5 text-blue-600" /></div>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{evidence.length}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{items.length}</p>
           <p className="mt-1 text-sm text-gray-500">{frameworks.length} frameworks covered</p>
         </div>
         <div className="card">
-          <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">SOC 2 Coverage</p><Shield className="h-5 w-5 text-green-600" /></div>
-          <p className="mt-2 text-3xl font-bold text-green-600">{report.coverage_percentage}%</p>
-          <p className="mt-1 text-sm text-gray-500">{report.controls_with_evidence}/{report.total_controls} controls</p>
+          <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">{frameworkLabels[reportFramework]} Coverage</p><Shield className="h-5 w-5 text-green-600" /></div>
+          <p className="mt-2 text-3xl font-bold text-green-600">{report ? `${report.coverage_percentage}%` : 'N/A'}</p>
+          <p className="mt-1 text-sm text-gray-500">{report ? `${report.controls_with_evidence}/${report.total_controls} controls` : 'No report yet'}</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">Chain Integrity</p><Lock className="h-5 w-5 text-purple-600" /></div>
-          <p className="mt-2 text-3xl font-bold text-purple-600">Verified</p>
-          <p className="mt-1 text-sm text-green-500">Hash chain valid ✓</p>
+          <p className={`mt-2 text-3xl font-bold ${chain?.verified ? 'text-purple-600' : 'text-gray-400'}`}>{chain?.verified ? 'Verified' : 'Unverified'}</p>
+          <p className={`mt-1 text-sm ${chain?.verified ? 'text-green-500' : 'text-gray-400'}`}>{chain?.verified ? 'Hash chain valid ✓' : 'No verification data'}</p>
         </div>
         <div className="card">
           <div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500">Auditor Sessions</p><Eye className="h-5 w-5 text-orange-600" /></div>
-          <p className="mt-2 text-3xl font-bold text-gray-900">1</p>
-          <p className="mt-1 text-sm text-gray-500">{session.auditor_name}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{session ? 1 : 0}</p>
+          {session ? (
+            <p className="mt-1 text-sm text-gray-500">{session.auditor_name}</p>
+          ) : (
+            <button
+              onClick={handleInviteAuditor}
+              disabled={sessionCreating}
+              className="mt-1 text-sm text-primary-600 hover:underline disabled:opacity-50"
+            >
+              {sessionCreating ? 'Inviting…' : 'Invite auditor'}
+            </button>
+          )}
+          {sessionError && <p className="mt-1 text-xs text-red-600">{sessionError}</p>}
         </div>
       </div>
 
@@ -122,49 +129,49 @@ export default function EvidenceVaultDashboard() {
       {/* Evidence Items */}
       <div className="card">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Evidence Items ({filtered.length})</h2>
-        <div className="space-y-3">
-          {filtered.map(item => (
-            <div key={item.id} className="p-3 rounded-lg border border-gray-100 hover:border-primary-200 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileCheck className="h-4 w-4 text-blue-500" />
-                  <span className="font-medium text-gray-900">{item.title}</span>
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{frameworkLabels[item.framework]}</span>
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">{item.control_id}</span>
+        {filtered.length === 0 ? (
+          <p className="text-gray-500 text-sm">No evidence recorded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map(item => (
+              <div key={item.id} className="p-3 rounded-lg border border-gray-100 hover:border-primary-200 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileCheck className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium text-gray-900">{item.title}</span>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{frameworkLabels[item.framework]}</span>
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">{item.control_id}</span>
+                  </div>
+                  <span className="text-sm text-gray-400">{new Date(item.created_at).toLocaleDateString()}</span>
                 </div>
-                <span className="text-sm text-gray-400">{new Date(item.created_at).toLocaleDateString()}</span>
+                <p className="text-sm text-gray-500 mt-1">{item.description}</p>
+                <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                  <Lock className="h-3 w-3" />
+                  <span className="font-mono">{item.content_hash}</span>
+                </div>
               </div>
-              <p className="text-sm text-gray-500 mt-1">{item.description}</p>
-              <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-                <Lock className="h-3 w-3" />
-                <span className="font-mono">{item.content_hash}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* v2: Multi-Framework Control Mapping */}
+      {/* Control Mapping (derived from real evidence, not fabricated) */}
       <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">📋 Control Mapping Engine</h2>
-        <p className="text-sm text-gray-500 mb-4">37+ controls mapped across 4 major frameworks</p>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { fw: 'SOC 2', controls: 11, color: 'blue' },
-            { fw: 'ISO 27001', controls: 10, color: 'purple' },
-            { fw: 'HIPAA', controls: 9, color: 'red' },
-            { fw: 'PCI-DSS', controls: 8, color: 'orange' },
-          ].map(f => (
-            <div key={f.fw} className={`p-4 rounded-lg bg-${f.color}-50 border border-${f.color}-200`}>
-              <p className={`text-sm font-medium text-${f.color}-700`}>{f.fw}</p>
-              <p className={`text-3xl font-bold text-${f.color}-900 mt-1`}>{f.controls}</p>
-              <p className={`text-xs text-${f.color}-600`}>controls mapped</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 p-3 rounded-lg bg-gray-50">
-          <p className="text-sm text-gray-700">Readiness grading: <strong>A+</strong> through <strong>F</strong> with gap analysis, remediation hours estimation, and critical gap prioritization.</p>
-        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">📋 Evidence by Framework</h2>
+        <p className="text-sm text-gray-500 mb-4">Evidence items recorded per framework</p>
+        {frameworks.length === 0 ? (
+          <p className="text-gray-500 text-sm">No evidence recorded yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {frameworks.map(fw => (
+              <div key={fw} className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                <p className="text-sm font-medium text-gray-700">{frameworkLabels[fw as ControlFramework] || fw}</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{evidenceByFramework[fw]}</p>
+                <p className="text-xs text-gray-500">evidence items</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
