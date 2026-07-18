@@ -117,6 +117,7 @@ describe('useApi Hooks', () => {
     })
 
     it('handles fetch errors gracefully', async () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
       ;(complianceApi.getStatus as jest.Mock).mockRejectedValue(new Error('Network error'))
       ;(regulationsApi.list as jest.Mock).mockRejectedValue(new Error('Network error'))
       ;(auditApi.listActions as jest.Mock).mockRejectedValue(new Error('Network error'))
@@ -128,34 +129,59 @@ describe('useApi Hooks', () => {
       })
 
       expect(result.current.error).toBeTruthy()
+      consoleError.mockRestore()
+    })
+
+    it('never exposes fabricated stats or framework statuses after an API failure', async () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
+      ;(complianceApi.getStatus as jest.Mock).mockRejectedValue(new Error('Network error'))
+      ;(regulationsApi.list as jest.Mock).mockRejectedValue(new Error('Network error'))
+      ;(auditApi.listActions as jest.Mock).mockRejectedValue(new Error('Network error'))
+
+      const { result } = renderHook(() => useDashboardStats())
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      // Regression guard: previously this hook silently returned hardcoded
+      // demo numbers (overall_score: 87, etc.) whenever the API failed,
+      // which could be mistaken for real production data.
+      expect(result.current.stats).toBeNull()
+      expect(result.current.frameworkStatuses).toEqual([])
+      consoleError.mockRestore()
     })
   })
 
   describe('useRegulations', () => {
-    it('starts with loading state', () => {
+    it('loads regulations', async () => {
       const { result } = renderHook(() => useRegulations())
       expect(result.current.loading).toBe(true)
+      await waitFor(() => expect(result.current.loading).toBe(false))
     })
   })
 
   describe('useRepositories', () => {
-    it('starts with loading state', () => {
+    it('loads repositories', async () => {
       const { result } = renderHook(() => useRepositories())
       expect(result.current.loading).toBe(true)
+      await waitFor(() => expect(result.current.loading).toBe(false))
     })
   })
 
   describe('useComplianceActions', () => {
-    it('starts with loading state', () => {
+    it('loads compliance actions', async () => {
       const { result } = renderHook(() => useComplianceActions())
       expect(result.current.loading).toBe(true)
+      await waitFor(() => expect(result.current.loading).toBe(false))
     })
   })
 
   describe('useAuditTrail', () => {
-    it('starts with loading state', () => {
+    it('loads the audit trail', async () => {
       const { result } = renderHook(() => useAuditTrail())
       expect(result.current.loading).toBe(true)
+      await waitFor(() => expect(result.current.loading).toBe(false))
     })
   })
 
@@ -209,6 +235,7 @@ describe('Error Handling', () => {
   })
 
   it('handles API errors gracefully in dashboard', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
     const { result } = renderHook(() => useDashboardStats())
 
     await waitFor(() => {
@@ -217,6 +244,7 @@ describe('Error Handling', () => {
 
     // Should have an error
     expect(result.current.error).toBeTruthy()
+    consoleError.mockRestore()
   })
 })
 

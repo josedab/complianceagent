@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import DashboardPage from '@/app/dashboard/page'
+import { useDashboardStats } from '@/hooks/useApi'
 
 // Mock the hooks directly
 jest.mock('@/hooks/useApi', () => ({
@@ -57,5 +58,43 @@ describe('Dashboard Page', () => {
     expect(screen.getByText('Framework Compliance')).toBeInTheDocument()
     // GDPR comes from the mocked regulations
     expect(screen.getByText('GDPR')).toBeInTheDocument()
+  })
+
+  it('shows an honest error banner with a retry action on API failure (no fabricated data)', () => {
+    const refetch = jest.fn()
+    ;(useDashboardStats as jest.Mock).mockReturnValueOnce({
+      stats: null,
+      frameworkStatuses: [],
+      recentActivity: [],
+      deadlines: [],
+      loading: false,
+      error: { message: 'Network error' },
+      refetch,
+    })
+
+    render(<DashboardPage />)
+
+    expect(screen.getByText(/Error loading dashboard/)).toBeInTheDocument()
+    expect(screen.queryByText(/fallback data/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Compliance Dashboard')).not.toBeInTheDocument()
+
+    screen.getByText('Retry').click()
+    expect(refetch).toHaveBeenCalled()
+  })
+
+  it('shows an honest empty state when no stats are available and there is no error', () => {
+    ;(useDashboardStats as jest.Mock).mockReturnValueOnce({
+      stats: null,
+      frameworkStatuses: [],
+      recentActivity: [],
+      deadlines: [],
+      loading: false,
+      error: null,
+      refetch: jest.fn(),
+    })
+
+    render(<DashboardPage />)
+
+    expect(screen.getByText('No compliance data available yet.')).toBeInTheDocument()
   })
 })
