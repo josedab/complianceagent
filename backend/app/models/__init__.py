@@ -31,7 +31,7 @@ from app.models.ide_learning import IDERuleEventRecord, TeamSuppressionRecord
 
 # Notification models
 from app.models.notification import NotificationRecord
-from app.models.organization import Organization, OrganizationMember
+from app.models.organization import Organization, OrganizationInvitation, OrganizationMember
 
 # Pattern Marketplace models
 from app.models.pattern_marketplace import (
@@ -182,6 +182,7 @@ __all__ = [  # noqa: RUF022 - grouped by domain for discoverability
     "IDERuleEventRecord",
     "ImpactPredictionRecord",
     "Organization",
+    "OrganizationInvitation",
     "OrganizationMember",
     "OrganizationRiskSnapshot",
     "PatternInstallation",

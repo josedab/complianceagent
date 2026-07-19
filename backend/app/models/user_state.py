@@ -60,7 +60,9 @@ class TrustAttestationRecord(Base, UUIDMixin, TimestampMixin):
     attestation_type: Mapped[str] = mapped_column(String(100), nullable=False)
     regulation: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
-    evidence_references: Mapped[list] = mapped_column(ArrayType(), default=list, server_default="[]")
+    evidence_references: Mapped[list] = mapped_column(
+        ArrayType(), default=list, server_default="[]"
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -113,9 +115,7 @@ class WorkflowDefinitionRecord(Base, UUIDMixin, TimestampMixin):
     trigger_type: Mapped[str] = mapped_column(String(100), nullable=False)
     steps: Mapped[list] = mapped_column(ArrayType(), default=list, server_default="[]")
     workflow_metadata: Mapped[dict] = mapped_column(JSONBType, default=dict, server_default="{}")
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default="true"
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
 
 class WorkflowExecutionRecord(Base, UUIDMixin, TimestampMixin):

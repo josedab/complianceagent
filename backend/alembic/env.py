@@ -8,40 +8,32 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-
 from app.core.config import settings
 from app.core.database import Base
 
 # Import all models to register them with Base.metadata
 from app.models import (  # noqa: F401
-    # Core models
-    AuditTrail,
-    CodebaseMapping,
-    ComplianceAction,
-    CustomerProfile,
-    Organization,
-    OrganizationMember,
-    Regulation,
-    RegulatorySource,
-    Repository,
-    Requirement,
-    User,
     # Production feature models
     AlertPolicyRecord,
     APIKeyRecord,
     ArchitectureReview,
     ArchitectureRiskRecord,
-    AuditWorkspaceRecord,
     AuditorSessionRecord,
+    # Core models
+    AuditTrail,
+    AuditWorkspaceRecord,
     AutoCollectedEvidenceRecord,
     BenchmarkSubmissionRecord,
     BoardReportRecord,
     CertificationReadinessRecord,
     ChatMessageRecord,
     ChatSessionRecord,
+    CodebaseMapping,
+    ComplianceAction,
     CompliancePattern,
     ControlTestRecord,
     ControlTestResultRecord,
+    CustomerProfile,
     DependencyScanRecord,
     EntityNodeRecord,
     GapAnalysisRecord,
@@ -60,6 +52,8 @@ from app.models import (  # noqa: F401
     MarketplaceInstallRecord,
     NotificationPreferenceRecord,
     OAuth2ClientRecord,
+    Organization,
+    OrganizationMember,
     OrganizationRiskSnapshot,
     PatternInstallation,
     PatternPurchase,
@@ -68,17 +62,23 @@ from app.models import (  # noqa: F401
     PendingLegislationRecord,
     PublisherProfile,
     RegPredictionRecord,
+    Regulation,
     RegulatorySignalRecord,
+    RegulatorySource,
+    Repository,
     RepositoryRiskProfile,
+    Requirement,
     RiskReport,
     SaasTenant,
     TenantUsageRecord,
     TestSuiteRun,
+    User,
     ViolationRisk,
     WebhookEventRecord,
     WebhookIntegrationRecord,
     WhatIfScenario,
 )
+
 
 config = context.config
 

@@ -3,10 +3,10 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.database import Base
+from app.core.database import ArrayType, Base
 from app.models.base import TimestampMixin, UUIDMixin
 
 
@@ -32,8 +32,11 @@ class User(Base, UUIDMixin, TimestampMixin):
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Verification
+    # Email verification
     verification_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    verification_token_expires: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Password reset
@@ -45,6 +48,21 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Last login tracking
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_login_ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
+
+    # Avatar
+    avatar_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+
+    # TOTP 2FA
+    mfa_secret_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    mfa_recovery_codes: Mapped[list | None] = mapped_column(ArrayType(), nullable=True)
+    mfa_last_used_counter: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Account deactivation
+    deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deletion_scheduled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     memberships: Mapped[list["OrganizationMember"]] = relationship(

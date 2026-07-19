@@ -239,6 +239,7 @@ class APIKeyRecord(Base, UUIDMixin, TimestampMixin):
     key_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     organization_id: Mapped[uuid.UUID | None] = mapped_column(UUIDType)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUIDType, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
     tier: Mapped[str] = mapped_column(String(20), default="free")
     scopes: Mapped[list] = mapped_column(ArrayType(), default=list)

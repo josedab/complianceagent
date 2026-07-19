@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
-class PlanType(str, Enum):
+class PlanType(StrEnum):
     """Organization plan types."""
 
     STARTER = "starter"
@@ -26,7 +26,7 @@ class PlanType(str, Enum):
     TRIAL = "trial"
 
 
-class MemberRole(str, Enum):
+class MemberRole(StrEnum):
     """Organization member roles."""
 
     OWNER = "owner"
@@ -95,3 +95,32 @@ class OrganizationMember(Base, UUIDMixin, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<OrganizationMember org={self.organization_id} user={self.user_id}>"
+
+
+class OrganizationInvitation(Base, UUIDMixin, TimestampMixin):
+    """Pending invitation for users who may not yet be registered."""
+
+    __tablename__ = "organization_invitations"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[MemberRole] = mapped_column(String(50), default=MemberRole.MEMBER)
+    invited_by: Mapped[uuid.UUID] = mapped_column(UUIDType, nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="pending",
+    )  # pending | accepted | revoked
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    organization: Mapped["Organization"] = relationship("Organization")
+
+    def __repr__(self) -> str:
+        return f"<OrganizationInvitation org={self.organization_id} email={self.email}>"

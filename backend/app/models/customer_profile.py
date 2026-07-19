@@ -126,7 +126,7 @@ class CustomerProfile(Base, UUIDMixin, TimestampMixin):
                 frameworks.add(RegulatoryFramework.SOX.value)
 
         # Infer from AI usage
-        if self.uses_ai_ml and any(j in ["eu"] for j in self.operating_jurisdictions):
+        if self.uses_ai_ml and "eu" in self.operating_jurisdictions:
             frameworks.add(RegulatoryFramework.EU_AI_ACT.value)
 
         # Remove excluded

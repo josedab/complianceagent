@@ -39,6 +39,7 @@ class Token(BaseSchema):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+    mfa_token: str | None = None
 
 
 class TokenPayload(BaseSchema):
