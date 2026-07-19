@@ -2,13 +2,15 @@
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import text
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1 import router as api_v1_router
 from app.core.config import settings
@@ -23,7 +25,7 @@ def _setup_opentelemetry(app: FastAPI) -> None:
     """Instrument the FastAPI app with OpenTelemetry if SDK is available."""
     try:
         from opentelemetry import trace
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
 
@@ -37,8 +39,8 @@ def _setup_opentelemetry(app: FastAPI) -> None:
         provider = TracerProvider(resource=resource)
         trace.set_tracer_provider(provider)
 
-        FastAPIInstrumentor.instrument_app(
-            app,
+        app.add_middleware(
+            OpenTelemetryMiddleware,
             excluded_urls="health,healthz,metrics",
         )
         logger.info("OpenTelemetry tracing enabled")
@@ -99,12 +101,17 @@ def create_app() -> FastAPI:
         allow_methods=_cors_methods,
         allow_headers=_cors_headers,
     )
+    if settings.environment in ("staging", "production"):
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=settings.allowed_hosts,
+        )
 
     # Request body size limit middleware (10 MB default)
     max_body_size = 10 * 1024 * 1024  # 10 MB
 
     class RequestBodySizeLimitMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request, call_next):
+        async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
             content_length = request.headers.get("content-length")
             if content_length and int(content_length) > max_body_size:
                 return JSONResponse(
@@ -119,7 +126,7 @@ def create_app() -> FastAPI:
 
     # Security headers middleware
     class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request, call_next):
+        async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
             response = await call_next(request)
             response.headers["X-Frame-Options"] = "DENY"
             response.headers["X-Content-Type-Options"] = "nosniff"
@@ -146,7 +153,7 @@ def create_app() -> FastAPI:
 
     # Liveness probe — always 200 if the process is running
     @app.get("/health")
-    async def health_check() -> dict:
+    async def health_check() -> dict[str, str]:
         return {
             "status": "healthy",
             "version": settings.app_version,
@@ -156,7 +163,7 @@ def create_app() -> FastAPI:
     # Readiness probe — checks DB and Redis availability
     @app.get("/health/ready")
     async def readiness_check() -> JSONResponse:
-        checks: dict[str, dict] = {}
+        checks: dict[str, dict[str, str]] = {}
         overall = "ready"
 
         # Database probe
@@ -203,7 +210,7 @@ def create_app() -> FastAPI:
 
     # Root endpoint
     @app.get("/")
-    async def root() -> dict:
+    async def root() -> dict[str, str | None]:
         return {
             "name": settings.app_name,
             "version": settings.app_version,
@@ -233,7 +240,7 @@ def create_app() -> FastAPI:
             _ws_clients.discard(websocket)
             logger.info("ws.client_disconnected", total=len(_ws_clients))
 
-    async def broadcast_event(event: dict) -> None:
+    async def broadcast_event(event: dict[str, Any]) -> None:
         """Broadcast a compliance event to all connected WebSocket clients."""
         dead: list[WebSocket] = []
         for ws in _ws_clients:

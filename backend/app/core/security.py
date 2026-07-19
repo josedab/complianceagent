@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Protocol, cast
 
 import jwt
 import structlog
@@ -12,6 +13,27 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 
 from app.core.config import settings
+
+
+class SyncRedisClient(Protocol):
+    """Structural type for the subset of the sync redis-py API we use.
+
+    redis-py types its client methods to return ``Awaitable[Any] | Any``
+    since the same class backs both sync and async usage, which defeats
+    static checking against concrete synchronous return types. Methods here
+    return ``object``; call sites use ``typing.cast`` to the concrete
+    synchronous return type documented by redis-py for these commands.
+    """
+
+    def setex(self, name: str, time: int, value: str) -> object: ...
+    def exists(self, *names: str) -> object: ...
+    def get(self, name: str) -> object: ...
+    def ping(self) -> object: ...
+    def zadd(self, name: str, mapping: dict[str, float]) -> object: ...
+    def zremrangebyscore(self, name: str, min: float, max: float) -> object: ...
+    def expire(self, name: str, time: int) -> object: ...
+    def zcard(self, name: str) -> object: ...
+    def delete(self, *names: str) -> object: ...
 
 
 logger = structlog.get_logger(__name__)
@@ -44,10 +66,10 @@ class TokenBlacklist:
         self._memory_store: dict[str, datetime] = {}
         self._user_revoked: dict[str, datetime] = {}
         self._lock = threading.Lock()
-        self._redis: object | None = None
+        self._redis: SyncRedisClient | None = None
         self._redis_checked = False
 
-    def _get_redis(self) -> object | None:
+    def _get_redis(self) -> SyncRedisClient | None:
         """Lazily connect to Redis, returning None if unavailable."""
         if self._redis_checked:
             return self._redis
@@ -75,7 +97,7 @@ class TokenBlacklist:
         r = self._get_redis()
         if r is not None:
             try:
-                r.setex(f"{self._REDIS_PREFIX}{jti}", ttl, "1")  # type: ignore[union-attr]
+                r.setex(f"{self._REDIS_PREFIX}{jti}", ttl, "1")
                 logger.debug("token_blacklist.revoked", jti=jti, backend="redis")
                 return
             except Exception:
@@ -91,7 +113,7 @@ class TokenBlacklist:
         r = self._get_redis()
         if r is not None:
             try:
-                return r.exists(f"{self._REDIS_PREFIX}{jti}") > 0  # type: ignore[union-attr]
+                return bool(cast("int", r.exists(f"{self._REDIS_PREFIX}{jti}")) > 0)
             except Exception:
                 logger.warning("token_blacklist.redis_check_error", jti=jti)
 
@@ -110,7 +132,7 @@ class TokenBlacklist:
         if r is not None:
             try:
                 max_ttl = settings.refresh_token_expire_days * 86400
-                r.setex(  # type: ignore[union-attr]
+                r.setex(
                     f"{self._USER_REVOKE_PREFIX}{user_id}",
                     max_ttl,
                     now.isoformat(),
@@ -129,19 +151,19 @@ class TokenBlacklist:
         r = self._get_redis()
         if r is not None:
             try:
-                val = r.get(f"{self._USER_REVOKE_PREFIX}{user_id}")  # type: ignore[union-attr]
+                val = cast("str | None", r.get(f"{self._USER_REVOKE_PREFIX}{user_id}"))
                 if val:
-                    revoked_at = datetime.fromisoformat(val)
-                    return issued_at < revoked_at
+                    redis_revoked_at = datetime.fromisoformat(val)
+                    return issued_at < redis_revoked_at
                 return False
             except Exception:
                 logger.warning("token_blacklist.redis_user_check_error", user_id=user_id)
 
         with self._lock:
-            revoked_at = self._user_revoked.get(user_id)
-            if revoked_at is None:
+            memory_revoked_at = self._user_revoked.get(user_id)
+            if memory_revoked_at is None:
                 return False
-            return issued_at < revoked_at
+            return issued_at < memory_revoked_at
 
     def _cleanup_expired(self) -> None:
         """Remove expired entries from the in-memory store."""
@@ -218,6 +240,23 @@ def create_refresh_token(
         jti=str(uuid.uuid4()),
     )
 
+    return jwt.encode(
+        payload.model_dump(),
+        settings.secret_key,
+        algorithm=settings.algorithm,
+    )
+
+
+def create_mfa_challenge_token(subject: str) -> str:
+    """Create a short-lived token that cannot authenticate API requests."""
+    now = datetime.now(UTC)
+    payload = TokenPayload(
+        sub=subject,
+        exp=now + timedelta(minutes=5),
+        iat=now,
+        type="mfa_challenge",
+        jti=str(uuid.uuid4()),
+    )
     return jwt.encode(
         payload.model_dump(),
         settings.secret_key,

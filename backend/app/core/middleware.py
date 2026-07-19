@@ -5,13 +5,14 @@ import hashlib
 import time
 import traceback
 from collections import defaultdict
-from collections.abc import Callable
 from typing import Any
 
 import structlog
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from redis.asyncio import Redis as AsyncRedis
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.types import ASGIApp
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -36,7 +37,7 @@ class GlobalExceptionHandlerMiddleware(BaseHTTPMiddleware):
     to clients in production.
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         try:
             return await call_next(request)
         except HTTPException:
@@ -158,7 +159,7 @@ class GlobalExceptionHandlerMiddleware(BaseHTTPMiddleware):
         details: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a consistent error response structure."""
-        response = {
+        response: dict[str, dict[str, Any]] = {
             "error": {
                 "code": error_code,
                 "message": message,
@@ -177,12 +178,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def __init__(
         self,
-        app,
+        app: ASGIApp,
         calls: int = 100,
         period: int = 60,
-        redis_client=None,
+        redis_client: AsyncRedis | None = None,
         key_prefix: str = "ratelimit:",
-    ):
+    ) -> None:
         super().__init__(app)
         self.calls = calls
         self.period = period
@@ -191,7 +192,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.requests: dict[str, list[float]] = defaultdict(list)
         self._memory_lock = asyncio.Lock()
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Skip rate limiting in development if configured
         if settings.debug and not settings.rate_limit_in_debug:
             return await call_next(request)
@@ -256,8 +257,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self, key: str, now: float, window_start: float, reset_time: int
     ) -> tuple[bool, int, int]:
         """Redis-backed rate limiting using sorted sets."""
+        redis_client = self.redis
+        if redis_client is None:
+            return await self._check_memory_rate_limit(key, now, window_start, reset_time)
         try:
-            pipe = self.redis.pipeline()
+            pipe = redis_client.pipeline()
             # Remove old entries
             pipe.zremrangebyscore(key, 0, window_start)
             # Add current request
@@ -324,7 +328,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 class AuthRateLimitMiddleware(RateLimitMiddleware):
     """Stricter rate limiter for auth endpoints to prevent brute force attacks."""
 
-    def __init__(self, app, redis_client=None):
+    def __init__(self, app: ASGIApp, redis_client: AsyncRedis | None = None) -> None:
         super().__init__(
             app,
             calls=5,
@@ -333,7 +337,7 @@ class AuthRateLimitMiddleware(RateLimitMiddleware):
             key_prefix="ratelimit:auth:",
         )
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Only apply to auth endpoints
         if not request.url.path.startswith("/api/v1/auth"):
             return await call_next(request)
@@ -356,7 +360,7 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
         "enterprise": 10000,
     }
 
-    def __init__(self, app, redis_client=None):
+    def __init__(self, app: ASGIApp, redis_client: AsyncRedis | None = None) -> None:
         super().__init__(
             app,
             calls=100,  # Default for unauthenticated
@@ -365,7 +369,7 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
             key_prefix="ratelimit:api:",
         )
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Skip non-API endpoints
         if not request.url.path.startswith("/api/"):
             return await call_next(request)
@@ -443,8 +447,13 @@ class APIRateLimitMiddleware(RateLimitMiddleware):
     ) -> tuple[bool, int, int]:
         """Redis-backed rate limiting using sorted sets."""
         effective_limit = limit if limit is not None else self.calls
+        redis_client = self.redis
+        if redis_client is None:
+            return await self._check_memory_rate_limit(
+                key, now, window_start, reset_time, effective_limit
+            )
         try:
-            pipe = self.redis.pipeline()
+            pipe = redis_client.pipeline()
             pipe.zremrangebyscore(key, 0, window_start)
             pipe.zadd(key, {str(now): now})
             pipe.zcard(key)
