@@ -5,10 +5,13 @@ following the Model Context Protocol (MCP) specification.
 """
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 import structlog
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.secondary_persistence import MCPExecutionRecord
 from app.services.mcp_server.models import (
     ConnectionStatus,
     MCPClientConnection,
@@ -23,8 +26,6 @@ from app.services.mcp_server.models import (
 
 logger = structlog.get_logger()
 
-
-# Built-in compliance tools exposed via MCP
 _BUILTIN_TOOLS: list[MCPTool] = [
     MCPTool(
         name="compliance/get_posture",
@@ -90,10 +91,7 @@ _BUILTIN_TOOLS: list[MCPTool] = [
         },
         output_schema={
             "type": "object",
-            "properties": {
-                "regulations": {"type": "array"},
-                "total_count": {"type": "integer"},
-            },
+            "properties": {"regulations": {"type": "array"}, "total_count": {"type": "integer"}},
         },
     ),
     MCPTool(
@@ -136,10 +134,7 @@ _BUILTIN_TOOLS: list[MCPTool] = [
         },
         output_schema={
             "type": "object",
-            "properties": {
-                "entries": {"type": "array"},
-                "chain_valid": {"type": "boolean"},
-            },
+            "properties": {"entries": {"type": "array"}, "chain_valid": {"type": "boolean"}},
         },
     ),
     MCPTool(
@@ -170,9 +165,7 @@ _BUILTIN_TOOLS: list[MCPTool] = [
         category=ToolCategory.SCORING,
         input_schema={
             "type": "object",
-            "properties": {
-                "repo": {"type": "string", "description": "Repository full name"},
-            },
+            "properties": {"repo": {"type": "string", "description": "Repository full name"}},
         },
         output_schema={
             "type": "object",
@@ -185,7 +178,6 @@ _BUILTIN_TOOLS: list[MCPTool] = [
     ),
 ]
 
-# Context resources exposed via MCP
 _BUILTIN_RESOURCES: list[MCPContextResource] = [
     MCPContextResource(
         uri="compliance://frameworks/supported",
@@ -205,57 +197,71 @@ _BUILTIN_RESOURCES: list[MCPContextResource] = [
 ]
 
 
+def _record_to_execution(record: MCPExecutionRecord) -> MCPToolExecution:
+    input_params = dict(record.input_params or {})
+    client_id = input_params.pop("_client_id", "anonymous")
+    return MCPToolExecution(
+        id=record.id,
+        tool_name=record.tool_name,
+        client_id=client_id,
+        input_params=input_params,
+        output=record.output_result or {},
+        status=ToolExecutionStatus(record.status),
+        error_message=record.error_message or "",
+        duration_ms=float(record.duration_ms or 0),
+        executed_at=record.created_at,
+    )
+
+
 class MCPServerService:
     """MCP Server exposing compliance data as tool-callable context."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, organization_id: UUID | None = None):
         self.db = db
+        self.organization_id = organization_id
         self._tools: list[MCPTool] = list(_BUILTIN_TOOLS)
         self._resources: list[MCPContextResource] = list(_BUILTIN_RESOURCES)
         self._connections: dict[str, MCPClientConnection] = {}
-        self._executions: list[MCPToolExecution] = []
         self._started_at = datetime.now(UTC)
 
-    def get_server_status(self) -> MCPServerStatus:
-        """Get MCP server status and capabilities."""
+    async def get_server_status(self) -> MCPServerStatus:
         now = datetime.now(UTC)
         uptime = (now - self._started_at).total_seconds()
         active = sum(
-            1 for c in self._connections.values() if c.status == ConnectionStatus.CONNECTED
+            1
+            for connection in self._connections.values()
+            if connection.status == ConnectionStatus.CONNECTED
         )
-
+        stmt = select(func.count(MCPExecutionRecord.id)).where(
+            MCPExecutionRecord.organization_id == self.organization_id
+        )
+        result = await self.db.execute(stmt)
+        total_executions = result.scalar_one()
         return MCPServerStatus(
             version="1.0.0",
             protocol_version="2024-11-05",
             tools_count=len(self._tools),
             resources_count=len(self._resources),
             active_connections=active,
-            total_executions=len(self._executions),
+            total_executions=total_executions,
             uptime_seconds=round(uptime, 2),
             started_at=self._started_at,
         )
 
     def list_tools(self, category: ToolCategory | None = None) -> list[MCPTool]:
-        """List available MCP tools, optionally filtered by category."""
         tools = self._tools
         if category:
-            tools = [t for t in tools if t.category == category]
+            tools = [tool for tool in tools if tool.category == category]
         return tools
 
     def get_tool(self, name: str) -> MCPTool | None:
-        """Get a specific tool by name."""
-        return next((t for t in self._tools if t.name == name), None)
+        return next((tool for tool in self._tools if tool.name == name), None)
 
     async def execute_tool(
-        self,
-        tool_name: str,
-        params: dict,
-        client_id: str = "anonymous",
+        self, tool_name: str, params: dict, client_id: str = "anonymous"
     ) -> MCPToolExecution:
-        """Execute an MCP tool and return the result."""
         start = datetime.now(UTC)
         tool = self.get_tool(tool_name)
-
         if not tool:
             execution = MCPToolExecution(
                 tool_name=tool_name,
@@ -265,14 +271,11 @@ class MCPServerService:
                 error_message=f"Tool '{tool_name}' not found",
                 executed_at=start,
             )
-            self._executions.append(execution)
+            await self._persist_execution(execution)
             return execution
-
-        # Route to internal handler
         try:
             result = await self._dispatch_tool(tool_name, params)
             duration = (datetime.now(UTC) - start).total_seconds() * 1000
-
             execution = MCPToolExecution(
                 tool_name=tool_name,
                 client_id=client_id,
@@ -294,17 +297,13 @@ class MCPServerService:
                 executed_at=start,
             )
             logger.warning("MCP tool execution failed", tool=tool_name, error=str(exc))
-
-        self._executions.append(execution)
-
-        # Update connection stats
+        await self._persist_execution(execution)
         if client_id in self._connections:
             conn = self._connections[client_id]
             conn.total_executions += 1
             conn.last_active_at = datetime.now(UTC)
             if tool_name not in conn.tools_accessed:
                 conn.tools_accessed.append(tool_name)
-
         logger.info(
             "MCP tool executed",
             tool=tool_name,
@@ -314,7 +313,6 @@ class MCPServerService:
         return execution
 
     async def _dispatch_tool(self, tool_name: str, params: dict) -> dict:
-        """Dispatch tool execution to the appropriate handler."""
         handlers = {
             "compliance/get_posture": self._handle_get_posture,
             "compliance/check_file": self._handle_check_file,
@@ -330,27 +328,27 @@ class MCPServerService:
         return await handler(params)
 
     async def _handle_get_posture(self, params: dict) -> dict:
-        """Handle compliance/get_posture tool."""
         from app.services.posture_scoring import PostureScoringService
 
-        service = PostureScoringService(self.db)
-        repo = params.get("repo", "")
-        score_result = await service.get_posture_score(repo=repo)
+        service = PostureScoringService(self.db, organization_id=self.organization_id)
+        score_result = await service.compute_score()
         return {
             "overall_score": score_result.overall_score,
             "grade": score_result.grade,
             "dimensions": [
-                {"name": d.name, "score": d.score, "grade": d.grade}
-                for d in score_result.dimensions
+                {
+                    "name": dimension.dimension.value,
+                    "score": dimension.score,
+                    "weight": dimension.weight,
+                }
+                for dimension in score_result.dimensions
             ],
-            "repo": repo,
+            "repo": params.get("repo", ""),
         }
 
     async def _handle_check_file(self, params: dict) -> dict:
-        """Handle compliance/check_file tool."""
         file_path = params.get("file_path", "")
         framework = params.get("framework", "GDPR")
-        # Pattern-based check delegating to IDE service
         return {
             "file_path": file_path,
             "framework": framework,
@@ -361,7 +359,6 @@ class MCPServerService:
         }
 
     async def _handle_list_regulations(self, params: dict) -> dict:
-        """Handle compliance/list_regulations tool."""
         jurisdiction = params.get("jurisdiction", "")
         category = params.get("category", "")
         regulations = [
@@ -416,14 +413,13 @@ class MCPServerService:
         ]
         if jurisdiction:
             regulations = [
-                r for r in regulations if jurisdiction.lower() in r["jurisdiction"].lower()
+                item for item in regulations if jurisdiction.lower() in item["jurisdiction"].lower()
             ]
         if category:
-            regulations = [r for r in regulations if r["category"] == category.lower()]
+            regulations = [item for item in regulations if item["category"] == category.lower()]
         return {"regulations": regulations, "total_count": len(regulations)}
 
     async def _handle_get_requirements(self, params: dict) -> dict:
-        """Handle compliance/get_requirements tool."""
         regulation = params.get("regulation", "GDPR")
         article = params.get("article", "")
         return {
@@ -435,38 +431,27 @@ class MCPServerService:
                     "obligation": "must",
                     "description": f"Organizations must comply with {regulation} requirements",
                     "article_ref": article or "General",
-                },
+                }
             ],
             "total_count": 1,
         }
 
     async def _handle_get_audit_trail(self, params: dict) -> dict:
-        """Handle compliance/get_audit_trail tool."""
         limit = params.get("limit", 50)
-        return {
-            "entries": [],
-            "total_count": 0,
-            "chain_valid": True,
-            "limit": limit,
-        }
+        return {"entries": [], "total_count": 0, "chain_valid": True, "limit": limit}
 
     async def _handle_suggest_fix(self, params: dict) -> dict:
-        """Handle compliance/suggest_fix tool."""
         file_path = params.get("file_path", "")
         framework = params.get("framework", "GDPR")
         return {
             "file_path": file_path,
             "framework": framework,
-            "fix": {
-                "description": f"Add {framework} compliance pattern",
-                "code_changes": [],
-            },
+            "fix": {"description": f"Add {framework} compliance pattern", "code_changes": []},
             "explanation": f"This fix addresses {framework} requirements for the specified file.",
             "article_reference": f"{framework} - General Requirements",
         }
 
     async def _handle_get_score_breakdown(self, params: dict) -> dict:
-        """Handle compliance/get_score_breakdown tool."""
         dimensions = [
             {"name": "Privacy", "score": 85.0, "grade": "B+", "weight": 0.20},
             {"name": "Security", "score": 90.0, "grade": "A-", "weight": 0.20},
@@ -476,19 +461,11 @@ class MCPServerService:
             {"name": "Vendor Risk", "score": 80.0, "grade": "B", "weight": 0.10},
             {"name": "Documentation", "score": 95.0, "grade": "A", "weight": 0.10},
         ]
-        weighted_sum = sum(d["score"] * d["weight"] for d in dimensions)
-        overall = round(weighted_sum, 1)
+        overall = round(sum(item["score"] * item["weight"] for item in dimensions), 1)
         grade = "A" if overall >= 90 else "B+" if overall >= 85 else "B" if overall >= 80 else "C+"
-        return {
-            "dimensions": dimensions,
-            "overall_score": overall,
-            "overall_grade": grade,
-        }
-
-    # -- Connection management --
+        return {"dimensions": dimensions, "overall_score": overall, "overall_grade": grade}
 
     async def register_client(self, client_id: str, client_name: str = "") -> MCPClientConnection:
-        """Register a new MCP client connection."""
         now = datetime.now(UTC)
         conn = MCPClientConnection(
             client_id=client_id,
@@ -502,7 +479,6 @@ class MCPServerService:
         return conn
 
     async def disconnect_client(self, client_id: str) -> bool:
-        """Disconnect an MCP client."""
         conn = self._connections.get(client_id)
         if not conn:
             return False
@@ -511,47 +487,50 @@ class MCPServerService:
         return True
 
     def list_connections(self) -> list[MCPClientConnection]:
-        """List all client connections."""
         return list(self._connections.values())
 
-    # -- Resource management --
-
     def list_resources(self) -> list[MCPContextResource]:
-        """List available MCP context resources."""
         return self._resources
 
     async def read_resource(self, uri: str) -> MCPContextResource | None:
-        """Read a context resource by URI."""
-        resource = next((r for r in self._resources if r.uri == uri), None)
+        resource = next((item for item in self._resources if item.uri == uri), None)
         if not resource:
             return None
-
-        # Populate content dynamically
         if uri == "compliance://frameworks/supported":
-            result = await self._handle_list_regulations({})
-            resource.content = result
+            resource.content = await self._handle_list_regulations({})
         elif uri == "compliance://posture/current":
-            result = await self._handle_get_score_breakdown({})
-            resource.content = result
+            resource.content = await self._handle_get_score_breakdown({})
         elif uri == "compliance://regulations/recent-changes":
             resource.content = {"changes": [], "last_checked": datetime.now(UTC).isoformat()}
-
         return resource
 
-    def get_execution_history(
-        self,
-        client_id: str | None = None,
-        tool_name: str | None = None,
-        limit: int = 50,
+    async def get_execution_history(
+        self, client_id: str | None = None, tool_name: str | None = None, limit: int = 50
     ) -> list[MCPToolExecution]:
-        """Get tool execution history."""
-        results = list(self._executions)
-        if client_id:
-            results = [e for e in results if e.client_id == client_id]
+        stmt = (
+            select(MCPExecutionRecord)
+            .where(MCPExecutionRecord.organization_id == self.organization_id)
+            .order_by(MCPExecutionRecord.created_at.desc())
+            .limit(limit)
+        )
         if tool_name:
-            results = [e for e in results if e.tool_name == tool_name]
-        return sorted(
-            results,
-            key=lambda e: e.executed_at or datetime.min.replace(tzinfo=UTC),
-            reverse=True,
-        )[:limit]
+            stmt = stmt.where(MCPExecutionRecord.tool_name == tool_name)
+        result = await self.db.execute(stmt)
+        executions = [_record_to_execution(record) for record in result.scalars().all()]
+        if client_id:
+            executions = [execution for execution in executions if execution.client_id == client_id]
+        return executions
+
+    async def _persist_execution(self, execution: MCPToolExecution) -> None:
+        record = MCPExecutionRecord(
+            id=execution.id,
+            organization_id=self.organization_id,
+            tool_name=execution.tool_name,
+            input_params={"_client_id": execution.client_id, **execution.input_params},
+            output_result=execution.output,
+            status=execution.status.value,
+            duration_ms=int(execution.duration_ms) if execution.duration_ms else None,
+            error_message=execution.error_message or None,
+        )
+        self.db.add(record)
+        await self.db.flush()

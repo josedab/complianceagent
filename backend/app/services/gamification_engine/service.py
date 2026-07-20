@@ -1,10 +1,13 @@
 """Compliance Gamification Engine Service."""
 
-from datetime import UTC, datetime
+from typing import TypedDict
+from uuid import UUID
 
 import structlog
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.user_state import GamificationEventRecord, GamificationProfileRecord
 from app.services.gamification_engine.models import (
     Achievement,
     AchievementTier,
@@ -92,7 +95,22 @@ _ACHIEVEMENTS: list[Achievement] = [
     ),
 ]
 
-_SEED_PROFILES: list[dict] = [
+
+class _SeedProfile(TypedDict):
+    """Static seed data shape for demo gamification profiles."""
+
+    user_id: str
+    display_name: str
+    points: int
+    level: int
+    badges: list[str]
+    current_streak: int
+    longest_streak: int
+    fixes_count: int
+    violations_resolved: int
+
+
+_SEED_PROFILES: list[_SeedProfile] = [
     {
         "user_id": "alice",
         "display_name": "Alice Chen",
@@ -159,56 +177,86 @@ _SEED_PROFILES: list[dict] = [
 
 
 def _level_from_points(points: int) -> int:
-    """Calculate level from points (100 points per level)."""
     return max(1, points // 100)
+
+
+def _coerce_user_uuid(user_id: str, fallback: UUID | None = None) -> UUID:
+    if user_id:
+        return UUID(user_id)
+    if fallback is None:
+        raise ValueError("user_id is required")
+    return fallback
+
+
+def _profile_record_to_domain(record: GamificationProfileRecord) -> UserProfile:
+    meta = record.profile_metadata or {}
+    return UserProfile(
+        id=record.id,
+        user_id=str(record.user_id),
+        display_name=meta.get("display_name", str(record.user_id)),
+        points=record.xp_total,
+        level=record.level,
+        badges=list(record.badges or []),
+        current_streak=record.streak_days,
+        longest_streak=meta.get("longest_streak", record.streak_days),
+        fixes_count=meta.get("fixes_count", 0),
+        violations_resolved=meta.get("violations_resolved", 0),
+        joined_at=record.created_at,
+    )
 
 
 class GamificationEngineService:
     """Gamify compliance activities with points, badges, and leaderboards."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(
+        self,
+        db: AsyncSession,
+        organization_id: UUID | None = None,
+        user_id: UUID | None = None,
+    ):
         self.db = db
-        self._profiles: dict[str, UserProfile] = {}
-        self._seed_data()
-
-    def _seed_data(self) -> None:
-        now = datetime.now(UTC)
-        for profile_def in _SEED_PROFILES:
-            profile = UserProfile(
-                user_id=profile_def["user_id"],
-                display_name=profile_def["display_name"],
-                points=profile_def["points"],
-                level=profile_def["level"],
-                badges=profile_def["badges"],
-                current_streak=profile_def["current_streak"],
-                longest_streak=profile_def["longest_streak"],
-                fixes_count=profile_def["fixes_count"],
-                violations_resolved=profile_def["violations_resolved"],
-                joined_at=now,
-            )
-            self._profiles[profile.user_id] = profile
+        self.organization_id = organization_id
+        self.user_id = user_id
 
     async def award_points(self, user_id: str, points: int, reason: str = "") -> UserProfile:
-        profile = self._profiles.get(user_id)
-        if not profile:
-            raise ValueError(f"User not found: {user_id}")
-
-        profile.points += points
-        profile.level = _level_from_points(profile.points)
-        logger.info(
-            "Points awarded", user_id=user_id, points=points, total=profile.points, reason=reason
+        record = await self._get_or_create_profile_record(user_id)
+        await self.db.execute(
+            update(GamificationProfileRecord)
+            .where(
+                GamificationProfileRecord.id == record.id,
+                GamificationProfileRecord.organization_id == self.organization_id,
+            )
+            .values(xp_total=GamificationProfileRecord.xp_total + points)
         )
-        return profile
+        refreshed = await self._get_profile_record(user_id)
+        if refreshed is None:
+            raise ValueError(f"User not found: {user_id}")
+        refreshed.level = _level_from_points(refreshed.xp_total)
+        meta = dict(refreshed.profile_metadata or {})
+        if reason:
+            meta["last_award_reason"] = reason
+        refreshed.profile_metadata = meta
+        await self.db.flush()
+        logger.info(
+            "Points awarded",
+            user_id=user_id,
+            points=points,
+            total=refreshed.xp_total,
+            reason=reason,
+        )
+        return _profile_record_to_domain(refreshed)
 
     async def check_and_award_badges(self, user_id: str) -> list[str]:
-        profile = self._profiles.get(user_id)
-        if not profile:
+        record = await self._get_profile_record(user_id)
+        if not record:
             raise ValueError(f"User not found: {user_id}")
 
+        profile = _profile_record_to_domain(record)
         newly_awarded: list[str] = []
+        badges = list(record.badges or [])
         for achievement in _ACHIEVEMENTS:
             badge_key = achievement.badge_type.value
-            if badge_key in profile.badges:
+            if badge_key in badges:
                 continue
 
             earned = False
@@ -228,22 +276,43 @@ class GamificationEngineService:
                 earned = profile.points >= 800
 
             if earned:
-                profile.badges.append(badge_key)
+                badges.append(badge_key)
                 newly_awarded.append(badge_key)
+                self.db.add(
+                    GamificationEventRecord(
+                        organization_id=self.organization_id,
+                        user_id=record.user_id,
+                        event_type="badge_awarded",
+                        badge_awarded=badge_key,
+                        event_metadata={"achievement": achievement.name},
+                    )
+                )
                 logger.info("Badge awarded", user_id=user_id, badge=badge_key)
 
+        record.badges = badges
+        await self.db.flush()
         return newly_awarded
 
     async def get_profile(self, user_id: str) -> UserProfile:
-        profile = self._profiles.get(user_id)
-        if not profile:
+        record = await self._get_profile_record(user_id)
+        if not record:
             raise ValueError(f"User not found: {user_id}")
-        return profile
+        return _profile_record_to_domain(record)
 
     async def get_leaderboard(self, top_n: int = 10) -> list[LeaderboardEntry]:
-        sorted_profiles = sorted(self._profiles.values(), key=lambda p: p.points, reverse=True)
+        stmt = (
+            select(GamificationProfileRecord)
+            .where(GamificationProfileRecord.organization_id == self.organization_id)
+            .order_by(
+                GamificationProfileRecord.xp_total.desc(),
+                GamificationProfileRecord.created_at.asc(),
+            )
+            .limit(top_n)
+        )
+        result = await self.db.execute(stmt)
         entries: list[LeaderboardEntry] = []
-        for rank, profile in enumerate(sorted_profiles[:top_n], start=1):
+        for rank, record in enumerate(result.scalars().all(), start=1):
+            profile = _profile_record_to_domain(record)
             entries.append(
                 LeaderboardEntry(
                     rank=rank,
@@ -260,45 +329,55 @@ class GamificationEngineService:
         return list(_ACHIEVEMENTS)
 
     async def record_activity(self, user_id: str, activity_type: str) -> UserProfile:
-        profile = self._profiles.get(user_id)
-        if not profile:
-            raise ValueError(f"User not found: {user_id}")
-
+        record = await self._get_or_create_profile_record(user_id)
+        meta = dict(record.profile_metadata or {})
+        points_delta = 1
         if activity_type == "fix":
-            profile.fixes_count += 1
-            profile.points += 10
+            meta["fixes_count"] = meta.get("fixes_count", 0) + 1
+            points_delta = 10
         elif activity_type == "resolve":
-            profile.violations_resolved += 1
-            profile.points += 25
+            meta["violations_resolved"] = meta.get("violations_resolved", 0) + 1
+            points_delta = 25
         elif activity_type == "scan":
-            profile.points += 5
-        else:
-            profile.points += 1
+            points_delta = 5
 
-        profile.current_streak += 1
-        profile.longest_streak = max(profile.longest_streak, profile.current_streak)
-        profile.level = _level_from_points(profile.points)
-
-        await self.check_and_award_badges(user_id)
-        logger.info(
-            "Activity recorded", user_id=user_id, activity=activity_type, points=profile.points
+        record.xp_total += points_delta
+        record.streak_days += 1
+        record.level = _level_from_points(record.xp_total)
+        meta["longest_streak"] = max(meta.get("longest_streak", 0), record.streak_days)
+        record.profile_metadata = meta
+        self.db.add(
+            GamificationEventRecord(
+                organization_id=self.organization_id,
+                user_id=record.user_id,
+                event_type=activity_type,
+                xp_awarded=points_delta,
+                event_metadata={"xp_total": record.xp_total},
+            )
         )
-        return profile
+        await self.check_and_award_badges(user_id)
+        await self.db.flush()
+        logger.info(
+            "Activity recorded", user_id=user_id, activity=activity_type, points=record.xp_total
+        )
+        return _profile_record_to_domain(record)
 
-    def get_stats(self) -> GamificationStats:
-        profiles = list(self._profiles.values())
+    async def get_stats(self) -> GamificationStats:
+        stmt = select(GamificationProfileRecord).where(
+            GamificationProfileRecord.organization_id == self.organization_id
+        )
+        result = await self.db.execute(stmt)
+        profiles = [_profile_record_to_domain(record) for record in result.scalars().all()]
         by_level: dict[int, int] = {}
         by_badge: dict[str, int] = {}
         total_points = 0
         total_badges = 0
-
-        for p in profiles:
-            by_level[p.level] = by_level.get(p.level, 0) + 1
-            total_points += p.points
-            total_badges += len(p.badges)
-            for badge in p.badges:
+        for profile in profiles:
+            by_level[profile.level] = by_level.get(profile.level, 0) + 1
+            total_points += profile.points
+            total_badges += len(profile.badges)
+            for badge in profile.badges:
                 by_badge[badge] = by_badge.get(badge, 0) + 1
-
         return GamificationStats(
             total_users=len(profiles),
             total_points_awarded=total_points,
@@ -307,3 +386,35 @@ class GamificationEngineService:
             by_badge=by_badge,
             avg_points=round(total_points / len(profiles), 1) if profiles else 0.0,
         )
+
+    async def _get_profile_record(self, user_id: str) -> GamificationProfileRecord | None:
+        db_user_id = _coerce_user_uuid(user_id, self.user_id)
+        stmt = select(GamificationProfileRecord).where(
+            GamificationProfileRecord.organization_id == self.organization_id,
+            GamificationProfileRecord.user_id == db_user_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def _get_or_create_profile_record(self, user_id: str) -> GamificationProfileRecord:
+        record = await self._get_profile_record(user_id)
+        if record:
+            return record
+        db_user_id = _coerce_user_uuid(user_id, self.user_id)
+        record = GamificationProfileRecord(
+            organization_id=self.organization_id,
+            user_id=db_user_id,
+            level=1,
+            xp_total=0,
+            badges=[],
+            streak_days=0,
+            profile_metadata={
+                "display_name": user_id or str(db_user_id),
+                "longest_streak": 0,
+                "fixes_count": 0,
+                "violations_resolved": 0,
+            },
+        )
+        self.db.add(record)
+        await self.db.flush()
+        return record

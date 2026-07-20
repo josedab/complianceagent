@@ -514,7 +514,7 @@ class RegPredictionService:
     async def _update_predictions_from_signal(self, signal: RegulatorySignal) -> None:
         """Update predictions based on a new signal."""
         for pred in self._predictions:
-            if pred.jurisdiction == signal.jurisdiction or signal.jurisdiction == "Global":
+            if signal.jurisdiction in {pred.jurisdiction, "Global"}:
                 # Check if signal is relevant to prediction frameworks
                 related = any(fw.lower() in signal.title.lower() for fw in pred.affected_frameworks)
                 if related or signal.relevance_score > 0.8:
@@ -745,9 +745,7 @@ class RegPredictionService:
         prediction.feature_importance = self._compute_feature_importance(prediction)
 
         # Classify momentum from relevant signals
-        relevant_signals = [
-            s for s in self._signals if s.jurisdiction == jurisdiction or s.jurisdiction == "Global"
-        ]
+        relevant_signals = [s for s in self._signals if s.jurisdiction in {jurisdiction, "Global"}]
         prediction.momentum = self._classify_momentum(relevant_signals)
 
         self._predictions.append(prediction)

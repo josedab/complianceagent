@@ -1,6 +1,7 @@
 """Regulation-to-Architecture Advisor Service."""
 
 from datetime import UTC, datetime
+from typing import TypedDict
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +18,18 @@ from app.services.arch_advisor.models import (
 
 logger = structlog.get_logger()
 
-_FRAMEWORK_COMPONENTS: dict[str, list[dict]] = {
+
+class _FrameworkComponentDef(TypedDict):
+    """Static definition of a framework-specific architecture component."""
+
+    id: str
+    name: str
+    type: str
+    desc: str
+    reqs: list[str]
+
+
+_FRAMEWORK_COMPONENTS: dict[str, list[_FrameworkComponentDef]] = {
     "GDPR": [
         {
             "id": "consent-gate",

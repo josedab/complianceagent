@@ -1203,6 +1203,6 @@ def _get_example_locations(regulation: str, article: str) -> list[ComplianceLoca
     all_locations = locations_db.get(reg, [])
     if article:
         filtered = [loc for loc in all_locations if article.lower() in loc.article.lower()]
-        return filtered if filtered else all_locations
+        return filtered or all_locations
 
     return all_locations

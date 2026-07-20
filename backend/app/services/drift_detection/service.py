@@ -5,8 +5,10 @@ from uuid import UUID
 
 import httpx
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.secondary_persistence import DriftAlertRecord, DriftBaselineRecord, DriftEventRecord
 from app.services.drift_detection.models import (
     AlertConfig,
     AlertStatus,
@@ -25,22 +27,59 @@ from app.services.drift_detection.models import (
 
 
 logger = structlog.get_logger()
+_WEBHOOK_DELIVERIES: list[WebhookDelivery] = []
+
+
+def _baseline_record_to_domain(record: DriftBaselineRecord) -> ComplianceBaseline:
+    snapshot = record.snapshot or {}
+    return ComplianceBaseline(
+        id=record.id,
+        repo=snapshot.get("repo", ""),
+        branch=snapshot.get("branch", "main"),
+        commit_sha=snapshot.get("commit_sha", ""),
+        score=snapshot.get("score", 100.0),
+        findings_count=snapshot.get("findings_count", 0),
+        findings_by_severity=snapshot.get("findings_by_severity", {}),
+        findings_by_regulation=snapshot.get("findings_by_regulation", {}),
+        captured_at=record.created_at,
+    )
+
+
+def _event_record_to_domain(
+    record: DriftEventRecord, baseline_lookup: dict[UUID, ComplianceBaseline]
+) -> DriftEvent:
+    meta = record.drift_metadata or {}
+    baseline = baseline_lookup.get(record.baseline_id)
+    return DriftEvent(
+        id=record.id,
+        repo=meta.get("repo", baseline.repo if baseline else ""),
+        branch=meta.get("branch", baseline.branch if baseline else "main"),
+        drift_type=DriftType(record.drift_type),
+        severity=DriftSeverity(record.severity),
+        regulation=meta.get("regulation", ""),
+        article_ref=meta.get("article_ref", ""),
+        description=record.description,
+        file_path=meta.get("file_path", ""),
+        commit_sha=meta.get("commit_sha", baseline.commit_sha if baseline else ""),
+        previous_score=meta.get("previous_score", baseline.score if baseline else 100.0),
+        current_score=meta.get("current_score", meta.get("score", 100.0)),
+        blast_radius=meta.get("blast_radius", []),
+        detected_at=record.created_at,
+        resolved_at=record.resolved_at,
+    )
 
 
 class DriftDetectionService:
     """Service for detecting compliance drift and sending alerts."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, organization_id: UUID | None = None):
         self.db = db
-        self._baselines: dict[str, ComplianceBaseline] = {}
-        self._events: list[DriftEvent] = []
-        self._alerts: list[DriftAlert] = []
+        self.organization_id = organization_id
         self._config: AlertConfig = AlertConfig()
 
     async def capture_baseline(
         self, repo: str, branch: str = "main", commit_sha: str = ""
     ) -> ComplianceBaseline:
-        """Capture current compliance state as a baseline."""
         baseline = ComplianceBaseline(
             repo=repo,
             branch=branch,
@@ -49,15 +88,41 @@ class DriftDetectionService:
             findings_count=0,
             captured_at=datetime.now(UTC),
         )
-
-        key = f"{repo}:{branch}"
-        self._baselines[key] = baseline
+        existing = await self._load_baseline_records()
+        for record in existing:
+            snapshot = record.snapshot or {}
+            if (
+                snapshot.get("repo") == repo
+                and snapshot.get("branch") == branch
+                and record.is_active
+            ):
+                record.is_active = False
+        snapshot = {
+            "repo": repo,
+            "branch": branch,
+            "commit_sha": commit_sha,
+            "score": baseline.score,
+            "findings_count": baseline.findings_count,
+            "findings_by_severity": baseline.findings_by_severity,
+            "findings_by_regulation": baseline.findings_by_regulation,
+        }
+        hash_value = self._hash_snapshot(snapshot)
+        record = DriftBaselineRecord(
+            id=baseline.id,
+            organization_id=self.organization_id,
+            regulation="repository",
+            snapshot=snapshot,
+            hash_value=hash_value,
+            is_active=True,
+        )
+        self.db.add(record)
+        await self.db.flush()
         logger.info("Baseline captured", repo=repo, branch=branch, score=baseline.score)
-        return baseline
+        return _baseline_record_to_domain(record)
 
     async def get_baseline(self, repo: str, branch: str = "main") -> ComplianceBaseline | None:
-        """Get the current baseline for a repo/branch."""
-        return self._baselines.get(f"{repo}:{branch}")
+        record = await self._get_active_baseline_record(repo, branch)
+        return _baseline_record_to_domain(record) if record else None
 
     async def detect_drift(
         self,
@@ -67,24 +132,22 @@ class DriftDetectionService:
         current_findings: list[dict] | None = None,
         current_score: float = 100.0,
     ) -> list[DriftEvent]:
-        """Compare current state against baseline to detect drift."""
-        key = f"{repo}:{branch}"
-        baseline = self._baselines.get(key)
-
+        baseline_record = await self._get_active_baseline_record(repo, branch)
         events: list[DriftEvent] = []
-
-        if not baseline:
+        if not baseline_record:
             logger.info("No baseline found, creating initial", repo=repo)
             await self.capture_baseline(repo, branch, commit_sha)
             return events
 
-        # Score regression detection
+        baseline = _baseline_record_to_domain(baseline_record)
         score_delta = current_score - baseline.score
-        if score_delta < -5:  # 5+ point regression
+        if score_delta < -5:
             severity = (
                 DriftSeverity.CRITICAL
                 if score_delta < -20
-                else (DriftSeverity.HIGH if score_delta < -10 else DriftSeverity.MEDIUM)
+                else DriftSeverity.HIGH
+                if score_delta < -10
+                else DriftSeverity.MEDIUM
             )
             events.append(
                 DriftEvent(
@@ -99,8 +162,6 @@ class DriftDetectionService:
                     detected_at=datetime.now(UTC),
                 )
             )
-
-        # New findings detection
         if current_findings:
             for finding in current_findings:
                 events.append(
@@ -114,17 +175,43 @@ class DriftDetectionService:
                         description=finding.get("description", "New compliance violation detected"),
                         file_path=finding.get("file_path", ""),
                         commit_sha=commit_sha,
+                        previous_score=baseline.score,
+                        current_score=current_score,
+                        blast_radius=[finding.get("file_path", "")]
+                        if finding.get("file_path")
+                        else [],
                         detected_at=datetime.now(UTC),
                     )
                 )
-
-        self._events.extend(events)
-
-        if events:
-            logger.warning("Drift detected", repo=repo, events=len(events))
-            await self._trigger_alerts(events)
-
-        return events
+        persisted: list[DriftEvent] = []
+        for event in events:
+            record = DriftEventRecord(
+                id=event.id,
+                organization_id=self.organization_id,
+                baseline_id=baseline_record.id,
+                drift_type=event.drift_type.value,
+                severity=event.severity.value,
+                description=event.description,
+                affected_controls=event.blast_radius,
+                drift_metadata={
+                    "repo": event.repo,
+                    "branch": event.branch,
+                    "regulation": event.regulation,
+                    "article_ref": event.article_ref,
+                    "file_path": event.file_path,
+                    "commit_sha": event.commit_sha,
+                    "previous_score": event.previous_score,
+                    "current_score": event.current_score,
+                    "blast_radius": event.blast_radius,
+                },
+            )
+            self.db.add(record)
+            persisted.append(event)
+        await self.db.flush()
+        if persisted:
+            logger.warning("Drift detected", repo=repo, events=len(persisted))
+            await self._trigger_alerts(persisted)
+        return persisted
 
     async def list_events(
         self,
@@ -133,62 +220,65 @@ class DriftDetectionService:
         drift_type: DriftType | None = None,
         limit: int = 50,
     ) -> list[DriftEvent]:
-        """List drift events with optional filters."""
-        results = list(self._events)
-        if repo:
-            results = [e for e in results if e.repo == repo]
+        baseline_lookup = await self._baseline_lookup()
+        stmt = (
+            select(DriftEventRecord)
+            .where(DriftEventRecord.organization_id == self.organization_id)
+            .order_by(DriftEventRecord.created_at.desc())
+            .limit(limit)
+        )
         if severity:
-            results = [e for e in results if e.severity == severity]
+            stmt = stmt.where(DriftEventRecord.severity == severity.value)
         if drift_type:
-            results = [e for e in results if e.drift_type == drift_type]
-        return sorted(
-            results, key=lambda e: e.detected_at or datetime.min.replace(tzinfo=UTC), reverse=True
-        )[:limit]
+            stmt = stmt.where(DriftEventRecord.drift_type == drift_type.value)
+        result = await self.db.execute(stmt)
+        events = [
+            _event_record_to_domain(record, baseline_lookup) for record in result.scalars().all()
+        ]
+        if repo:
+            events = [event for event in events if event.repo == repo]
+        return events
 
     async def resolve_event(self, event_id: UUID) -> DriftEvent | None:
-        """Mark a drift event as resolved."""
-        for event in self._events:
-            if event.id == event_id:
-                event.resolved_at = datetime.now(UTC)
-                logger.info("Drift event resolved", event_id=str(event_id))
-                return event
-        return None
+        stmt = select(DriftEventRecord).where(
+            DriftEventRecord.id == event_id,
+            DriftEventRecord.organization_id == self.organization_id,
+        )
+        result = await self.db.execute(stmt)
+        record = result.scalar_one_or_none()
+        if not record:
+            return None
+        record.resolved_at = datetime.now(UTC)
+        await self.db.flush()
+        logger.info("Drift event resolved", event_id=str(event_id))
+        return _event_record_to_domain(record, await self._baseline_lookup())
 
     async def configure_alerts(self, config: AlertConfig) -> AlertConfig:
-        """Update alert configuration."""
         self._config = config
-        logger.info("Alert config updated", channels=[c.value for c in config.channels])
+        logger.info("Alert config updated", channels=[channel.value for channel in config.channels])
         return config
 
     async def get_alert_config(self) -> AlertConfig:
-        """Get current alert configuration."""
         return self._config
 
     async def get_report(
-        self,
-        repo: str,
-        period_start: datetime | None = None,
-        period_end: datetime | None = None,
+        self, repo: str, period_start: datetime | None = None, period_end: datetime | None = None
     ) -> DriftReport:
-        """Generate a drift report for a repository."""
-        events = [e for e in self._events if e.repo == repo]
-        if period_start:
-            events = [e for e in events if e.detected_at and e.detected_at >= period_start]
-        if period_end:
-            events = [e for e in events if e.detected_at and e.detected_at <= period_end]
-
+        events = [
+            event
+            for event in await self.list_events(repo=repo, limit=500)
+            if (not period_start or (event.detected_at and event.detected_at >= period_start))
+            and (not period_end or (event.detected_at and event.detected_at <= period_end))
+        ]
         by_severity: dict[str, int] = {}
         by_type: dict[str, int] = {}
         file_counts: dict[str, int] = {}
-
         for event in events:
             by_severity[event.severity.value] = by_severity.get(event.severity.value, 0) + 1
             by_type[event.drift_type.value] = by_type.get(event.drift_type.value, 0) + 1
             if event.file_path:
                 file_counts[event.file_path] = file_counts.get(event.file_path, 0) + 1
-
-        top_files = sorted(file_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-
+        top_files = sorted(file_counts.items(), key=lambda item: item[1], reverse=True)[:10]
         return DriftReport(
             repo=repo,
             period_start=period_start,
@@ -196,28 +286,40 @@ class DriftDetectionService:
             total_events=len(events),
             events_by_severity=by_severity,
             events_by_type=by_type,
-            top_drifting_files=[{"file": f, "count": c} for f, c in top_files],
+            top_drifting_files=[{"file": path, "count": count} for path, count in top_files],
         )
 
     async def _trigger_alerts(self, events: list[DriftEvent]) -> None:
-        """Send alerts for drift events based on configuration."""
+        baseline_record_lookup = await self._baseline_record_lookup_by_repo_branch()
         for event in events:
             if self._severity_meets_threshold(event.severity):
+                baseline_id = baseline_record_lookup.get((event.repo, event.branch))
+                if baseline_id is None:
+                    continue
                 for channel in self._config.channels:
                     alert = DriftAlert(
                         drift_event_id=event.id,
                         channel=channel,
-                        status=AlertStatus.PENDING,
+                        status=AlertStatus.SENT,
                         recipients=self._config.recipients.get(channel.value, []),
                         message=self._format_alert(event),
+                        sent_at=datetime.now(UTC),
                     )
-                    self._alerts.append(alert)
-
-                    # In production: dispatch via Celery task
-                    alert.status = AlertStatus.SENT
-                    alert.sent_at = datetime.now(UTC)
-
-        logger.info("Alerts dispatched", count=len(self._alerts))
+                    self.db.add(
+                        DriftAlertRecord(
+                            organization_id=self.organization_id,
+                            drift_event_id=event.id,
+                            status=alert.status.value,
+                            notified_at=alert.sent_at,
+                            alert_metadata={
+                                "channel": channel.value,
+                                "recipients": alert.recipients,
+                                "message": alert.message,
+                            },
+                        )
+                    )
+        await self.db.flush()
+        logger.info("Alerts dispatched", count=len(events))
 
     async def check_cicd_gate(
         self,
@@ -229,11 +331,6 @@ class DriftDetectionService:
         threshold_score: float = 80.0,
         block_on_critical: bool = True,
     ) -> CICDGateResult:
-        """Evaluate compliance gate for CI/CD pipeline.
-
-        Returns pass/fail/warn decision based on compliance score and findings.
-        Designed to be called from GitHub Actions, GitLab CI, or similar.
-        """
         events = await self.detect_drift(
             repo=repo,
             branch=branch,
@@ -241,24 +338,22 @@ class DriftDetectionService:
             current_findings=current_findings,
             current_score=current_score,
         )
-
-        critical_violations = sum(1 for e in events if e.severity == DriftSeverity.CRITICAL)
-        high_violations = sum(1 for e in events if e.severity == DriftSeverity.HIGH)
-        blocking = [e.description for e in events if e.severity == DriftSeverity.CRITICAL]
-        warnings = [
-            e.description
-            for e in events
-            if e.severity in (DriftSeverity.HIGH, DriftSeverity.MEDIUM)
+        critical_violations = sum(1 for event in events if event.severity == DriftSeverity.CRITICAL)
+        high_violations = sum(1 for event in events if event.severity == DriftSeverity.HIGH)
+        blocking = [
+            event.description for event in events if event.severity == DriftSeverity.CRITICAL
         ]
-
-        # Determine decision
+        warnings = [
+            event.description
+            for event in events
+            if event.severity in (DriftSeverity.HIGH, DriftSeverity.MEDIUM)
+        ]
         if (block_on_critical and critical_violations > 0) or current_score < threshold_score:
             decision = CICDGateDecision.FAIL
         elif high_violations > 0 or current_score < threshold_score + 10:
             decision = CICDGateDecision.WARN
         else:
             decision = CICDGateDecision.PASS
-
         result = CICDGateResult(
             repo=repo,
             branch=branch,
@@ -272,7 +367,6 @@ class DriftDetectionService:
             warnings=warnings,
             checked_at=datetime.now(UTC),
         )
-
         logger.info(
             "CI/CD gate checked",
             repo=repo,
@@ -282,19 +376,11 @@ class DriftDetectionService:
         )
         return result
 
-    # ── Trend Analysis ───────────────────────────────────────────────────
-
-    def get_drift_trend(
-        self,
-        repo: str,
-        period: str = "7d",
-    ) -> DriftTrend:
-        """Get drift score trend over time."""
-        events = [e for e in self._events if e.repo == repo]
-        events.sort(key=lambda e: e.detected_at or datetime.now(UTC))
-
+    async def get_drift_trend(self, repo: str, period: str = "7d") -> DriftTrend:
+        events = await self.list_events(repo=repo, limit=500)
+        events.sort(key=lambda event: event.detected_at or datetime.now(UTC))
         if not events:
-            baseline = self._baselines.get(repo)
+            baseline = await self.get_baseline(repo)
             score = baseline.score if baseline else 100.0
             return DriftTrend(
                 repo=repo,
@@ -305,43 +391,35 @@ class DriftDetectionService:
                 min_score=score,
                 max_score=score,
             )
-
         data_points = []
         scores = []
         for event in events:
-            score = event.current_score
-            scores.append(score)
+            scores.append(event.current_score)
             data_points.append(
                 {
                     "date": event.detected_at.isoformat() if event.detected_at else "",
-                    "score": score,
+                    "score": event.current_score,
                     "event_id": str(event.id),
-                    "severity": event.severity.value
-                    if hasattr(event.severity, "value")
-                    else event.severity,
+                    "severity": event.severity.value,
                 }
             )
-
         avg_score = sum(scores) / len(scores)
         min_score = min(scores)
         max_score = max(scores)
-        volatility = max_score - min_score
-
-        # Determine trend direction
         if len(scores) >= 2:
             recent_half = scores[len(scores) // 2 :]
             earlier_half = scores[: len(scores) // 2]
             recent_avg = sum(recent_half) / len(recent_half)
             earlier_avg = sum(earlier_half) / len(earlier_half) if earlier_half else recent_avg
-            if recent_avg > earlier_avg + 2:
-                direction = "improving"
-            elif recent_avg < earlier_avg - 2:
-                direction = "degrading"
-            else:
-                direction = "stable"
+            direction = (
+                "improving"
+                if recent_avg > earlier_avg + 2
+                else "degrading"
+                if recent_avg < earlier_avg - 2
+                else "stable"
+            )
         else:
             direction = "stable"
-
         return DriftTrend(
             repo=repo,
             period=period,
@@ -350,34 +428,28 @@ class DriftDetectionService:
             avg_score=round(avg_score, 2),
             min_score=round(min_score, 2),
             max_score=round(max_score, 2),
-            volatility=round(volatility, 2),
+            volatility=round(max_score - min_score, 2),
         )
 
-    def get_top_drifting_files(
-        self,
-        repo: str,
-        limit: int = 10,
-    ) -> list[TopDriftingFile]:
-        """Get the files with the most compliance drift."""
-        events = [e for e in self._events if e.repo == repo]
-
+    async def get_top_drifting_files(self, repo: str, limit: int = 10) -> list[TopDriftingFile]:
+        events = await self.list_events(repo=repo, limit=500)
         file_stats: dict[str, dict] = {}
         for event in events:
-            for file_path in event.blast_radius:
-                if file_path not in file_stats:
-                    file_stats[file_path] = {
+            for file_path in event.blast_radius or ([event.file_path] if event.file_path else []):
+                stats = file_stats.setdefault(
+                    file_path,
+                    {
                         "drift_count": 0,
                         "total_delta": 0.0,
                         "last_drift_at": "",
                         "regulations": set(),
-                    }
-                stats = file_stats[file_path]
+                    },
+                )
                 stats["drift_count"] += 1
                 stats["total_delta"] += abs(event.current_score - event.previous_score)
                 detected = event.detected_at.isoformat() if event.detected_at else ""
                 stats["last_drift_at"] = max(stats["last_drift_at"], detected)
-                stats["regulations"].add(event.regulation if event.regulation else "General")
-
+                stats["regulations"].add(event.regulation or "General")
         results = [
             TopDriftingFile(
                 file_path=path,
@@ -388,83 +460,44 @@ class DriftDetectionService:
             )
             for path, stats in file_stats.items()
         ]
-        results.sort(key=lambda f: f.drift_count, reverse=True)
+        results.sort(key=lambda item: item.drift_count, reverse=True)
         return results[:limit]
 
-    # ── Webhook Delivery ─────────────────────────────────────────────────
-
-    async def deliver_webhook(
-        self,
-        event_id: str,
-        channel: str,
-    ) -> WebhookDelivery:
-        """Deliver a webhook notification for a drift event to the configured channel."""
-
-        if not hasattr(self, "_webhook_deliveries"):
-            self._webhook_deliveries: list[WebhookDelivery] = []
-
-        config = self._config
-        event = next((e for e in self._events if str(e.id) == event_id), None)
+    async def deliver_webhook(self, event_id: str, channel: str) -> WebhookDelivery:
+        event = next(
+            (item for item in await self.list_events(limit=500) if str(item.id) == event_id), None
+        )
         alert_message = self._format_alert(event) if event else f"Drift event {event_id}"
-
         url = ""
         payload: dict = {}
         headers: dict[str, str] = {"Content-Type": "application/json"}
-
-        if channel == "slack" and config.slack_webhook_url:
-            url = config.slack_webhook_url
+        if channel == "slack" and self._config.slack_webhook_url:
+            url = self._config.slack_webhook_url
             payload = {
                 "text": alert_message,
-                "blocks": [
-                    {"type": "section", "text": {"type": "mrkdwn", "text": alert_message}},
-                ],
+                "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": alert_message}}],
             }
-        elif channel == "teams" and config.teams_webhook_url:
-            url = config.teams_webhook_url
+        elif channel == "teams" and self._config.teams_webhook_url:
+            url = self._config.teams_webhook_url
             payload = {
                 "@type": "MessageCard",
                 "summary": "Compliance Drift Alert",
                 "themeColor": "FF0000",
                 "text": alert_message,
             }
-        elif channel == "pagerduty" and config.pagerduty_routing_key:
-            url = "https://events.pagerduty.com/v2/enqueue"
-            severity_map = {
-                "critical": "critical",
-                "high": "error",
-                "medium": "warning",
-                "low": "info",
-            }
-            pd_severity = severity_map.get(event.severity.value, "warning") if event else "warning"
-            payload = {
-                "routing_key": config.pagerduty_routing_key,
-                "event_action": "trigger",
-                "payload": {
-                    "summary": alert_message[:1024],
-                    "source": "complianceagent",
-                    "severity": pd_severity,
-                    "custom_details": {"event_id": event_id, "channel": channel},
-                },
-            }
-
         status = "skipped"
         response_code = 0
         attempts = 0
-
         if url:
             attempts = 1
             try:
                 async with httpx.AsyncClient(timeout=10) as client:
-                    resp = await client.post(url, json=payload, headers=headers)
-                    response_code = resp.status_code
-                    status = "delivered" if resp.is_success else "failed"
+                    response = await client.post(url, json=payload, headers=headers)
+                    response_code = response.status_code
+                    status = "delivered" if response.is_success else "failed"
             except (httpx.HTTPError, OSError, ValueError) as exc:
                 status = "failed"
                 logger.warning("Webhook delivery failed", channel=channel, error=str(exc))
-        else:
-            status = "skipped"
-            logger.debug("No webhook URL configured", channel=channel)
-
         delivery = WebhookDelivery(
             channel=channel,
             url=url,
@@ -475,8 +508,7 @@ class DriftDetectionService:
             delivered_at=datetime.now(UTC),
             attempts=attempts,
         )
-        self._webhook_deliveries.append(delivery)
-
+        _WEBHOOK_DELIVERIES.append(delivery)
         logger.info(
             "Webhook delivery attempted",
             channel=channel,
@@ -487,21 +519,14 @@ class DriftDetectionService:
         return delivery
 
     def get_webhook_deliveries(
-        self,
-        event_id: str | None = None,
-        limit: int = 50,
+        self, event_id: str | None = None, limit: int = 50
     ) -> list[WebhookDelivery]:
-        """Get webhook delivery history."""
-        if not hasattr(self, "_webhook_deliveries"):
-            self._webhook_deliveries: list[WebhookDelivery] = []
-
-        deliveries = self._webhook_deliveries
+        deliveries = _WEBHOOK_DELIVERIES
         if event_id:
-            deliveries = [d for d in deliveries if d.event_id == event_id]
+            deliveries = [delivery for delivery in deliveries if delivery.event_id == event_id]
         return deliveries[:limit]
 
     def _severity_meets_threshold(self, severity: DriftSeverity) -> bool:
-        """Check if severity meets the configured threshold."""
         severity_order = {
             DriftSeverity.LOW: 0,
             DriftSeverity.MEDIUM: 1,
@@ -513,11 +538,46 @@ class DriftDetectionService:
         )
 
     def _format_alert(self, event: DriftEvent) -> str:
-        """Format a drift event as an alert message."""
         emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵"}
         icon = emoji.get(event.severity.value, "⚪")
-        return (
-            f"{icon} Compliance drift detected in {event.repo}\n"
-            f"Type: {event.drift_type.value} | Severity: {event.severity.value}\n"
-            f"{event.description}"
+        return f"{icon} Compliance drift detected in {event.repo}\nType: {event.drift_type.value} | Severity: {event.severity.value}\n{event.description}"
+
+    async def _load_baseline_records(self) -> list[DriftBaselineRecord]:
+        stmt = select(DriftBaselineRecord).where(
+            DriftBaselineRecord.organization_id == self.organization_id
         )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def _get_active_baseline_record(
+        self, repo: str, branch: str
+    ) -> DriftBaselineRecord | None:
+        records = await self._load_baseline_records()
+        for record in records:
+            snapshot = record.snapshot or {}
+            if (
+                record.is_active
+                and snapshot.get("repo") == repo
+                and snapshot.get("branch") == branch
+            ):
+                return record
+        return None
+
+    async def _baseline_lookup(self) -> dict[UUID, ComplianceBaseline]:
+        return {
+            record.id: _baseline_record_to_domain(record)
+            for record in await self._load_baseline_records()
+        }
+
+    async def _baseline_record_lookup_by_repo_branch(self) -> dict[tuple[str, str], UUID]:
+        lookup: dict[tuple[str, str], UUID] = {}
+        for record in await self._load_baseline_records():
+            snapshot = record.snapshot or {}
+            lookup[(snapshot.get("repo", ""), snapshot.get("branch", "main"))] = record.id
+        return lookup
+
+    def _hash_snapshot(self, snapshot: dict) -> str:
+        import hashlib
+        import json
+
+        return hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()

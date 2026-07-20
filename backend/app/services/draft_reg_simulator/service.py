@@ -1,5 +1,7 @@
 """Draft Regulation Impact Simulator Service."""
 
+from typing import TypedDict
+
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,7 +58,19 @@ _FRAMEWORK_KEYWORDS: dict[str, list[str]] = {
     ],
 }
 
-_SEED_DRAFTS: list[dict] = [
+
+class _SeedDraft(TypedDict):
+    """Static seed data shape for demo draft regulations."""
+
+    title: str
+    jurisdiction: str
+    source_url: str
+    draft_text: str
+    status: str
+    sponsoring_body: str
+
+
+_SEED_DRAFTS: list[_SeedDraft] = [
     {
         "title": "EU AI Act — High-Risk AI Systems Amendment",
         "jurisdiction": "EU",

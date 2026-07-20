@@ -337,7 +337,7 @@ class PolicyMarketplaceService:
             "price_desc": lambda p: -p.price_usd,
         }
         key_fn = sort_keys.get(sort, sort_keys["popular"])
-        packs.sort(key=key_fn, reverse=sort not in ("price_asc",))
+        packs.sort(key=key_fn, reverse=sort != "price_asc")
 
         return packs[offset : offset + limit]
 

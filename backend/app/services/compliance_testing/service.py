@@ -2,6 +2,7 @@
 
 import hashlib
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -116,7 +117,7 @@ class ComplianceTestingService:
         violations_found = 0
         false_positives = 0
         false_negatives = 0
-        edge_cases: list[dict] = []
+        edge_cases: list[dict[str, Any]] = []
 
         for i in range(iterations):
             # Generate deterministic pseudo-random code from iteration hash

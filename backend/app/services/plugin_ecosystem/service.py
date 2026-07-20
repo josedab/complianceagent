@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import (
     HookPoint,
@@ -20,6 +20,9 @@ from .models import (
 
 
 logger = structlog.get_logger(__name__)
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class PluginEcosystemService:

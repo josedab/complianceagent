@@ -715,7 +715,7 @@ class ComplianceSimulator:
             engineering_cost_usd=round(eng_cost, 2),
             legal_review_hours=round(legal_hours, 1),
             legal_cost_usd=round(legal_cost, 2),
-            tooling_cost_usd=round(tooling, 2),
+            tooling_cost_usd=tooling,
             training_cost_usd=round(training, 2),
             total_cost_usd=round(total, 2),
             timeline_weeks=round(timeline, 1),
@@ -723,7 +723,7 @@ class ComplianceSimulator:
             breakdown={
                 "engineering": round(eng_cost, 2),
                 "legal": round(legal_cost, 2),
-                "tooling": round(tooling, 2),
+                "tooling": tooling,
                 "training": round(training, 2),
             },
         )
@@ -769,7 +769,7 @@ class ComplianceSimulator:
                 edges.append({"source": "origin", "target": node_id})
 
         # Distance 2: affected teams/services
-        categories = set(issue.category or "general" for issue in result.new_issues)
+        categories = {issue.category or "general" for issue in result.new_issues}
         for cat in categories:
             node_id = f"team-{cat}"
             impact = (
@@ -834,7 +834,7 @@ class ComplianceSimulator:
 
         # Aggregate scenario results
         completed = [r for r in self._results.values() if r.completed_at]
-        active = [s for s in self._scenarios.values()]
+        active = list(self._scenarios.values())
 
         # Score trend from completed simulations
         score_trend = []

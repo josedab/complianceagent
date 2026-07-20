@@ -137,7 +137,7 @@ class KnowledgeAssistantService:
     def _classify_intent(self, content: str) -> tuple[str, ResponseConfidence]:
         """Classify the intent of a user message using keyword matching."""
         content_lower = content.lower()
-        for keyword, knowledge in _KNOWLEDGE_BASE.items():
+        for keyword in _KNOWLEDGE_BASE:
             if keyword in content_lower:
                 return keyword, ResponseConfidence.high
         compliance_terms = ["compliance", "regulation", "audit", "control", "policy", "risk"]

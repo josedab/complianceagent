@@ -1,11 +1,14 @@
 """Compliance Posture Scoring & Benchmarking Service."""
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
+from uuid import UUID
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.secondary_persistence import PostureScoreRecord
 from app.services.posture_scoring.models import (
     BenchmarkTier,
     DimensionDetail,
@@ -18,10 +21,6 @@ from app.services.posture_scoring.models import (
     ScoreDimension,
     ScoreHistory,
 )
-
-
-if TYPE_CHECKING:
-    from uuid import UUID
 
 
 logger = structlog.get_logger()
@@ -80,17 +79,46 @@ _DIMENSION_WEIGHTS: dict[ScoreDimension, float] = {
 }
 
 
+def _record_to_posture_score(record: PostureScoreRecord) -> PostureScore:
+    breakdown = record.score_breakdown or {}
+    return PostureScore(
+        id=record.id,
+        overall_score=record.score,
+        grade=record.grade,
+        dimensions=[
+            DimensionScore(
+                dimension=ScoreDimension(item["dimension"]),
+                score=item["score"],
+                weight=item["weight"],
+                findings=item.get("findings", 0),
+                recommendations=item.get("recommendations", []),
+            )
+            for item in breakdown.get("dimensions", [])
+        ],
+        framework_scores=breakdown.get("framework_scores", {}),
+        trend_7d=breakdown.get("trend_7d", 0.0),
+        trend_30d=breakdown.get("trend_30d", 0.0),
+        percentile=breakdown.get("percentile", 0.0),
+        tier=BenchmarkTier(breakdown.get("tier", BenchmarkTier.TOP_50.value)),
+        industry=breakdown.get("industry", ""),
+        computed_at=record.created_at,
+    )
+
+
 class PostureScoringService:
     """Multi-dimensional compliance posture scoring and benchmarking."""
 
-    def __init__(self, db: AsyncSession, copilot_client: object | None = None):
+    def __init__(
+        self,
+        db: AsyncSession,
+        copilot_client: object | None = None,
+        organization_id: UUID | None = None,
+    ):
         self.db = db
         self.copilot = copilot_client
-        self._scores: list[PostureScore] = []
-        self._reports: dict[UUID, PostureReport] = {}
+        self.organization_id = organization_id
 
     async def compute_score(self, industry: str = "saas") -> PostureScore:
-        """Compute comprehensive compliance posture score."""
         dimensions = self._evaluate_dimensions()
         overall = sum(d.score * _DIMENSION_WEIGHTS.get(d.dimension, 0.1) for d in dimensions)
         grade = self._score_to_grade(overall)
@@ -98,7 +126,6 @@ class PostureScoringService:
         benchmark = _INDUSTRY_BENCHMARKS.get(industry.lower())
         percentile = self._compute_percentile(overall, benchmark) if benchmark else 50.0
         tier = self._percentile_to_tier(percentile)
-
         framework_scores = {
             "gdpr": 88.0,
             "hipaa": 76.0,
@@ -107,29 +134,73 @@ class PostureScoringService:
             "eu_ai_act": 68.0,
         }
 
-        prev_score = self._scores[-1].overall_score if self._scores else overall
-        trend_7d = overall - prev_score
+        stmt = (
+            select(PostureScoreRecord)
+            .where(PostureScoreRecord.organization_id == self.organization_id)
+            .order_by(PostureScoreRecord.created_at.desc())
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        previous = result.scalar_one_or_none()
+        previous_score = previous.score if previous else overall
+        trend_7d = round(overall - previous_score, 1)
+        trend_30d = round(trend_7d * 2.5, 1)
 
         score = PostureScore(
             overall_score=round(overall, 1),
             grade=grade,
             dimensions=dimensions,
             framework_scores=framework_scores,
-            trend_7d=round(trend_7d, 1),
-            trend_30d=round(trend_7d * 2.5, 1),
+            trend_7d=trend_7d,
+            trend_30d=trend_30d,
             percentile=round(percentile, 1),
             tier=tier,
             industry=industry,
             computed_at=datetime.now(UTC),
         )
-        self._scores.append(score)
+        record = PostureScoreRecord(
+            id=score.id,
+            organization_id=self.organization_id,
+            regulation="composite",
+            score=score.overall_score,
+            grade=score.grade,
+            controls_passing=sum(1 for dimension in dimensions if dimension.score >= 75),
+            controls_total=len(dimensions),
+            score_breakdown={
+                "dimensions": [
+                    {
+                        "dimension": dimension.dimension.value,
+                        "score": dimension.score,
+                        "weight": dimension.weight,
+                        "findings": dimension.findings,
+                        "recommendations": dimension.recommendations,
+                    }
+                    for dimension in dimensions
+                ],
+                "framework_scores": framework_scores,
+                "trend_7d": trend_7d,
+                "trend_30d": trend_30d,
+                "percentile": score.percentile,
+                "tier": score.tier.value,
+                "industry": industry,
+            },
+        )
+        self.db.add(record)
+        await self.db.flush()
         logger.info(
             "Posture score computed", score=score.overall_score, grade=grade, percentile=percentile
         )
-        return score
+        return _record_to_posture_score(record)
 
     async def get_history(self, limit: int = 30) -> list[PostureScore]:
-        return list(reversed(self._scores[-limit:]))
+        stmt = (
+            select(PostureScoreRecord)
+            .where(PostureScoreRecord.organization_id == self.organization_id)
+            .order_by(PostureScoreRecord.created_at.desc())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return [_record_to_posture_score(record) for record in result.scalars().all()]
 
     async def get_benchmark(self, industry: str) -> IndustryBenchmark | None:
         return _INDUSTRY_BENCHMARKS.get(industry.lower())
@@ -138,28 +209,22 @@ class PostureScoringService:
         return list(_INDUSTRY_BENCHMARKS.keys())
 
     async def generate_report(
-        self,
-        industry: str = "saas",
-        report_format: str = "html",
+        self, industry: str = "saas", report_format: str = "html"
     ) -> PostureReport:
-        """Generate executive compliance posture report."""
         score = await self.compute_score(industry=industry)
         benchmark = _INDUSTRY_BENCHMARKS.get(industry.lower())
-
-        highlights = []
-        action_items = []
-
-        for dim in sorted(score.dimensions, key=lambda d: d.score, reverse=True):
-            if dim.score >= 85:
+        highlights: list[str] = []
+        action_items: list[str] = []
+        for dimension in sorted(score.dimensions, key=lambda item: item.score, reverse=True):
+            if dimension.score >= 85:
                 highlights.append(
-                    f"Strong {dim.dimension.value.replace('_', ' ')}: {dim.score:.0f}/100"
+                    f"Strong {dimension.dimension.value.replace('_', ' ')}: {dimension.score:.0f}/100"
                 )
-            elif dim.score < 70:
+            elif dimension.score < 70:
                 action_items.append(
-                    f"Improve {dim.dimension.value.replace('_', ' ')} (currently {dim.score:.0f}/100)"
+                    f"Improve {dimension.dimension.value.replace('_', ' ')} (currently {dimension.score:.0f}/100)"
                 )
-                action_items.extend(dim.recommendations[:2])
-
+                action_items.extend(dimension.recommendations[:2])
         if benchmark:
             if score.percentile >= 75:
                 highlights.append(f"Top {100 - score.percentile:.0f}% in {industry} industry")
@@ -167,8 +232,7 @@ class PostureScoringService:
                 action_items.append(
                     f"Below {industry} median ({benchmark.median_score}); target {benchmark.p75_score}"
                 )
-
-        report = PostureReport(
+        return PostureReport(
             title=f"Compliance Posture Report — {industry.title()}",
             posture=score,
             benchmark=benchmark,
@@ -177,11 +241,8 @@ class PostureScoringService:
             generated_at=datetime.now(UTC),
             format=report_format,
         )
-        self._reports[report.id] = report
-        return report
 
     def _evaluate_dimensions(self) -> list[DimensionScore]:
-        """Evaluate each compliance dimension."""
         evals: dict[ScoreDimension, tuple[float, list[str]]] = {
             ScoreDimension.DATA_PRIVACY: (
                 82.0,
@@ -205,12 +266,12 @@ class PostureScoringService:
         }
         return [
             DimensionScore(
-                dimension=dim,
+                dimension=dimension,
                 score=score,
-                weight=_DIMENSION_WEIGHTS.get(dim, 0.1),
-                recommendations=recs,
+                weight=_DIMENSION_WEIGHTS.get(dimension, 0.1),
+                recommendations=recommendations,
             )
-            for dim, (score, recs) in evals.items()
+            for dimension, (score, recommendations) in evals.items()
         ]
 
     @staticmethod
@@ -259,10 +320,7 @@ class PostureScoringService:
             return BenchmarkTier.BOTTOM_50
         return BenchmarkTier.BOTTOM_25
 
-    # ── Dynamic Posture Scoring ──────────────────────────────────────────
-
     def compute_dynamic_score(self, repo: str = "default") -> DynamicPostureScore:
-        """Compute a dynamic posture score based on real findings."""
         dimension_configs = [
             {
                 "name": "Privacy & Data Protection",
@@ -284,15 +342,12 @@ class PostureScoringService:
             {"name": "Vendor Management", "weight": 0.11, "base": 78, "findings": 3, "critical": 0},
             {"name": "Documentation", "weight": 0.12, "base": 85, "findings": 2, "critical": 0},
         ]
-
         dimensions = []
         weighted_total = 0.0
-
         for config in dimension_configs:
             score = max(0, config["base"] - config["critical"] * 5 - config["findings"] * 2)
             grade = self._dynamic_grade(score)
             trend = "improving" if score > 80 else "degrading" if score < 70 else "stable"
-
             drivers: list[dict[str, Any]] = []
             if config["critical"] > 0:
                 drivers.append(
@@ -310,7 +365,6 @@ class PostureScoringService:
                 )
             if score >= 85:
                 drivers.append({"driver": "Strong controls in place", "impact": 0})
-
             dimensions.append(
                 DimensionDetail(
                     dimension=config["name"],
@@ -322,21 +376,17 @@ class PostureScoringService:
                     trend=trend,
                 )
             )
-
             weighted_total += score * config["weight"]
-
         overall = round(weighted_total, 1)
         overall_grade = self._dynamic_grade(overall)
-
         recommendations = []
-        for dim in sorted(dimensions, key=lambda d: d.score):
-            if dim.score < 80:
+        for dimension in sorted(dimensions, key=lambda item: item.score):
+            if dimension.score < 80:
                 recommendations.append(
-                    f"Improve {dim.dimension}: currently {dim.grade} ({dim.score}%)"
+                    f"Improve {dimension.dimension}: currently {dimension.grade} ({dimension.score}%)"
                 )
             if len(recommendations) >= 3:
                 break
-
         return DynamicPostureScore(
             overall_score=overall,
             overall_grade=overall_grade,
@@ -347,7 +397,6 @@ class PostureScoringService:
 
     @staticmethod
     def _dynamic_grade(score: float) -> str:
-        """Convert numeric score to letter grade for dynamic scoring."""
         if score >= 90:
             return "A"
         if score >= 80:
@@ -358,16 +407,10 @@ class PostureScoringService:
             return "D"
         return "F"
 
-    # ── Industry Benchmarking ────────────────────────────────────────────
-
     def get_dynamic_benchmark(
-        self,
-        industry: str,
-        repo: str = "default",
+        self, industry: str, repo: str = "default"
     ) -> DynamicIndustryBenchmark:
-        """Get benchmark comparison against industry peers."""
         your_score = self.compute_dynamic_score(repo).overall_score
-
         benchmarks = {
             "fintech": {"avg": 78.5, "median": 80.0, "p75": 85.0, "p90": 92.0, "peers": 1250},
             "healthtech": {"avg": 74.2, "median": 76.0, "p75": 82.0, "p90": 89.0, "peers": 830},
@@ -375,10 +418,7 @@ class PostureScoringService:
             "ecommerce": {"avg": 70.5, "median": 72.0, "p75": 78.0, "p90": 85.0, "peers": 1680},
             "ai_company": {"avg": 68.0, "median": 70.0, "p75": 76.0, "p90": 83.0, "peers": 450},
         }
-
         data = benchmarks.get(industry, benchmarks["saas"])
-
-        # Calculate percentile
         if your_score >= data["p90"]:
             percentile = 90 + (your_score - data["p90"]) / (100 - data["p90"]) * 10
         elif your_score >= data["p75"]:
@@ -389,7 +429,6 @@ class PostureScoringService:
             percentile = 35 + (your_score - data["avg"]) / (data["median"] - data["avg"]) * 15
         else:
             percentile = max(5, your_score / data["avg"] * 35)
-
         dim_comparison = [
             {"dimension": "Privacy", "your_score": 77.0, "industry_avg": data["avg"] - 2},
             {"dimension": "Security", "your_score": 88.0, "industry_avg": data["avg"] + 3},
@@ -397,7 +436,6 @@ class PostureScoringService:
             {"dimension": "Access Control", "your_score": 91.0, "industry_avg": data["avg"] + 5},
             {"dimension": "Incident Response", "your_score": 62.0, "industry_avg": data["avg"] - 3},
         ]
-
         return DynamicIndustryBenchmark(
             industry=industry,
             your_score=your_score,
@@ -410,15 +448,11 @@ class PostureScoringService:
             dimension_comparison=dim_comparison,
         )
 
-    # ── Score History ────────────────────────────────────────────────────
-
     def get_score_history(self, repo: str = "default") -> ScoreHistory:
-        """Get historical posture scores for trend tracking."""
         from datetime import timedelta
 
         current = self.compute_dynamic_score(repo)
         now = datetime.now(UTC)
-
         history = []
         base_score = current.overall_score - 5
         for i in range(12, 0, -1):
@@ -439,25 +473,20 @@ class PostureScoringService:
                 "grade": current.overall_grade,
             }
         )
-
-        scores = [h["score"] for h in history]
+        scores = [item["score"] for item in history]
         first_half = scores[: len(scores) // 2]
         second_half = scores[len(scores) // 2 :]
         first_avg = sum(first_half) / len(first_half) if first_half else 0
         second_avg = sum(second_half) / len(second_half) if second_half else 0
-
         if second_avg > first_avg + 2:
             trend = "improving"
         elif second_avg < first_avg - 2:
             trend = "degrading"
         else:
             trend = "stable"
-
-        improvement = round(second_avg - first_avg, 2)
-
         return ScoreHistory(
             repo=repo,
             history=history,
             trend=trend,
-            improvement_rate=improvement,
+            improvement_rate=round(second_avg - first_avg, 2),
         )

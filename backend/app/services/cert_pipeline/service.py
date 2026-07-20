@@ -4,8 +4,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.critical_persistence import CertControlGapRecord, CertificationRunRecord
 from app.services.cert_pipeline.models import (
     CertFramework,
     CertificationRun,
@@ -43,15 +45,57 @@ _FRAMEWORK_CONTROLS: dict[CertFramework, list[dict]] = {
     ],
 }
 
+_VALID_RUN_TRANSITIONS: dict[str, set[str]] = {
+    "gap_analysis": {"evidence_collection"},
+    "evidence_collection": {"report_generation"},
+    "report_generation": {"auditor_review"},
+    "auditor_review": {"remediation"},
+    "remediation": {"certification"},
+    "certification": {"completed"},
+}
+
+
+def _run_record_to_domain(rec: CertificationRunRecord) -> CertificationRun:
+    meta = rec.run_metadata or {}
+    return CertificationRun(
+        id=rec.id,
+        framework=CertFramework(rec.regulation),
+        stage=CertStage(rec.status),
+        stages_completed=meta.get("stages_completed", []),
+        total_controls=rec.controls_total,
+        controls_met=rec.controls_passed,
+        gaps_found=rec.controls_failed,
+        gaps_resolved=meta.get("gaps_resolved", 0),
+        evidence_collected=meta.get("evidence_collected", 0),
+        readiness_pct=rec.score or 0.0,
+        auditor_assigned=meta.get("auditor_assigned", ""),
+        target_date=meta.get("target_date", ""),
+        started_at=rec.created_at,
+        completed_at=rec.completed_at,
+    )
+
+
+def _gap_record_to_domain(rec: CertControlGapRecord) -> ControlGap:
+    meta = rec.gap_metadata or {}
+    return ControlGap(
+        id=rec.id,
+        run_id=rec.run_id,
+        control_id=rec.control_id,
+        control_name=meta.get("control_name", ""),
+        gap_description=rec.description,
+        status=GapStatus(meta.get("status", "open")),
+        remediation_plan=rec.remediation_hint or "",
+        evidence_needed=meta.get("evidence_needed", []),
+        priority=rec.severity,
+    )
+
 
 class CertPipelineService:
     """End-to-end certification pipeline."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, organization_id: UUID | None = None):
         self.db = db
-        self._runs: dict[str, CertificationRun] = {}
-        self._gaps: list[ControlGap] = []
-        self._reports: list[CertReport] = []
+        self.organization_id = organization_id
 
     async def start_certification(
         self, framework: str, target_date: str = "", auditor: str = ""
@@ -69,7 +113,6 @@ class CertPipelineService:
             started_at=now,
         )
 
-        # Auto gap analysis
         gaps = []
         met = 0
         for ctrl in controls:
@@ -91,14 +134,51 @@ class CertPipelineService:
             else:
                 met += 1
 
-        self._gaps.extend(gaps)
         run.controls_met = met
         run.gaps_found = len(gaps)
         run.readiness_pct = round(met / len(controls) * 100, 1) if controls else 0
         run.stages_completed.append("gap_analysis")
         run.stage = CertStage.EVIDENCE_COLLECTION
 
-        self._runs[str(run.id)] = run
+        # Persist run
+        run_rec = CertificationRunRecord(
+            id=run.id,
+            organization_id=self.organization_id,
+            regulation=fw.value,
+            run_type="automated",
+            status=run.stage.value,
+            score=run.readiness_pct,
+            controls_total=run.total_controls,
+            controls_passed=met,
+            controls_failed=len(gaps),
+            run_metadata={
+                "stages_completed": run.stages_completed,
+                "auditor_assigned": auditor,
+                "target_date": target_date,
+                "gaps_resolved": 0,
+            },
+        )
+        self.db.add(run_rec)
+
+        # Persist gaps
+        for gap in gaps:
+            gap_rec = CertControlGapRecord(
+                id=gap.id,
+                organization_id=self.organization_id,
+                run_id=run.id,
+                control_id=gap.control_id,
+                severity=gap.priority,
+                description=gap.gap_description,
+                remediation_hint=gap.remediation_plan or None,
+                gap_metadata={
+                    "control_name": gap.control_name,
+                    "status": gap.status.value,
+                    "evidence_needed": gap.evidence_needed,
+                },
+            )
+            self.db.add(gap_rec)
+
+        await self.db.flush()
         logger.info(
             "Certification started",
             framework=framework,
@@ -108,54 +188,79 @@ class CertPipelineService:
         return run
 
     async def advance_stage(self, run_id: str) -> CertificationRun | None:
-        run = self._runs.get(run_id)
-        if not run:
+        rec = await self._get_run_record(run_id)
+        if not rec:
             return None
 
         stage_order = list(CertStage)
-        current_idx = stage_order.index(run.stage)
+        current_stage = CertStage(rec.status)
+        current_idx = stage_order.index(current_stage)
         if current_idx < len(stage_order) - 1:
-            run.stages_completed.append(run.stage.value)
-            run.stage = stage_order[current_idx + 1]
-            if run.stage == CertStage.COMPLETED:
-                run.completed_at = datetime.now(UTC)
-        return run
+            meta = dict(rec.run_metadata or {})
+            completed = list(meta.get("stages_completed", []))
+            completed.append(current_stage.value)
+            new_stage = stage_order[current_idx + 1]
+            rec.status = new_stage.value
+            meta["stages_completed"] = completed
+            rec.run_metadata = meta
+            if new_stage == CertStage.COMPLETED:
+                rec.completed_at = datetime.now(UTC)
+            await self.db.flush()
+
+        return _run_record_to_domain(rec)
 
     async def resolve_gap(self, gap_id: UUID, resolution: str = "") -> ControlGap | None:
-        for gap in self._gaps:
-            if gap.id == gap_id:
-                gap.status = GapStatus.RESOLVED
-                gap.remediation_plan = resolution
-                # Update run stats
-                for run in self._runs.values():
-                    if run.id == gap.run_id:
-                        run.gaps_resolved += 1
-                        run.controls_met += 1
-                        run.readiness_pct = (
-                            round(run.controls_met / run.total_controls * 100, 1)
-                            if run.total_controls
-                            else 0
-                        )
-                return gap
-        return None
+        stmt = select(CertControlGapRecord).where(
+            CertControlGapRecord.id == gap_id,
+            CertControlGapRecord.organization_id == self.organization_id,
+        )
+        result = await self.db.execute(stmt)
+        gap_rec = result.scalar_one_or_none()
+        if not gap_rec:
+            return None
 
-    def get_gaps(
+        meta = dict(gap_rec.gap_metadata or {})
+        meta["status"] = GapStatus.RESOLVED.value
+        gap_rec.gap_metadata = meta
+        gap_rec.remediation_hint = resolution or gap_rec.remediation_hint
+
+        # Update run stats
+        run_rec = await self._get_run_record(str(gap_rec.run_id))
+        if run_rec:
+            run_meta = dict(run_rec.run_metadata or {})
+            run_meta["gaps_resolved"] = run_meta.get("gaps_resolved", 0) + 1
+            run_rec.controls_passed = (run_rec.controls_passed or 0) + 1
+            run_rec.score = (
+                round(run_rec.controls_passed / run_rec.controls_total * 100, 1)
+                if run_rec.controls_total
+                else 0
+            )
+            run_rec.run_metadata = run_meta
+
+        await self.db.flush()
+        return _gap_record_to_domain(gap_rec)
+
+    async def get_gaps(
         self, run_id: str | None = None, status: GapStatus | None = None
     ) -> list[ControlGap]:
-        results = list(self._gaps)
+        stmt = select(CertControlGapRecord).where(
+            CertControlGapRecord.organization_id == self.organization_id,
+        )
         if run_id:
-            run = self._runs.get(run_id)
-            if run:
-                results = [g for g in results if g.run_id == run.id]
+            stmt = stmt.where(CertControlGapRecord.run_id == UUID(run_id))
+        result = await self.db.execute(stmt)
+        gaps = [_gap_record_to_domain(r) for r in result.scalars().all()]
         if status:
-            results = [g for g in results if g.status == status]
-        return results
+            gaps = [g for g in gaps if g.status == status]
+        return gaps
 
     async def generate_report(self, run_id: str) -> CertReport | None:
-        run = self._runs.get(run_id)
-        if not run:
+        rec = await self._get_run_record(run_id)
+        if not rec:
             return None
-        open_gaps = sum(1 for g in self._gaps if g.run_id == run.id and g.status == GapStatus.OPEN)
+        run = _run_record_to_domain(rec)
+        gaps = await self.get_gaps(run_id=run_id)
+        open_gaps = sum(1 for g in gaps if g.status == GapStatus.OPEN)
         recommendations = []
         if open_gaps > 0:
             recommendations.append(f"Resolve {open_gaps} open control gaps before audit")
@@ -165,7 +270,7 @@ class CertPipelineService:
             )
         recommendations.append("Schedule pre-audit readiness review with auditor")
 
-        report = CertReport(
+        return CertReport(
             run_id=run.id,
             framework=run.framework.value,
             readiness_pct=run.readiness_pct,
@@ -179,35 +284,46 @@ class CertPipelineService:
             recommendations=recommendations,
             generated_at=datetime.now(UTC),
         )
-        self._reports.append(report)
-        return report
 
-    def get_run(self, run_id: str) -> CertificationRun | None:
-        return self._runs.get(run_id)
+    async def get_run(self, run_id: str) -> CertificationRun | None:
+        rec = await self._get_run_record(run_id)
+        return _run_record_to_domain(rec) if rec else None
 
-    def list_runs(self, framework: CertFramework | None = None) -> list[CertificationRun]:
-        results = list(self._runs.values())
+    async def list_runs(self, framework: CertFramework | None = None) -> list[CertificationRun]:
+        stmt = select(CertificationRunRecord).where(
+            CertificationRunRecord.organization_id == self.organization_id,
+        )
         if framework:
-            results = [r for r in results if r.framework == framework]
-        return results
+            stmt = stmt.where(CertificationRunRecord.regulation == framework.value)
+        result = await self.db.execute(stmt)
+        return [_run_record_to_domain(r) for r in result.scalars().all()]
 
-    def get_stats(self) -> CertPipelineStats:
+    async def get_stats(self) -> CertPipelineStats:
+        runs = await self.list_runs()
         by_fw: dict[str, int] = {}
         by_stage: dict[str, int] = {}
         readiness = []
         total_gaps = 0
         resolved = 0
-        for r in self._runs.values():
+        for r in runs:
             by_fw[r.framework.value] = by_fw.get(r.framework.value, 0) + 1
             by_stage[r.stage.value] = by_stage.get(r.stage.value, 0) + 1
             readiness.append(r.readiness_pct)
             total_gaps += r.gaps_found
             resolved += r.gaps_resolved
         return CertPipelineStats(
-            total_runs=len(self._runs),
+            total_runs=len(runs),
             by_framework=by_fw,
             by_stage=by_stage,
             avg_readiness_pct=round(sum(readiness) / len(readiness), 1) if readiness else 0.0,
             total_gaps_found=total_gaps,
             total_gaps_resolved=resolved,
         )
+
+    async def _get_run_record(self, run_id: str) -> CertificationRunRecord | None:
+        stmt = select(CertificationRunRecord).where(
+            CertificationRunRecord.id == UUID(run_id),
+            CertificationRunRecord.organization_id == self.organization_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()

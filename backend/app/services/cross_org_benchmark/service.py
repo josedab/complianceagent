@@ -137,10 +137,10 @@ def _apply_laplace_noise(
     """
     scale = sensitivity / epsilon
     if seed is not None:
-        rng = random.Random(seed)
+        rng = random.Random(seed)  # noqa: S311 - deterministic privacy tests
     else:
         hash_val = int(hashlib.sha256(str(value).encode()).hexdigest()[:8], 16)
-        rng = random.Random(hash_val)
+        rng = random.Random(hash_val)  # noqa: S311 - deterministic per-value noise
 
     # Sample from Laplace distribution via inverse CDF
     u = rng.random() - 0.5

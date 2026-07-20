@@ -1,6 +1,7 @@
 """Compliance Debt Tracker Service."""
 
 from datetime import UTC, datetime
+from typing import TypedDict
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,23 @@ from app.services.compliance_debt.models import (
 
 logger = structlog.get_logger()
 
-_SEED_DEBT_ITEMS: list[dict] = [
+
+class _SeedDebtItem(TypedDict):
+    """Static seed data shape for demo compliance debt items."""
+
+    title: str
+    description: str
+    framework: str
+    rule_id: str
+    file_path: str
+    severity: str
+    risk_cost_usd: float
+    remediation_cost_usd: float
+    days_open: int
+    repo: str
+
+
+_SEED_DEBT_ITEMS: list[_SeedDebtItem] = [
     {
         "title": "Unencrypted PII in user_profiles table",
         "description": "Personal data stored without column-level encryption",

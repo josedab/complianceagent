@@ -594,7 +594,7 @@ class ClientSDKService:
                     {
                         "step": 4,
                         "title": "Explore Endpoints",
-                        "description": f"Browse {len(_SDK_ENDPOINTS)} available endpoints across {len(set(e.category for e in _SDK_ENDPOINTS))} categories",
+                        "description": f"Browse {len(_SDK_ENDPOINTS)} available endpoints across {len({e.category for e in _SDK_ENDPOINTS})} categories",
                     },
                 ],
             },
@@ -605,7 +605,7 @@ class ClientSDKService:
             "api_reference": {
                 "base_url": "https://api.complianceagent.ai/v1",
                 "auth_methods": ["API Key", "OAuth2 Client Credentials"],
-                "categories": list(set(e.category for e in _SDK_ENDPOINTS)),
+                "categories": list({e.category for e in _SDK_ENDPOINTS}),
                 "total_endpoints": len(_SDK_ENDPOINTS),
             },
             "rate_limits": {

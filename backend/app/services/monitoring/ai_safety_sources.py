@@ -447,9 +447,7 @@ class AIRiskClassifier:
         return AISystemClassification(
             risk_level=risk_level,
             confidence=confidence,
-            reasons=reasons
-            if reasons
-            else ["AI/ML system detected, classified based on use case indicators"],
+            reasons=reasons or ["AI/ML system detected, classified based on use case indicators"],
             detected_patterns=detected_patterns,
             high_risk_areas=list(set(high_risk_areas)),
             applicable_requirements=applicable_requirements,

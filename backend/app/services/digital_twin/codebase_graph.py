@@ -334,7 +334,7 @@ class CodebaseGraphBuilder:
         # Create file node
         file_node = CodeNode(
             node_type=CodeNodeType.FILE,
-            name=file_path.split("/")[-1],
+            name=file_path.rsplit("/", maxsplit=1)[-1],
             qualified_name=file_path,
             file_path=file_path,
             language=language,

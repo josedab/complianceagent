@@ -2,6 +2,7 @@
 
 import hashlib
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,10 +48,10 @@ class MultiLLMParserService:
             active = [p for p in active if p.provider.value in providers]
 
         # Simulate provider results (deterministic based on text hash)
-        provider_results = []
+        provider_results: list[ProviderResult] = []
         for prov in active:
-            result = self._simulate_provider(prov, text)
-            provider_results.append(result)
+            provider_result = self._simulate_provider(prov, text)
+            provider_results.append(provider_result)
 
         # Build consensus
         consensus_reqs, agreement, divergences = self._build_consensus(provider_results, strat)
@@ -141,7 +142,7 @@ class MultiLLMParserService:
 
     def _build_consensus(
         self, results: list[ProviderResult], strategy: ConsensusStrategy
-    ) -> tuple[list[dict], float, list[dict]]:
+    ) -> tuple[list[dict[str, Any]], float, list[dict[str, Any]]]:
         if not results:
             return [], 0.0, []
 

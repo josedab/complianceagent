@@ -4,8 +4,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.user_state import AgentMarketplaceRecord
 from app.services.agents_marketplace.models import (
     AgentCategory,
     AgentInstallation,
@@ -102,15 +104,46 @@ _SEED_AGENTS: list[MarketplaceAgent] = [
     ),
 ]
 
+_SEED_AGENT_BY_SLUG = {agent.slug: agent for agent in _SEED_AGENTS}
+
+
+def _parse_datetime(value: str | None) -> datetime | None:
+    return datetime.fromisoformat(value) if value else None
+
+
+def _record_to_installation(record: AgentMarketplaceRecord) -> AgentInstallation:
+    meta = record.agent_metadata or {}
+    agent_id = UUID(meta["agent_id"]) if meta.get("agent_id") else UUID(int=0)
+    return AgentInstallation(
+        id=record.id,
+        agent_id=agent_id,
+        organization_id=str(record.organization_id),
+        status=InstallStatus(record.status),
+        config=meta.get("config", {}),
+        installed_at=record.created_at,
+        last_executed_at=_parse_datetime(meta.get("last_executed_at")),
+        execution_count=meta.get("execution_count", 0),
+    )
+
+
+def _record_to_review(payload: dict) -> AgentReview:
+    return AgentReview(
+        id=UUID(payload["id"]),
+        agent_id=UUID(payload["agent_id"]),
+        reviewer=payload.get("reviewer", ""),
+        rating=payload.get("rating", 5),
+        comment=payload.get("comment", ""),
+        created_at=_parse_datetime(payload.get("created_at")),
+    )
+
 
 class AgentsMarketplaceService:
     """Marketplace for third-party compliance agents."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, organization_id: UUID | None = None):
         self.db = db
-        self._agents: dict[str, MarketplaceAgent] = {a.slug: a for a in _SEED_AGENTS}
-        self._installations: list[AgentInstallation] = []
-        self._reviews: list[AgentReview] = []
+        self.organization_id = organization_id
+        self._agents: dict[str, MarketplaceAgent] = dict(_SEED_AGENT_BY_SLUG)
 
     async def publish_agent(
         self,
@@ -163,19 +196,23 @@ class AgentsMarketplaceService:
         framework: str | None = None,
         limit: int = 20,
     ) -> list[MarketplaceAgent]:
-        results = [a for a in self._agents.values() if a.status == AgentStatus.PUBLISHED]
+        results = [
+            agent for agent in self._agents.values() if agent.status == AgentStatus.PUBLISHED
+        ]
         if query:
             q = query.lower()
             results = [
-                a
-                for a in results
-                if q in a.name.lower() or q in a.description.lower() or q in " ".join(a.tags)
+                agent
+                for agent in results
+                if q in agent.name.lower()
+                or q in agent.description.lower()
+                or q in " ".join(agent.tags)
             ]
         if category:
-            results = [a for a in results if a.category == category]
+            results = [agent for agent in results if agent.category == category]
         if framework:
-            results = [a for a in results if framework in a.frameworks]
-        return sorted(results, key=lambda a: a.downloads, reverse=True)[:limit]
+            results = [agent for agent in results if framework in agent.frameworks]
+        return sorted(results, key=lambda agent: agent.downloads, reverse=True)[:limit]
 
     def get_agent(self, slug: str) -> MarketplaceAgent | None:
         return self._agents.get(slug)
@@ -189,70 +226,144 @@ class AgentsMarketplaceService:
         agent = self._agents.get(slug)
         if not agent or agent.status != AgentStatus.PUBLISHED:
             return None
+        install_org_id = UUID(organization_id)
         installation = AgentInstallation(
             agent_id=agent.id,
             organization_id=organization_id,
             config=config or {},
             installed_at=datetime.now(UTC),
         )
+        record = AgentMarketplaceRecord(
+            id=installation.id,
+            organization_id=install_org_id,
+            name=agent.name,
+            description=agent.description,
+            agent_type=agent.category.value,
+            version=agent.version,
+            status=installation.status.value,
+            capabilities=list(agent.frameworks),
+            rating=agent.rating,
+            install_count=1,
+            agent_metadata={
+                "slug": agent.slug,
+                "agent_id": str(agent.id),
+                "author": agent.author,
+                "mcp_tool_name": agent.mcp_tool_name,
+                "tags": agent.tags,
+                "frameworks": agent.frameworks,
+                "config": installation.config,
+                "execution_count": 0,
+                "reviews": [],
+            },
+        )
+        self.db.add(record)
+        await self.db.flush()
         agent.downloads += 1
-        self._installations.append(installation)
         logger.info("Agent installed", slug=slug, org=organization_id)
-        return installation
+        return _record_to_installation(record)
 
     async def uninstall_agent(self, installation_id: UUID) -> bool:
-        for inst in self._installations:
-            if inst.id == installation_id:
-                inst.status = InstallStatus.UNINSTALLED
-                return True
-        return False
+        stmt = select(AgentMarketplaceRecord).where(
+            AgentMarketplaceRecord.id == installation_id,
+            AgentMarketplaceRecord.organization_id == self.organization_id,
+        )
+        result = await self.db.execute(stmt)
+        record = result.scalar_one_or_none()
+        if not record:
+            return False
+        record.status = InstallStatus.UNINSTALLED.value
+        await self.db.flush()
+        return True
 
-    def list_installations(self, organization_id: str | None = None) -> list[AgentInstallation]:
-        results = self._installations
-        if organization_id:
-            results = [i for i in results if i.organization_id == organization_id]
-        return [i for i in results if i.status == InstallStatus.INSTALLED]
+    async def list_installations(
+        self, organization_id: str | None = None
+    ) -> list[AgentInstallation]:
+        target_org_id = UUID(organization_id) if organization_id else self.organization_id
+        stmt = select(AgentMarketplaceRecord).where(
+            AgentMarketplaceRecord.organization_id == target_org_id
+        )
+        result = await self.db.execute(stmt)
+        return [
+            _record_to_installation(record)
+            for record in result.scalars().all()
+            if record.status == InstallStatus.INSTALLED.value
+        ]
 
     async def rate_agent(
         self, slug: str, reviewer: str, rating: int, comment: str = ""
     ) -> AgentReview | None:
-        agent = self._agents.get(slug)
-        if not agent:
+        stmt = select(AgentMarketplaceRecord).where(
+            AgentMarketplaceRecord.organization_id == self.organization_id
+        )
+        result = await self.db.execute(stmt)
+        matching = [
+            record
+            for record in result.scalars().all()
+            if (record.agent_metadata or {}).get("slug") == slug
+        ]
+        if not matching:
             return None
+
+        target = max(matching, key=lambda record: record.created_at)
+        meta = dict(target.agent_metadata or {})
         review = AgentReview(
-            agent_id=agent.id,
+            agent_id=UUID(meta.get("agent_id", str(target.id))),
             reviewer=reviewer,
             rating=max(1, min(5, rating)),
             comment=comment,
             created_at=datetime.now(UTC),
         )
-        self._reviews.append(review)
-        agent_reviews = [r for r in self._reviews if r.agent_id == agent.id]
-        agent.rating = round(sum(r.rating for r in agent_reviews) / len(agent_reviews), 1)
-        agent.rating_count = len(agent_reviews)
+        reviews = list(meta.get("reviews", []))
+        reviews.append(
+            {
+                "id": str(review.id),
+                "agent_id": str(review.agent_id),
+                "reviewer": review.reviewer,
+                "rating": review.rating,
+                "comment": review.comment,
+                "created_at": review.created_at.isoformat() if review.created_at else None,
+            }
+        )
+        meta["reviews"] = reviews
+        target.agent_metadata = meta
+        target.rating = round(sum(item["rating"] for item in reviews) / len(reviews), 1)
+        await self.db.flush()
         return review
 
-    def get_reviews(self, slug: str) -> list[AgentReview]:
-        agent = self._agents.get(slug)
-        if not agent:
-            return []
-        return [r for r in self._reviews if r.agent_id == agent.id]
+    async def get_reviews(self, slug: str) -> list[AgentReview]:
+        stmt = select(AgentMarketplaceRecord).where(
+            AgentMarketplaceRecord.organization_id == self.organization_id
+        )
+        result = await self.db.execute(stmt)
+        reviews: list[AgentReview] = []
+        for record in result.scalars().all():
+            meta = record.agent_metadata or {}
+            if meta.get("slug") != slug:
+                continue
+            reviews.extend(_record_to_review(item) for item in meta.get("reviews", []))
+        return sorted(
+            reviews,
+            key=lambda review: review.created_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
+        )
 
-    def get_stats(self) -> MarketplaceStats:
-        published = [a for a in self._agents.values() if a.status == AgentStatus.PUBLISHED]
+    async def get_stats(self) -> MarketplaceStats:
+        installations = await self.list_installations()
+        published = [
+            agent for agent in self._agents.values() if agent.status == AgentStatus.PUBLISHED
+        ]
         by_cat: dict[str, int] = {}
-        for a in published:
-            by_cat[a.category.value] = by_cat.get(a.category.value, 0) + 1
-        top = sorted(published, key=lambda a: a.downloads, reverse=True)[:5]
+        for agent in published:
+            by_cat[agent.category.value] = by_cat.get(agent.category.value, 0) + 1
+        top = sorted(published, key=lambda agent: agent.downloads, reverse=True)[:5]
         return MarketplaceStats(
             total_agents=len(self._agents),
             published_agents=len(published),
-            total_installations=sum(
-                1 for i in self._installations if i.status == InstallStatus.INSTALLED
-            ),
-            total_executions=sum(i.execution_count for i in self._installations),
+            total_installations=len(installations),
+            total_executions=sum(installation.execution_count for installation in installations),
             by_category=by_cat,
             top_agents=[
-                {"name": a.name, "downloads": a.downloads, "rating": a.rating} for a in top
+                {"name": agent.name, "downloads": agent.downloads, "rating": agent.rating}
+                for agent in top
             ],
         )

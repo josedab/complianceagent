@@ -4,8 +4,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.user_state import CopilotSessionRecord
 from app.services.compliance_copilot.models import (
     CodebaseAnalysis,
     ComplianceViolation,
@@ -70,22 +72,71 @@ COMPLIANCE_PATTERNS = {
     ],
 }
 
+_EPHEMERAL_VIOLATIONS: dict[UUID, ComplianceViolation] = {}
+_EPHEMERAL_VIOLATION_ORDER: list[UUID] = []
+_EPHEMERAL_FIXES: dict[UUID, ProposedFix] = {}
+_EPHEMERAL_FIX_ORDER: list[UUID] = []
+
+
+def _record_to_session(record: CopilotSessionRecord) -> CopilotSession:
+    meta = record.session_metadata or {}
+    return CopilotSession(
+        id=record.id,
+        repo=meta.get("repo", ""),
+        user_id=str(record.user_id),
+        actions=meta.get("actions", []),
+        violations_found=meta.get("violations_found", 0),
+        fixes_proposed=meta.get("fixes_proposed", 0),
+        fixes_accepted=meta.get("fixes_accepted", 0),
+        started_at=record.created_at,
+        last_active_at=record.updated_at,
+    )
+
 
 class ComplianceCopilotService:
     """Agentic compliance assistant for codebase analysis and fixes."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(
+        self,
+        db: AsyncSession,
+        organization_id: UUID | None = None,
+        user_id: UUID | None = None,
+    ):
         self.db = db
-        self._sessions: dict[str, CopilotSession] = {}
-        self._violations: list[ComplianceViolation] = []
-        self._fixes: list[ProposedFix] = []
+        self.organization_id = organization_id
+        self.user_id = user_id
 
     async def start_session(self, repo: str, user_id: str = "") -> CopilotSession:
         now = datetime.now(UTC)
-        session = CopilotSession(repo=repo, user_id=user_id, started_at=now, last_active_at=now)
-        self._sessions[str(session.id)] = session
+        resolved_user_id = UUID(user_id) if user_id else self.user_id
+        if self.organization_id is None or resolved_user_id is None:
+            raise ValueError("organization_id and user_id are required to persist copilot sessions")
+
+        session = CopilotSession(
+            repo=repo,
+            user_id=str(resolved_user_id),
+            started_at=now,
+            last_active_at=now,
+        )
+        record = CopilotSessionRecord(
+            id=session.id,
+            organization_id=self.organization_id,
+            user_id=resolved_user_id,
+            session_type="compliance_copilot",
+            status="active",
+            message_count=0,
+            session_metadata={
+                "repo": repo,
+                "actions": session.actions,
+                "violations_found": 0,
+                "fixes_proposed": 0,
+                "fixes_accepted": 0,
+            },
+        )
+        self.db.add(record)
+        await self.db.flush()
         logger.info("Copilot session started", repo=repo, session_id=str(session.id))
-        return session
+        return _record_to_session(record)
 
     async def analyze_codebase(
         self,
@@ -97,7 +148,6 @@ class ComplianceCopilotService:
         target_frameworks = frameworks or ["GDPR", "HIPAA", "PCI-DSS"]
         violations: list[ComplianceViolation] = []
 
-        # Pattern-based analysis across frameworks
         for fw in target_frameworks:
             patterns = COMPLIANCE_PATTERNS.get(fw, [])
             for pattern_def in patterns:
@@ -111,10 +161,10 @@ class ComplianceCopilotService:
                     detected_at=datetime.now(UTC),
                 )
                 violations.append(violation)
+                _EPHEMERAL_VIOLATIONS[violation.id] = violation
+                _EPHEMERAL_VIOLATION_ORDER.append(violation.id)
 
-        self._violations.extend(violations)
         score = max(0.0, 100.0 - len(violations) * 5.0)
-
         analysis = CodebaseAnalysis(
             repo=repo,
             total_files=len(file_paths) if file_paths else 10,
@@ -129,12 +179,9 @@ class ComplianceCopilotService:
         )
         return analysis
 
-    async def propose_fix(
-        self,
-        violation_id: UUID,
-    ) -> ProposedFix:
+    async def propose_fix(self, violation_id: UUID) -> ProposedFix:
         """Generate a fix proposal for a specific violation."""
-        violation = next((v for v in self._violations if v.id == violation_id), None)
+        violation = _EPHEMERAL_VIOLATIONS.get(violation_id)
         if not violation:
             return ProposedFix(
                 violation_id=violation_id,
@@ -154,29 +201,24 @@ class ComplianceCopilotService:
             status=FixStatus.PROPOSED,
             created_at=datetime.now(UTC),
         )
-        self._fixes.append(fix)
+        _EPHEMERAL_FIXES[fix.id] = fix
+        _EPHEMERAL_FIX_ORDER.append(fix.id)
         logger.info("Fix proposed", violation_id=str(violation_id), framework=violation.framework)
         return fix
 
     async def accept_fix(self, fix_id: UUID) -> ProposedFix | None:
-        for fix in self._fixes:
-            if fix.id == fix_id:
-                fix.status = FixStatus.ACCEPTED
-                return fix
-        return None
+        fix = _EPHEMERAL_FIXES.get(fix_id)
+        if fix:
+            fix.status = FixStatus.ACCEPTED
+        return fix
 
     async def reject_fix(self, fix_id: UUID) -> ProposedFix | None:
-        for fix in self._fixes:
-            if fix.id == fix_id:
-                fix.status = FixStatus.REJECTED
-                return fix
-        return None
+        fix = _EPHEMERAL_FIXES.get(fix_id)
+        if fix:
+            fix.status = FixStatus.REJECTED
+        return fix
 
-    async def explain_regulation(
-        self,
-        regulation: str,
-        article: str = "",
-    ) -> RegulationExplanation:
+    async def explain_regulation(self, regulation: str, article: str = "") -> RegulationExplanation:
         """Explain a regulation article in plain language with code implications."""
         explanations = {
             "GDPR": {
@@ -233,8 +275,16 @@ class ComplianceCopilotService:
             related_articles=[],
         )
 
-    def get_session(self, session_id: str) -> CopilotSession | None:
-        return self._sessions.get(session_id)
+    async def get_session(self, session_id: str) -> CopilotSession | None:
+        stmt = select(CopilotSessionRecord).where(
+            CopilotSessionRecord.id == UUID(session_id),
+            CopilotSessionRecord.organization_id == self.organization_id,
+        )
+        if self.user_id is not None:
+            stmt = stmt.where(CopilotSessionRecord.user_id == self.user_id)
+        result = await self.db.execute(stmt)
+        record = result.scalar_one_or_none()
+        return _record_to_session(record) if record else None
 
     def list_violations(
         self,
@@ -242,15 +292,23 @@ class ComplianceCopilotService:
         severity: ViolationSeverity | None = None,
         limit: int = 50,
     ) -> list[ComplianceViolation]:
-        results = list(self._violations)
+        results = [
+            _EPHEMERAL_VIOLATIONS[violation_id]
+            for violation_id in _EPHEMERAL_VIOLATION_ORDER
+            if violation_id in _EPHEMERAL_VIOLATIONS
+        ]
         if framework:
-            results = [v for v in results if v.framework == framework]
+            results = [violation for violation in results if violation.framework == framework]
         if severity:
-            results = [v for v in results if v.severity == severity]
+            results = [violation for violation in results if violation.severity == severity]
         return results[:limit]
 
     def list_fixes(self, status: FixStatus | None = None) -> list[ProposedFix]:
-        results = list(self._fixes)
+        results = [
+            _EPHEMERAL_FIXES[fix_id]
+            for fix_id in _EPHEMERAL_FIX_ORDER
+            if fix_id in _EPHEMERAL_FIXES
+        ]
         if status:
-            results = [f for f in results if f.status == status]
+            results = [fix for fix in results if fix.status == status]
         return results
