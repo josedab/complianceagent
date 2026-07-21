@@ -260,6 +260,9 @@ from app.api.v1 import (
     zero_trust_scanner,
 )
 from app.api.v1 import (
+    search as search_router,
+)
+from app.api.v1 import (
     settings as settings_router,
 )
 
@@ -281,6 +284,7 @@ router.include_router(
 )
 router.include_router(settings_router.router, prefix="/settings", tags=["User Settings"])
 router.include_router(api_keys.router, prefix="/api-keys", tags=["API Key Management"])
+router.include_router(search_router.router, prefix="/search", tags=["Global Search"])
 router.include_router(notifications.router)
 
 # -- 📋 Compliance Core ----------------------------------------------------

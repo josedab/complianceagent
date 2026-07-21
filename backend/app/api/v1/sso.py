@@ -2,13 +2,15 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-from app.api.v1.deps import get_current_user, get_db
-from app.models import Organization, User
+from app.api.v1.deps import DB, OrgAdmin
+from app.core.security import create_access_token, create_refresh_token
+from app.models.organization import MemberRole, Organization, OrganizationMember
+from app.models.user import User
 from app.services.enterprise import SAMLConfig, saml_service
 
 
@@ -38,14 +40,14 @@ async def get_saml_metadata() -> Response:
 @router.post("/saml/configure")
 async def configure_saml(
     config: SAMLConfigCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    admin: OrgAdmin,
+    db: DB,
 ) -> dict[str, str]:
     """Configure SAML for organization."""
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    org = current_user.organization
+    result = await db.execute(select(Organization).where(Organization.id == admin.organization_id))
+    org = result.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
 
     # Store SAML config in org settings
     org.settings = org.settings or {}
@@ -64,10 +66,8 @@ async def configure_saml(
 
 
 @router.get("/saml/login/{org_slug}")
-async def saml_login(org_slug: str, db: AsyncSession = Depends(get_db)) -> RedirectResponse:
+async def saml_login(org_slug: str, db: DB) -> RedirectResponse:
     """Initiate SAML login flow."""
-    from sqlalchemy import select
-
     result = await db.execute(select(Organization).where(Organization.slug == org_slug))
     org = result.scalar_one_or_none()
 
@@ -94,7 +94,7 @@ async def saml_login(org_slug: str, db: AsyncSession = Depends(get_db)) -> Redir
 
 
 @router.post("/saml/acs")
-async def saml_acs(request: Request, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+async def saml_acs(request: Request, db: DB) -> dict[str, Any]:
     """SAML Assertion Consumer Service - process SAML response."""
     form_data = await request.form()
     saml_response = form_data.get("SAMLResponse")
@@ -103,10 +103,8 @@ async def saml_acs(request: Request, db: AsyncSession = Depends(get_db)) -> dict
     if not saml_response or not relay_state:
         raise HTTPException(status_code=400, detail="Invalid SAML response")
 
-    from sqlalchemy import select
-
-    result = await db.execute(select(Organization).where(Organization.slug == relay_state))
-    org = result.scalar_one_or_none()
+    org_result = await db.execute(select(Organization).where(Organization.slug == relay_state))
+    org = org_result.scalar_one_or_none()
 
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
@@ -125,34 +123,44 @@ async def saml_acs(request: Request, db: AsyncSession = Depends(get_db)) -> dict
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e)) from e
 
-    # Find or create user
-    result = await db.execute(
-        select(User).where(
-            User.email == assertion.email,
-            User.organization_id == org.id,
-        )
-    )
-    user = result.scalar_one_or_none()
+    # Find or create the user by email (User has no direct org/role columns;
+    # organization membership is tracked via OrganizationMember).
+    user_result = await db.execute(select(User).where(User.email == assertion.email))
+    user = user_result.scalar_one_or_none()
 
     if not user:
         # Auto-provision user via SAML
         user = User(
             email=assertion.email,
             full_name=assertion.attributes.get("displayName", assertion.email.split("@")[0]),
-            organization_id=org.id,
-            role="member",
             is_active=True,
+            is_verified=True,
             hashed_password="",  # SAML users don't have local passwords
         )
         db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        await db.flush()
+
+    # Ensure the user has a membership in this organization
+    member_result = await db.execute(
+        select(OrganizationMember).where(
+            OrganizationMember.user_id == user.id,
+            OrganizationMember.organization_id == org.id,
+        )
+    )
+    member = member_result.scalar_one_or_none()
+    if not member:
+        member = OrganizationMember(
+            organization_id=org.id,
+            user_id=user.id,
+            role=MemberRole.MEMBER,
+        )
+        db.add(member)
+
+    await db.commit()
 
     # Generate tokens
-    from app.core.security import create_access_token, create_refresh_token
-
-    access_token = create_access_token(data={"sub": str(user.id), "org": str(org.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    access_token = create_access_token(subject=str(user.id), org_id=str(org.id))
+    refresh_token = create_refresh_token(subject=str(user.id), org_id=str(org.id))
 
     return {
         "access_token": access_token,
@@ -163,14 +171,14 @@ async def saml_acs(request: Request, db: AsyncSession = Depends(get_db)) -> dict
 
 @router.delete("/saml/configure")
 async def disable_saml(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    admin: OrgAdmin,
+    db: DB,
 ) -> dict[str, str]:
     """Disable SAML for organization."""
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    org = current_user.organization
+    result = await db.execute(select(Organization).where(Organization.id == admin.organization_id))
+    org = result.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
 
     if org.settings and "saml" in org.settings:
         org.settings["saml"]["enabled"] = False
