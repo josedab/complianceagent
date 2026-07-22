@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
-from app.services.arch_advisor import ArchAdvisorService
+from app.services.arch_advisor import ArchAdvisorService, ArchAdvisorStats, ArchitectureDiagram
 
 
 logger = structlog.get_logger()
@@ -25,11 +25,12 @@ class GenerateArchitectureRequest(BaseModel):
 
 
 @router.post("/generate")
-async def generate_architecture(request: GenerateArchitectureRequest, db: DB) -> dict:
+async def generate_architecture(
+    request: GenerateArchitectureRequest, db: DB
+) -> ArchitectureDiagram:
     """Generate a compliance architecture diagram."""
-    svc = ArchAdvisorService()
+    svc = ArchAdvisorService(db)
     return await svc.generate_architecture(
-        db,
         frameworks=request.frameworks,
         diagram_format=request.diagram_format,
         app_name=request.app_name,
@@ -37,14 +38,14 @@ async def generate_architecture(request: GenerateArchitectureRequest, db: DB) ->
 
 
 @router.get("/frameworks")
-async def list_available_frameworks(db: DB) -> list[dict]:
+async def list_available_frameworks(db: DB) -> list[str]:
     """List available compliance frameworks."""
-    svc = ArchAdvisorService()
-    return await svc.list_available_frameworks(db)
+    svc = ArchAdvisorService(db)
+    return svc.list_available_frameworks()
 
 
 @router.get("/stats")
-async def get_stats(db: DB) -> dict:
+async def get_stats(db: DB) -> ArchAdvisorStats:
     """Get architecture advisor statistics."""
-    svc = ArchAdvisorService()
-    return await svc.get_stats(db)
+    svc = ArchAdvisorService(db)
+    return svc.get_stats()

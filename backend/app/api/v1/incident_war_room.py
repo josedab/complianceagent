@@ -5,7 +5,12 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
-from app.services.incident_war_room import IncidentWarRoomService
+from app.services.incident_war_room import (
+    IncidentWarRoomService,
+    PostMortem,
+    WarRoomIncident,
+    WarRoomStats,
+)
 
 
 logger = structlog.get_logger()
@@ -32,11 +37,10 @@ class AddTimelineEntryRequest(BaseModel):
 
 
 @router.post("/incidents")
-async def create_incident(request: CreateIncidentRequest, db: DB) -> dict:
+async def create_incident(request: CreateIncidentRequest, db: DB) -> WarRoomIncident:
     """Create a new compliance incident."""
-    svc = IncidentWarRoomService()
+    svc = IncidentWarRoomService(db)
     return await svc.create_incident(
-        db,
         title=request.title,
         severity=request.severity,
         description=request.description,
@@ -45,10 +49,10 @@ async def create_incident(request: CreateIncidentRequest, db: DB) -> dict:
 
 
 @router.post("/incidents/{incident_id}/advance")
-async def advance_phase(incident_id: str, db: DB) -> dict:
+async def advance_phase(incident_id: str, db: DB) -> WarRoomIncident:
     """Advance an incident to the next phase."""
-    svc = IncidentWarRoomService()
-    return await svc.advance_phase(db, incident_id=incident_id)
+    svc = IncidentWarRoomService(db)
+    return await svc.advance_phase(incident_id=incident_id)
 
 
 @router.post("/incidents/{incident_id}/timeline")
@@ -56,11 +60,10 @@ async def add_timeline_entry(
     incident_id: str,
     request: AddTimelineEntryRequest,
     db: DB,
-) -> dict:
+) -> WarRoomIncident:
     """Add a timeline entry to an incident."""
-    svc = IncidentWarRoomService()
+    svc = IncidentWarRoomService(db)
     return await svc.add_timeline_entry(
-        db,
         incident_id=incident_id,
         actor=request.actor,
         action=request.action,
@@ -69,31 +72,31 @@ async def add_timeline_entry(
 
 
 @router.post("/incidents/{incident_id}/post-mortem")
-async def generate_post_mortem(incident_id: str, db: DB) -> dict:
+async def generate_post_mortem(incident_id: str, db: DB) -> PostMortem:
     """Generate a post-mortem report for an incident."""
-    svc = IncidentWarRoomService()
-    return await svc.generate_post_mortem(db, incident_id=incident_id)
+    svc = IncidentWarRoomService(db)
+    return await svc.generate_post_mortem(incident_id=incident_id)
 
 
 @router.get("/incidents")
 async def list_incidents(
     db: DB,
     phase: str | None = Query(None, description="Filter by incident phase"),
-) -> list[dict]:
+) -> list[WarRoomIncident]:
     """List compliance incidents."""
-    svc = IncidentWarRoomService()
-    return await svc.list_incidents(db, phase=phase)
+    svc = IncidentWarRoomService(db)
+    return await svc.list_incidents(phase=phase)
 
 
 @router.get("/incidents/{incident_id}")
-async def get_incident(incident_id: str, db: DB) -> dict:
+async def get_incident(incident_id: str, db: DB) -> WarRoomIncident:
     """Get details of a specific incident."""
-    svc = IncidentWarRoomService()
-    return await svc.get_incident(db, incident_id=incident_id)
+    svc = IncidentWarRoomService(db)
+    return await svc.get_incident(incident_id=incident_id)
 
 
 @router.get("/stats")
-async def get_stats(db: DB) -> dict:
+async def get_stats(db: DB) -> WarRoomStats:
     """Get incident war room statistics."""
-    svc = IncidentWarRoomService()
-    return await svc.get_stats(db)
+    svc = IncidentWarRoomService(db)
+    return svc.get_stats()

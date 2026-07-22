@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.compliance_copilot import ComplianceCopilotService, ViolationSeverity
 
 
@@ -88,8 +88,10 @@ class ExplanationSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Start copilot session",
 )
-async def start_session(request: StartSessionRequest, db: DB) -> SessionSchema:
-    service = ComplianceCopilotService(db=db)
+async def start_session(
+    request: StartSessionRequest, db: DB, org: CurrentOrganization
+) -> SessionSchema:
+    service = ComplianceCopilotService(db=db, organization_id=org.id)
     session = await service.start_session(repo=request.repo, user_id=request.user_id)
     return SessionSchema(
         id=str(session.id),
@@ -103,8 +105,10 @@ async def start_session(request: StartSessionRequest, db: DB) -> SessionSchema:
 
 
 @router.post("/analyze", response_model=AnalysisResultSchema, summary="Analyze codebase")
-async def analyze_codebase(request: AnalyzeRequest, db: DB) -> AnalysisResultSchema:
-    service = ComplianceCopilotService(db=db)
+async def analyze_codebase(
+    request: AnalyzeRequest, db: DB, org: CurrentOrganization
+) -> AnalysisResultSchema:
+    service = ComplianceCopilotService(db=db, organization_id=org.id)
     analysis = await service.analyze_codebase(
         repo=request.repo,
         frameworks=request.frameworks or None,
@@ -134,8 +138,8 @@ async def analyze_codebase(request: AnalyzeRequest, db: DB) -> AnalysisResultSch
 
 
 @router.post("/violations/{violation_id}/fix", response_model=FixSchema, summary="Propose fix")
-async def propose_fix(violation_id: UUID, db: DB) -> FixSchema:
-    service = ComplianceCopilotService(db=db)
+async def propose_fix(violation_id: UUID, db: DB, org: CurrentOrganization) -> FixSchema:
+    service = ComplianceCopilotService(db=db, organization_id=org.id)
     fix = await service.propose_fix(violation_id)
     return FixSchema(
         id=str(fix.id),
@@ -151,8 +155,8 @@ async def propose_fix(violation_id: UUID, db: DB) -> FixSchema:
 
 
 @router.post("/fixes/{fix_id}/accept", summary="Accept fix")
-async def accept_fix(fix_id: UUID, db: DB) -> dict:
-    service = ComplianceCopilotService(db=db)
+async def accept_fix(fix_id: UUID, db: DB, org: CurrentOrganization) -> dict:
+    service = ComplianceCopilotService(db=db, organization_id=org.id)
     fix = await service.accept_fix(fix_id)
     if not fix:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fix not found")
@@ -160,8 +164,8 @@ async def accept_fix(fix_id: UUID, db: DB) -> dict:
 
 
 @router.post("/fixes/{fix_id}/reject", summary="Reject fix")
-async def reject_fix(fix_id: UUID, db: DB) -> dict:
-    service = ComplianceCopilotService(db=db)
+async def reject_fix(fix_id: UUID, db: DB, org: CurrentOrganization) -> dict:
+    service = ComplianceCopilotService(db=db, organization_id=org.id)
     fix = await service.reject_fix(fix_id)
     if not fix:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fix not found")
@@ -169,8 +173,10 @@ async def reject_fix(fix_id: UUID, db: DB) -> dict:
 
 
 @router.post("/explain", response_model=ExplanationSchema, summary="Explain regulation")
-async def explain_regulation(request: ExplainRequest, db: DB) -> ExplanationSchema:
-    service = ComplianceCopilotService(db=db)
+async def explain_regulation(
+    request: ExplainRequest, db: DB, org: CurrentOrganization
+) -> ExplanationSchema:
+    service = ComplianceCopilotService(db=db, organization_id=org.id)
     explanation = await service.explain_regulation(
         regulation=request.regulation, article=request.article
     )
@@ -186,9 +192,13 @@ async def explain_regulation(request: ExplainRequest, db: DB) -> ExplanationSche
 
 @router.get("/violations", response_model=list[ViolationSchema], summary="List violations")
 async def list_violations(
-    db: DB, framework: str | None = None, severity: str | None = None, limit: int = 50
+    db: DB,
+    org: CurrentOrganization,
+    framework: str | None = None,
+    severity: str | None = None,
+    limit: int = 50,
 ) -> list[ViolationSchema]:
-    service = ComplianceCopilotService(db=db)
+    service = ComplianceCopilotService(db=db, organization_id=org.id)
     s = ViolationSeverity(severity) if severity else None
     violations = service.list_violations(framework=framework, severity=s, limit=limit)
     return [

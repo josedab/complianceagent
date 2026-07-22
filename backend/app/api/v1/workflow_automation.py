@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.workflow_automation import WorkflowAutomationService
 
 
@@ -78,8 +78,10 @@ class WorkflowStatsSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Create workflow",
 )
-async def create_workflow(request: CreateWorkflowRequest, db: DB) -> WorkflowSchema:
-    service = WorkflowAutomationService(db=db)
+async def create_workflow(
+    request: CreateWorkflowRequest, db: DB, org: CurrentOrganization
+) -> WorkflowSchema:
+    service = WorkflowAutomationService(db=db, organization_id=org.id)
     w = await service.create_workflow(
         name=request.name,
         description=request.description,
@@ -103,9 +105,9 @@ async def create_workflow(request: CreateWorkflowRequest, db: DB) -> WorkflowSch
 
 @router.get("/workflows", response_model=list[WorkflowSchema], summary="List workflows")
 async def list_workflows(
-    db: DB, framework: str | None = None, owner: str | None = None
+    db: DB, org: CurrentOrganization, framework: str | None = None, owner: str | None = None
 ) -> list[WorkflowSchema]:
-    service = WorkflowAutomationService(db=db)
+    service = WorkflowAutomationService(db=db, organization_id=org.id)
     workflows = service.list_workflows(framework=framework, owner=owner)
     return [
         WorkflowSchema(
@@ -129,8 +131,10 @@ async def list_workflows(
     status_code=status.HTTP_201_CREATED,
     summary="Create workflow from template",
 )
-async def from_template(request: FromTemplateRequest, db: DB) -> WorkflowSchema:
-    service = WorkflowAutomationService(db=db)
+async def from_template(
+    request: FromTemplateRequest, db: DB, org: CurrentOrganization
+) -> WorkflowSchema:
+    service = WorkflowAutomationService(db=db, organization_id=org.id)
     w = await service.from_template(
         template_id=request.template_id,
         name=request.name,
@@ -154,8 +158,8 @@ async def from_template(request: FromTemplateRequest, db: DB) -> WorkflowSchema:
 @router.post(
     "/workflows/{workflow_id}/execute", response_model=ExecutionSchema, summary="Execute workflow"
 )
-async def execute_workflow(workflow_id: str, db: DB) -> ExecutionSchema:
-    service = WorkflowAutomationService(db=db)
+async def execute_workflow(workflow_id: str, db: DB, org: CurrentOrganization) -> ExecutionSchema:
+    service = WorkflowAutomationService(db=db, organization_id=org.id)
     e = await service.execute(workflow_id)
     if not e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
@@ -172,8 +176,8 @@ async def execute_workflow(workflow_id: str, db: DB) -> ExecutionSchema:
 
 
 @router.post("/workflows/{workflow_id}/pause", summary="Pause workflow")
-async def pause_workflow(workflow_id: str, db: DB) -> dict:
-    service = WorkflowAutomationService(db=db)
+async def pause_workflow(workflow_id: str, db: DB, org: CurrentOrganization) -> dict:
+    service = WorkflowAutomationService(db=db, organization_id=org.id)
     ok = await service.pause(workflow_id)
     if not ok:
         raise HTTPException(
@@ -201,9 +205,12 @@ async def list_templates(db: DB, framework: str | None = None) -> list[TemplateS
 
 @router.get("/executions", response_model=list[ExecutionSchema], summary="List executions")
 async def list_executions(
-    db: DB, workflow_id: str | None = None, execution_status: str | None = None
+    db: DB,
+    org: CurrentOrganization,
+    workflow_id: str | None = None,
+    execution_status: str | None = None,
 ) -> list[ExecutionSchema]:
-    service = WorkflowAutomationService(db=db)
+    service = WorkflowAutomationService(db=db, organization_id=org.id)
     executions = service.list_executions(workflow_id=workflow_id, status=execution_status)
     return [
         ExecutionSchema(
@@ -221,8 +228,8 @@ async def list_executions(
 
 
 @router.get("/stats", response_model=WorkflowStatsSchema, summary="Get workflow stats")
-async def get_stats(db: DB) -> WorkflowStatsSchema:
-    service = WorkflowAutomationService(db=db)
+async def get_stats(db: DB, org: CurrentOrganization) -> WorkflowStatsSchema:
+    service = WorkflowAutomationService(db=db, organization_id=org.id)
     s = service.get_stats()
     return WorkflowStatsSchema(
         total_workflows=s.total_workflows,

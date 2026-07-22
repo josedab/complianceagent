@@ -221,7 +221,7 @@ async def get_badge_svg(
         show_grade=grade,
         show_score=score,
         label=label,
-        include_regulations=regulation_list if regulation_list else None,
+        include_regulations=regulation_list or None,
     )
 
     badge = badge_gen.generate_badge(health_score, config)

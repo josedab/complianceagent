@@ -301,7 +301,7 @@ class CopilotClient:
             messages: Conversation messages to send.
             model: Model override; defaults to configured default_model.
             system_message: Optional system prompt prepended to messages.
-            temperature: Sampling temperature (0.0–1.0).
+            temperature: Sampling temperature (0.0-1.0).
             max_tokens: Maximum tokens in the response.
             tools: Optional tool definitions for function calling.
 

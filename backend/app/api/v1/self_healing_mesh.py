@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.self_healing_mesh import (
     EventType,
     HealingEvent,
@@ -59,8 +59,10 @@ class MeshStatsSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Ingest healing event",
 )
-async def ingest_event(request: IngestEventRequest, db: DB) -> PipelineSchema:
-    service = SelfHealingMeshService(db=db)
+async def ingest_event(
+    request: IngestEventRequest, db: DB, org: CurrentOrganization
+) -> PipelineSchema:
+    service = SelfHealingMeshService(db=db, organization_id=org.id)
     event = HealingEvent(
         event_type=EventType(request.event_type),
         source_service=request.source_service,
@@ -87,9 +89,9 @@ async def ingest_event(request: IngestEventRequest, db: DB) -> PipelineSchema:
 
 @router.get("/pipelines", response_model=list[PipelineSchema], summary="List pipelines")
 async def list_pipelines(
-    db: DB, stage: str | None = None, repo: str | None = None
+    db: DB, org: CurrentOrganization, stage: str | None = None, repo: str | None = None
 ) -> list[PipelineSchema]:
-    service = SelfHealingMeshService(db=db)
+    service = SelfHealingMeshService(db=db, organization_id=org.id)
     s = PipelineStage(stage) if stage else None
     pipelines = service.list_pipelines(stage=s, repo=repo)
     return [
@@ -111,8 +113,8 @@ async def list_pipelines(
 
 
 @router.post("/pipelines/{pipeline_id}/approve", summary="Approve pipeline")
-async def approve_pipeline(pipeline_id: str, db: DB) -> dict:
-    service = SelfHealingMeshService(db=db)
+async def approve_pipeline(pipeline_id: str, db: DB, org: CurrentOrganization) -> dict:
+    service = SelfHealingMeshService(db=db, organization_id=org.id)
     p = await service.approve_pipeline(pipeline_id)
     if not p:
         raise HTTPException(
@@ -123,8 +125,8 @@ async def approve_pipeline(pipeline_id: str, db: DB) -> dict:
 
 
 @router.get("/stats", response_model=MeshStatsSchema, summary="Get mesh stats")
-async def get_stats(db: DB) -> MeshStatsSchema:
-    service = SelfHealingMeshService(db=db)
+async def get_stats(db: DB, org: CurrentOrganization) -> MeshStatsSchema:
+    service = SelfHealingMeshService(db=db, organization_id=org.id)
     s = service.get_stats()
     return MeshStatsSchema(
         total_events=s.total_events,

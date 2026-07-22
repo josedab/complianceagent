@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.trust_network import TrustNetworkService
 
 
@@ -54,9 +54,11 @@ class StatsSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Create attestation",
 )
-async def create_attestation(request: CreateAttestationRequest, db: DB) -> AttestationSchema:
+async def create_attestation(
+    request: CreateAttestationRequest, db: DB, org: CurrentOrganization
+) -> AttestationSchema:
     """Create a new trust attestation."""
-    service = TrustNetworkService(db=db)
+    service = TrustNetworkService(db=db, organization_id=org.id, user_id=None)
     att = await service.create_attestation(
         org_name=request.org_name,
         attestation_type=request.attestation_type,
@@ -82,11 +84,12 @@ async def create_attestation(request: CreateAttestationRequest, db: DB) -> Attes
 )
 async def list_attestations(
     db: DB,
+    org: CurrentOrganization,
     org_name: str | None = None,
     attestation_type: str | None = None,
 ) -> list[AttestationSchema]:
     """List attestations with optional filters."""
-    service = TrustNetworkService(db=db)
+    service = TrustNetworkService(db=db, organization_id=org.id, user_id=None)
     atts = service.list_attestations(org_name=org_name, attestation_type=attestation_type)
     return [
         AttestationSchema(
@@ -104,9 +107,9 @@ async def list_attestations(
 
 
 @router.post("/attestations/{attestation_id}/verify", summary="Verify attestation")
-async def verify_attestation(attestation_id: UUID, db: DB) -> dict:
+async def verify_attestation(attestation_id: UUID, db: DB, org: CurrentOrganization) -> dict:
     """Verify a trust attestation."""
-    service = TrustNetworkService(db=db)
+    service = TrustNetworkService(db=db, organization_id=org.id, user_id=None)
     ok = await service.verify_attestation(attestation_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attestation not found")
@@ -114,9 +117,9 @@ async def verify_attestation(attestation_id: UUID, db: DB) -> dict:
 
 
 @router.post("/attestations/{attestation_id}/revoke", summary="Revoke attestation")
-async def revoke_attestation(attestation_id: UUID, db: DB) -> dict:
+async def revoke_attestation(attestation_id: UUID, db: DB, org: CurrentOrganization) -> dict:
     """Revoke a trust attestation."""
-    service = TrustNetworkService(db=db)
+    service = TrustNetworkService(db=db, organization_id=org.id, user_id=None)
     ok = await service.revoke_attestation(attestation_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attestation not found")
@@ -124,9 +127,9 @@ async def revoke_attestation(attestation_id: UUID, db: DB) -> dict:
 
 
 @router.get("/chain", response_model=list[ChainEntrySchema], summary="Get chain")
-async def get_chain(db: DB) -> list[ChainEntrySchema]:
+async def get_chain(db: DB, org: CurrentOrganization) -> list[ChainEntrySchema]:
     """Get the attestation trust chain."""
-    service = TrustNetworkService(db=db)
+    service = TrustNetworkService(db=db, organization_id=org.id, user_id=None)
     chain = service.get_chain()
     return [
         ChainEntrySchema(
@@ -141,9 +144,9 @@ async def get_chain(db: DB) -> list[ChainEntrySchema]:
 
 
 @router.get("/stats", response_model=StatsSchema, summary="Get stats")
-async def get_stats(db: DB) -> StatsSchema:
+async def get_stats(db: DB, org: CurrentOrganization) -> StatsSchema:
     """Get trust network statistics."""
-    service = TrustNetworkService(db=db)
+    service = TrustNetworkService(db=db, organization_id=org.id, user_id=None)
     stats = service.get_stats()
     return StatsSchema(
         total_attestations=stats.total_attestations,

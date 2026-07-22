@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.mcp_server import MCPServerService, ToolCategory
 
 
@@ -105,7 +105,7 @@ class MCPServerStatusSchema(BaseModel):
 async def get_server_status(db: DB) -> MCPServerStatusSchema:
     """Get MCP server status and capabilities."""
     service = MCPServerService(db=db)
-    s = service.get_server_status()
+    s = await service.get_server_status()
     return MCPServerStatusSchema(
         version=s.version,
         protocol_version=s.protocol_version,
@@ -175,9 +175,10 @@ async def get_tool(tool_name: str, db: DB) -> MCPToolSchema:
 async def execute_tool(
     request: ExecuteToolRequest,
     db: DB,
+    org: CurrentOrganization,
 ) -> ToolExecutionSchema:
     """Execute an MCP compliance tool."""
-    service = MCPServerService(db=db)
+    service = MCPServerService(db=db, organization_id=org.id)
     execution = await service.execute_tool(
         tool_name=request.tool_name,
         params=request.params,
@@ -205,9 +206,10 @@ async def execute_tool(
 async def register_client(
     request: RegisterClientRequest,
     db: DB,
+    org: CurrentOrganization,
 ) -> ClientConnectionSchema:
     """Register a new MCP client connection."""
-    service = MCPServerService(db=db)
+    service = MCPServerService(db=db, organization_id=org.id)
     conn = await service.register_client(
         client_id=request.client_id,
         client_name=request.client_name,
@@ -229,9 +231,9 @@ async def register_client(
     response_model=list[ClientConnectionSchema],
     summary="List MCP clients",
 )
-async def list_clients(db: DB) -> list[ClientConnectionSchema]:
+async def list_clients(db: DB, org: CurrentOrganization) -> list[ClientConnectionSchema]:
     """List connected MCP clients."""
-    service = MCPServerService(db=db)
+    service = MCPServerService(db=db, organization_id=org.id)
     connections = service.list_connections()
     return [
         ClientConnectionSchema(
@@ -252,9 +254,9 @@ async def list_clients(db: DB) -> list[ClientConnectionSchema]:
     "/clients/{client_id}",
     summary="Disconnect MCP client",
 )
-async def disconnect_client(client_id: str, db: DB) -> dict:
+async def disconnect_client(client_id: str, db: DB, org: CurrentOrganization) -> dict:
     """Disconnect an MCP client."""
-    service = MCPServerService(db=db)
+    service = MCPServerService(db=db, organization_id=org.id)
     ok = await service.disconnect_client(client_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
@@ -266,9 +268,9 @@ async def disconnect_client(client_id: str, db: DB) -> dict:
     response_model=list[MCPResourceSchema],
     summary="List MCP resources",
 )
-async def list_resources(db: DB) -> list[MCPResourceSchema]:
+async def list_resources(db: DB, org: CurrentOrganization) -> list[MCPResourceSchema]:
     """List available MCP context resources."""
-    service = MCPServerService(db=db)
+    service = MCPServerService(db=db, organization_id=org.id)
     resources = service.list_resources()
     return [
         MCPResourceSchema(
@@ -287,9 +289,9 @@ async def list_resources(db: DB) -> list[MCPResourceSchema]:
     response_model=MCPResourceSchema,
     summary="Read MCP resource",
 )
-async def read_resource(uri: str, db: DB) -> MCPResourceSchema:
+async def read_resource(uri: str, db: DB, org: CurrentOrganization) -> MCPResourceSchema:
     """Read a specific MCP context resource."""
-    service = MCPServerService(db=db)
+    service = MCPServerService(db=db, organization_id=org.id)
     resource = await service.read_resource(uri)
     if not resource:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found")
@@ -309,12 +311,13 @@ async def read_resource(uri: str, db: DB) -> MCPResourceSchema:
 )
 async def get_execution_history(
     db: DB,
+    org: CurrentOrganization,
     client_id: str | None = None,
     tool_name: str | None = None,
     limit: int = 50,
 ) -> list[ToolExecutionSchema]:
     """Get MCP tool execution history."""
-    service = MCPServerService(db=db)
+    service = MCPServerService(db=db, organization_id=org.id)
     executions = service.get_execution_history(
         client_id=client_id, tool_name=tool_name, limit=limit
     )

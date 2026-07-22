@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB, CurrentOrganization, OrgMember
+from app.core.config import settings
 
 
 router = APIRouter(prefix="/pr-bot", tags=["PR Bot"])
@@ -263,18 +264,33 @@ async def get_task_status(
 ) -> dict[str, Any]:
     """Get the status of an analysis task."""
     from celery.result import AsyncResult
+    from redis.exceptions import RedisError
 
     from app.workers import celery_app
 
     result = AsyncResult(task_id, app=celery_app)
+    try:
+        task_status = result.status
+        ready = result.ready()
+    except (OSError, RedisError) as exc:
+        if settings.environment in ("staging", "production"):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Task status backend is unavailable",
+            ) from exc
+        return {
+            "task_id": task_id,
+            "status": "PENDING",
+            "ready": False,
+        }
 
     response = {
         "task_id": task_id,
-        "status": result.status,
-        "ready": result.ready(),
+        "status": task_status,
+        "ready": ready,
     }
 
-    if result.ready():
+    if ready:
         if result.successful():
             response["result"] = result.result
         else:

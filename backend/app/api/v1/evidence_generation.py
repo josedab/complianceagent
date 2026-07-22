@@ -4,7 +4,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.evidence_generation import EvidenceGenerationService
 
 
@@ -56,8 +56,8 @@ class StatsSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Generate evidence package",
 )
-async def generate_package(framework: str, db: DB) -> PackageSchema:
-    service = EvidenceGenerationService(db=db)
+async def generate_package(framework: str, db: DB, org: CurrentOrganization) -> PackageSchema:
+    service = EvidenceGenerationService(db=db, organization_id=org.id)
     p = await service.generate_evidence_package(framework)
     return PackageSchema(
         id=str(p.id),
@@ -93,8 +93,8 @@ async def generate_package(framework: str, db: DB) -> PackageSchema:
 
 
 @router.get("/package/{framework}", response_model=PackageSchema, summary="Get evidence package")
-async def get_package(framework: str, db: DB) -> PackageSchema:
-    service = EvidenceGenerationService(db=db)
+async def get_package(framework: str, db: DB, org: CurrentOrganization) -> PackageSchema:
+    service = EvidenceGenerationService(db=db, organization_id=org.id)
     p = service.get_package(framework)
     if not p:
         raise HTTPException(
@@ -140,8 +140,8 @@ async def list_frameworks(db: DB) -> list[dict]:
 
 
 @router.get("/stats", response_model=StatsSchema, summary="Get evidence stats")
-async def get_stats(db: DB) -> StatsSchema:
-    service = EvidenceGenerationService(db=db)
+async def get_stats(db: DB, org: CurrentOrganization) -> StatsSchema:
+    service = EvidenceGenerationService(db=db, organization_id=org.id)
     s = service.get_stats()
     return StatsSchema(
         total_items=s.total_items,

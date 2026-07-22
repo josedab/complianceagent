@@ -5,6 +5,7 @@
 """
 
 from collections.abc import AsyncIterator
+from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException
@@ -317,10 +318,8 @@ async def create_chat_session(request: CreateSessionRequest, db: DB) -> dict:
 @router.post("/sessions/{session_id}/chat", summary="Send chat message")
 async def chat_in_session(session_id: str, request: ChatRequest, db: DB) -> dict:
     """Send a message in a chat session with RAG + guardrails + citations."""
-    from uuid import UUID as PyUUID
-
     svc = CopilotChatService(db)
-    response = await svc.chat(session_id=PyUUID(session_id), message=request.message)
+    response = await svc.chat(session_id=UUID(session_id), message=request.message)
     return {
         "answer": response.answer,
         "confidence": response.confidence,
@@ -342,10 +341,8 @@ async def chat_in_session(session_id: str, request: ChatRequest, db: DB) -> dict
 @router.post("/sessions/{session_id}/stream", summary="Stream chat response")
 async def stream_chat_response(session_id: str, request: ChatRequest, db: DB) -> list[dict]:
     """Stream a chat response as SSE events."""
-    from uuid import UUID as PyUUID
-
     svc = CopilotChatService(db)
-    events = await svc.stream_chat(session_id=PyUUID(session_id), message=request.message)
+    events = await svc.stream_chat(session_id=UUID(session_id), message=request.message)
     return [{"event": e.event, "data": e.data} for e in events]
 
 

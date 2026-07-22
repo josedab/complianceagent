@@ -5,7 +5,12 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
-from app.services.multi_llm_parser import MultiLLMParserService
+from app.services.multi_llm_parser import (
+    ConsensusResult,
+    MultiLLMParserService,
+    ParserStats,
+    ProviderConfig,
+)
 
 
 logger = structlog.get_logger()
@@ -29,11 +34,10 @@ class ToggleProviderRequest(BaseModel):
 
 
 @router.post("/parse")
-async def parse_legal_text(request: ParseRequest, db: DB) -> dict:
+async def parse_legal_text(request: ParseRequest, db: DB) -> ConsensusResult:
     """Parse legal text using multiple LLM providers."""
-    svc = MultiLLMParserService()
+    svc = MultiLLMParserService(db)
     return await svc.parse_legal_text(
-        db,
         text=request.text,
         strategy=request.strategy,
         providers=request.providers,
@@ -41,10 +45,10 @@ async def parse_legal_text(request: ParseRequest, db: DB) -> dict:
 
 
 @router.get("/providers")
-async def list_providers(db: DB) -> list[dict]:
+async def list_providers(db: DB) -> list[ProviderConfig]:
     """List available LLM providers."""
-    svc = MultiLLMParserService()
-    return await svc.list_providers(db)
+    svc = MultiLLMParserService(db)
+    return svc.list_providers()
 
 
 @router.put("/providers/{provider}/toggle")
@@ -52,14 +56,14 @@ async def toggle_provider(
     provider: str,
     request: ToggleProviderRequest,
     db: DB,
-) -> dict:
+) -> ProviderConfig | None:
     """Enable or disable an LLM provider."""
-    svc = MultiLLMParserService()
-    return await svc.toggle_provider(db, provider=provider, enabled=request.enabled)
+    svc = MultiLLMParserService(db)
+    return await svc.toggle_provider(provider=provider, enabled=request.enabled)
 
 
 @router.get("/stats")
-async def get_stats(db: DB) -> dict:
+async def get_stats(db: DB) -> ParserStats:
     """Get multi-LLM parser statistics."""
-    svc = MultiLLMParserService()
-    return await svc.get_stats(db)
+    svc = MultiLLMParserService(db)
+    return svc.get_stats()

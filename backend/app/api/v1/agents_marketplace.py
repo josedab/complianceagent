@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.agents_marketplace import AgentCategory, AgentsMarketplaceService
 
 
@@ -102,20 +102,21 @@ def _agent_to_schema(a: Any) -> AgentSchema:
 @router.get("/agents", response_model=list[AgentSchema], summary="Search marketplace agents")
 async def search_agents(
     db: DB,
+    org: CurrentOrganization,
     query: str = "",
     category: str | None = None,
     framework: str | None = None,
     limit: int = 20,
 ) -> list[AgentSchema]:
-    service = AgentsMarketplaceService(db=db)
+    service = AgentsMarketplaceService(db=db, organization_id=org.id)
     cat = AgentCategory(category) if category else None
     agents = service.search_agents(query=query, category=cat, framework=framework, limit=limit)
     return [_agent_to_schema(a) for a in agents]
 
 
 @router.get("/agents/{slug}", response_model=AgentSchema, summary="Get agent details")
-async def get_agent(slug: str, db: DB) -> AgentSchema:
-    service = AgentsMarketplaceService(db=db)
+async def get_agent(slug: str, db: DB, org: CurrentOrganization) -> AgentSchema:
+    service = AgentsMarketplaceService(db=db, organization_id=org.id)
     a = service.get_agent(slug)
     if not a:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
@@ -128,8 +129,8 @@ async def get_agent(slug: str, db: DB) -> AgentSchema:
     status_code=status.HTTP_201_CREATED,
     summary="Publish agent",
 )
-async def publish_agent(request: PublishRequest, db: DB) -> AgentSchema:
-    service = AgentsMarketplaceService(db=db)
+async def publish_agent(request: PublishRequest, db: DB, org: CurrentOrganization) -> AgentSchema:
+    service = AgentsMarketplaceService(db=db, organization_id=org.id)
     a = await service.publish_agent(
         name=request.name,
         slug=request.slug,
@@ -144,8 +145,8 @@ async def publish_agent(request: PublishRequest, db: DB) -> AgentSchema:
 
 
 @router.post("/agents/{slug}/approve", summary="Approve agent")
-async def approve_agent(slug: str, db: DB) -> dict:
-    service = AgentsMarketplaceService(db=db)
+async def approve_agent(slug: str, db: DB, org: CurrentOrganization) -> dict:
+    service = AgentsMarketplaceService(db=db, organization_id=org.id)
     a = await service.approve_agent(slug)
     if not a:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found")
@@ -158,8 +159,8 @@ async def approve_agent(slug: str, db: DB) -> dict:
     status_code=status.HTTP_201_CREATED,
     summary="Install agent",
 )
-async def install_agent(request: InstallRequest, db: DB) -> InstallSchema:
-    service = AgentsMarketplaceService(db=db)
+async def install_agent(request: InstallRequest, db: DB, org: CurrentOrganization) -> InstallSchema:
+    service = AgentsMarketplaceService(db=db, organization_id=org.id)
     inst = await service.install_agent(
         slug=request.slug,
         organization_id=request.organization_id,
@@ -185,8 +186,8 @@ async def install_agent(request: InstallRequest, db: DB) -> InstallSchema:
     status_code=status.HTTP_201_CREATED,
     summary="Rate agent",
 )
-async def rate_agent(request: RateRequest, db: DB) -> ReviewSchema:
-    service = AgentsMarketplaceService(db=db)
+async def rate_agent(request: RateRequest, db: DB, org: CurrentOrganization) -> ReviewSchema:
+    service = AgentsMarketplaceService(db=db, organization_id=org.id)
     r = await service.rate_agent(
         slug=request.slug,
         reviewer=request.reviewer,
@@ -205,8 +206,8 @@ async def rate_agent(request: RateRequest, db: DB) -> ReviewSchema:
 
 
 @router.get("/stats", response_model=StatsSchema, summary="Get marketplace stats")
-async def get_stats(db: DB) -> StatsSchema:
-    service = AgentsMarketplaceService(db=db)
+async def get_stats(db: DB, org: CurrentOrganization) -> StatsSchema:
+    service = AgentsMarketplaceService(db=db, organization_id=org.id)
     s = service.get_stats()
     return StatsSchema(
         total_agents=s.total_agents,

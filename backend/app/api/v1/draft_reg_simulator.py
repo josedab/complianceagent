@@ -5,7 +5,12 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.api.v1.deps import DB
-from app.services.draft_reg_simulator import DraftRegSimulatorService
+from app.services.draft_reg_simulator import (
+    DraftRegSimulatorService,
+    DraftRegulation,
+    ImpactAnalysis,
+    SimulationStats,
+)
 
 
 logger = structlog.get_logger()
@@ -16,44 +21,37 @@ router = APIRouter()
 
 
 class SimulateDraftRequest(BaseModel):
-    title: str = Field(..., description="Draft regulation title")
-    jurisdiction: str = Field(..., description="Jurisdiction of the regulation")
-    draft_text: str = Field(..., description="Full text of the draft regulation")
-    source_url: str = Field("", description="URL to the source document")
+    repos: list[str] | None = Field(
+        None, description="Repositories to assess for regulatory impact"
+    )
 
 
 # --- Endpoints ---
 
 
-@router.post("/simulate")
-async def simulate_draft(request: SimulateDraftRequest, db: DB) -> dict:
-    """Simulate the impact of a draft regulation."""
-    svc = DraftRegSimulatorService()
-    return await svc.simulate_draft(
-        db,
-        title=request.title,
-        jurisdiction=request.jurisdiction,
-        draft_text=request.draft_text,
-        source_url=request.source_url,
-    )
+@router.post("/simulate/{draft_id}")
+async def simulate_draft(draft_id: str, request: SimulateDraftRequest, db: DB) -> ImpactAnalysis:
+    """Simulate the impact of a known draft regulation on the codebase."""
+    svc = DraftRegSimulatorService(db)
+    return await svc.simulate_draft(draft_id, repos=request.repos)
 
 
 @router.get("/drafts")
-async def list_drafts(db: DB) -> list[dict]:
+async def list_drafts(db: DB) -> list[DraftRegulation]:
     """List all draft regulation simulations."""
-    svc = DraftRegSimulatorService()
-    return await svc.list_drafts(db)
+    svc = DraftRegSimulatorService(db)
+    return await svc.list_drafts()
 
 
 @router.get("/analysis/{analysis_id}")
-async def get_analysis(analysis_id: str, db: DB) -> dict:
+async def get_analysis(analysis_id: str, db: DB) -> ImpactAnalysis:
     """Get the analysis results for a specific simulation."""
-    svc = DraftRegSimulatorService()
-    return await svc.get_analysis(db, analysis_id=analysis_id)
+    svc = DraftRegSimulatorService(db)
+    return await svc.get_analysis(analysis_id)
 
 
 @router.get("/stats")
-async def get_stats(db: DB) -> dict:
+async def get_stats(db: DB) -> SimulationStats:
     """Get draft regulation simulator statistics."""
-    svc = DraftRegSimulatorService()
-    return await svc.get_stats(db)
+    svc = DraftRegSimulatorService(db)
+    return svc.get_stats()

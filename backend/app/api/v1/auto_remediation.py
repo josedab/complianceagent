@@ -7,7 +7,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.auto_remediation import AutoRemediationService, RemediationStatus
 
 
@@ -65,8 +65,10 @@ class RemediationStatsSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Trigger remediation pipeline",
 )
-async def trigger_pipeline(request: TriggerPipelineRequest, db: DB) -> PipelineSchema:
-    service = AutoRemediationService(db=db)
+async def trigger_pipeline(
+    request: TriggerPipelineRequest, db: DB, org: CurrentOrganization
+) -> PipelineSchema:
+    service = AutoRemediationService(db=db, organization_id=org.id)
     pipeline = await service.trigger_pipeline(
         repo=request.repo,
         branch=request.branch,
@@ -90,9 +92,13 @@ async def trigger_pipeline(request: TriggerPipelineRequest, db: DB) -> PipelineS
 
 @router.get("/pipelines", response_model=list[PipelineSchema], summary="List pipelines")
 async def list_pipelines(
-    db: DB, repo: str | None = None, pipeline_status: str | None = None, limit: int = 50
+    db: DB,
+    org: CurrentOrganization,
+    repo: str | None = None,
+    pipeline_status: str | None = None,
+    limit: int = 50,
 ) -> list[PipelineSchema]:
-    service = AutoRemediationService(db=db)
+    service = AutoRemediationService(db=db, organization_id=org.id)
     s = RemediationStatus(pipeline_status) if pipeline_status else None
     pipelines = service.list_pipelines(repo=repo, status=s, limit=limit)
     return [
@@ -114,8 +120,10 @@ async def list_pipelines(
 
 
 @router.post("/pipelines/{pipeline_id}/approve", summary="Approve pipeline")
-async def approve_pipeline(pipeline_id: UUID, request: ApproveRequest, db: DB) -> dict:
-    service = AutoRemediationService(db=db)
+async def approve_pipeline(
+    pipeline_id: UUID, request: ApproveRequest, db: DB, org: CurrentOrganization
+) -> dict:
+    service = AutoRemediationService(db=db, organization_id=org.id)
     pipeline = await service.approve_pipeline(pipeline_id, request.approver, request.comment)
     if not pipeline:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
@@ -123,8 +131,10 @@ async def approve_pipeline(pipeline_id: UUID, request: ApproveRequest, db: DB) -
 
 
 @router.post("/pipelines/{pipeline_id}/reject", summary="Reject pipeline")
-async def reject_pipeline(pipeline_id: UUID, request: ApproveRequest, db: DB) -> dict:
-    service = AutoRemediationService(db=db)
+async def reject_pipeline(
+    pipeline_id: UUID, request: ApproveRequest, db: DB, org: CurrentOrganization
+) -> dict:
+    service = AutoRemediationService(db=db, organization_id=org.id)
     pipeline = await service.reject_pipeline(pipeline_id, request.approver, request.comment)
     if not pipeline:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
@@ -132,8 +142,8 @@ async def reject_pipeline(pipeline_id: UUID, request: ApproveRequest, db: DB) ->
 
 
 @router.post("/pipelines/{pipeline_id}/rollback", summary="Rollback pipeline")
-async def rollback_pipeline(pipeline_id: UUID, db: DB) -> dict:
-    service = AutoRemediationService(db=db)
+async def rollback_pipeline(pipeline_id: UUID, db: DB, org: CurrentOrganization) -> dict:
+    service = AutoRemediationService(db=db, organization_id=org.id)
     pipeline = await service.rollback_pipeline(pipeline_id)
     if not pipeline:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
@@ -141,8 +151,8 @@ async def rollback_pipeline(pipeline_id: UUID, db: DB) -> dict:
 
 
 @router.get("/config", response_model=RemediationConfigSchema, summary="Get config")
-async def get_config(db: DB) -> RemediationConfigSchema:
-    service = AutoRemediationService(db=db)
+async def get_config(db: DB, org: CurrentOrganization) -> RemediationConfigSchema:
+    service = AutoRemediationService(db=db, organization_id=org.id)
     c = service.get_config()
     return RemediationConfigSchema(
         enabled=c.enabled,
@@ -156,8 +166,8 @@ async def get_config(db: DB) -> RemediationConfigSchema:
 
 
 @router.get("/stats", response_model=RemediationStatsSchema, summary="Get stats")
-async def get_stats(db: DB) -> RemediationStatsSchema:
-    service = AutoRemediationService(db=db)
+async def get_stats(db: DB, org: CurrentOrganization) -> RemediationStatsSchema:
+    service = AutoRemediationService(db=db, organization_id=org.id)
     s = service.get_stats()
     return RemediationStatsSchema(
         total_pipelines=s.total_pipelines,

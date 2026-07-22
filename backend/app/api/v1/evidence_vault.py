@@ -156,9 +156,11 @@ class EvidenceGapSchema(BaseModel):
     summary="Store evidence",
     description="Store a new piece of compliance evidence in the immutable vault",
 )
-async def store_evidence(request: StoreEvidenceRequest, db: DB) -> EvidenceItemSchema:
+async def store_evidence(
+    request: StoreEvidenceRequest, db: DB, org: CurrentOrganization
+) -> EvidenceItemSchema:
     """Store compliance evidence."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     item = await service.store_evidence(
         evidence_type=EvidenceType(request.evidence_type),
         title=request.title,
@@ -191,13 +193,14 @@ async def store_evidence(request: StoreEvidenceRequest, db: DB) -> EvidenceItemS
 )
 async def query_evidence(
     db: DB,
+    org: CurrentOrganization,
     framework: str | None = None,
     control_id: str | None = None,
     evidence_type: str | None = None,
     limit: int = 50,
 ) -> list[EvidenceItemSchema]:
     """Query evidence items."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     fw = ControlFramework(framework) if framework else None
     et = EvidenceType(evidence_type) if evidence_type else None
     items = await service.get_evidence(
@@ -224,9 +227,9 @@ async def query_evidence(
     "/verify/{framework}",
     summary="Verify evidence chain",
 )
-async def verify_chain(framework: str, db: DB) -> dict:
+async def verify_chain(framework: str, db: DB, org: CurrentOrganization) -> dict:
     """Verify integrity of an evidence chain."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     verified = await service.verify_chain(ControlFramework(framework))
     return {"framework": framework, "verified": verified}
 
@@ -236,9 +239,11 @@ async def verify_chain(framework: str, db: DB) -> dict:
     response_model=list[ControlMappingSchema],
     summary="Get control mappings",
 )
-async def get_control_mappings(framework: str, db: DB) -> list[ControlMappingSchema]:
+async def get_control_mappings(
+    framework: str, db: DB, org: CurrentOrganization
+) -> list[ControlMappingSchema]:
     """Get control-to-evidence mappings."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     mappings = await service.get_control_mappings(ControlFramework(framework))
     return [
         ControlMappingSchema(
@@ -262,9 +267,10 @@ async def get_control_mappings(framework: str, db: DB) -> list[ControlMappingSch
 async def create_auditor_session(
     request: CreateAuditorSessionRequest,
     db: DB,
+    org: CurrentOrganization,
 ) -> AuditorSessionSchema:
     """Create a read-only auditor portal session."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     session = await service.create_auditor_session(
         auditor_email=request.auditor_email,
         auditor_name=request.auditor_name,
@@ -290,9 +296,9 @@ async def create_auditor_session(
     response_model=list[AuditorSessionSchema],
     summary="List auditor sessions",
 )
-async def list_auditor_sessions(db: DB) -> list[AuditorSessionSchema]:
+async def list_auditor_sessions(db: DB, org: CurrentOrganization) -> list[AuditorSessionSchema]:
     """List all auditor sessions."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     sessions = await service.list_auditor_sessions()
     return [
         AuditorSessionSchema(
@@ -315,9 +321,11 @@ async def list_auditor_sessions(db: DB) -> list[AuditorSessionSchema]:
     status_code=status.HTTP_201_CREATED,
     summary="Generate audit report",
 )
-async def generate_report(request: GenerateReportRequest, db: DB) -> AuditReportSchema:
+async def generate_report(
+    request: GenerateReportRequest, db: DB, org: CurrentOrganization
+) -> AuditReportSchema:
     """Generate an audit report."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     report = await service.generate_report(
         framework=ControlFramework(request.framework),
         report_format=request.report_format,
@@ -339,9 +347,11 @@ async def generate_report(request: GenerateReportRequest, db: DB) -> AuditReport
     summary="Get coverage metrics",
     description="Get detailed coverage metrics for a compliance framework",
 )
-async def get_coverage_metrics(framework: str, db: DB) -> CoverageMetricsSchema:
+async def get_coverage_metrics(
+    framework: str, db: DB, org: CurrentOrganization
+) -> CoverageMetricsSchema:
     """Get detailed coverage metrics for a compliance framework."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     metrics = await service.get_coverage_metrics(ControlFramework(framework))
     return CoverageMetricsSchema(**metrics.to_dict())
 
@@ -352,9 +362,11 @@ async def get_coverage_metrics(framework: str, db: DB) -> CoverageMetricsSchema:
     summary="Enhanced chain verification",
     description="Perform enhanced hash chain verification with detailed results",
 )
-async def verify_chain_enhanced(framework: str, db: DB) -> ChainVerificationSchema:
+async def verify_chain_enhanced(
+    framework: str, db: DB, org: CurrentOrganization
+) -> ChainVerificationSchema:
     """Perform enhanced hash chain verification with detailed results."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     result = await service.verify_chain_enhanced(ControlFramework(framework))
     return ChainVerificationSchema(**result.to_dict())
 
@@ -365,9 +377,11 @@ async def verify_chain_enhanced(framework: str, db: DB) -> ChainVerificationSche
     summary="Identify evidence gaps",
     description="Identify gaps in evidence coverage for a framework",
 )
-async def identify_evidence_gaps(framework: str, db: DB) -> list[EvidenceGapSchema]:
+async def identify_evidence_gaps(
+    framework: str, db: DB, org: CurrentOrganization
+) -> list[EvidenceGapSchema]:
     """Identify gaps in evidence coverage for a framework."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     gaps = await service.identify_evidence_gaps(ControlFramework(framework))
     return [EvidenceGapSchema(**g.to_dict()) for g in gaps]
 
@@ -437,9 +451,11 @@ class AuditTimelineEventSchema(BaseModel):
     summary="Anchor to blockchain",
     description="Anchor evidence chain to blockchain for tamper-proof verification",
 )
-async def anchor_to_blockchain(framework: str, db: DB) -> BlockchainAnchorSchema:
+async def anchor_to_blockchain(
+    framework: str, db: DB, org: CurrentOrganization
+) -> BlockchainAnchorSchema:
     """Anchor evidence chain to blockchain."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     anchor = await service.anchor_to_blockchain(ControlFramework(framework))
     return BlockchainAnchorSchema(
         id=str(anchor.id),
@@ -466,12 +482,13 @@ async def anchor_to_blockchain(framework: str, db: DB) -> BlockchainAnchorSchema
 async def verify_batch(
     framework: str,
     db: DB,
+    org: CurrentOrganization,
     request: BatchVerificationRequestSchema | None = None,
 ) -> BatchVerificationResultSchema:
     """Batch verify evidence items."""
     from uuid import UUID as _UUID
 
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     evidence_ids = (
         [_UUID(eid) for eid in request.evidence_ids] if request and request.evidence_ids else None
     )
@@ -498,11 +515,12 @@ async def verify_batch(
 )
 async def get_audit_timeline(
     db: DB,
+    org: CurrentOrganization,
     framework: str | None = None,
     limit: int = 50,
 ) -> list[AuditTimelineEventSchema]:
     """Get audit timeline events."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     events = await service.get_audit_timeline(framework=framework, limit=limit)
     return [
         AuditTimelineEventSchema(
@@ -524,9 +542,11 @@ async def get_audit_timeline(
     summary="Get blockchain anchor",
     description="Get blockchain anchor for a framework's evidence chain",
 )
-async def get_blockchain_anchor(framework: str, db: DB) -> BlockchainAnchorSchema | None:
+async def get_blockchain_anchor(
+    framework: str, db: DB, org: CurrentOrganization
+) -> BlockchainAnchorSchema | None:
     """Get blockchain anchor for a framework."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     anchor = service._blockchain_anchors.get(framework)
     if not anchor:
         return None
@@ -578,9 +598,11 @@ class SessionValidationSchema(BaseModel):
     response_model=SessionValidationSchema,
     summary="Validate auditor session",
 )
-async def validate_auditor_session(session_id: str, db: DB) -> SessionValidationSchema:
+async def validate_auditor_session(
+    session_id: str, db: DB, org: CurrentOrganization
+) -> SessionValidationSchema:
     """Validate an auditor session and check if it's still active."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     result = await service.validate_auditor_session(session_id)
     return SessionValidationSchema(**result)
 
@@ -589,9 +611,9 @@ async def validate_auditor_session(session_id: str, db: DB) -> SessionValidation
     "/auditor-sessions/{session_id}/revoke",
     summary="Revoke auditor session",
 )
-async def revoke_auditor_session(session_id: str, db: DB) -> dict:
+async def revoke_auditor_session(session_id: str, db: DB, org: CurrentOrganization) -> dict:
     """Revoke an auditor session before expiry."""
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     success = await service.revoke_auditor_session(session_id)
     if not success:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -603,12 +625,14 @@ async def revoke_auditor_session(session_id: str, db: DB) -> dict:
     response_model=ReadinessReportSchema,
     summary="Generate audit readiness report",
 )
-async def get_readiness_report(framework: str, db: DB) -> ReadinessReportSchema:
+async def get_readiness_report(
+    framework: str, db: DB, org: CurrentOrganization
+) -> ReadinessReportSchema:
     """Generate an audit readiness report for a specific framework.
 
     Analyzes evidence completeness, control coverage, and identifies gaps.
     """
-    service = EvidenceVaultService(db=db)
+    service = EvidenceVaultService(db=db, organization_id=org.id)
     report = await service.generate_readiness_report(framework)
     return ReadinessReportSchema(**report)
 

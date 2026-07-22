@@ -7,7 +7,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.drift_detection import (
     AlertChannel,
     AlertConfig,
@@ -172,9 +172,10 @@ class WebhookDeliverySchema(BaseModel):
 async def capture_baseline(
     request: CaptureBaselineRequest,
     db: DB,
+    org: CurrentOrganization,
 ) -> BaselineSchema:
     """Capture current compliance state as baseline."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     baseline = await service.capture_baseline(
         repo=request.repo,
         branch=request.branch,
@@ -199,9 +200,10 @@ async def capture_baseline(
 async def detect_drift(
     request: DetectDriftRequest,
     db: DB,
+    org: CurrentOrganization,
 ) -> list[DriftEventSchema]:
     """Detect compliance drift against baseline."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     events = await service.detect_drift(
         repo=request.repo,
         branch=request.branch,
@@ -236,13 +238,14 @@ async def detect_drift(
 )
 async def list_events(
     db: DB,
+    org: CurrentOrganization,
     repo: str | None = None,
     severity: str | None = None,
     drift_type: str | None = None,
     limit: int = 50,
 ) -> list[DriftEventSchema]:
     """List drift events with filters."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     s = DriftSeverity(severity) if severity else None
     dt = DriftType(drift_type) if drift_type else None
     events = await service.list_events(repo=repo, severity=s, drift_type=dt, limit=limit)
@@ -270,9 +273,9 @@ async def list_events(
     "/events/{event_id}/resolve",
     summary="Resolve drift event",
 )
-async def resolve_event(event_id: UUID, db: DB) -> dict:
+async def resolve_event(event_id: UUID, db: DB, org: CurrentOrganization) -> dict:
     """Mark a drift event as resolved."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     event = await service.resolve_event(event_id)
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
@@ -283,9 +286,9 @@ async def resolve_event(event_id: UUID, db: DB) -> dict:
     "/alerts/config",
     summary="Configure alerts",
 )
-async def configure_alerts(request: AlertConfigRequest, db: DB) -> dict:
+async def configure_alerts(request: AlertConfigRequest, db: DB, org: CurrentOrganization) -> dict:
     """Update alert configuration."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     config = AlertConfig(
         channels=[AlertChannel(c) for c in request.channels],
         severity_threshold=DriftSeverity(request.severity_threshold),
@@ -303,9 +306,9 @@ async def configure_alerts(request: AlertConfigRequest, db: DB) -> dict:
     response_model=DriftReportSchema,
     summary="Get drift report",
 )
-async def get_report(repo: str, db: DB) -> DriftReportSchema:
+async def get_report(repo: str, db: DB, org: CurrentOrganization) -> DriftReportSchema:
     """Generate drift report for a repository."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     report = await service.get_report(repo=repo)
     return DriftReportSchema(
         repo=report.repo,
@@ -324,13 +327,14 @@ async def get_report(repo: str, db: DB) -> DriftReportSchema:
 async def check_cicd_gate(
     request: CICDGateRequest,
     db: DB,
+    org: CurrentOrganization,
 ) -> CICDGateSchema:
     """Check compliance gate for CI/CD pipeline.
 
     Returns pass/fail/warn decision. Use in GitHub Actions or GitLab CI
     to block merges when compliance score drops below threshold.
     """
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     result = await service.check_cicd_gate(
         repo=request.repo,
         branch=request.branch,
@@ -364,10 +368,11 @@ async def check_cicd_gate(
 async def get_drift_trend(
     repo: str,
     db: DB,
+    org: CurrentOrganization,
     period: str = "7d",
 ) -> DriftTrendSchema:
     """Get compliance drift trend over time."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     trend = service.get_drift_trend(repo, period)
     return DriftTrendSchema(**trend.to_dict())
 
@@ -380,10 +385,11 @@ async def get_drift_trend(
 async def get_top_drifting_files(
     repo: str,
     db: DB,
+    org: CurrentOrganization,
     limit: int = 10,
 ) -> list[TopDriftingFileSchema]:
     """Get files with the most compliance drift."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     files = service.get_top_drifting_files(repo, limit)
     return [TopDriftingFileSchema(**f.to_dict()) for f in files]
 
@@ -398,9 +404,10 @@ async def deliver_webhook(
     event_id: str,
     channel: str,
     db: DB,
+    org: CurrentOrganization,
 ) -> WebhookDeliverySchema:
     """Deliver a webhook notification for a drift event."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     delivery = await service.deliver_webhook(event_id, channel)
     return WebhookDeliverySchema(**delivery.to_dict())
 
@@ -412,10 +419,11 @@ async def deliver_webhook(
 )
 async def get_webhook_deliveries(
     db: DB,
+    org: CurrentOrganization,
     event_id: str | None = None,
     limit: int = 50,
 ) -> list[WebhookDeliverySchema]:
     """Get webhook delivery history."""
-    service = DriftDetectionService(db=db)
+    service = DriftDetectionService(db=db, organization_id=org.id)
     deliveries = service.get_webhook_deliveries(event_id, limit)
     return [WebhookDeliverySchema(**d.to_dict()) for d in deliveries]

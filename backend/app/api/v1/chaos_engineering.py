@@ -109,13 +109,16 @@ async def create_experiment(req: CreateExperimentRequest) -> dict:
         raise HTTPException(
             status_code=422, detail=f"Invalid experiment_type: {req.experiment_type}"
         ) from exc
-    e = await svc.create_experiment(
-        name=req.name,
-        description=req.description,
-        experiment_type=experiment_type,
-        target_service=req.target_service,
-        target_environment=req.target_environment,
-    )
+    try:
+        e = await svc.create_experiment(
+            name=req.name,
+            description=req.description,
+            experiment_type=experiment_type,
+            target_service=req.target_service,
+            target_environment=req.target_environment,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {
         "id": str(e.id),
         "name": e.name,
@@ -139,9 +142,8 @@ async def run_experiment(experiment_id: UUID) -> dict:
     try:
         e = await svc.run_experiment(experiment_id)
     except ValueError as e_err:
-        raise HTTPException(status_code=400, detail=str(e_err)) from e_err
-    if not e:
-        raise HTTPException(status_code=404, detail="Experiment not found")
+        status_code = 404 if "not found" in str(e_err).lower() else 409
+        raise HTTPException(status_code=status_code, detail=str(e_err)) from e_err
     return {
         "id": str(e.id),
         "name": e.name,

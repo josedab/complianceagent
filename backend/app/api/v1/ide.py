@@ -1,14 +1,18 @@
 """IDE integration API endpoints for real-time compliance analysis."""
 
 import contextlib
+import re
+from collections import defaultdict
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import select
 
-from app.api.v1.deps import DB, CurrentOrganization, OrgMember
+from app.api.v1.deps import DB, CurrentOrganization, OrgAdmin, OrgMember
+from app.models.ide_learning import IDERuleEventRecord, TeamSuppressionRecord
 from app.services.ide import (
     DiagnosticSeverity,
     IDEComplianceAnalyzer,
@@ -238,6 +242,30 @@ async def analyze_document(
             )
         )
 
+    if result.diagnostics:
+        detected_at = datetime.now(UTC)
+        db.add_all(
+            [
+                IDERuleEventRecord(
+                    organization_id=organization.id,
+                    user_id=member.user_id,
+                    rule_id=diag.code,
+                    event_type="detection",
+                    file_path=request.uri,
+                    event_metadata={
+                        "message": diag.message,
+                        "severity": diag.severity.value,
+                        "regulation": diag.regulation,
+                        "article_reference": diag.article_reference,
+                        "line": diag.range.start.line,
+                        "detected_at": detected_at.isoformat(),
+                    },
+                )
+                for diag in result.diagnostics
+            ]
+        )
+        await db.flush()
+
     return AnalyzeDocumentResponse(
         uri=result.uri,
         version=result.version,
@@ -341,11 +369,11 @@ async def get_ide_config(
 
 @router.put("/config")
 async def update_ide_config(
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
     regulations: list[str] | None = None,
     severity_threshold: str | None = None,
-    organization: CurrentOrganization = None,
-    member: OrgMember = None,
-    db: DB = None,
 ) -> IDEConfigResponse:
     """Update IDE integration configuration."""
     # Create new analyzer with updated config
@@ -580,7 +608,7 @@ async def deep_analyze_code(
 async def ide_websocket(
     websocket: WebSocket,
     db: DB,
-):
+) -> None:
     """WebSocket endpoint for real-time IDE analysis.
 
     Provides bidirectional communication for continuous compliance monitoring.
@@ -690,10 +718,20 @@ async def ide_websocket(
 class TeamSuppressionRequest(BaseModel):
     """Request to create a team suppression."""
 
-    rule_id: str
-    pattern: str | None = None
-    reason: str
+    rule_id: str = Field(min_length=1, max_length=200)
+    pattern: str | None = Field(default=None, max_length=2000)
+    reason: str = Field(min_length=1, max_length=5000)
     expires_at: datetime | None = None
+
+    @field_validator("pattern")
+    @classmethod
+    def validate_pattern(cls, value: str | None) -> str | None:
+        if value:
+            try:
+                re.compile(value)
+            except re.error as exc:
+                raise ValueError(f"Invalid regular expression: {exc}") from exc
+        return value
 
 
 class TeamSuppressionResponse(BaseModel):
@@ -714,9 +752,74 @@ class TeamSuppressionResponse(BaseModel):
 class FeedbackRequest(BaseModel):
     """Request to submit feedback on a detection."""
 
-    type: str  # false_positive, false_negative, severity_adjustment, helpful
+    type: Literal["false_positive", "false_negative", "severity_adjustment", "helpful"]
     issue: dict[str, Any]
-    reason: str | None = None
+    user_action: Literal["suppressed", "fixed", "ignored", "reported"] | None = None
+    context: dict[str, Any] = Field(default_factory=dict)
+    reason: str | None = Field(default=None, max_length=5000)
+    timestamp: datetime | None = None
+    time_to_fix_minutes: float | None = Field(default=None, ge=0)
+
+
+class FeedbackBatchRequest(BaseModel):
+    """Bounded batch of IDE feedback events."""
+
+    items: list[FeedbackRequest] = Field(min_length=1, max_length=100)
+
+
+def _suppression_response(record: TeamSuppressionRecord) -> TeamSuppressionResponse:
+    return TeamSuppressionResponse(
+        id=str(record.id),
+        rule_id=record.rule_id,
+        pattern=record.pattern,
+        reason=record.reason,
+        created_by=str(record.created_by),
+        created_at=record.created_at,
+        expires_at=record.expires_at,
+        approved=record.approved,
+        approved_by=str(record.approved_by) if record.approved_by else None,
+        usage_count=record.usage_count,
+    )
+
+
+def _feedback_rule_id(request: FeedbackRequest) -> str:
+    value = request.issue.get("requirementId") or request.issue.get("rule_id")
+    rule_id = str(value or "").strip()
+    if not rule_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Feedback issue must include requirementId or rule_id",
+        )
+    return rule_id
+
+
+async def _store_feedback(
+    request: FeedbackRequest,
+    organization_id: UUID,
+    user_id: UUID,
+    db: DB,
+) -> None:
+    rule_id = _feedback_rule_id(request)
+    line = request.issue.get("line")
+    document_uri = request.context.get("file") or request.issue.get("file")
+    db.add(
+        IDERuleEventRecord(
+            organization_id=organization_id,
+            user_id=user_id,
+            rule_id=rule_id,
+            event_type=request.type,
+            file_path=str(document_uri) if document_uri else None,
+            reason=request.reason,
+            event_metadata={
+                "user_action": request.user_action,
+                "line": int(line) if isinstance(line, (int, float)) else None,
+                "issue": request.issue,
+                "context": request.context,
+                "time_to_fix_minutes": request.time_to_fix_minutes,
+                "occurred_at": (request.timestamp or datetime.now(UTC)).isoformat(),
+            },
+        )
+    )
 
 
 @router.get("/suppressions", response_model=list[TeamSuppressionResponse])
@@ -726,12 +829,25 @@ async def get_team_suppressions(
     db: DB,
 ) -> list[TeamSuppressionResponse]:
     """Get team-wide suppressions for the organization."""
-    # In a real implementation, this would fetch from database
-    # For now, return empty list as placeholder
-    return []
+    result = await db.execute(
+        select(TeamSuppressionRecord)
+        .where(TeamSuppressionRecord.organization_id == organization.id)
+        .order_by(TeamSuppressionRecord.created_at.desc())
+    )
+    now = datetime.now(UTC)
+    records = [
+        record
+        for record in result.scalars().all()
+        if record.expires_at is None or record.expires_at > now
+    ]
+    return [_suppression_response(record) for record in records]
 
 
-@router.post("/suppressions", response_model=TeamSuppressionResponse)
+@router.post(
+    "/suppressions",
+    response_model=TeamSuppressionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def request_team_suppression(
     request: TeamSuppressionRequest,
     organization: CurrentOrganization,
@@ -742,50 +858,143 @@ async def request_team_suppression(
 
     Suppressions require approval from an admin before taking effect.
     """
-    # In a real implementation, this would save to database
-    # and notify admins for approval
-    from uuid import uuid4
+    if request.expires_at and request.expires_at <= datetime.now(UTC):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="expires_at must be in the future",
+        )
+    existing_result = await db.execute(
+        select(TeamSuppressionRecord).where(
+            TeamSuppressionRecord.organization_id == organization.id,
+            TeamSuppressionRecord.rule_id == request.rule_id,
+            TeamSuppressionRecord.pattern == request.pattern,
+        )
+    )
+    if existing_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A matching team suppression already exists",
+        )
 
-    return TeamSuppressionResponse(
-        id=str(uuid4()),
+    record = TeamSuppressionRecord(
+        organization_id=organization.id,
         rule_id=request.rule_id,
         pattern=request.pattern,
         reason=request.reason,
-        created_by=str(member.user_id),
-        created_at=datetime.now(UTC),
+        created_by=member.user_id,
         expires_at=request.expires_at,
-        approved=False,  # Requires admin approval
-        approved_by=None,
-        usage_count=0,
+        approved=False,
     )
+    db.add(record)
+    await db.flush()
+    await db.refresh(record)
+    return _suppression_response(record)
 
 
-@router.put("/suppressions/{suppression_id}/approve")
+@router.put(
+    "/suppressions/{suppression_id}/approve",
+    response_model=TeamSuppressionResponse,
+)
 async def approve_team_suppression(
-    suppression_id: str,
+    suppression_id: UUID,
     organization: CurrentOrganization,
-    member: OrgMember,
+    admin: OrgAdmin,
     db: DB,
 ) -> TeamSuppressionResponse:
     """Approve a team suppression (admin only)."""
-    # In a real implementation, this would update the database
-    # and require admin role check
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Suppression not found",
+    result = await db.execute(
+        select(TeamSuppressionRecord).where(
+            TeamSuppressionRecord.id == suppression_id,
+            TeamSuppressionRecord.organization_id == organization.id,
+        )
     )
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Suppression not found",
+        )
+    if record.expires_at and record.expires_at <= datetime.now(UTC):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Expired suppressions cannot be approved",
+        )
+
+    record.approved = True
+    record.approved_by = admin.user_id
+    record.approved_at = datetime.now(UTC)
+    await db.flush()
+    return _suppression_response(record)
 
 
 @router.delete("/suppressions/{suppression_id}")
 async def delete_team_suppression(
-    suppression_id: str,
+    suppression_id: UUID,
     organization: CurrentOrganization,
     member: OrgMember,
     db: DB,
 ) -> dict[str, str]:
     """Delete a team suppression."""
-    # In a real implementation, this would delete from database
+    result = await db.execute(
+        select(TeamSuppressionRecord).where(
+            TeamSuppressionRecord.id == suppression_id,
+            TeamSuppressionRecord.organization_id == organization.id,
+        )
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Suppression not found",
+        )
+    if record.created_by != member.user_id and member.role not in ("owner", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the requester or an organization admin may delete this suppression",
+        )
+
+    await db.delete(record)
+    await db.flush()
     return {"status": "deleted"}
+
+
+@router.post(
+    "/suppressions/{suppression_id}/usage",
+    response_model=TeamSuppressionResponse,
+)
+async def record_team_suppression_usage(
+    suppression_id: UUID,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> TeamSuppressionResponse:
+    """Record use of an approved, unexpired team suppression."""
+    result = await db.execute(
+        select(TeamSuppressionRecord).where(
+            TeamSuppressionRecord.id == suppression_id,
+            TeamSuppressionRecord.organization_id == organization.id,
+        )
+    )
+    record = result.scalar_one_or_none()
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Suppression not found",
+        )
+    if not record.approved:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Suppression has not been approved",
+        )
+    if record.expires_at and record.expires_at <= datetime.now(UTC):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Suppression has expired",
+        )
+
+    record.usage_count += 1
+    await db.flush()
+    return _suppression_response(record)
 
 
 @router.post("/feedback")
@@ -803,7 +1012,8 @@ async def submit_feedback(
 
     logger = structlog.get_logger()
 
-    # Log feedback for analysis
+    await _store_feedback(request, organization.id, member.user_id, db)
+    await db.flush()
     logger.info(
         "IDE feedback received",
         organization_id=str(organization.id),
@@ -813,12 +1023,21 @@ async def submit_feedback(
         reason=request.reason,
     )
 
-    # In a real implementation, this would:
-    # 1. Store feedback in database
-    # 2. Aggregate for ML model training
-    # 3. Auto-create suppressions if high false positive rate
-
     return {"status": "received", "message": "Thank you for your feedback!"}
+
+
+@router.post("/feedback/batch")
+async def submit_feedback_batch(
+    request: FeedbackBatchRequest,
+    organization: CurrentOrganization,
+    member: OrgMember,
+    db: DB,
+) -> dict[str, int | str]:
+    """Persist a bounded batch of IDE feedback events atomically."""
+    for item in request.items:
+        await _store_feedback(item, organization.id, member.user_id, db)
+    await db.flush()
+    return {"status": "received", "accepted": len(request.items)}
 
 
 # ============================================================================
@@ -837,45 +1056,57 @@ class RuleStatsResponse(BaseModel):
     avg_time_to_fix_minutes: float | None
 
 
+async def _get_rule_statistics(
+    organization_id: UUID,
+    db: DB,
+    rule_id: str | None = None,
+) -> list[RuleStatsResponse]:
+    statement = select(IDERuleEventRecord).where(
+        IDERuleEventRecord.organization_id == organization_id
+    )
+    if rule_id is not None:
+        statement = statement.where(IDERuleEventRecord.rule_id == rule_id)
+    result = await db.execute(statement)
+
+    grouped: dict[str, list[IDERuleEventRecord]] = defaultdict(list)
+    for event in result.scalars().all():
+        grouped[event.rule_id].append(event)
+
+    statistics: list[RuleStatsResponse] = []
+    for current_rule_id, events in sorted(grouped.items()):
+        total_detections = sum(event.event_type == "detection" for event in events)
+        denominator = total_detections or 1
+        false_positives = sum(event.event_type == "false_positive" for event in events)
+        fixed = sum(event.event_metadata.get("user_action") == "fixed" for event in events)
+        suppressed = sum(
+            event.event_metadata.get("user_action") == "suppressed" for event in events
+        )
+        fix_times = [
+            float(event.event_metadata["time_to_fix_minutes"])
+            for event in events
+            if event.event_metadata.get("time_to_fix_minutes") is not None
+        ]
+        statistics.append(
+            RuleStatsResponse(
+                rule_id=current_rule_id,
+                total_detections=total_detections,
+                false_positive_rate=min(false_positives / denominator, 1.0),
+                fix_rate=min(fixed / denominator, 1.0),
+                suppression_rate=min(suppressed / denominator, 1.0),
+                avg_time_to_fix_minutes=(sum(fix_times) / len(fix_times) if fix_times else None),
+            )
+        )
+    return statistics
+
+
 @router.get("/stats/rules", response_model=list[RuleStatsResponse])
 async def get_rule_statistics(
     organization: CurrentOrganization,
     member: OrgMember,
     db: DB,
 ) -> list[RuleStatsResponse]:
-    """Get aggregated statistics for compliance rules.
-
-    Useful for understanding which rules are most effective
-    and which may need tuning.
-    """
-    # In a real implementation, this would aggregate from database
-    # For now, return sample data
-    return [
-        RuleStatsResponse(
-            rule_id="GDPR-PII-001",
-            total_detections=145,
-            false_positive_rate=0.12,
-            fix_rate=0.78,
-            suppression_rate=0.10,
-            avg_time_to_fix_minutes=15.5,
-        ),
-        RuleStatsResponse(
-            rule_id="SOC2-CRED-001",
-            total_detections=89,
-            false_positive_rate=0.05,
-            fix_rate=0.92,
-            suppression_rate=0.03,
-            avg_time_to_fix_minutes=5.2,
-        ),
-        RuleStatsResponse(
-            rule_id="HIPAA-PHI-001",
-            total_detections=67,
-            false_positive_rate=0.18,
-            fix_rate=0.65,
-            suppression_rate=0.17,
-            avg_time_to_fix_minutes=25.8,
-        ),
-    ]
+    """Get organization-scoped effectiveness statistics for compliance rules."""
+    return await _get_rule_statistics(organization.id, db)
 
 
 @router.get("/stats/rules/{rule_id}", response_model=RuleStatsResponse)
@@ -886,7 +1117,9 @@ async def get_rule_stats(
     db: DB,
 ) -> RuleStatsResponse:
     """Get statistics for a specific rule."""
-    # In a real implementation, this would fetch from database
+    statistics = await _get_rule_statistics(organization.id, db, rule_id)
+    if statistics:
+        return statistics[0]
     return RuleStatsResponse(
         rule_id=rule_id,
         total_detections=0,

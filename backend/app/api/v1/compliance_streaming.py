@@ -1,5 +1,7 @@
 """API endpoints for Compliance Event Streaming."""
 
+from uuid import UUID
+
 import structlog
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -167,10 +169,8 @@ async def list_webhooks(db: DB) -> list[dict]:
 
 @router.delete("/webhooks/{webhook_id}", summary="Remove webhook")
 async def remove_webhook(webhook_id: str, db: DB) -> dict:
-    from uuid import UUID as PyUUID
-
     svc = ComplianceStreamingService(db)
-    ok = await svc.remove_webhook(PyUUID(webhook_id))
+    ok = await svc.remove_webhook(UUID(webhook_id))
     return {"removed": ok}
 
 

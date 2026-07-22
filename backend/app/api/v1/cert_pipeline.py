@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.api.v1.deps import DB
+from app.api.v1.deps import DB, CurrentOrganization
 from app.services.cert_pipeline import CertPipelineService
 
 
@@ -81,8 +81,8 @@ class CertStatsSchema(BaseModel):
     status_code=status.HTTP_201_CREATED,
     summary="Start certification run",
 )
-async def certify(request: CertifyRequest, db: DB) -> CertRunSchema:
-    service = CertPipelineService(db=db)
+async def certify(request: CertifyRequest, db: DB, org: CurrentOrganization) -> CertRunSchema:
+    service = CertPipelineService(db=db, organization_id=org.id)
     r = await service.certify(
         repo=request.repo,
         framework=request.framework,
@@ -105,8 +105,8 @@ async def certify(request: CertifyRequest, db: DB) -> CertRunSchema:
 
 
 @router.post("/certify/{run_id}/advance", summary="Advance certification stage")
-async def advance(run_id: str, db: DB) -> dict:
-    service = CertPipelineService(db=db)
+async def advance(run_id: str, db: DB, org: CurrentOrganization) -> dict:
+    service = CertPipelineService(db=db, organization_id=org.id)
     r = await service.advance(run_id)
     if not r:
         raise HTTPException(
@@ -116,8 +116,10 @@ async def advance(run_id: str, db: DB) -> dict:
 
 
 @router.post("/gaps/{gap_id}/resolve", response_model=GapSchema, summary="Resolve gap")
-async def resolve_gap(gap_id: str, request: GapResolveRequest, db: DB) -> GapSchema:
-    service = CertPipelineService(db=db)
+async def resolve_gap(
+    gap_id: str, request: GapResolveRequest, db: DB, org: CurrentOrganization
+) -> GapSchema:
+    service = CertPipelineService(db=db, organization_id=org.id)
     g = await service.resolve_gap(
         gap_id=gap_id,
         resolution=request.resolution,
@@ -140,9 +142,9 @@ async def resolve_gap(gap_id: str, request: GapResolveRequest, db: DB) -> GapSch
 
 @router.get("/runs", response_model=list[CertRunSchema], summary="List certification runs")
 async def list_runs(
-    db: DB, framework: str | None = None, repo: str | None = None
+    db: DB, org: CurrentOrganization, framework: str | None = None, repo: str | None = None
 ) -> list[CertRunSchema]:
-    service = CertPipelineService(db=db)
+    service = CertPipelineService(db=db, organization_id=org.id)
     runs = service.list_runs(framework=framework, repo=repo)
     return [
         CertRunSchema(
@@ -164,8 +166,8 @@ async def list_runs(
 @router.get(
     "/runs/{run_id}/report", response_model=ReportSchema, summary="Get certification report"
 )
-async def get_report(run_id: str, db: DB) -> ReportSchema:
-    service = CertPipelineService(db=db)
+async def get_report(run_id: str, db: DB, org: CurrentOrganization) -> ReportSchema:
+    service = CertPipelineService(db=db, organization_id=org.id)
     rpt = service.get_report(run_id)
     if not rpt:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
@@ -184,8 +186,8 @@ async def get_report(run_id: str, db: DB) -> ReportSchema:
 
 
 @router.get("/stats", response_model=CertStatsSchema, summary="Get certification stats")
-async def get_stats(db: DB) -> CertStatsSchema:
-    service = CertPipelineService(db=db)
+async def get_stats(db: DB, org: CurrentOrganization) -> CertStatsSchema:
+    service = CertPipelineService(db=db, organization_id=org.id)
     s = service.get_stats()
     return CertStatsSchema(
         total_runs=s.total_runs,
