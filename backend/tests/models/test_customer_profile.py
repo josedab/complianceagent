@@ -1,10 +1,6 @@
 """Tests for CustomerProfile.get_applicable_frameworks."""
 
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-from app.models.regulation import RegulatoryFramework
+from unittest.mock import MagicMock
 
 
 def _make_profile(**overrides):

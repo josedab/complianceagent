@@ -3,8 +3,6 @@
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-import pytest
-
 from app.agents.codebase_analyzer import CodebaseAnalyzer
 from app.models.codebase import ComplianceStatus
 

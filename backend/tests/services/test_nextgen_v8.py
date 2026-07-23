@@ -23,8 +23,10 @@ async def os_svc(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def trust_svc(db_session: AsyncSession):
-    return TrustNetworkService(db=db_session)
+async def trust_svc(db_session: AsyncSession, test_organization, test_user):
+    return TrustNetworkService(
+        db=db_session, organization_id=test_organization.id, user_id=test_user.id
+    )
 
 
 @pytest_asyncio.fixture
@@ -123,7 +125,7 @@ class TestTrustNetwork:
     @pytest.mark.asyncio
     async def test_trust_chain(self, trust_svc: TrustNetworkService):
         await trust_svc.create_attestation("A", "soc2_compliant", "SOC 2", 90.0)
-        chain = trust_svc.get_trust_chain()
+        chain = await trust_svc.get_trust_chain()
         assert chain.chain_length >= 1
 
 

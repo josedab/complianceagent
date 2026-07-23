@@ -4,11 +4,31 @@ These tests catch import errors, broken router registrations, and route
 conflicts across all 96+ API modules — without needing any infrastructure.
 """
 
+from collections import Counter
+
 import pytest
+from fastapi import APIRouter
 from httpx import AsyncClient
 
 
 pytestmark = pytest.mark.asyncio
+
+
+def _route_entries(router: APIRouter, prefix: str = "") -> list[tuple[str, str]]:
+    """Flatten routes across FastAPI's lazy included-router wrappers."""
+    entries: list[tuple[str, str]] = []
+    for route in router.routes:
+        path = getattr(route, "path", None)
+        if path is not None:
+            methods = getattr(route, "methods", None) or {"*"}
+            entries.extend((method, f"{prefix}{path}") for method in methods)
+            continue
+
+        included_router = getattr(route, "original_router", None)
+        include_context = getattr(route, "include_context", None)
+        if included_router is not None and include_context is not None:
+            entries.extend(_route_entries(included_router, f"{prefix}{include_context.prefix}"))
+    return entries
 
 
 class TestAppBoot:
@@ -64,10 +84,7 @@ class TestRouteIntegrity:
         import app.api.v1 as v1_package
         from app.api.v1 import router as api_router
 
-        registered_prefixes = set()
-        for route in api_router.routes:
-            if hasattr(route, "path"):
-                registered_prefixes.add(route.path)
+        registered_prefixes = {path for _, path in _route_entries(api_router)}
 
         # Find all modules in api/v1 that define a router
         modules_with_routers = []
@@ -99,25 +116,10 @@ class TestRouteIntegrity:
         """
         from app.api.v1 import router as api_router
 
-        prefixes: list[str] = []
-        for route in api_router.routes:
-            if hasattr(route, "path"):
-                prefixes.append(route.path)
+        route_counts = Counter(_route_entries(api_router))
+        duplicates = sorted(route for route, count in route_counts.items() if count > 1)
 
-        duplicates = sorted({p for p in prefixes if prefixes.count(p) > 1})
-
-        # Baseline: 127 known duplicate paths exist as of 2026-03-07.
-        # Increase from 71→127 is due to experimental routes being conditionally
-        # registered (enable_experimental=True in test env adds routes that
-        # share path patterns with core routes) and new settings/api-key
-        # endpoints. Any increase above 127 means a new unintentional
-        # conflict was introduced.
-        KNOWN_DUPLICATE_COUNT = 128
-        assert len(duplicates) <= KNOWN_DUPLICATE_COUNT, (
-            f"New duplicate routes detected! Was {KNOWN_DUPLICATE_COUNT}, "
-            f"now {len(duplicates)}. New duplicates: "
-            f"{sorted(set(duplicates) - set(duplicates[:KNOWN_DUPLICATE_COUNT]))}"
-        )
+        assert duplicates == [], f"Duplicate method/path routes detected: {duplicates}"
 
     async def test_all_routes_have_tags(self):
         """Every mounted router should have at least one OpenAPI tag."""

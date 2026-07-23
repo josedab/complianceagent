@@ -25,8 +25,8 @@ async def fabric_service(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def mesh_service(db_session: AsyncSession):
-    return SelfHealingMeshService(db=db_session)
+async def mesh_service(db_session: AsyncSession, test_organization):
+    return SelfHealingMeshService(db=db_session, organization_id=test_organization.id)
 
 
 @pytest_asyncio.fixture
@@ -55,8 +55,8 @@ async def gnn_service(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def cert_service(db_session: AsyncSession):
-    return CertPipelineService(db=db_session)
+async def cert_service(db_session: AsyncSession, test_organization):
+    return CertPipelineService(db=db_session, organization_id=test_organization.id)
 
 
 @pytest_asyncio.fixture
@@ -65,8 +65,8 @@ async def gateway_service(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def workflow_service(db_session: AsyncSession):
-    return WorkflowAutomationService(db=db_session)
+async def workflow_service(db_session: AsyncSession, test_organization):
+    return WorkflowAutomationService(db=db_session, organization_id=test_organization.id)
 
 
 # ── Feature 1: Knowledge Fabric ──────────────────────────────────────────
@@ -150,7 +150,7 @@ class TestSelfHealingMesh:
     @pytest.mark.asyncio
     async def test_stats(self, mesh_service: SelfHealingMeshService):
         await mesh_service.ingest_event(HealingEvent(repo="org/a", severity="low"))
-        stats = mesh_service.get_stats()
+        stats = await mesh_service.get_stats()
         assert stats.total_events >= 1
         assert stats.total_pipelines >= 1
 
@@ -374,7 +374,7 @@ class TestCertPipeline:
     @pytest.mark.asyncio
     async def test_resolve_gap(self, cert_service: CertPipelineService):
         run = await cert_service.start_certification("soc2_type2")
-        gaps = cert_service.get_gaps(str(run.id), status=GapStatus.OPEN)
+        gaps = await cert_service.get_gaps(str(run.id), status=GapStatus.OPEN)
         assert len(gaps) > 0
         resolved = await cert_service.resolve_gap(gaps[0].id, "Implemented RBAC controls")
         assert resolved is not None

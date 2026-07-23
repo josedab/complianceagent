@@ -6,7 +6,7 @@ import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.v1.auth import _lockout, _LOCKOUT_SECONDS, _MAX_FAILED_ATTEMPTS
+from app.api.v1.auth import _MAX_FAILED_ATTEMPTS, _lockout
 from app.core.config import settings
 from app.core.security import (
     create_access_token,

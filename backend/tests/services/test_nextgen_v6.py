@@ -66,8 +66,10 @@ async def draft_sim_svc(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def gamification_svc(db_session: AsyncSession):
-    return GamificationEngineService(db=db_session)
+async def gamification_svc(db_session: AsyncSession, test_organization, test_user):
+    return GamificationEngineService(
+        db=db_session, organization_id=test_organization.id, user_id=test_user.id
+    )
 
 
 # ── Feature 1: GitHub Marketplace App ────────────────────────────────────
@@ -394,7 +396,7 @@ class TestGamificationEngine:
     @pytest.mark.asyncio
     async def test_seed_profiles(self, gamification_svc: GamificationEngineService):
         leaderboard = await gamification_svc.get_leaderboard()
-        assert len(leaderboard) >= 1
+        assert len(leaderboard) == 0
 
     @pytest.mark.asyncio
     async def test_record_activity_existing_user(self, gamification_svc: GamificationEngineService):

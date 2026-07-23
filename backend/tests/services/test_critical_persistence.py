@@ -1,6 +1,5 @@
 """Tests for critical persistence models (evidence generation, certification, remediation)."""
 
-
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

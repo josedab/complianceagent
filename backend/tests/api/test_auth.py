@@ -54,6 +54,44 @@ class TestAuthAPI:
         assert "refresh_token" in data
         assert data["token_type"] == "bearer"
 
+    async def test_access_cookie_authenticates_protected_endpoint(
+        self,
+        client: AsyncClient,
+        test_user,
+    ):
+        login = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": test_user.email,
+                "password": "testpassword123",
+            },
+        )
+        assert login.status_code == 200
+
+        response = await client.get("/api/v1/users/me")
+
+        assert response.status_code == 200
+        assert response.json()["email"] == test_user.email
+
+    async def test_refresh_token_cannot_authenticate_protected_endpoint(
+        self,
+        client: AsyncClient,
+        test_user,
+    ):
+        login = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": test_user.email,
+                "password": "testpassword123",
+            },
+        )
+        assert login.status_code == 200
+        client.cookies.set("access_token", login.json()["refresh_token"])
+
+        response = await client.get("/api/v1/users/me")
+
+        assert response.status_code == 401
+
     async def test_login_invalid_credentials(self, client: AsyncClient):
         """Test login with invalid credentials."""
         response = await client.post(

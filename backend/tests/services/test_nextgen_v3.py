@@ -29,8 +29,8 @@ from app.services.regulation_diff_viz.service import RegulationDiffVizService
 
 
 @pytest_asyncio.fixture
-async def mcp_service(db_session: AsyncSession):
-    return MCPServerService(db=db_session)
+async def mcp_service(db_session: AsyncSession, test_organization):
+    return MCPServerService(db=db_session, organization_id=test_organization.id)
 
 
 @pytest_asyncio.fixture
@@ -49,13 +49,15 @@ async def sdk_service(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def copilot_service(db_session: AsyncSession):
-    return ComplianceCopilotService(db=db_session)
+async def copilot_service(db_session: AsyncSession, test_organization, test_user):
+    return ComplianceCopilotService(
+        db=db_session, organization_id=test_organization.id, user_id=test_user.id
+    )
 
 
 @pytest_asyncio.fixture
-async def remediation_service(db_session: AsyncSession):
-    return AutoRemediationService(db=db_session)
+async def remediation_service(db_session: AsyncSession, test_organization):
+    return AutoRemediationService(db=db_session, organization_id=test_organization.id)
 
 
 @pytest_asyncio.fixture
@@ -125,7 +127,7 @@ class TestMCPServer:
 
     @pytest.mark.asyncio
     async def test_server_status(self, mcp_service: MCPServerService):
-        status = mcp_service.get_server_status()
+        status = await mcp_service.get_server_status()
         assert status.tools_count >= 7
         assert status.resources_count >= 3
         assert status.protocol_version == "2024-11-05"
@@ -287,7 +289,7 @@ class TestComplianceSDK:
 class TestComplianceCopilot:
     @pytest.mark.asyncio
     async def test_start_session(self, copilot_service: ComplianceCopilotService):
-        session = await copilot_service.start_session("org/repo", "user-1")
+        session = await copilot_service.start_session("org/repo", str(copilot_service.user_id))
         assert session.repo == "org/repo"
         assert session.started_at is not None
 

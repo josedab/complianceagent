@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.agents.relevance_filter import (
     AIMLRelevanceStrategy,
     DataTypeRelevanceStrategy,

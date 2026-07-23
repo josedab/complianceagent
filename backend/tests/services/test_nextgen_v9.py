@@ -10,7 +10,6 @@ from app.services.harmonization_engine.service import HarmonizationEngineService
 from app.services.knowledge_assistant.service import KnowledgeAssistantService
 from app.services.multi_org_orchestrator.service import MultiOrgOrchestratorService
 from app.services.plugin_ecosystem.service import PluginEcosystemService
-from app.services.regulatory_filing.models import FilingType
 from app.services.regulatory_filing.service import RegulatoryFilingService
 from app.services.scenario_planner.models import RegionGroup, ScenarioType
 from app.services.scenario_planner.service import ScenarioPlannerService

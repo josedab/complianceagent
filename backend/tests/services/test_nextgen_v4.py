@@ -27,8 +27,8 @@ from app.services.twin_simulation.service import TwinSimulationService
 
 
 @pytest_asyncio.fixture
-async def marketplace_service(db_session: AsyncSession):
-    return AgentsMarketplaceService(db=db_session)
+async def marketplace_service(db_session: AsyncSession, test_organization):
+    return AgentsMarketplaceService(db=db_session, organization_id=test_organization.id)
 
 
 @pytest_asyncio.fixture
@@ -67,8 +67,8 @@ async def benchmark_service(db_session: AsyncSession):
 
 
 @pytest_asyncio.fixture
-async def evidence_service(db_session: AsyncSession):
-    return EvidenceGenerationService(db=db_session)
+async def evidence_service(db_session: AsyncSession, test_organization):
+    return EvidenceGenerationService(db=db_session, organization_id=test_organization.id)
 
 
 @pytest_asyncio.fixture
@@ -108,19 +108,30 @@ class TestAgentsMarketplace:
 
     @pytest.mark.asyncio
     async def test_install_agent(self, marketplace_service: AgentsMarketplaceService):
-        inst = await marketplace_service.install_agent("gdpr-data-flow-scanner", "org-1")
+        inst = await marketplace_service.install_agent(
+            "gdpr-data-flow-scanner", str(marketplace_service.organization_id)
+        )
         assert inst is not None
-        assert inst.organization_id == "org-1"
+        assert inst.organization_id == str(marketplace_service.organization_id)
+
+        installations = await marketplace_service.list_installations()
+        assert any(installation.id == inst.id for installation in installations)
 
     @pytest.mark.asyncio
     async def test_rate_agent(self, marketplace_service: AgentsMarketplaceService):
+        await marketplace_service.install_agent(
+            "hipaa-phi-detector", str(marketplace_service.organization_id)
+        )
         review = await marketplace_service.rate_agent("hipaa-phi-detector", "user1", 5, "Great!")
         assert review is not None
         assert review.rating == 5
 
+        reviews = await marketplace_service.get_reviews("hipaa-phi-detector")
+        assert any(saved_review.id == review.id for saved_review in reviews)
+
     @pytest.mark.asyncio
     async def test_stats(self, marketplace_service: AgentsMarketplaceService):
-        stats = marketplace_service.get_stats()
+        stats = await marketplace_service.get_stats()
         assert stats.published_agents >= 5
         assert len(stats.by_category) > 0
 

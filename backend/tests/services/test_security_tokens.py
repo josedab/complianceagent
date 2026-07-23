@@ -10,6 +10,7 @@ from app.core.security import (
     decode_token,
 )
 
+
 # passlib + bcrypt 4.1+ compatibility issue — skip password tests if broken
 try:
     from app.core.security import get_password_hash, verify_password

@@ -1,7 +1,5 @@
 """Tests for domain exception edge cases."""
 
-import pytest
-
 from app.core.exceptions import (
     ComplianceAgentError,
     CopilotParsingError,

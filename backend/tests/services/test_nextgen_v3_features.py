@@ -227,10 +227,20 @@ class TestEvidenceVaultAuditor:
     @pytest.fixture
     def service(self):
         """Create evidence vault service with mock DB."""
+        from unittest.mock import MagicMock
+
         from app.services.evidence_vault.service import EvidenceVaultService
 
         mock_db = AsyncMock()
-        return EvidenceVaultService(db=mock_db)
+        # Set up the execute result to return empty scalars for DB queries
+        mock_result = MagicMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_scalars.first.return_value = None
+        mock_result.scalars.return_value = mock_scalars
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value = mock_result
+        return EvidenceVaultService(db=mock_db, organization_id=uuid4())
 
     async def test_validate_nonexistent_session(self, service):
         """Test validating a session that doesn't exist."""

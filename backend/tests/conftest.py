@@ -1,14 +1,25 @@
 """Test configuration and fixtures."""
 
+# ruff: noqa: I001
+
 import asyncio
+import os
 from collections.abc import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+# Test collection must never inherit feature gating from a developer's `.env`.
+os.environ["ENVIRONMENT"] = "test"
+os.environ["ENABLE_EXPERIMENTAL"] = "true"
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db

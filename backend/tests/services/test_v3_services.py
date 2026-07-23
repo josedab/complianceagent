@@ -144,23 +144,23 @@ class TestRemediationWorkflowService:
 
 class TestPostureScoringService:
     @pytest.mark.asyncio
-    async def test_compute_score(self, db_session):
-        service = PostureScoringService(db=db_session)
+    async def test_compute_score(self, db_session, test_organization):
+        service = PostureScoringService(db=db_session, organization_id=test_organization.id)
         score = await service.compute_score(industry="fintech")
         assert 0 <= score.overall_score <= 100
         assert score.grade in ("A+", "A", "A-", "B+", "B", "B-", "C+", "C", "D", "F")
         assert len(score.dimensions) >= 7
 
     @pytest.mark.asyncio
-    async def test_get_benchmark(self, db_session):
-        service = PostureScoringService(db=db_session)
+    async def test_get_benchmark(self, db_session, test_organization):
+        service = PostureScoringService(db=db_session, organization_id=test_organization.id)
         benchmark = await service.get_benchmark("fintech")
         assert benchmark is not None
         assert benchmark.sample_size > 0
 
     @pytest.mark.asyncio
-    async def test_generate_report(self, db_session):
-        service = PostureScoringService(db=db_session)
+    async def test_generate_report(self, db_session, test_organization):
+        service = PostureScoringService(db=db_session, organization_id=test_organization.id)
         report = await service.generate_report(industry="saas")
         assert report.title != ""
         assert report.posture.overall_score > 0

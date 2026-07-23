@@ -112,23 +112,23 @@ class TestDriftDetectionService:
     """Tests for the DriftDetectionService."""
 
     @pytest.mark.asyncio
-    async def test_capture_baseline(self, db_session):
-        service = DriftDetectionService(db=db_session)
+    async def test_capture_baseline(self, db_session, test_organization):
+        service = DriftDetectionService(db=db_session, organization_id=test_organization.id)
         baseline = await service.capture_baseline("test/repo")
         assert baseline.repo == "test/repo"
         assert baseline.score == 100.0
 
     @pytest.mark.asyncio
-    async def test_detect_drift_with_regression(self, db_session):
-        service = DriftDetectionService(db=db_session)
+    async def test_detect_drift_with_regression(self, db_session, test_organization):
+        service = DriftDetectionService(db=db_session, organization_id=test_organization.id)
         await service.capture_baseline("test/repo")
         events = await service.detect_drift("test/repo", current_score=70.0)
         assert len(events) > 0
         assert events[0].drift_type.value == "regression"
 
     @pytest.mark.asyncio
-    async def test_detect_no_drift(self, db_session):
-        service = DriftDetectionService(db=db_session)
+    async def test_detect_no_drift(self, db_session, test_organization):
+        service = DriftDetectionService(db=db_session, organization_id=test_organization.id)
         await service.capture_baseline("test/repo")
         events = await service.detect_drift("test/repo", current_score=98.0)
         assert len(events) == 0
@@ -166,8 +166,8 @@ class TestEvidenceVaultService:
     """Tests for the EvidenceVaultService."""
 
     @pytest.mark.asyncio
-    async def test_store_and_query_evidence(self, db_session):
-        service = EvidenceVaultService(db=db_session)
+    async def test_store_and_query_evidence(self, db_session, test_organization):
+        service = EvidenceVaultService(db=db_session, organization_id=test_organization.id)
         item = await service.store_evidence(
             evidence_type=EvidenceType.SCAN_RESULT,
             title="Test Scan",
@@ -181,8 +181,8 @@ class TestEvidenceVaultService:
         assert len(items) >= 1
 
     @pytest.mark.asyncio
-    async def test_verify_chain(self, db_session):
-        service = EvidenceVaultService(db=db_session)
+    async def test_verify_chain(self, db_session, test_organization):
+        service = EvidenceVaultService(db=db_session, organization_id=test_organization.id)
         await service.store_evidence(
             evidence_type=EvidenceType.SCAN_RESULT,
             title="E1",
@@ -203,8 +203,8 @@ class TestEvidenceVaultService:
         assert verified is True
 
     @pytest.mark.asyncio
-    async def test_create_auditor_session(self, db_session):
-        service = EvidenceVaultService(db=db_session)
+    async def test_create_auditor_session(self, db_session, test_organization):
+        service = EvidenceVaultService(db=db_session, organization_id=test_organization.id)
         session = await service.create_auditor_session(
             auditor_email="auditor@firm.com",
             auditor_name="Jane Auditor",
@@ -213,8 +213,8 @@ class TestEvidenceVaultService:
         assert session.auditor_email == "auditor@firm.com"
 
     @pytest.mark.asyncio
-    async def test_generate_report(self, db_session):
-        service = EvidenceVaultService(db=db_session)
+    async def test_generate_report(self, db_session, test_organization):
+        service = EvidenceVaultService(db=db_session, organization_id=test_organization.id)
         report = await service.generate_report(ControlFramework.SOC2)
         assert report.total_controls > 0
 

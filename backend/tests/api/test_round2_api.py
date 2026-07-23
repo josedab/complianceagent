@@ -77,14 +77,12 @@ class TestGameEngineAPI:
 
     @pytest.mark.asyncio
     async def test_submit_decision_invalid_scenario(self, client, auth_headers):
-        from uuid import uuid4
-
         response = await client.post(
             "/api/v1/game-engine/scenarios/nonexistent/submit",
             headers=auth_headers,
-            json={"player_id": str(uuid4()), "selected_option": 0},
+            json={"decision_id": "nonexistent", "selected_option": 0},
         )
-        assert response.status_code in (400, 401, 404)
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_get_leaderboard(self, client, auth_headers):
@@ -153,18 +151,22 @@ class TestPairProgrammingAPI:
         response = await client.post(
             "/api/v1/pair-programming/analyze",
             headers=auth_headers,
-            json={"code": 'email = input("email")', "language": "python"},
+            json={
+                "code": 'email = input("email")',
+                "file_path": "src/example.py",
+                "language": "python",
+            },
         )
-        assert response.status_code in (200, 401, 404)
+        assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_start_session(self, client, auth_headers):
         response = await client.post(
             "/api/v1/pair-programming/session",
             headers=auth_headers,
-            json={"language": "python", "regulations": ["GDPR"]},
+            params={"repository": "test/repository", "language": "python"},
         )
-        assert response.status_code in (200, 401, 404)
+        assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_get_context(self, client, auth_headers):
@@ -192,18 +194,18 @@ class TestComplianceCloningAPI:
         response = await client.post(
             "/api/v1/compliance-cloning/fingerprint",
             headers=auth_headers,
-            json={"repo_url": "https://github.com/test/repo"},
+            params={"repo_url": "https://github.com/test/repo"},
         )
-        assert response.status_code in (200, 401, 404)
+        assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_find_similar_repos(self, client, auth_headers):
         response = await client.post(
             "/api/v1/compliance-cloning/similar",
             headers=auth_headers,
-            json={"repo_url": "https://github.com/test/repo"},
+            params={"repo_url": "https://github.com/test/repo"},
         )
-        assert response.status_code in (200, 401, 404)
+        assert response.status_code == 200
 
     @pytest.mark.asyncio
     async def test_migration_plan_empty_url(self, client, auth_headers):
@@ -335,11 +337,13 @@ class TestChaosEngineeringAPI:
             headers=auth_headers,
             json={
                 "name": "Prod Test",
-                "experiment_type": "policy_removal",
-                "target": "production-env",
+                "description": "Production safety check",
+                "experiment_type": "remove_encryption",
+                "target_service": "compliance-api",
+                "target_environment": "production",
             },
         )
-        assert response.status_code in (400, 401, 404)
+        assert response.status_code == 400
 
     @pytest.mark.asyncio
     async def test_run_experiment_not_found(self, client, auth_headers):
@@ -350,7 +354,7 @@ class TestChaosEngineeringAPI:
             f"/api/v1/chaos-engineering/experiments/{fake_id}/run",
             headers=auth_headers,
         )
-        assert response.status_code in (404, 401)
+        assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_get_game_days(self, client, auth_headers):

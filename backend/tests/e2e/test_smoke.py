@@ -53,7 +53,7 @@ class TestAppStartup:
         """Application has 1000+ routes registered."""
         from app.main import app as fastapi_app
 
-        route_count = len([r for r in fastapi_app.routes if hasattr(r, "path")])
+        route_count = len(fastapi_app.openapi()["paths"])
         assert route_count > 1000, f"Only {route_count} routes registered"
 
     @pytest.mark.asyncio
@@ -62,7 +62,7 @@ class TestAppStartup:
         from app.main import app as fastapi_app
 
         api_routes = [
-            r.path for r in fastapi_app.routes if hasattr(r, "path") and "/api/v1/" in r.path
+            path for path in fastapi_app.openapi()["paths"] if path.startswith("/api/v1/")
         ]
         assert len(api_routes) > 500
 
@@ -116,8 +116,14 @@ class TestRouteCount:
         """App should have 1000+ API routes registered from all v3-v9 routers."""
         from app.main import app as fastapi_app
 
-        all_routes = [r.path for r in fastapi_app.routes if hasattr(r, "path")]
-        assert len(all_routes) >= 1000, (
-            f"Expected 1000+ routes but found {len(all_routes)}. "
+        operation_count = sum(
+            1
+            for path_operations in fastapi_app.openapi()["paths"].values()
+            for method in path_operations
+            if method.lower()
+            in {"get", "post", "put", "patch", "delete", "options", "head", "trace"}
+        )
+        assert operation_count >= 1000, (
+            f"Expected 1000+ routes but found {operation_count}. "
             "Check that all routers are registered in api/v1/__init__.py"
         )
