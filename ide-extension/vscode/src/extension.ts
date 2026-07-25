@@ -8,7 +8,6 @@
 import * as vscode from 'vscode';
 import { ComplianceScanner } from './scanner';
 import { ComplianceDiagnostics } from './diagnostics';
-import { QuickFixProvider } from './quickfix';
 import { ComplianceApiClient } from './api';
 import { ComplianceLanguageServer, createComplianceLanguageServer } from './language-server';
 import { EnhancedQuickFixProvider, registerQuickFixCommands } from './enhanced-quickfix';
@@ -72,7 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('complianceagent.showDashboard', () => {
-            showDashboard(context);
+            showDashboard();
         })
     );
 
@@ -158,7 +157,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
 }
 
-function showDashboard(context: vscode.ExtensionContext) {
+function showDashboard() {
     const panel = vscode.window.createWebviewPanel(
         'complianceagentDashboard',
         'ComplianceAgent Dashboard',

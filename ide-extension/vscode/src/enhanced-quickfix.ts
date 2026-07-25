@@ -79,7 +79,7 @@ export class EnhancedQuickFixProvider implements vscode.CodeActionProvider {
         document: vscode.TextDocument,
         range: vscode.Range | vscode.Selection,
         context: vscode.CodeActionContext,
-        token: vscode.CancellationToken
+        _token: vscode.CancellationToken
     ): vscode.ProviderResult<(vscode.CodeAction | vscode.Command)[]> {
         const actions: vscode.CodeAction[] = [];
         
@@ -380,7 +380,7 @@ export class EnhancedQuickFixProvider implements vscode.CodeActionProvider {
 
             // Weak crypto -> strong crypto
             'SOC2-CRYPTO-001': (text) => {
-                let fixed = text
+                const fixed = text
                     .replace(/\bmd5\s*\(/gi, 'sha256(')
                     .replace(/\bsha1\s*\(/gi, 'sha256(');
                 
@@ -649,8 +649,6 @@ export function registerQuickFixCommands(
             'complianceagent.aiFixAll',
             async (uri: vscode.Uri, diagnostics: vscode.Diagnostic[]) => {
                 const document = await vscode.workspace.openTextDocument(uri);
-                const fullCode = document.getText();
-                
                 await vscode.window.withProgress({
                     location: vscode.ProgressLocation.Notification,
                     title: 'Generating AI fixes...',

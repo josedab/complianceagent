@@ -1,8 +1,9 @@
 /**
- * ComplianceAgent API Client
+ * ComplianceAgent API client.
  */
 
 import axios, { AxiosInstance } from 'axios';
+
 
 export interface ComplianceIssue {
     framework: string;
@@ -18,11 +19,51 @@ export interface ComplianceIssue {
     quickFixCode?: string;
 }
 
-export interface AnalysisResponse {
-    issues: ComplianceIssue[];
-    score: number;
-    grade: string;
-    scannedAt: string;
+interface AnalysisResponse {
+    diagnostics: Array<{
+        range: {
+            start: { line: number; character: number };
+            end: { line: number; character: number };
+        };
+        message: string;
+        severity: string;
+        code: string;
+        regulation?: string;
+    }>;
+}
+
+export interface TeamSuppressionApiResponse {
+    id: string;
+    rule_id: string;
+    pattern?: string | null;
+    reason: string;
+    created_by: string;
+    created_at: string;
+    expires_at?: string | null;
+    approved: boolean;
+    approved_by?: string | null;
+    usage_count: number;
+}
+
+export interface FeedbackApiRequest {
+    type: 'false_positive' | 'false_negative' | 'severity_adjustment' | 'helpful';
+    issue: ComplianceIssue;
+    user_action: 'suppressed' | 'fixed' | 'ignored' | 'reported';
+    context: {
+        file: string;
+        codeSnippet: string;
+        language: string;
+    };
+    timestamp: string;
+}
+
+export interface RuleStatsApiResponse {
+    rule_id: string;
+    total_detections: number;
+    false_positive_rate: number;
+    fix_rate: number;
+    suppression_rate: number;
+    avg_time_to_fix_minutes: number | null;
 }
 
 export class ComplianceApiClient {
@@ -31,78 +72,123 @@ export class ComplianceApiClient {
 
     constructor(endpoint: string, apiKey: string) {
         this.apiKey = apiKey;
+        const apiOrigin = endpoint.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
         this.client = axios.create({
-            baseURL: endpoint,
+            baseURL: apiOrigin,
             timeout: 30000,
+            maxContentLength: 5 * 1024 * 1024,
+            maxBodyLength: 5 * 1024 * 1024,
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'X-API-Key': apiKey
             }
         });
     }
 
-    /**
-     * Check if API client is properly configured
-     */
     isConfigured(): boolean {
         return this.apiKey.length > 0;
     }
 
-    /**
-     * Analyze code for compliance issues
-     */
     async analyzeCode(
         code: string,
         language: string,
-        frameworks: string[]
+        frameworks: string[],
+        fileUri: string = 'untitled:complianceagent'
     ): Promise<ComplianceIssue[]> {
-        try {
-            const response = await this.client.post<AnalysisResponse>('/api/v1/ide/analyze', {
-                code,
-                language,
-                frameworks,
-                includeQuickFixes: true
-            });
-            return response.data.issues;
-        } catch (error) {
-            console.error('API analysis error:', error);
-            return [];
-        }
+        const response = await this.client.post<AnalysisResponse>('/api/v1/ide/analyze', {
+            uri: fileUri,
+            content: code,
+            language,
+            regulations: frameworks
+        });
+
+        return response.data.diagnostics.map((diagnostic) => ({
+            framework: diagnostic.regulation || 'GENERAL',
+            requirementId: diagnostic.code,
+            title: diagnostic.code,
+            description: diagnostic.message,
+            severity: this.mapSeverity(diagnostic.severity),
+            line: diagnostic.range.start.line,
+            column: diagnostic.range.start.character,
+            endColumn: diagnostic.range.end.character,
+            file: fileUri
+        }));
     }
 
-    /**
-     * Get quick fix suggestion for an issue
-     */
     async getQuickFix(
         code: string,
         issue: ComplianceIssue,
         language: string
     ): Promise<string | null> {
-        try {
-            const response = await this.client.post<{ fix: string }>('/api/v1/ide/quickfix', {
+        const response = await this.client.post<{ fixed_code: string }>(
+            '/api/v1/ide/quickfix',
+            {
                 code,
-                issue,
+                diagnostic_code: issue.requirementId,
+                diagnostic_message: issue.description,
+                regulation: issue.framework,
                 language
-            });
-            return response.data.fix;
-        } catch (error) {
-            console.error('Quick fix API error:', error);
-            return null;
-        }
+            }
+        );
+        return response.data.fixed_code;
     }
 
-    /**
-     * Report a false positive
-     */
     async reportFalsePositive(issue: ComplianceIssue, reason: string): Promise<void> {
-        try {
-            await this.client.post('/api/v1/ide/feedback', {
-                type: 'false_positive',
-                issue,
-                reason
-            });
-        } catch (error) {
-            console.error('Feedback API error:', error);
+        await this.client.post('/api/v1/ide/feedback', {
+            type: 'false_positive',
+            issue,
+            user_action: 'reported',
+            reason
+        });
+    }
+
+    async requestTeamSuppression(
+        issue: ComplianceIssue,
+        pattern: string | undefined,
+        reason: string
+    ): Promise<void> {
+        await this.client.post('/api/v1/ide/suppressions', {
+            rule_id: issue.requirementId,
+            pattern,
+            reason
+        });
+    }
+
+    async getTeamSuppressions(): Promise<TeamSuppressionApiResponse[]> {
+        const response = await this.client.get<TeamSuppressionApiResponse[]>(
+            '/api/v1/ide/suppressions'
+        );
+        return response.data;
+    }
+
+    async recordTeamSuppressionUsage(suppressionId: string): Promise<void> {
+        await this.client.post(`/api/v1/ide/suppressions/${suppressionId}/usage`);
+    }
+
+    async submitFeedbackBatch(items: FeedbackApiRequest[]): Promise<void> {
+        await this.client.post('/api/v1/ide/feedback/batch', { items });
+    }
+
+    async getRuleStatistics(): Promise<RuleStatsApiResponse[]> {
+        const response = await this.client.get<RuleStatsApiResponse[]>(
+            '/api/v1/ide/stats/rules'
+        );
+        return response.data;
+    }
+
+    private mapSeverity(value: string): ComplianceIssue['severity'] {
+        switch (value.toLowerCase()) {
+            case 'critical':
+            case 'error':
+                return 'critical';
+            case 'high':
+            case 'warning':
+                return 'high';
+            case 'medium':
+            case 'information':
+                return 'medium';
+            default:
+                return 'low';
         }
     }
 }

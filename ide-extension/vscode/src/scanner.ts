@@ -66,7 +66,12 @@ export class ComplianceScanner {
             let apiIssues: ComplianceIssue[] = [];
             if (this.apiClient.isConfigured()) {
                 try {
-                    apiIssues = await this.apiClient.analyzeCode(text, language, frameworks);
+                    apiIssues = await this.apiClient.analyzeCode(
+                        text,
+                        language,
+                        frameworks,
+                        document.uri.toString()
+                    );
                 } catch (error) {
                     console.warn('API analysis failed, using local only:', error);
                 }

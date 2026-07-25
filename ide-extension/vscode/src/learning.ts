@@ -6,7 +6,11 @@
  */
 
 import * as vscode from 'vscode';
-import { ComplianceApiClient, ComplianceIssue } from './api';
+import {
+    ComplianceApiClient,
+    ComplianceIssue,
+    FeedbackApiRequest,
+} from './api';
 
 /**
  * Team suppression from backend
@@ -122,9 +126,24 @@ export class TeamSuppressionsManager {
      * Fetch team suppressions from API
      */
     private async fetchTeamSuppressions(): Promise<TeamSuppression[]> {
-        // This would call the actual API endpoint
-        // For now, return empty array as placeholder
-        return [];
+        if (!this.apiClient) {
+            return [];
+        }
+        const suppressions = await this.apiClient.getTeamSuppressions();
+        return suppressions.map((suppression) => ({
+            id: suppression.id,
+            ruleId: suppression.rule_id,
+            pattern: suppression.pattern || undefined,
+            reason: suppression.reason,
+            createdBy: suppression.created_by,
+            createdAt: new Date(suppression.created_at),
+            expiresAt: suppression.expires_at
+                ? new Date(suppression.expires_at)
+                : undefined,
+            approved: suppression.approved,
+            approvedBy: suppression.approved_by || undefined,
+            usageCount: suppression.usage_count,
+        }));
     }
 
     /**
@@ -163,6 +182,10 @@ export class TeamSuppressionsManager {
         const suppression = this.teamSuppressions.get(id);
         if (suppression) {
             suppression.usageCount++;
+            void this.apiClient?.recordTeamSuppressionUsage(id).catch((error) => {
+                suppression.usageCount--;
+                console.warn(`Failed to record team suppression usage ${id}:`, error);
+            });
         }
     }
 
@@ -180,7 +203,8 @@ export class TeamSuppressionsManager {
         }
 
         try {
-            // This would call the actual API endpoint
+            await this.apiClient.requestTeamSuppression(issue, pattern, reason);
+            await this.syncFromBackend();
             vscode.window.showInformationMessage(
                 `Team suppression requested for ${issue.requirementId}. Awaiting approval.`
             );
@@ -238,6 +262,7 @@ export class LearningService {
         
         this.loadStats();
         this.startFlushInterval();
+        void this.syncStatsFromBackend();
     }
 
     /**
@@ -345,8 +370,6 @@ export class LearningService {
         }
 
         if (!this.apiClient?.isConfigured()) {
-            // Just clear queue if no API
-            this.feedbackQueue = [];
             return;
         }
 
@@ -354,12 +377,44 @@ export class LearningService {
         this.feedbackQueue = [];
 
         try {
-            // This would send feedback to backend
+            const payload: FeedbackApiRequest[] = batch.map((feedback) => ({
+                type: feedback.type,
+                issue: feedback.issue,
+                user_action: feedback.userAction,
+                context: feedback.context,
+                timestamp: feedback.timestamp.toISOString(),
+            }));
+            await this.apiClient.submitFeedbackBatch(payload);
             console.log(`Flushed ${batch.length} feedback items`);
         } catch (error) {
             // Re-queue on failure
             this.feedbackQueue.push(...batch);
             console.warn('Failed to flush feedback:', error);
+        }
+    }
+
+    /**
+     * Merge durable organization statistics from the backend.
+     */
+    private async syncStatsFromBackend(): Promise<void> {
+        if (!this.apiClient?.isConfigured()) {
+            return;
+        }
+        try {
+            const statistics = await this.apiClient.getRuleStatistics();
+            for (const stats of statistics) {
+                this.ruleStats.set(stats.rule_id, {
+                    ruleId: stats.rule_id,
+                    totalDetections: stats.total_detections,
+                    falsePositiveRate: stats.false_positive_rate,
+                    fixRate: stats.fix_rate,
+                    suppressionRate: stats.suppression_rate,
+                    avgTimeToFix: stats.avg_time_to_fix_minutes || 0,
+                });
+            }
+            this.saveStats();
+        } catch (error) {
+            console.warn('Failed to sync rule statistics:', error);
         }
     }
 
