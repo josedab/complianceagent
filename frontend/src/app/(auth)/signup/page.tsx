@@ -1,51 +1,65 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Shield, Eye, EyeOff, Check } from 'lucide-react'
-import { authApi } from '@/lib/api'
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Shield, Eye, EyeOff, Check } from 'lucide-react';
+import { authApi, organizationsApi } from '@/lib/api';
 
 export default function SignupPage() {
-  const router = useRouter()
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [acceptTerms, setAcceptTerms] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [invitationToken, setInvitationToken] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const token = params.get('invitation') || '';
+    if (token) {
+      setInvitationToken(token);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError('');
 
     if (!acceptTerms) {
-      setError('Please accept the terms and conditions')
-      return
+      setError('Please accept the terms and conditions');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
-      await authApi.register(email, password, fullName)
+      await authApi.register(email, password, fullName);
       // Auto-login after registration
-      await authApi.login(email, password)
-      router.push('/dashboard')
+      await authApi.login(email, password);
+      if (invitationToken) {
+        const accepted = await organizationsApi.acceptInvitation(invitationToken);
+        await authApi.switchOrganization(accepted.data.organization_id);
+      }
+      router.push('/dashboard');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } }
-      setError(error.response?.data?.detail || 'Registration failed')
+      const error = err as { response?: { data?: { detail?: string } } };
+      setError(error.response?.data?.detail || 'Registration failed');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const features = [
     '14-day free trial',
     'No credit card required',
     'Full access to all features',
     'Cancel anytime',
-  ]
+  ];
 
   return (
     <div className="min-h-screen flex">
@@ -60,7 +74,14 @@ export default function SignupPage() {
             <h2 className="mt-6 text-3xl font-bold text-gray-900">Create your account</h2>
             <p className="mt-2 text-sm text-gray-600">
               Already have an account?{' '}
-              <Link href="/login" className="font-medium text-primary-600 hover:text-primary-500">
+              <Link
+                href={
+                  invitationToken
+                    ? `/login#invitation=${encodeURIComponent(invitationToken)}`
+                    : '/login'
+                }
+                className="font-medium text-primary-600 hover:text-primary-500"
+              >
                 Sign in
               </Link>
             </p>
@@ -185,8 +206,8 @@ export default function SignupPage() {
 
           <div className="mt-12 p-6 bg-primary-700 rounded-xl">
             <p className="text-primary-100 text-sm">
-              &quot;ComplianceAgent reduced our compliance implementation time from 6 months to 3 weeks. 
-              It&apos;s a game-changer for regulated industries.&quot;
+              &quot;ComplianceAgent reduced our compliance implementation time from 6 months to 3
+              weeks. It&apos;s a game-changer for regulated industries.&quot;
             </p>
             <div className="mt-4 flex items-center">
               <div className="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center font-bold">
@@ -201,5 +222,5 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

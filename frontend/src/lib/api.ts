@@ -104,9 +104,21 @@ export const authApi = {
     api.post('/auth/refresh', refreshToken ? { refresh_token: refreshToken } : undefined),
   logout: () => api.post('/auth/logout', {}),
   me: () => api.get('/users/me'),
+  switchOrganization: (organizationId: string) =>
+    api.post('/auth/switch-organization', { organization_id: organizationId }),
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token: string, newPassword: string) =>
     api.post('/auth/reset-password', { token, new_password: newPassword }),
+  verifyEmail: (token: string) => api.post('/auth/verify-email', { token }),
+  resendVerification: (email: string) =>
+    api.post('/auth/resend-verification', null, { params: { email } }),
+  mfaChallenge: (mfaToken: string, totpCode: string) =>
+    api.post('/auth/mfa/challenge', { mfa_token: mfaToken, totp_code: totpCode }),
+  mfaSetup: () => api.post('/auth/mfa/setup'),
+  mfaConfirm: (totpCode: string) => api.post('/auth/mfa/confirm', { totp_code: totpCode }),
+  mfaDisable: (totpCode: string) => api.post('/auth/mfa/disable', { totp_code: totpCode }),
+  deactivateAccount: (password: string) =>
+    api.post('/auth/deactivate', { password, confirm: true }),
 };
 
 // Settings API
@@ -125,21 +137,72 @@ export const settingsApi = {
     webhook_enabled?: boolean;
     webhook_url?: string | null;
   }) => api.put('/settings/notifications', data),
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post('/settings/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  deleteAvatar: () => api.delete('/settings/avatar'),
 };
 
 // API Keys API
 export const apiKeysApi = {
-  create: (data: { name: string; scopes?: string[] }) => api.post('/api-keys', data),
+  create: (data: { name: string; scopes?: string[]; expires_in_days?: number }) =>
+    api.post('/api-keys', data),
   list: () => api.get('/api-keys'),
   revoke: (keyId: string) => api.delete(`/api-keys/${keyId}`),
+  scopes: () => api.get('/api-keys/scopes'),
 };
 
 // Organizations API
 export const organizationsApi = {
   list: () => api.get('/organizations'),
   get: (id: string) => api.get(`/organizations/${id}`),
-  create: (data: { name: string; slug: string }) => api.post('/organizations', data),
+  create: (data: { name: string; slug: string; description?: string }) =>
+    api.post('/organizations', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/organizations/${id}`, data),
+  listMembers: (id: string) => api.get(`/organizations/${id}/members`),
+  addMember: (id: string, data: { email: string; role?: string }) =>
+    api.post(`/organizations/${id}/members`, data),
+  removeMember: (orgId: string, userId: string) =>
+    api.delete(`/organizations/${orgId}/members/${userId}`),
+  createInvitation: (id: string, data: { email: string; role?: string }) =>
+    api.post(`/organizations/${id}/invitations`, data),
+  listInvitations: (id: string) => api.get(`/organizations/${id}/invitations`),
+  revokeInvitation: (orgId: string, invId: string) =>
+    api.delete(`/organizations/${orgId}/invitations/${invId}`),
+  acceptInvitation: (token: string) => api.post('/organizations/invitations/accept', { token }),
+};
+
+// Notifications API
+export const notificationsApi = {
+  list: (params?: { limit?: number; offset?: number; is_read?: boolean }) =>
+    api.get('/notifications', { params }),
+  unreadCount: () => api.get('/notifications/unread-count'),
+  markRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.post('/notifications/mark-all-read'),
+  delete: (id: string) => api.delete(`/notifications/${id}`),
+};
+
+// Search API
+export const searchApi = {
+  search: (q: string, params?: { limit?: number; offset?: number }) =>
+    api.get('/search', { params: { q, ...params } }),
+};
+
+// Billing API
+export const billingApi = {
+  plans: () => api.get('/billing/plans'),
+  subscription: () => api.get('/billing/subscription'),
+  checkout: (planTier: string, yearly?: boolean) =>
+    api.post('/billing/checkout', null, { params: { plan_tier: planTier, yearly } }),
+  portal: () => api.post('/billing/portal'),
+  changePlan: (newTier: string, yearly?: boolean) =>
+    api.post('/billing/change-plan', null, { params: { new_tier: newTier, yearly } }),
+  invoices: () => api.get('/billing/invoices'),
+  usage: () => api.get('/billing/usage'),
 };
 
 // Regulations API
@@ -239,8 +302,12 @@ export const driftDetectionApi = {
     api.get(`/drift-detection/drift/${repo}`, { params }),
   getReport: (repo: string) => api.get(`/drift-detection/report/${repo}`),
   getAlerts: () => api.get('/drift-detection/alerts'),
-  listEvents: (params?: { repo?: string; severity?: string; drift_type?: string; limit?: number }) =>
-    api.get('/drift-detection/events', { params }),
+  listEvents: (params?: {
+    repo?: string;
+    severity?: string;
+    drift_type?: string;
+    limit?: number;
+  }) => api.get('/drift-detection/events', { params }),
 };
 
 // Cost Calculator API
@@ -751,8 +818,7 @@ export const auditWorkspaceApi = {
 };
 
 export const autoHealingApi = {
-  listRuns: (state?: string) =>
-    api.get('/auto-healing/runs', { params: state ? { state } : {} }),
+  listRuns: (state?: string) => api.get('/auto-healing/runs', { params: state ? { state } : {} }),
   getMetrics: () => api.get('/auto-healing/metrics'),
 };
 

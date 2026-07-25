@@ -1,45 +1,49 @@
-'use client'
+'use client';
 
-import { Suspense, useState } from 'react'
-import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { Shield, Check } from 'lucide-react'
-import { authApi } from '@/lib/api'
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Shield, Check } from 'lucide-react';
+import { authApi } from '@/lib/api';
 
 function ResetPasswordForm() {
-  const searchParams = useSearchParams()
-  const token = searchParams.get('token') || ''
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [success, setSuccess] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [token, setToken] = useState<string | null>(null);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    setToken(params.get('token') || '');
+    window.history.replaceState(null, '', window.location.pathname);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
+    e.preventDefault();
+    setError('');
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
+      setError('Passwords do not match');
+      return;
     }
 
     if (!token) {
-      setError('Invalid reset link. Please request a new one.')
-      return
+      setError('Invalid reset link. Please request a new one.');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      await authApi.resetPassword(token, password)
-      setSuccess(true)
+      await authApi.resetPassword(token, password);
+      setSuccess(true);
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { detail?: string } } }
-      setError(apiErr.response?.data?.detail || 'Failed to reset password')
+      const apiErr = err as { response?: { data?: { detail?: string } } };
+      setError(apiErr.response?.data?.detail || 'Failed to reset password');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   if (success) {
     return (
@@ -57,7 +61,15 @@ function ResetPasswordForm() {
           </Link>
         </div>
       </div>
-    )
+    );
+  }
+
+  if (token === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Shield className="h-10 w-10 animate-pulse text-primary-600" />
+      </div>
+    );
   }
 
   if (!token) {
@@ -72,7 +84,7 @@ function ResetPasswordForm() {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -142,13 +154,9 @@ function ResetPasswordForm() {
         </form>
       </div>
     </div>
-  )
+  );
 }
 
 export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Shield className="h-10 w-10 text-primary-600 animate-pulse" /></div>}>
-      <ResetPasswordForm />
-    </Suspense>
-  )
+  return <ResetPasswordForm />;
 }
