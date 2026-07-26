@@ -37,11 +37,13 @@ jobs:
         run: |
           echo "Scanning for IaC files..."
           TF_FILES=$(find . -name '*.tf' -not -path './.terraform/*' | head -50)
-          K8S_FILES=$(find . -path '*/k8s/*.yaml' -o -path '*/k8s/*.yml' | head -50)
-          CFN_FILES=$(find . -path '*/cloudformation/*.json' -o -path '*/cloudformation/*.yaml' | head -50)
-          echo "tf_count=$(echo "$TF_FILES" | grep -c . || true)" >> $GITHUB_OUTPUT
-          echo "k8s_count=$(echo "$K8S_FILES" | grep -c . || true)" >> $GITHUB_OUTPUT
-          echo "cfn_count=$(echo "$CFN_FILES" | grep -c . || true)" >> $GITHUB_OUTPUT
+          K8S_FILES=$(find . \( -path '*/k8s/*.yaml' -o -path '*/k8s/*.yml' \) | head -50)
+          CFN_FILES=$(find . \( -path '*/cloudformation/*.json' -o -path '*/cloudformation/*.yaml' \) | head -50)
+          {
+            echo "tf_count=$(echo "$TF_FILES" | grep -c . || true)"
+            echo "k8s_count=$(echo "$K8S_FILES" | grep -c . || true)"
+            echo "cfn_count=$(echo "$CFN_FILES" | grep -c . || true)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Run IaC Policy Scan
         id: scan

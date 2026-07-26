@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 
   backend "s3" {
@@ -72,4 +76,29 @@ module "storage" {
   source = "./modules/storage"
 
   environment = var.environment
+}
+
+module "runtime" {
+  source = "./modules/runtime"
+
+  environment          = var.environment
+  aws_region           = var.aws_region
+  secrets_manager_name = "complianceagent/${var.environment}/app-secrets"
+
+  ecr_api_url      = module.storage.ecr_backend_repository_url
+  ecr_frontend_url = module.storage.ecr_frontend_repository_url
+  ecr_crawler_url  = module.storage.ecr_crawler_repository_url
+  image_tag        = var.image_tag
+
+  ecs_cluster_arn           = module.compute.ecs_cluster_arn
+  ecs_cluster_name          = module.compute.ecs_cluster_name
+  private_subnet_ids        = module.vpc.private_subnets
+  ecs_security_group_id     = module.compute.ecs_security_group_id
+  backend_target_group_arn  = module.compute.backend_target_group_arn
+  frontend_target_group_arn = module.compute.frontend_target_group_arn
+  s3_bucket_arn             = module.storage.documents_bucket_arn
+
+  api_public_url     = "https://api.${var.domain_name}"
+  app_public_url     = "https://app.${var.domain_name}"
+  auth_cookie_domain = ".${var.domain_name}"
 }

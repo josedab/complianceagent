@@ -37,3 +37,18 @@ output "ecr_frontend_repository_url" {
   description = "URL of the frontend ECR repository"
   value       = module.storage.ecr_frontend_repository_url
 }
+
+output "ecr_crawler_repository_url" {
+  description = "URL of the crawler ECR repository"
+  value       = module.storage.ecr_crawler_repository_url
+}
+
+output "api_service_name" {
+  description = "Name of the API ECS service"
+  value       = module.runtime.api_service_name
+}
+
+output "migrate_task_definition_arn" {
+  description = "ARN of the migration task definition"
+  value       = module.runtime.migrate_task_definition_arn
+}

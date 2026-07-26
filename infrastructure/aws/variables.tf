@@ -27,3 +27,15 @@ variable "redis_node_type" {
   type        = string
   default     = "cache.r6g.large"
 }
+
+variable "image_tag" {
+  description = "Docker image tag to deploy"
+  type        = string
+  default     = "latest"
+}
+
+variable "domain_name" {
+  description = "Root domain name (e.g., complianceagent.ai)"
+  type        = string
+  default     = "complianceagent.ai"
+}

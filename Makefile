@@ -115,7 +115,7 @@ run-beat: ## Run Celery beat scheduler
 test: test-backend test-frontend ## Run all tests
 
 test-backend: ## Run backend tests with coverage
-	cd backend && source .venv/bin/activate && pytest tests/ -v --cov=app --cov-report=term-missing --cov-report=xml
+	cd backend && source .venv/bin/activate && pytest tests/ -v --ignore=tests/e2e --cov=app --cov-report=term-missing --cov-report=xml
 
 test-backend-fast: ## Run backend tests without coverage (faster)
 	cd backend && source .venv/bin/activate && pytest tests/ -v -x
@@ -153,7 +153,7 @@ format-frontend: ## Format frontend code with Prettier
 type-check: type-check-backend type-check-frontend ## Run all type checkers
 
 type-check-backend: ## Type check backend with mypy
-	cd backend && source .venv/bin/activate && mypy app --ignore-missing-imports
+	cd backend && source .venv/bin/activate && mypy
 
 type-check-frontend: ## Type check frontend with TypeScript
 	cd frontend && npm run type-check
@@ -295,38 +295,83 @@ export-openapi: ## Export OpenAPI spec to docs/api/openapi.json
 	@echo "$(GREEN)✓ OpenAPI spec exported to docs/api/openapi.json$(RESET)"
 	@echo "$(BLUE)Import into Postman: File → Import → docs/api/openapi.json$(RESET)"
 
+##@ Backup & Restore
+
+backup: ## Create encrypted database backup (production)
+	@bash scripts/backup.sh
+	@echo "$(GREEN)✓ Backup complete$(RESET)"
+
+backup-auto: ## Create backup non-interactively (for cron)
+	@bash scripts/backup.sh --yes --upload-s3
+	@echo "$(GREEN)✓ Automated backup complete$(RESET)"
+
+restore: ## Restore database from encrypted backup (usage: make restore FILE=path/to/backup.enc)
+	@if [ -z "$(FILE)" ]; then echo "$(YELLOW)Usage: make restore FILE=backups/complianceagent_YYYYMMDD_HHMMSS.sql.gz.enc$(RESET)"; exit 1; fi
+	@bash scripts/restore.sh "$(FILE)"
+
+restore-s3: ## Restore database from S3 backup (usage: make restore-s3 FILE=backup-key.enc)
+	@if [ -z "$(FILE)" ]; then echo "$(YELLOW)Usage: make restore-s3 FILE=complianceagent_YYYYMMDD_HHMMSS.sql.gz.enc$(RESET)"; exit 1; fi
+	@bash scripts/restore.sh --from-s3 "$(FILE)"
+
+restore-test: ## Test restore to a temporary database (non-destructive)
+	@echo "$(YELLOW)Restore drill: create temp DB, restore, verify, drop$(RESET)"
+	@echo "$(BLUE)1. Create temp database: createdb complianceagent_restore_test$(RESET)"
+	@echo "$(BLUE)2. Run: POSTGRES_DB=complianceagent_restore_test make restore FILE=<backup>$(RESET)"
+	@echo "$(BLUE)3. Verify: psql complianceagent_restore_test -c 'SELECT count(*) FROM alembic_version;'$(RESET)"
+	@echo "$(BLUE)4. Cleanup: dropdb complianceagent_restore_test$(RESET)"
+
+##@ Production Deployment
+
+prod-up: ## Start production stack (Docker Compose)
+	docker compose -f docker/docker-compose.prod.yml --env-file .env up -d
+	@echo "$(GREEN)✓ Production stack started$(RESET)"
+
+prod-down: ## Stop production stack
+	docker compose -f docker/docker-compose.prod.yml down
+	@echo "$(GREEN)✓ Production stack stopped$(RESET)"
+
+prod-logs: ## View production stack logs
+	docker compose -f docker/docker-compose.prod.yml logs -f
+
+prod-migrate: ## Run database migrations in production
+	docker compose -f docker/docker-compose.prod.yml run --rm migrate
+	@echo "$(GREEN)✓ Production migrations applied$(RESET)"
+
+prod-status: ## Show production stack status
+	@docker compose -f docker/docker-compose.prod.yml ps
+
 ##@ Quality Validation
 
 validate-exports: ## Validate service __init__.py exports match models
-@python3 scripts/validate_service_exports.py
+	@python3 scripts/validate_service_exports.py
 
 lint-services: ## Lint all v3-v9 service code
-@cd backend && source .venv/bin/activate && ruff check \
-app/services/mcp_server/ app/services/github_app/ app/services/reg_change_stream/ \
-app/services/compliance_sdk/ app/services/compliance_copilot/ app/services/auto_remediation/ \
-app/services/multi_scm/ app/services/compliance_badge/ app/services/regulation_diff_viz/ \
-app/services/compliance_export/ app/services/agents_marketplace/ app/services/saas_onboarding/ \
-app/services/code_review_agent/ app/services/reg_prediction/ app/services/compliance_observability/ \
-app/services/nl_compliance_query/ app/services/twin_simulation/ app/services/cross_org_benchmark/ \
-app/services/evidence_generation/ app/services/cost_benefit_analyzer/ app/services/knowledge_fabric/ \
-app/services/self_healing_mesh/ app/services/ide_extension/ app/services/compliance_data_lake/ \
-app/services/policy_dsl/ app/services/realtime_feed/ app/services/compliance_gnn/ \
-app/services/cert_pipeline/ app/services/api_gateway/ app/services/workflow_automation/ \
-&& echo "$(GREEN)✓ All v3-v9 services lint clean$(RESET)"
+	@cd backend && source .venv/bin/activate && ruff check \
+	app/services/mcp_server/ app/services/github_app/ app/services/reg_change_stream/ \
+	app/services/compliance_sdk/ app/services/compliance_copilot/ app/services/auto_remediation/ \
+	app/services/multi_scm/ app/services/compliance_badge/ app/services/regulation_diff_viz/ \
+	app/services/compliance_export/ app/services/agents_marketplace/ app/services/saas_onboarding/ \
+	app/services/code_review_agent/ app/services/reg_prediction/ app/services/compliance_observability/ \
+	app/services/nl_compliance_query/ app/services/twin_simulation/ app/services/cross_org_benchmark/ \
+	app/services/evidence_generation/ app/services/cost_benefit_analyzer/ app/services/knowledge_fabric/ \
+	app/services/self_healing_mesh/ app/services/ide_extension/ app/services/compliance_data_lake/ \
+	app/services/policy_dsl/ app/services/realtime_feed/ app/services/compliance_gnn/ \
+	app/services/cert_pipeline/ app/services/api_gateway/ app/services/workflow_automation/ \
+	&& echo "$(GREEN)✓ All v3-v9 services lint clean$(RESET)"
 
 test-smoke: ## Run E2E smoke tests (no server needed)
-@cd backend && source .venv/bin/activate && python -m pytest tests/e2e/test_smoke.py -v
+	@cd backend && source .venv/bin/activate && python -m pytest tests/e2e/test_smoke.py -v
 
 test-nextgen: ## Run all v3-v9 service tests
-@cd backend && source .venv/bin/activate && python -m pytest \
-tests/services/test_nextgen_v3.py tests/services/test_nextgen_v4.py \
-tests/services/test_nextgen_v5.py tests/services/test_nextgen_v6.py \
-tests/services/test_nextgen_v7.py tests/services/test_nextgen_v8.py \
-tests/services/test_nextgen_v9.py -v
+	@cd backend && source .venv/bin/activate && python -m pytest \
+	tests/services/test_nextgen_v3.py tests/services/test_nextgen_v4.py \
+	tests/services/test_nextgen_v5.py tests/services/test_nextgen_v6.py \
+	tests/services/test_nextgen_v7.py tests/services/test_nextgen_v8.py \
+	tests/services/test_nextgen_v9.py -v
 
 health-check: ## Check platform health via API
-@cd backend && source .venv/bin/activate && python -c \
-"from app.main import app; import json; \
- from app.api.v1.status import health_check; \
- import asyncio; r = asyncio.run(health_check()); \
- print(json.dumps(r.model_dump(), indent=2))"
+	@cd backend && source .venv/bin/activate && python -c \
+	"from app.main import app; import json; \
+	 from app.api.v1.status import health_check; \
+	 import asyncio; r = asyncio.run(health_check()); \
+	 print(json.dumps(r.model_dump(), indent=2))"

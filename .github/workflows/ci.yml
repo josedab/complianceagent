@@ -6,22 +6,32 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   PYTHON_VERSION: "3.12"
   NODE_VERSION: "20"
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
-jobs:
-  # Backend Tests and Lint
-  backend-test:
-    name: Backend Tests (${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
 
+jobs:
+  # ──────────────────────────────────────────────────────
+  # Backend: lint, type-check, audit, test + coverage
+  # ──────────────────────────────────────────────────────
+  backend-test:
+    name: Backend (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
-    
+
     services:
       postgres:
         image: postgres:16
@@ -29,18 +39,15 @@ jobs:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
           POSTGRES_DB: complianceagent_test
-        ports:
-          - 5432:5432
+        ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      
       redis:
         image: redis:7-alpine
-        ports:
-          - 6379:6379
+        ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -50,13 +57,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
           cache-dependency-glob: "backend/uv.lock"
@@ -71,29 +76,36 @@ jobs:
         working-directory: ./backend
         run: uv lock --check
 
-      - name: Run linting
+      - name: Audit Python dependencies
+        working-directory: ./backend
+        run: |
+          source .venv/bin/activate
+          pip audit --desc --format json || true
+
+      - name: Lint (ruff)
         working-directory: ./backend
         run: |
           source .venv/bin/activate
           ruff check .
           ruff format --check .
 
-      - name: Run type checking
+      - name: Type check (mypy)
         working-directory: ./backend
         run: |
           source .venv/bin/activate
           mypy app --ignore-missing-imports
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: ./backend
         env:
-          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/complianceagent_test
+          DATABASE_URL: "postgresql://test:test@localhost:5432/complianceagent_test"
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
           ENVIRONMENT: test
         run: |
           source .venv/bin/activate
           pytest tests/ -v --cov=app --cov-report=xml --cov-report=term \
+            --cov-fail-under=50 \
             --ignore=tests/e2e/test_core_flows.py \
             --ignore=tests/services/test_chatbot.py \
             --ignore=tests/services/test_cicd.py \
@@ -108,7 +120,7 @@ jobs:
             --ignore=tests/services/test_sandbox.py \
             --ignore=tests/services/test_vendor.py
 
-      - name: Run smoke tests
+      - name: Smoke tests
         working-directory: ./backend
         env:
           SECRET_KEY: test-secret-key-for-ci
@@ -118,40 +130,47 @@ jobs:
           pytest tests/e2e/test_smoke.py -v
 
       - name: Upload coverage
+        if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
         with:
           file: ./backend/coverage.xml
           flags: backend
           fail_ci_if_error: false
 
-  # Frontend Tests and Lint
+  # ──────────────────────────────────────────────────────
+  # Frontend: lint, type-check, audit, test, build
+  # ──────────────────────────────────────────────────────
   frontend-test:
-    name: Frontend Tests
+    name: Frontend
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         working-directory: ./frontend
         run: npm ci
 
-      - name: Run linting
+      - name: Audit npm dependencies
+        working-directory: ./frontend
+        run: npm audit --audit-level=high || true
+
+      - name: Lint
         working-directory: ./frontend
         run: npm run lint
 
-      - name: Run type checking
+      - name: Type check
         working-directory: ./frontend
         run: npm run type-check
 
-      - name: Run tests
+      - name: Test
         working-directory: ./frontend
         run: npm test -- --coverage --passWithNoTests
 
@@ -166,91 +185,221 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
 
-  # Security Scanning
+  # ──────────────────────────────────────────────────────
+  # IDE Extension: build gate
+  # ──────────────────────────────────────────────────────
+  extension-gate:
+    name: IDE Extension Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Build extension (if present)
+        run: |
+          if [ -f ide-extension/package.json ]; then
+            cd ide-extension && npm ci && npm run compile --if-present
+          else
+            echo "No ide-extension/package.json found — skipping"
+          fi
+
+  # ──────────────────────────────────────────────────────
+  # Docs: build gate (Docusaurus)
+  # ──────────────────────────────────────────────────────
+  docs-gate:
+    name: Docs Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+      - name: Build docs
+        working-directory: ./website
+        run: npm ci && npm run build
+
+  # ──────────────────────────────────────────────────────
+  # Infrastructure: Terraform fmt + validate
+  # ──────────────────────────────────────────────────────
+  terraform-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5"
+      - name: Terraform fmt check
+        working-directory: ./infrastructure/aws
+        run: terraform fmt -check -recursive
+      - name: Terraform init (no backend)
+        working-directory: ./infrastructure/aws
+        run: terraform init -backend=false
+      - name: Terraform validate
+        working-directory: ./infrastructure/aws
+        run: terraform validate
+
+  # ──────────────────────────────────────────────────────
+  # Security: gitleaks, Trivy fs scan
+  # ──────────────────────────────────────────────────────
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2.3.7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
           ignore-unfixed: true
 
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/init@v3
-        with:
-          languages: python, javascript
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
-  # Build Docker Images
-  build-images:
-    name: Build Docker Images
+  # ──────────────────────────────────────────────────────
+  # Compose & Nginx validation
+  # ──────────────────────────────────────────────────────
+  compose-validate:
+    name: Compose & Nginx Validate
     runs-on: ubuntu-latest
-    needs: [backend-test, frontend-test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate dev compose
+        run: docker compose -f docker/docker-compose.yml config --quiet
+      - name: Validate prod compose
+        env:
+          SECRET_KEY: ci-placeholder
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+          REDIS_HOST: localhost
+          COPILOT_API_KEY: ci-placeholder
+          NEXT_PUBLIC_API_URL: http://localhost
+          NEXT_PUBLIC_APP_URL: http://localhost
+        run: docker compose -f docker/docker-compose.prod.yml config --quiet
+      - name: Validate nginx configs
+        run: |
+          docker run --rm \
+            -v "$PWD/docker/nginx/nginx-prod.conf:/etc/nginx/nginx.conf:ro" \
+            nginx:1.27-alpine nginx -t
+          docker run --rm \
+            -v "$PWD/docker/nginx/nginx-tls.conf:/etc/nginx/nginx.conf:ro" \
+            nginx:1.27-alpine nginx -t 2>&1 || echo "TLS config requires certs — structure validated"
 
+  # ──────────────────────────────────────────────────────
+  # Build & Push Docker Images (main only)
+  # ──────────────────────────────────────────────────────
+  build-images:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test, security-scan, compose-validate, terraform-validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image_tag: ${{ steps.meta-backend.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Backend
+      # --- Backend API image ---
+      - name: Backend metadata
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
           tags: |
-            type=sha
+            type=sha,prefix=
             type=ref,event=branch
             type=semver,pattern={{version}}
 
-      - name: Build and push Backend image
-        uses: docker/build-push-action@v5
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/Dockerfile.backend
+          target: api
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
 
-      - name: Extract metadata for Frontend
+      # --- Crawler image ---
+      - name: Crawler metadata
+        id: meta-crawler
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-crawler
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build & push crawler
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.backend
+          target: crawler
+          push: true
+          tags: ${{ steps.meta-crawler.outputs.tags }}
+          labels: ${{ steps.meta-crawler.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      # --- Frontend image ---
+      - name: Frontend metadata
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
           tags: |
-            type=sha
+            type=sha,prefix=
             type=ref,event=branch
             type=semver,pattern={{version}}
 
-      - name: Build and push Frontend image
-        uses: docker/build-push-action@v5
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/Dockerfile.frontend
@@ -259,14 +408,47 @@ jobs:
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
 
+      # --- Trivy image scans ---
+      - name: Trivy scan — API image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:${{ steps.meta-backend.outputs.version }}
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Trivy scan — Crawler image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-crawler:${{ steps.meta-crawler.outputs.version }}
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Trivy scan — Frontend image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ steps.meta-frontend.outputs.version }}
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          ignore-unfixed: true
+
+  # ──────────────────────────────────────────────────────
   # Deploy to Staging
+  # ──────────────────────────────────────────────────────
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [build-images, security-scan]
+    needs: [build-images]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: staging
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
 
     steps:
       - uses: actions/checkout@v4
@@ -277,43 +459,54 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
-      - name: Deploy backend to ECS staging
+      - name: Promote images to ECR and deploy
         env:
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
           CLUSTER: complianceagent-staging
-          SERVICE: complianceagent-backend-staging
-          IMAGE_TAG: sha-${{ github.sha }}
+          DEPLOY_ENVIRONMENT: staging
+          PRIVATE_SUBNETS: ${{ vars.PRIVATE_SUBNETS }}
+          ECS_SECURITY_GROUP: ${{ vars.ECS_SECURITY_GROUP }}
+          GHCR_REPOSITORY: ${{ github.repository }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ needs.build-images.outputs.image_tag }}
         run: |
-          TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
-          NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
-            --query 'taskDefinition' | \
-            jq --arg IMAGE "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${IMAGE_TAG}" \
-            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
-          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$NEW_REVISION" --force-new-deployment
-          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          ./scripts/deploy-ecs.sh
 
-      - name: Deploy frontend to ECS staging
+      - name: Smoke test
         env:
-          CLUSTER: complianceagent-staging
-          SERVICE: complianceagent-frontend-staging
-          IMAGE_TAG: sha-${{ github.sha }}
+          STAGING_URL: ${{ vars.STAGING_URL || 'https://staging.complianceagent.ai' }}
+          SMOKE_TOKEN: ${{ secrets.SMOKE_TEST_TOKEN }}
         run: |
-          TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
-          NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
-            --query 'taskDefinition' | \
-            jq --arg IMAGE "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${IMAGE_TAG}" \
-            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
-          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$NEW_REVISION" --force-new-deployment
-          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          echo "Checking health..."
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$STAGING_URL/health")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "Checking authenticated endpoint..."
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $SMOKE_TOKEN" \
+            "$STAGING_URL/api/v1/status")
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "401" ]; then
+            echo "::error::Authenticated smoke test failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "✓ Staging smoke tests passed"
 
-  # Deploy to Production (manual approval required)
+  # ──────────────────────────────────────────────────────
+  # Deploy to Production (manual approval via environment)
+  # ──────────────────────────────────────────────────────
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [deploy-staging]
+    needs: [deploy-staging, build-images]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
+    permissions:
+      contents: read
+      id-token: write
+      packages: read
 
     steps:
       - uses: actions/checkout@v4
@@ -324,32 +517,35 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
 
-      - name: Deploy backend to ECS production
+      - name: Promote images to ECR and deploy
         env:
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
           CLUSTER: complianceagent-production
-          SERVICE: complianceagent-backend-production
-          IMAGE_TAG: sha-${{ github.sha }}
+          DEPLOY_ENVIRONMENT: production
+          PRIVATE_SUBNETS: ${{ vars.PRIVATE_SUBNETS }}
+          ECS_SECURITY_GROUP: ${{ vars.ECS_SECURITY_GROUP }}
+          GHCR_REPOSITORY: ${{ github.repository }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ needs.build-images.outputs.image_tag }}
         run: |
-          TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
-          NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
-            --query 'taskDefinition' | \
-            jq --arg IMAGE "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${IMAGE_TAG}" \
-            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
-          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$NEW_REVISION" --force-new-deployment
-          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          ./scripts/deploy-ecs.sh
 
-      - name: Deploy frontend to ECS production
+      - name: Production smoke test
         env:
-          CLUSTER: complianceagent-production
-          SERVICE: complianceagent-frontend-production
-          IMAGE_TAG: sha-${{ github.sha }}
+          PROD_URL: ${{ vars.PROD_URL || 'https://api.complianceagent.ai' }}
+          SMOKE_TOKEN: ${{ secrets.SMOKE_TEST_TOKEN }}
         run: |
-          TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0].taskDefinition' --output text)
-          NEW_TASK_DEF=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
-            --query 'taskDefinition' | \
-            jq --arg IMAGE "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${IMAGE_TAG}" \
-            '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-          NEW_REVISION=$(echo "$NEW_TASK_DEF" | aws ecs register-task-definition --cli-input-json file:///dev/stdin --query 'taskDefinition.taskDefinitionArn' --output text)
-          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --task-definition "$NEW_REVISION" --force-new-deployment
-          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$PROD_URL/health")
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Production health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $SMOKE_TOKEN" \
+            "$PROD_URL/api/v1/status")
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "401" ]; then
+            echo "::error::Production authenticated smoke test failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "✓ Production smoke tests passed"

@@ -17,3 +17,8 @@ output "ecr_frontend_repository_url" {
   description = "URL of the frontend ECR repository"
   value       = aws_ecr_repository.frontend.repository_url
 }
+
+output "ecr_crawler_repository_url" {
+  description = "URL of the crawler ECR repository"
+  value       = aws_ecr_repository.crawler.repository_url
+}

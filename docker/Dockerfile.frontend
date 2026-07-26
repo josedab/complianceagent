@@ -1,17 +1,62 @@
-FROM node:20-alpine
+# =============================================================================
+# ComplianceAgent Frontend — Multi-stage Production Dockerfile
+# Standalone Next.js image built from lockfile, non-root, no devDeps
+# =============================================================================
+
+# --- Stage 1: Install deps from lockfile ---
+FROM node:20-alpine AS deps
+
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --ignore-scripts
+
+# --- Stage 2: Build the Next.js application ---
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY frontend/ .
+
+ARG NEXT_PUBLIC_API_URL=same-origin
+ARG NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL} \
+    NEXT_TELEMETRY_DISABLED=1
+
+RUN npm run build
+
+# --- Stage 3: Production runner (standalone output, no source maps) ---
+FROM node:20-alpine AS runner
+
+LABEL org.opencontainers.image.title="complianceagent-frontend" \
+      org.opencontainers.image.description="ComplianceAgent Next.js frontend" \
+      org.opencontainers.image.vendor="ComplianceAgent"
 
 WORKDIR /app
 
-# Install dependencies
-COPY package*.json ./
-RUN npm ci
+RUN apk upgrade --no-cache libcrypto3 libssl3 \
+    && apk add --no-cache tini curl \
+    && addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs \
+    && npm uninstall --global npm
 
-# Copy application code
-COPY . .
+# Copy only the standalone build output (no node_modules bloat)
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Build the application
-RUN npm run build
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+STOPSIGNAL SIGTERM
+USER nextjs
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+
+ENTRYPOINT ["tini", "--"]
+CMD ["node", "server.js"]
