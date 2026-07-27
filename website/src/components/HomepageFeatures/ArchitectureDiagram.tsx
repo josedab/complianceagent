@@ -47,7 +47,7 @@ const components: ComponentInfo[] = [
   },
 ];
 
-export default function ArchitectureDiagram(): JSX.Element {
+export default function ArchitectureDiagram(): React.JSX.Element {
   const [activeComponent, setActiveComponent] = useState<ComponentInfo | null>(null);
 
   return (

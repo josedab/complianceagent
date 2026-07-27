@@ -147,7 +147,7 @@ function FAQ() {
   );
 }
 
-export default function Pricing(): JSX.Element {
+export default function Pricing(): React.JSX.Element {
   const [annual, setAnnual] = useState(true);
 
   return (
